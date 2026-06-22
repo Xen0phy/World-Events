@@ -1,0 +1,7 @@
+backup/
+build/
+.backup-excludes
+.clangd
+*.gz
+*.tar
+*.png
