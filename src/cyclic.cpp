@@ -25,106 +25,97 @@ std::vector<CyclicGroup> g_CyclicGroups =
     // ---------------------------------------------------------------------------
     // Living World Season 2
     // ---------------------------------------------------------------------------
-    { // Dry Top
-        37129.0f, 32802.0f, 3600,
+    { "Dry Top",
+        37129.0f, 32802.0f, 3600, COL_LWS2,
         {
-            {"Crash Site", 0,    2400, COL_LWS2.ter()},
-            {"Crash Site", 2400, 1200, COL_LWS2.pri()},
+            {"Crash Site", 0,    2400, ColorTier::Tertiary},
+            {"Crash Site", 2400, 1200, ColorTier::Primary},
         }
     },
     
     // ---------------------------------------------------------------------------
     // Heart of Thorns
     // ---------------------------------------------------------------------------
-    { // Verdant Brink
-        35049.0f, 31779.0f, 7200,
+    { "Verdant Brink",
+        35049.0f, 31779.0f, 7200, COL_HOT,
         {
-            { "Night Bosses", 600,  1200, COL_HOT.pri() },
-            { "Securing Day", 1800, 4500, COL_HOT.ter() },
-            { "Night Enemy",  5700, 1500, COL_HOT.sec() },
+            { "Night Bosses", 600,  1200, ColorTier::Primary },
+            { "Securing Day", 1800, 4500, ColorTier::Tertiary },
+            { "Night Enemy",  5700, 1500, ColorTier::Secondary },
         }
     },
-    { // Auric Basin
-        34303.0f, 33915.0f, 7200,
+    { "Auric Basin",
+        34303.0f, 33915.0f, 7200, COL_HOT,
         {
-            { "Challenges", 2700, 900,  COL_HOT.sec() },
-            { "Octovine",   3600, 1200, COL_HOT.pri() },
-            { "Rest",       4800, 600,  COL_HOT.sec() },
-            { "Pylons",     5400, 4500, COL_HOT.ter() },
+            { "Challenges", 2700, 900,  ColorTier::Secondary },
+            { "Octovine",   3600, 1200, ColorTier::Primary },
+            { "Reset",      4800, 600, ColorTier::Secondary },
+            { "Pylons",     5400, 4500, ColorTier::Tertiary },
         }
     },
-    { // Tangled Depths
-        37010.0f, 35040.0f, 7200,
+    { "Tangled Depths",
+        37010.0f, 35040.0f, 7200, COL_HOT,
         {
-            { "Prep",        1500, 300,  COL_HOT.sec() },
-            { "Chak Gerent", 1800, 2400, COL_HOT.pri() },
-            { "Outposts",    4200, 4500, COL_HOT.ter() },
+            { "Prep",        1500, 300,  ColorTier::Secondary },
+            { "Chak Gerent", 1800, 2400, ColorTier::Primary },
+            { "Outposts",    4200, 4500, ColorTier::Tertiary },
         }
     },
-    { // Dragon's Stand
-        35709.0f, 37182.0f, 7200,
+    { "Dragon's Stand",
+        35709.0f, 37182.0f, 7200, COL_HOT,
         {
-            { "Mordremoth Start",    5400, 1800, COL_HOT.pri() },
-            { "Mordremoth Progress", 0,    5400, COL_HOT.sec() },
+            { "Mordremoth Start",    5400, 1800, ColorTier::Primary },
+            { "Mordremoth Progress", 0,    5400, ColorTier::Secondary },
         }
     },
 
     // ---------------------------------------------------------------------------
     // Living World Season 3
     // ---------------------------------------------------------------------------
-    { // Lake Doric
-        45564.0f, 27004.0f, 7200,
+    { "Lake Doric",
+        45564.0f, 27004.0f, 7200, COL_LWS3,
         {
-            {"Saidra's Haven",    0,    2700, COL_LWS3.sec()},
-            {"New Loamhurst",     2700, 2700, COL_LWS3.pri()},
-            {"Noran's Homestead", 5400, 1800, COL_LWS3.ter()},
+            {"Saidra's Haven",    0,    2700, ColorTier::Secondary},
+            {"New Loamhurst",     2700, 2700, ColorTier::Primary},
+            {"Noran's Homestead", 5400, 1800, ColorTier::Tertiary},
         }
     },
 
     // ---------------------------------------------------------------------------
     // Path of Fire
     // ---------------------------------------------------------------------------
-    { // Crystal Oasis
-        58692.0f, 43752.0f, 7200,
+    { "Crystal Oasis",
+        58692.0f, 43752.0f, 7200, COL_POF,
         {
-            { "Casino Rounds", 300,  900,  COL_POF.sec() },
-            { "Choya Pinata",  1200, 600,  COL_POF.pri() },
-            { "Rest",          1800, 5700, COL_POF.ter() },
+            { "Casino Rounds", 300,  900,  ColorTier::Secondary },
+            { "Choya Pinata",  1200, 600,  ColorTier::Primary },
         }
     },
-    { // Desert Highlands
-        59964.0f, 41384.0f, 7200,
+    { "Desert Highlands",
+        59964.0f, 41384.0f, 7200, COL_POF,
         {
-            { "Buried Treasure", 3600, 1200, COL_POF.pri() },
-            { "Rest",            4800, 6000, COL_POF.ter() },
+            { "Buried Treasure", 3600, 1200, ColorTier::Primary },
         }
     },
-    { // Elon Riverlands
-        60715.0f, 45646.0f, 7200,
+    { "Elon Riverlands",
+        60715.0f, 45646.0f, 7200, COL_POF,
         {
-            { "Path of Ascension", 5400, 1500, COL_POF.sec() },
-            { "Doppelganger",      6900, 1200, COL_POF.pri() },
-            { "Rest",              900,  4500, COL_POF.ter() },
+            { "Path of Ascension", 5400, 1500, ColorTier::Secondary },
+            { "Doppelganger",      6900, 1200, ColorTier::Primary },
         }
     },
-    { // The Desolation
-        59943.0f, 50257.0f, 7200,
+    { "The Desolation",
+        59943.0f, 50257.0f, 7200, COL_POF,
         {
-            { "Junundu Rising",  1800, 1200, COL_POF.pri() },
-            { "Rest",            3000, 600,  COL_POF.ter() },
-            { "Maws of Torment", 3600, 1200, COL_POF.sec() },
-            { "Rest",            4800, 600,  COL_POF.ter() },
-            { "Junundu Rising",  5400, 1200, COL_POF.pri() },
-            { "Rest",            6600, 2400, COL_POF.ter() },
+            { "Junundu Rising",  1800, 1200, ColorTier::Primary, 2 },
+            { "Maws of Torment", 3600, 1200, ColorTier::Secondary },
         }
     },
-    { // Domain of Vabbi
-        66332.0f, 53596.0f, 7200,
+    { "Domain of Vabbi",
+        66332.0f, 53596.0f, 7200, COL_POF,
         {
-            { "Forged with Fire", 0,    1800, COL_POF.pri() },
-            { "Serpents' Ire",    1800, 1800, COL_POF.sec() },
-            { "Forged with Fire", 3600, 1800, COL_POF.pri() },
-            { "Rest",             5400, 1800, COL_POF.ter() },
+            { "Forged with Fire", 0,    1800, ColorTier::Primary, 2 },
+            { "Serpents' Ire",    1800, 1800, ColorTier::Secondary },
         }
     },
     

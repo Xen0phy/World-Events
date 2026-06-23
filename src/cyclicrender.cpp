@@ -6,6 +6,8 @@
 #include "imgui_internal.h"
 #include <ctime>
 #include <cmath>
+#include <algorithm>
+#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -90,19 +92,33 @@ static void DrawArc(ImDrawList* dl, ImVec2 center, float radius,
 // ---------------------------------------------------------------------------
 // Draws a 270° arc for each CyclicGroup. Arc geometry:
 //
-//   Hand fixed at 0° (top). Events rotate counter-clockwise.
-//   Arc drawn CCW from 225° (entry, bottom-left) to 315° (exit, upper-left).
-//   Gap: 315° → 225° CCW = 90° gap on the left side.
+//   Hand fixed at 0° (top, "now"). Events rotate counter-clockwise.
+//   Arc covers 270° total (ARC_FROM/ARC_TO), leaving a 90° gap centered
+//   at the bottom of the circle, opposite the hand.
 //
 //   1° = SECS_PER_DEG seconds (26.67s for a 2h cycle).
 //
-//   Future events sit CW from the hand (positive angles from 0°).
-//     Entry point 225° = 225 * 26.67s ≈ 100min in the future.
-//   Past events sit CCW from the hand (angles near 360°).
-//     Exit point 315° = 45 * 26.67s ≈ 20min in the past.
+//   Future events sit CW from the hand (positive angles from 0°, growing
+//   toward 270°). Entry point ARC_FROM=270° ≈ 75min in the future
+//   (MAX_FUTURE_SECS).
+//   Past events sit CCW from the hand (angles approaching 360°, capped at
+//   ARC_TO=270°). Exit point ≈ 15min in the past (MAX_PAST_SECS).
 //
-//   The past portion of the track (0° to 315° CCW) fades from full
-//   opacity at the hand to transparent at the exit point.
+//   The past portion of the track (0° to 270°, measured CCW from the hand)
+//   fades from full opacity at the hand to transparent at the exit point.
+//
+//   Each occurrence of a slot is drawn from TWO INDEPENDENT clocks:
+//     - EXIT: its own active/past fade-out, computed per wrap-pass (a
+//       wrapping occurrence is split into a this-cycle tail + next-cycle
+//       head so the active segment renders correctly across the 0s/period
+//       boundary).
+//     - ENTRY: the lead-in to this occurrence's NEXT recurrence, computed
+//       once per occurrence — using the occurrence's true offset/duration,
+//       not a wrap-pass's partial duration — from (period - phase), i.e.
+//       time until that same occurrence starts again. This is tracked
+//       independently of whether the current occurrence is still active,
+//       which is what lets the entering arc appear before the exiting arc
+//       has fully faded out, instead of waiting for it to disappear first.
 // ---------------------------------------------------------------------------
 
 static constexpr float SECS_PER_DEG  = 7200.0f / 360.0f;
@@ -112,6 +128,46 @@ static constexpr float HAND_DEG      = 0.0f;    // top   — now
 
 static constexpr float MAX_FUTURE_SECS = 270.0f * SECS_PER_DEG; // ~75min
 static constexpr float MAX_PAST_SECS   =  90.0f * SECS_PER_DEG; // ~15min
+
+// ---------------------------------------------------------------------------
+// Luminance / idle color helpers
+// ---------------------------------------------------------------------------
+// Idle/background ring color is derived per-group as the darkest slot's
+// ter() color (lowest perceived luminance), computed fresh each call so it
+// stays correct if slot colors are edited at runtime later.
+// ---------------------------------------------------------------------------
+static float Luminance(ImU32 color)
+{
+    float r = (float)((color >>  0) & 0xFF);
+    float g = (float)((color >>  8) & 0xFF);
+    float b = (float)((color >> 16) & 0xFF);
+    return 0.2126f * r + 0.7152f * g + 0.0722f * b;
+}
+
+static ImU32 GroupIdleColor(const CyclicGroup& grp, ImU32 fallback)
+{
+    if (grp.slots.empty())
+        return fallback;
+
+    ImU32 darkest    = grp.SlotColor(grp.slots[0]);
+    float darkestLum = Luminance(darkest);
+
+    for (const auto& slot : grp.slots)
+    {
+        ImU32 color = grp.SlotColor(slot);
+        float lum = Luminance(color);
+        if (lum < darkestLum)
+        {
+            darkestLum = lum;
+            darkest    = color;
+        }
+    }
+
+    // Keep the idle ring's own alpha (track transparency), use darkest slot's RGB.
+    ImU32 rgb = darkest & 0x00FFFFFF;
+    ImU32 a   = fallback & 0xFF000000;
+    return rgb | a;
+}
 
 void RenderCyclicGroups()
 {
@@ -140,11 +196,13 @@ void RenderCyclicGroups()
         if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
         if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
 
-        // --- Gray background track ---
+        // --- Background track, idle-colored (darkest slot's ter()) ---
+        ImU32 colTrack = GroupIdleColor(grp, COL_TRACK);
+
         // Future portion: solid
-        DrawArc(dl, pos, RADIUS, ARC_FROM, HAND_DEG, COL_TRACK, THICKNESS);
+        DrawArc(dl, pos, RADIUS, ARC_FROM, HAND_DEG, colTrack, THICKNESS);
         // Past portion: fades from full opacity at hand to transparent at exit
-        DrawArc(dl, pos, RADIUS, HAND_DEG, ARC_TO,   COL_TRACK, THICKNESS,
+        DrawArc(dl, pos, RADIUS, HAND_DEG, ARC_TO,   colTrack, THICKNESS,
                 1.0f, 0.0f);
 
         // --- Draw each slot ---
@@ -152,50 +210,81 @@ void RenderCyclicGroups()
 
         for (const auto& slot : grp.slots)
         {
-            // Split wrapping slots into two passes: tail of this cycle + head of next.
-            int slotEnd  = slot.offset + slot.duration;
-            int wrapDur  = slotEnd > grp.period ? slotEnd % grp.period : 0;
-            int passes   = wrapDur ? 2 : 1;
+            ImU32 color  = grp.SlotColor(slot);
+            int repeat   = slot.repeat > 0 ? slot.repeat : 1;
+            int subSpan  = grp.period / repeat; // spacing between repeated occurrences
 
-            for (int pass = 0; pass < passes; pass++)
+            for (int r = 0; r < repeat; r++)
             {
-                int offset   = pass == 0 ? slot.offset : 0;
-                int duration = pass == 0 ? (grp.period - slot.offset) : wrapDur;
+                int baseOffset = slot.offset + r * subSpan;
 
-                // Phase within this pass
-                int phase          = ((secondsOfDay - offset) % grp.period + grp.period) % grp.period;
-                bool active        = (phase < duration);
-                int secsFromStart  = phase;
-                int secsUntilStart = active ? 0 : (grp.period - phase);
+                // --- Exit side: split wrapping occurrences into two passes so the
+                // active/fade-out segment renders correctly across the 0s/period
+                // boundary. (Tail of this cycle + head of next.)
+                //
+                // BUGFIX: pass 0's duration must be the slot's own duration
+                // (capped at what actually fits before the period boundary),
+                // NOT (period - baseOffset) — that older formula accidentally
+                // used "time remaining in the cycle" as the active-window
+                // length, which is only correct by coincidence when duration
+                // happens to reach exactly to the period boundary. For any
+                // slot/occurrence starting at offset 0 (e.g. "Mordremoth
+                // Progress", or repeat-occurrence r=0 of "Forged with Fire"),
+                // this made `active` true for almost the entire cycle.
+                int slotEnd = baseOffset + slot.duration;
+                int wrapDur = slotEnd > grp.period ? slotEnd % grp.period : 0;
+                int passes  = wrapDur ? 2 : 1;
 
-                if (active)
+                for (int pass = 0; pass < passes; pass++)
                 {
-                    // Segment straddles the hand.
-                    float futureDeg = fminf((float)(duration - secsFromStart) / SECS_PER_DEG,
-                                            ARC_FROM);
-                    float pastSecs  = fminf((float)secsFromStart, MAX_PAST_SECS);
-                    float pastDeg   = 360.0f - pastSecs / SECS_PER_DEG;
+                    int offset   = pass == 0 ? baseOffset : 0;
+                    int duration = pass == 0 ? (slot.duration - wrapDur) : wrapDur;
+                    if (duration <= 0) continue;
 
-                    // Future part: solid color
-                    if (futureDeg > HAND_DEG)
-                        DrawArc(dl, pos, RADIUS, futureDeg, HAND_DEG,
-                                slot.color, THICKNESS);
+                    int phase         = ((secondsOfDay - offset) % grp.period + grp.period) % grp.period;
+                    bool active       = (phase < duration);
+                    int secsFromStart = phase;
 
-                    // Past part: fades to transparent
-                    if (pastDeg < 360.0f)
-                        DrawArc(dl, pos, RADIUS, HAND_DEG, pastDeg,
-                                slot.color, THICKNESS, 1.0f, 0.0f);
+                    if (active)
+                    {
+                        // Segment straddles the hand.
+                        float futureDeg = fminf((float)(duration - secsFromStart) / SECS_PER_DEG,
+                                                ARC_FROM);
+                        float pastSecs  = fminf((float)secsFromStart, MAX_PAST_SECS);
+                        float pastDeg   = 360.0f - pastSecs / SECS_PER_DEG;
+
+                        // Future part: solid color
+                        if (futureDeg > HAND_DEG)
+                            DrawArc(dl, pos, RADIUS, futureDeg, HAND_DEG,
+                                    color, THICKNESS);
+
+                        // Past part: fades to transparent
+                        if (pastDeg < 360.0f)
+                            DrawArc(dl, pos, RADIUS, HAND_DEG, pastDeg,
+                                    color, THICKNESS, 1.0f, 0.0f);
+                    }
                 }
-                else
-                {
-                    // Segment fully in the future — skip if beyond entry point
-                    if ((float)secsUntilStart > MAX_FUTURE_SECS) continue;
 
-                    float leadDeg  = (float)secsUntilStart / SECS_PER_DEG;
-                    float trailDeg = fminf((float)(secsUntilStart + duration) / SECS_PER_DEG,
+                // --- Entry side: lead-in of THIS occurrence's next recurrence.
+                // Computed ONCE per occurrence (not per wrap-pass) from the
+                // occurrence's true offset/duration — a wrapping occurrence is
+                // one logical event, so it must only produce one entry arc for
+                // its next recurrence, not one per pass.
+                //
+                // Time until next start is independent of whether the current
+                // occurrence is still active — that's what lets the entering arc
+                // appear before the exiting arc (above) has fully faded out,
+                // instead of waiting for `active` to flip.
+                int basePhase     = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
+                int secsUntilNext = grp.period - basePhase;
+                if ((float)secsUntilNext <= MAX_FUTURE_SECS)
+                {
+                    float leadDeg  = (float)secsUntilNext / SECS_PER_DEG;
+                    float trailDeg = fminf((float)(secsUntilNext + slot.duration) / SECS_PER_DEG,
                                            ARC_FROM);
 
-                    DrawArc(dl, pos, RADIUS, trailDeg, leadDeg, slot.color, THICKNESS);
+                    if (trailDeg > leadDeg)
+                        DrawArc(dl, pos, RADIUS, trailDeg, leadDeg, color, THICKNESS);
                 }
             }
         }
@@ -212,34 +301,87 @@ void RenderCyclicGroups()
                 {pos.x + hoverR, pos.y + hoverR}))
         {
             ImGui::BeginTooltip();
+            ImGui::TextUnformatted(grp.name);
+            ImGui::Separator();
+
+            // Collect one status entry per slot (collapsing each slot's own
+            // `repeat` occurrences down to its single most relevant one, as
+            // before), then sort: active entries first, then upcoming ones by
+            // soonest start. Slots that merely share a display name (e.g. two
+            // separate "Junundu Rising" windows) are NOT merged — each is a
+            // distinct scheduled occurrence and keeps its own line.
+            struct TooltipEntry
+            {
+                const char* name;
+                ImU32       color;
+                bool        active;
+                int         secs;   // secsLeft if active, secsUntilStart if upcoming
+            };
+            std::vector<TooltipEntry> entries;
 
             for (const auto& slot : grp.slots)
             {
-                // Fixed phase formula — same as draw loop
-                int phase          = ((secondsOfDay - slot.offset) % grp.period + grp.period) % grp.period;
-                bool active        = (phase < slot.duration);
-                int secsFromStart  = phase;
-                int secsUntilStart = active ? 0 : (grp.period - phase);
+                ImU32 color = grp.SlotColor(slot);
+                int repeat  = slot.repeat > 0 ? slot.repeat : 1;
+                int subSpan = grp.period / repeat;
 
-                if (active)
+                bool foundActive    = false;
+                int  activeSecsLeft = 0;
+                bool foundUpcoming  = false;
+                int  bestSecsUntil  = grp.period;
+
+                for (int r = 0; r < repeat; r++)
                 {
-                    int secsLeft = slot.duration - secsFromStart;
-                    ImGui::TextColored(ImVec4(
-                        ((slot.color >>  0) & 0xFF) / 255.0f,
-                        ((slot.color >>  8) & 0xFF) / 255.0f,
-                        ((slot.color >> 16) & 0xFF) / 255.0f, 1.0f),
-                        "%s — Active (ends in %dm %02ds)",
-                        slot.name, secsLeft / 60, secsLeft % 60);
+                    int baseOffset = slot.offset + r * subSpan;
+                    int phase          = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
+                    bool active        = (phase < slot.duration);
+                    int secsUntilStart = active ? 0 : (grp.period - phase);
+
+                    if (active)
+                    {
+                        foundActive    = true;
+                        activeSecsLeft = slot.duration - phase;
+                        break; // a slot can't be active in two repeats at once
+                    }
+                    else if (secsUntilStart < bestSecsUntil)
+                    {
+                        foundUpcoming = true;
+                        bestSecsUntil = secsUntilStart;
+                    }
                 }
-                else if ((float)secsUntilStart <= MAX_FUTURE_SECS)
+
+                if (foundActive)
+                    entries.push_back({ slot.name, color, true, activeSecsLeft });
+                else if (foundUpcoming && (float)bestSecsUntil <= MAX_FUTURE_SECS)
+                    entries.push_back({ slot.name, color, false, bestSecsUntil });
+            }
+
+            std::sort(entries.begin(), entries.end(), [](const TooltipEntry& a, const TooltipEntry& b)
+            {
+                if (a.active != b.active) return a.active; // active entries first
+                return a.secs < b.secs;                    // then soonest first
+            });
+
+            for (const auto& e : entries)
+            {
+                if (e.active)
                 {
-                    int s = secsUntilStart;
+                    ImGui::TextColored(ImVec4(
+                        ((e.color >>  0) & 0xFF) / 255.0f,
+                        ((e.color >>  8) & 0xFF) / 255.0f,
+                        ((e.color >> 16) & 0xFF) / 255.0f, 1.0f),
+                        "%s — Active (ends in %dm %02ds)",
+                        e.name, e.secs / 60, e.secs % 60);
+                }
+                else
+                {
+                    int s = e.secs;
                     if (s >= 3600)
                         ImGui::Text("%s — in %dh %02dm",
-                            slot.name, s / 3600, (s % 3600) / 60);
+                            e.name, s / 3600, (s % 3600) / 60);
                     else
                         ImGui::Text("%s — in %dm %02ds",
-                            slot.name, s / 60, s % 60);
+                            e.name, s / 60, s % 60);
                 }
             }
 
