@@ -17,10 +17,12 @@ add_custom_target(bump_rev
 
 add_library(gw2-world-events SHARED
     src/addon.cpp
+    src/addon_options.cpp
     src/maprender.cpp
     src/events.cpp
     src/cyclicrender.cpp
     src/cyclic.cpp
+    src/settings.cpp
     include/imgui.cpp
     include/imgui_draw.cpp
     include/imgui_tables.cpp

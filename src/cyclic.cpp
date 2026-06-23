@@ -49,7 +49,6 @@ std::vector<CyclicGroup> g_CyclicGroups =
         {
             { "Challenges", 2700, 900,  ColorTier::Secondary },
             { "Octovine",   3600, 1200, ColorTier::Primary },
-            { "Reset",      4800, 600, ColorTier::Secondary },
             { "Pylons",     5400, 4500, ColorTier::Tertiary },
         }
     },
@@ -107,8 +106,9 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "The Desolation",
         59943.0f, 50257.0f, 7200, COL_POF,
         {
-            { "Junundu Rising",  1800, 1200, ColorTier::Primary, 2 },
+            { "Junundu Rising",  1800, 1200, ColorTier::Primary },
             { "Maws of Torment", 3600, 1200, ColorTier::Secondary },
+            { "Junundu Rising",  5400, 1200, ColorTier::Primary },
         }
     },
     { "Domain of Vabbi",

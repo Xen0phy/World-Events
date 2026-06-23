@@ -50,6 +50,16 @@ struct CyclicGroup
 
     std::vector<Slot> slots;
 
+    // Optional override for the idle/background track color (the part of
+    // the ring where nothing is scheduled). If not set, defaults to
+    // colors.ter() — already the dimmest shade of the group's palette by
+    // construction, so no separate derivation is needed for the common
+    // case. Only needed explicitly when a user wants the idle track to be
+    // a genuinely different color than any shade of the group's own palette
+    // (e.g. for a single-slot group where ter() might still look too close
+    // to the slot's own color for the user's taste).
+    std::optional<ImU32> idleColor;
+
     ImU32 SlotColor(const Slot& slot) const
     {
         if (slot.customColor.has_value())
@@ -61,6 +71,11 @@ struct CyclicGroup
             case ColorTier::Tertiary:  return colors.ter();
             default:                   return colors.pri();
         }
+    }
+
+    ImU32 IdleColor() const
+    {
+        return idleColor.has_value() ? *idleColor : colors.ter();
     }
 };
 

@@ -2,6 +2,7 @@
 #include "addon.h"
 #include "cyclic.h"
 #include "maprender.h"
+#include "settings.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <ctime>
@@ -121,61 +122,28 @@ static void DrawArc(ImDrawList* dl, ImVec2 center, float radius,
 //       has fully faded out, instead of waiting for it to disappear first.
 // ---------------------------------------------------------------------------
 
-static constexpr float SECS_PER_DEG  = 7200.0f / 360.0f;
-static constexpr float ARC_FROM      = 270.0f;  // entry — furthest future
-static constexpr float ARC_TO        = 270.0f;  // exit  — furthest past
 static constexpr float HAND_DEG      = 0.0f;    // top   — now
 
-static constexpr float MAX_FUTURE_SECS = 270.0f * SECS_PER_DEG; // ~75min
-static constexpr float MAX_PAST_SECS   =  90.0f * SECS_PER_DEG; // ~15min
-
-// ---------------------------------------------------------------------------
-// Luminance / idle color helpers
-// ---------------------------------------------------------------------------
-// Idle/background ring color is derived per-group as the darkest slot's
-// ter() color (lowest perceived luminance), computed fresh each call so it
-// stays correct if slot colors are edited at runtime later.
-// ---------------------------------------------------------------------------
-static float Luminance(ImU32 color)
-{
-    float r = (float)((color >>  0) & 0xFF);
-    float g = (float)((color >>  8) & 0xFF);
-    float b = (float)((color >> 16) & 0xFF);
-    return 0.2126f * r + 0.7152f * g + 0.0722f * b;
-}
-
-static ImU32 GroupIdleColor(const CyclicGroup& grp, ImU32 fallback)
-{
-    if (grp.slots.empty())
-        return fallback;
-
-    ImU32 darkest    = grp.SlotColor(grp.slots[0]);
-    float darkestLum = Luminance(darkest);
-
-    for (const auto& slot : grp.slots)
-    {
-        ImU32 color = grp.SlotColor(slot);
-        float lum = Luminance(color);
-        if (lum < darkestLum)
-        {
-            darkestLum = lum;
-            darkest    = color;
-        }
-    }
-
-    // Keep the idle ring's own alpha (track transparency), use darkest slot's RGB.
-    ImU32 rgb = darkest & 0x00FFFFFF;
-    ImU32 a   = fallback & 0xFF000000;
-    return rgb | a;
-}
+// NOTE: SECS_PER_DEG used to be a single file-scope constexpr hardcoded to
+// a 7200s cycle. It's now computed per-group inside RenderCyclicGroups
+// from that group's own `period`, since groups can have different cycle
+// lengths (Dry Top runs 3600s; most others run 7200s) — a single hardcoded
+// value silently misdrew any group whose period didn't match it.
+//
+// MAX_FUTURE_SECS / MAX_PAST_SECS are likewise computed per-group now, from
+// settings stored as DEGREES (CyclicMaxFutureDeg / CyclicMaxPastDeg, see
+// settings_table.h) so the user can adjust the entry/exit window at runtime
+// via the options panel, independent of any one group's period. ARC_FROM/
+// ARC_TO are always exactly those same degree settings — they're derived,
+// not independently stored, so the two can never silently disagree.
 
 void RenderCyclicGroups()
 {
     ImDrawList* dl  = ImGui::GetForegroundDrawList();
     time_t      now = time(nullptr);
 
-    constexpr float RADIUS    = 20.0f;
-    constexpr float THICKNESS = 40.0f;
+    const float RADIUS    = CyclicRadius;
+    const float THICKNESS = CyclicThickness;
     constexpr ImU32 COL_TRACK = IM_COL32(100, 100, 100, 120);
     constexpr ImU32 COL_HAND  = IM_COL32(255, 255, 255, 240);
 
@@ -191,13 +159,43 @@ void RenderCyclicGroups()
 
     for (const auto& grp : g_CyclicGroups)
     {
+        // SECS_PER_DEG is derived from THIS group's own period, not a
+        // hardcoded constant — Dry Top runs a 3600s cycle while most other
+        // groups run 7200s, so a single global SECS_PER_DEG would silently
+        // misdraw every group whose period differs from whatever value
+        // happened to be hardcoded.
+        const float SECS_PER_DEG = (float)grp.period / 360.0f;
+
+        // CyclicMaxFutureDeg/CyclicMaxPastDeg are stored as DEGREES
+        // (period-independent) and converted to this group's own seconds
+        // here, at the point of use — see settings_table.h for why seconds
+        // can't be the stored unit when groups have different periods.
+        const float MAX_FUTURE_SECS = CyclicMaxFutureDeg * SECS_PER_DEG;
+        const float MAX_PAST_SECS   = CyclicMaxPastDeg   * SECS_PER_DEG;
+
+        // ARC_FROM is the future-side boundary, measured directly from the hand (0°).
+        // ARC_TO is the past-side boundary for the BACKGROUND TRACK specifically:
+        // the per-slot past-fade (below) sweeps from the hand (0°) up toward 360°,
+        // so its boundary is expressed as (360° - past-angle), not the past-angle
+        // itself — these are NOT the same number unless future-angle + past-angle
+        // happens to equal 360° (true by coincidence with the old hardcoded
+        // 270°/90° values, which is why this distinction was easy to miss).
+        const float ARC_FROM = CyclicMaxFutureDeg;
+        const float ARC_TO   = 360.0f - CyclicMaxPastDeg;
+
         ImVec2 pos = ContinentToScreen(grp.continentX, grp.continentY);
 
         if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
         if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
 
-        // --- Background track, idle-colored (darkest slot's ter()) ---
-        ImU32 colTrack = GroupIdleColor(grp, COL_TRACK);
+        // --- Background track, idle-colored (group's idleColor, defaulting
+        // to colors.ter() — see CyclicGroup::IdleColor() in cyclic.h) ---
+        // RGB comes from the idle color; alpha comes from COL_TRACK, so the
+        // idle background stays visually translucent/recessed compared to
+        // an active slot's full-opacity arc, regardless of which color
+        // ends up being used as the idle color.
+        ImU32 idle     = grp.IdleColor();
+        ImU32 colTrack = (idle & 0x00FFFFFF) | (COL_TRACK & 0xFF000000);
 
         // Future portion: solid
         DrawArc(dl, pos, RADIUS, ARC_FROM, HAND_DEG, colTrack, THICKNESS);
@@ -352,7 +350,7 @@ void RenderCyclicGroups()
 
                 if (foundActive)
                     entries.push_back({ slot.name, color, true, activeSecsLeft });
-                else if (foundUpcoming && (float)bestSecsUntil <= MAX_FUTURE_SECS)
+                else if (foundUpcoming)
                     entries.push_back({ slot.name, color, false, bestSecsUntil });
             }
 

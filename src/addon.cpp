@@ -3,12 +3,15 @@
 #include "events.h"
 #include "maprender.h"
 #include "cyclicrender.h"
+#include "settings.h"
 #include "imgui.h"
 #include "version.h"
 
 AddonAPI_t*      APIDefs    = nullptr;
 Mumble::Data*    MumbleLink = nullptr;
 NexusLinkData_t* NexusLink  = nullptr;
+
+std::string g_AddonDir;
 
 void AddonLoad(AddonAPI_t* aAPI)
 {
@@ -26,7 +29,11 @@ void AddonLoad(AddonAPI_t* aAPI)
     MumbleLink = (Mumble::Data*)    APIDefs->DataLink_Get(DL_MUMBLE_LINK);
     NexusLink  = (NexusLinkData_t*) APIDefs->DataLink_Get(DL_NEXUS_LINK);
 
+    g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");
+    LoadSettings(g_AddonDir); // missing file -> globals keep settings_table.h defaults
+
     APIDefs->GUI_Register(RT_Render, AddonRender);
+    APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
 
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Loaded.");
 }
@@ -35,6 +42,9 @@ void AddonUnload()
 {
     // Deregister first — stop any in-flight render calls
     APIDefs->GUI_Deregister(AddonRender);
+    APIDefs->GUI_Deregister(AddonOptions);
+
+    SaveSettings(g_AddonDir);
 
     // Force heap frees now while the CRT is still intact,
     // rather than leaving it to the static destructor at DLL unload.
@@ -54,7 +64,8 @@ void AddonRender()
     if (!MumbleLink->Context.IsMapOpen)     return;
 
     RenderMapEvents();
-    RenderCyclicGroups();
+    if (ShowCyclicOverlay)
+        RenderCyclicGroups();
 }
 
 extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef()
