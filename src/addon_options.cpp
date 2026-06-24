@@ -13,6 +13,7 @@
 // groups/slots/events is a separate, later piece once JSON persistence for
 // g_CyclicGroups/g_Events exists.
 
+#include "build_info.h"
 #include "settings.h"
 #include "imgui.h"
 #include "imgui_internal.h" // ImGuiItemFlags_Disabled / PushItemFlag — not in the public header
@@ -48,6 +49,7 @@ struct ImGuiScopedDisabled
 // ---------------------------------------------------------------------------
 void AddonOptions()
 {
+    ImGui::TextDisabled("Release: %s", DateAndTime.c_str());
     ImGui::TextUnformatted("World Events");
     ImGui::Separator();
 
@@ -61,8 +63,10 @@ void AddonOptions()
     {
         ImGui::Spacing();
         ImGui::TextUnformatted("Ring appearance");
-        ImGui::SliderFloat("Radius",    &CyclicRadius,    5.0f, 100.0f, "%.0f px");
+        ImGui::SliderFloat("Radius",    &CyclicRadius,    5.0f, 50.0f, "%.0f px");
+        if ( CyclicRadius < CyclicThickness / 2 ) { CyclicThickness = CyclicRadius * 2; }
         ImGui::SliderFloat("Thickness", &CyclicThickness, 5.0f, 100.0f, "%.0f px");
+        if ( CyclicThickness > CyclicRadius * 2 ) { CyclicRadius = CyclicThickness / 2; }
 
         ImGui::Spacing();
         ImGui::TextUnformatted("Entry / exit window");

@@ -132,7 +132,13 @@ ImVec2 ContinentToScreen(float cx, float cy)
 // ---------------------------------------------------------------------------
 void RenderMapEvents()
 {
-    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    // Background draw list, not foreground — see the comment in
+    // cyclicrender.cpp's RenderCyclicGroups for why: the foreground list
+    // composites AFTER tooltips, so the hover tooltip was rendering
+    // underneath these dots. Background draws before all ImGui content
+    // (including tooltips), fixing that, while still sitting on top of
+    // GW2's own game-world rendering either way.
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
     constexpr float RADIUS     = 8.0f;
     constexpr float RING_THICK = 1.5f;

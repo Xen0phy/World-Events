@@ -4,6 +4,7 @@
 #include "maprender.h"
 #include "cyclicrender.h"
 #include "settings.h"
+#include "events_storage.h"
 #include "imgui.h"
 #include "version.h"
 
@@ -32,6 +33,16 @@ void AddonLoad(AddonAPI_t* aAPI)
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");
     LoadSettings(g_AddonDir); // missing file -> globals keep settings_table.h defaults
 
+    // g_Events / g_CyclicGroups are already populated with the compiled-in
+    // defaults at this point (events.cpp / cyclic.cpp run at static-init
+    // time, before AddonLoad). LoadEventsData merges those defaults with
+    // whatever's saved on disk (by name — see events_storage.cpp) and
+    // replaces g_Events / g_CyclicGroups with the merged result. Missing
+    // file -> defaults are left untouched, and the SaveEventsData call
+    // below then writes them out so the file exists from this run on.
+    LoadEventsData(g_AddonDir);
+    SaveEventsData(g_AddonDir);
+
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
 
@@ -45,6 +56,7 @@ void AddonUnload()
     APIDefs->GUI_Deregister(AddonOptions);
 
     SaveSettings(g_AddonDir);
+    SaveEventsData(g_AddonDir);
 
     // Force heap frees now while the CRT is still intact,
     // rather than leaving it to the static destructor at DLL unload.

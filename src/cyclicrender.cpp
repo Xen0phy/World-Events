@@ -9,6 +9,8 @@
 #include <cmath>
 #include <algorithm>
 #include <vector>
+#include <unordered_map>
+#include <string>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -139,7 +141,18 @@ static constexpr float HAND_DEG      = 0.0f;    // top   — now
 
 void RenderCyclicGroups()
 {
-    ImDrawList* dl  = ImGui::GetForegroundDrawList();
+    // Background draw list, not foreground: the foreground list is
+    // composited LAST among all ImGui content, which includes tooltips
+    // (a tooltip is just another ImGui window under the hood) — so rings
+    // drawn on the foreground list always painted over the hover tooltip,
+    // regardless of draw call order within this function. The background
+    // list draws FIRST among ImGui content, before every regular window
+    // and tooltip, so the tooltip now correctly composites on top.
+    // This only affects ordering relative to other ImGui content — GW2's
+    // own game-world rendering happens in an entirely separate pass below
+    // all ImGui content either way, so the rings still sit on top of the
+    // game itself exactly as before.
+    ImDrawList* dl  = ImGui::GetBackgroundDrawList();
     time_t      now = time(nullptr);
 
     const float RADIUS    = CyclicRadius;
@@ -302,12 +315,15 @@ void RenderCyclicGroups()
             ImGui::TextUnformatted(grp.name);
             ImGui::Separator();
 
-            // Collect one status entry per slot (collapsing each slot's own
-            // `repeat` occurrences down to its single most relevant one, as
-            // before), then sort: active entries first, then upcoming ones by
-            // soonest start. Slots that merely share a display name (e.g. two
-            // separate "Junundu Rising" windows) are NOT merged — each is a
-            // distinct scheduled occurrence and keeps its own line.
+            // Collect one status entry PER UNIQUE SLOT NAME across the whole
+            // group — not one per Slot entry. Two Slot entries sharing a
+            // name (whether from one Slot's own `repeat` occurrences, or
+            // from separate Slot entries that happen to share a name, e.g.
+            // Dry Top's two "Crash Site" slots at different offsets) are
+            // the same event as far as the user needs to know on hover:
+            // only the active occurrence (if any) or the single soonest
+            // upcoming occurrence matters. The ring still draws every
+            // occurrence regardless — this collapsing is tooltip-text only.
             struct TooltipEntry
             {
                 const char* name;
@@ -315,7 +331,11 @@ void RenderCyclicGroups()
                 bool        active;
                 int         secs;   // secsLeft if active, secsUntilStart if upcoming
             };
-            std::vector<TooltipEntry> entries;
+
+            // Keyed by name so multiple Slot entries sharing a name reduce
+            // to a single candidate before anything gets pushed into the
+            // final, sorted entries list below.
+            std::unordered_map<std::string, TooltipEntry> byName;
 
             for (const auto& slot : grp.slots)
             {
@@ -348,11 +368,35 @@ void RenderCyclicGroups()
                     }
                 }
 
-                if (foundActive)
-                    entries.push_back({ slot.name, color, true, activeSecsLeft });
-                else if (foundUpcoming)
-                    entries.push_back({ slot.name, color, false, bestSecsUntil });
+                if (!foundActive && !foundUpcoming)
+                    continue;
+
+                TooltipEntry candidate = foundActive
+                    ? TooltipEntry{ slot.name, color, true, activeSecsLeft }
+                    : TooltipEntry{ slot.name, color, false, bestSecsUntil };
+
+                auto it = byName.find(slot.name);
+                if (it == byName.end())
+                {
+                    byName.emplace(slot.name, candidate);
+                }
+                else
+                {
+                    // Reduce against whatever's already there for this name:
+                    // active beats upcoming; otherwise soonest wins.
+                    TooltipEntry& existing = it->second;
+                    bool candidateWins =
+                        (candidate.active && !existing.active) ||
+                        (candidate.active == existing.active && candidate.secs < existing.secs);
+                    if (candidateWins)
+                        existing = candidate;
+                }
             }
+
+            std::vector<TooltipEntry> entries;
+            entries.reserve(byName.size());
+            for (const auto& kv : byName)
+                entries.push_back(kv.second);
 
             std::sort(entries.begin(), entries.end(), [](const TooltipEntry& a, const TooltipEntry& b)
             {

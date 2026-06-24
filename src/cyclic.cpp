@@ -29,7 +29,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         37129.0f, 32802.0f, 3600, COL_LWS2,
         {
             {"Crash Site", 0,    2400, ColorTier::Tertiary},
-            {"Crash Site", 2400, 1200, ColorTier::Primary},
+            {"Sandstorm",  2400, 1200, ColorTier::Primary},
         }
     },
     
@@ -106,9 +106,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "The Desolation",
         59943.0f, 50257.0f, 7200, COL_POF,
         {
-            { "Junundu Rising",  1800, 1200, ColorTier::Primary },
+            { "Junundu Rising",  1800, 1200, ColorTier::Primary, 2 },
             { "Maws of Torment", 3600, 1200, ColorTier::Secondary },
-            { "Junundu Rising",  5400, 1200, ColorTier::Primary },
         }
     },
     { "Domain of Vabbi",
