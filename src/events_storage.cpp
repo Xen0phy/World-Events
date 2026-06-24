@@ -49,7 +49,6 @@
 #include <fstream>
 #include <filesystem>
 #include <unordered_map>
-#include <deque>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -64,34 +63,6 @@ static constexpr int EVENTS_DATA_VERSION = 1;
 // ---------------------------------------------------------------------------
 // WorldEvent (de)serialization
 // ---------------------------------------------------------------------------
-// `name` is stored as a real C++ string in JSON but WorldEvent::name is a
-// const char* (string-literal-backed in events.cpp). Deserialized entries
-// need their own persistent storage for the string — see InternName()
-// below, used by WorldEvent, CyclicGroup, and CyclicGroup::Slot
-// deserialization alike.
-// ---------------------------------------------------------------------------
-
-// Deserialized name/event-name strings need to outlive the json object they
-// came from, but WorldEvent/CyclicGroup/Slot only store a const char*, not
-// a std::string. This keeps every deserialized name string alive for the
-// lifetime of the program (same lifetime as g_Events/g_CyclicGroups
-// themselves), avoiding a dangling pointer the moment the loader's local
-// json/string temporaries go out of scope.
-//
-// IMPORTANT: this MUST be std::deque, not std::vector. push_back on a
-// vector can reallocate its entire backing buffer once capacity is
-// exceeded, which silently invalidates every c_str() pointer handed out by
-// earlier calls — turning every name already in g_Events/g_CyclicGroups
-// into a dangling pointer the moment a later InternName() call triggers a
-// resize. std::deque never relocates existing elements on push_back, so a
-// pointer returned by an earlier call stays valid no matter how many more
-// names get interned afterward.
-static std::deque<std::string> s_NameStorage;
-static const char* InternName(const std::string& s)
-{
-    s_NameStorage.push_back(s);
-    return s_NameStorage.back().c_str();
-}
 
 static json SerializeEvent(const WorldEvent& ev)
 {
@@ -115,7 +86,7 @@ static json SerializeEvent(const WorldEvent& ev)
 static WorldEvent DeserializeEvent(const json& j)
 {
     WorldEvent ev{};
-    ev.name       = InternName(j.value("name", std::string("Unnamed Event")));
+    ev.name       = j.value("name", std::string("Unnamed Event"));
     ev.continentX = j.value("continentX", 0.0f);
     ev.continentY = j.value("continentY", 0.0f);
     ev.isVarying  = j.value("isVarying", false);
@@ -186,7 +157,7 @@ static json SerializeSlot(const CyclicGroup::Slot& slot)
 static CyclicGroup::Slot DeserializeSlot(const json& j)
 {
     CyclicGroup::Slot slot{};
-    slot.name     = InternName(j.value("name", std::string("Unnamed Event")));
+    slot.name     = j.value("name", std::string("Unnamed Event"));
     slot.offset   = j.value("offset", 0);
     slot.duration = j.value("duration", 0);
     slot.tier     = ColorTierFromString(j.value("tier", std::string("Primary")));
@@ -224,7 +195,7 @@ static json SerializeGroup(const CyclicGroup& grp)
 static CyclicGroup DeserializeGroup(const json& j)
 {
     CyclicGroup grp{};
-    grp.name       = InternName(j.value("name", std::string("Unnamed Group")));
+    grp.name       = j.value("name", std::string("Unnamed Group"));
     grp.continentX = j.value("continentX", 0.0f);
     grp.continentY = j.value("continentY", 0.0f);
     grp.period     = j.value("period", 7200);
@@ -305,7 +276,7 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
 // a slot/group genuinely sharing a name elsewhere) can't silently corrupt
 // the merge the way a name-only key did before this fix.
 static std::string GroupKey(const CyclicGroup& g) { return g.name; }
-static std::string SlotKey(const CyclicGroup::Slot& s) { return std::string(s.name) + "|" + std::to_string(s.offset); }
+static std::string SlotKey(const CyclicGroup::Slot& s) { return s.name + "|" + std::to_string(s.offset); }
 static std::string EventKey(const WorldEvent& e) { return e.name; }
 
 // CyclicGroups need an extra pass: even when a group itself matches by key

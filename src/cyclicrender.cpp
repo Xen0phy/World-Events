@@ -312,7 +312,7 @@ void RenderCyclicGroups()
                 {pos.x + hoverR, pos.y + hoverR}))
         {
             ImGui::BeginTooltip();
-            ImGui::TextUnformatted(grp.name);
+            ImGui::TextUnformatted(grp.name.c_str());
             ImGui::Separator();
 
             // Collect one status entry PER UNIQUE SLOT NAME across the whole
@@ -326,7 +326,7 @@ void RenderCyclicGroups()
             // occurrence regardless — this collapsing is tooltip-text only.
             struct TooltipEntry
             {
-                const char* name;
+                std::string name;
                 ImU32       color;
                 bool        active;
                 int         secs;   // secsLeft if active, secsUntilStart if upcoming
@@ -413,17 +413,17 @@ void RenderCyclicGroups()
                         ((e.color >>  8) & 0xFF) / 255.0f,
                         ((e.color >> 16) & 0xFF) / 255.0f, 1.0f),
                         "%s — Active (ends in %dm %02ds)",
-                        e.name, e.secs / 60, e.secs % 60);
+                        e.name.c_str(), e.secs / 60, e.secs % 60);
                 }
                 else
                 {
                     int s = e.secs;
                     if (s >= 3600)
                         ImGui::Text("%s — in %dh %02dm",
-                            e.name, s / 3600, (s % 3600) / 60);
+                            e.name.c_str(), s / 3600, (s % 3600) / 60);
                     else
                         ImGui::Text("%s — in %dm %02ds",
-                            e.name, s / 60, s % 60);
+                            e.name.c_str(), s / 60, s % 60);
                 }
             }
 

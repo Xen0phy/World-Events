@@ -187,17 +187,17 @@ void RenderMapEvents()
             {
                 int secsUntilEnd = SecondsUntilEnd(ev, now);
                 ImGui::Text("%s — Active (ends in %dm %02ds)",
-                    ev.name, secsUntilEnd / 60, secsUntilEnd % 60);
+                    ev.name.c_str(), secsUntilEnd / 60, secsUntilEnd % 60);
             }
             else if (secs >= 3600)
             {
                 ImGui::Text("%s — in %dh %02dm",
-                    ev.name, secs / 3600, (secs % 3600) / 60);
+                    ev.name.c_str(), secs / 3600, (secs % 3600) / 60);
             }
             else
             {
                 ImGui::Text("%s — in %dm %02ds",
-                    ev.name, secs / 60, secs % 60);
+                    ev.name.c_str(), secs / 60, secs % 60);
             }
             ImGui::EndTooltip();
         }

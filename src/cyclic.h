@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <optional>
+#include <string>
 #include "imgui.h"
 
 constexpr ImU32 HEX(unsigned int rrggbbaa, float factor = 1.0f)
@@ -25,7 +26,7 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 
 struct CyclicGroup
 {
-    const char* name;        // overall name of the cycle, e.g. "Domain of Vabbi"
+    std::string name;        // overall name of the cycle, e.g. "Domain of Vabbi"
     float continentX;
     float continentY;
     int   period;       // seconds per full cycle
@@ -33,7 +34,7 @@ struct CyclicGroup
 
     struct Slot
     {
-        const char* name;
+        std::string name;
         int         offset;    // seconds from UTC midnight of first occurrence
         int         duration;  // seconds
         ColorTier   tier = ColorTier::Primary; // which of the group's colors.pri()/sec()/ter() to use by default

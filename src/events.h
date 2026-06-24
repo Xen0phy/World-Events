@@ -1,9 +1,10 @@
 #pragma once
 #include <vector>
+#include <string>
 
 struct WorldEvent
 {
-    const char* name;       // Event name
+    std::string name;       // Event name
     float       continentX; // X coordinate on map
     float       continentY; // Y coordinate on map
     bool        isVarying;  // no periodic schedule

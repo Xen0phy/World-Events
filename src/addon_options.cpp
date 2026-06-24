@@ -76,13 +76,8 @@ void AddonOptions()
             "degrees of the ring so it scales correctly regardless of how long "
             "a given cycle runs.");
         ImGui::SliderFloat("Future window", &CyclicMaxFutureDeg, 0.0f, 360.0f, "%.0f deg");
+        if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxPastDeg = 360 - CyclicMaxFutureDeg; }
         ImGui::SliderFloat("Past window",   &CyclicMaxPastDeg,   0.0f, 360.0f, "%.0f deg");
-
-        if (CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f)
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
-                "Future + past window exceeds 360°, so the ring no longer has "
-                "an idle gap — arcs will overlap.");
-        }
+        if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxFutureDeg = 360 - CyclicMaxPastDeg; }
     }
 }
