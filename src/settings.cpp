@@ -13,7 +13,6 @@
 
 #include "settings.h"
 #include <fstream>
-#include <sstream>
 #include <filesystem>
 #include <cstring>
 
