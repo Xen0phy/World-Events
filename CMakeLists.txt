@@ -24,6 +24,7 @@ add_library(gw2-world-events SHARED
     src/cyclic.cpp
     src/settings.cpp
     src/events_storage.cpp
+    src/categories.cpp
     include/imgui.cpp
     include/imgui_draw.cpp
     include/imgui_tables.cpp

@@ -1,4 +1,4 @@
 constexpr int Maj = 0;
-constexpr int Min = 3;
-constexpr int Bld = 2;
-constexpr int Rev = 5;
+constexpr int Min = 4;
+constexpr int Bld = 1;
+constexpr int Rev = 7;

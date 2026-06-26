@@ -53,12 +53,30 @@
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
-// Bump this when the SHAPE of the on-disk data changes in a way old files
-// can't just fall through defaults for (e.g. a field is removed/renamed,
-// not just added). Adding a new optional field with a sensible j.value()
-// default does NOT require a bump — old files keep loading fine, the new
-// field just falls back to its default until the user sets it.
-static constexpr int EVENTS_DATA_VERSION = 1;
+// A date, as an int (YYYYMMDD), bumped whenever EITHER of these change:
+//   - the on-disk SHAPE changes in a way old files can't just fall through
+//     defaults for (a field is removed/renamed, not just added — adding a
+//     new optional field with a sensible j.value() default does NOT need
+//     a bump, since old files keep loading fine and the new field just
+//     falls back to its default until the user sets it)
+//   - the COMPILED-IN CONTENT changes (a group/event/slot was added,
+//     removed, or renamed in cyclic.cpp/events.cpp)
+//
+// This drives the merge behavior in LoadEventsData below: if the saved
+// file's version already matches this constant, the file is known to be
+// fully current with the compiled-in defaults, so a name present in the
+// defaults but missing from the file is treated as something the USER
+// removed/renamed — it is NOT resurrected. Resurrection (treating a
+// missing default as new shipped content) only happens when this
+// constant is genuinely newer than what's saved, i.e. an actual new
+// build with actual new/changed content.
+//
+// Without this check, renaming something to collide with another
+// existing name would cause the old name to come back from the compiled
+// defaults on the very next load (looking, to the merge, identical to
+// "a new build added this back") while the renamed duplicate also
+// persisted — a real bug found and fixed this session.
+static constexpr int EVENTS_DATA_VERSION = 20260626;
 
 // ---------------------------------------------------------------------------
 // WorldEvent (de)serialization
@@ -217,10 +235,25 @@ static CyclicGroup DeserializeGroup(const json& j)
 // Generic merge used for both top-level (events/groups) and nested (slots
 // within a matched group) merging:
 //   - key present in both  -> loaded (disk) version wins
-//   - key only in defaults -> append (new compiled-in content)
+//   - key only in defaults -> append IF resurrectMissingDefaults is true
+//                              (new compiled-in content from a newer
+//                              build); otherwise DROPPED — the file is
+//                              already current with these defaults, so a
+//                              missing name means the user removed or
+//                              renamed it, not that it's new content.
 //   - key only in loaded   -> append (orphaned/user-created, kept as-is)
 // Preserves defaults' relative order first, then appends anything in
 // loaded that wasn't matched, in the order it appeared on disk.
+//
+// resurrectMissingDefaults should be true only when the file's saved
+// data_version is OLDER than the compiled-in EVENTS_DATA_VERSION — see
+// LoadEventsData. When the versions match, the file is known fully
+// current, and treating an unmatched default as "new content" instead of
+// "the user changed it" is exactly what caused a real bug this session:
+// renaming something to collide with another existing name made the old
+// name reappear from the compiled defaults on the next load, alongside
+// the renamed duplicate, since the merge couldn't tell a rename apart
+// from a brand new build adding content back.
 //
 // IMPORTANT: the key function must produce a value that's actually unique
 // within the list, or entries silently collide and corrupt each other on
@@ -234,7 +267,7 @@ static CyclicGroup DeserializeGroup(const json& j)
 // key used for groups/events vs slots.
 // ---------------------------------------------------------------------------
 template<typename T, typename KeyFn>
-static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vector<T>& loaded, KeyFn getKey)
+static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vector<T>& loaded, KeyFn getKey, bool resurrectMissingDefaults)
 {
     std::unordered_map<std::string, size_t> loadedIndexByKey;
     for (size_t i = 0; i < loaded.size(); i++)
@@ -254,10 +287,12 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
             result.push_back(loaded[it->second]);
             matched[it->second] = true;
         }
-        else
+        else if (resurrectMissingDefaults)
         {
             result.push_back(def);
         }
+        // else: dropped — the file is current, this default's absence
+        // from it means the user removed/renamed it, not new content.
     }
 
     for (size_t i = 0; i < loaded.size(); i++)
@@ -284,7 +319,14 @@ static std::string EventKey(const WorldEvent& e) { return e.name; }
 // the same way one level deeper — otherwise a new slot added to that group
 // in a newer build would never appear, since the whole loaded group object
 // would simply replace the compiled-in one wholesale.
-static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defaults, const std::vector<CyclicGroup>& loaded)
+//
+// resurrectMissingDefaults is forwarded to BOTH levels: a group missing
+// from the file is only re-added when the file predates this build's
+// content (see MergeByKey's comment above for why), and a SLOT missing
+// from an otherwise-matched group's loaded slot list follows the exact
+// same rule — a slot the user deleted from an existing group shouldn't
+// reappear just because the group itself still exists.
+static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defaults, const std::vector<CyclicGroup>& loaded, bool resurrectMissingDefaults)
 {
     std::unordered_map<std::string, size_t> loadedIndexByKey;
     for (size_t i = 0; i < loaded.size(); i++)
@@ -303,11 +345,11 @@ static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defa
             // ...but its slot list is merged with the compiled-in slot list,
             // so newly-added slots in `def` still show up even though the
             // rest of the group's fields come from the loaded version.
-            merged.slots = MergeByKey(def.slots, loaded[it->second].slots, SlotKey);
+            merged.slots = MergeByKey(def.slots, loaded[it->second].slots, SlotKey, resurrectMissingDefaults);
             result.push_back(merged);
             matched[it->second] = true;
         }
-        else
+        else if (resurrectMissingDefaults)
         {
             result.push_back(def);
         }
@@ -359,6 +401,18 @@ bool SaveEventsData(const std::string& addonDir)
 // disk, by name, per the rules described at the top of this file. The
 // merged result REPLACES g_Events/g_CyclicGroups in place.
 //
+// The file's saved "data_version" is compared against the compiled-in
+// EVENTS_DATA_VERSION: if the file is already current (saved >= compiled,
+// the normal case — "<" handles a build downgrade gracefully too, see
+// below), a compiled-in default missing from the file is treated as
+// something the user removed/renamed, NOT new content, and is dropped
+// rather than resurrected. Only a genuinely older file (saved <
+// compiled — an actual upgrade to a build with new/changed content) gets
+// the resurrection behavior. This is what fixes the rename-collision bug:
+// renaming something to match an existing name no longer brings the old
+// name back from the compiled defaults on the next load, since the file
+// is (almost always) already current.
+//
 // Missing file -> not an error: g_Events/g_CyclicGroups are simply left as
 // the compiled-in defaults, and the caller (addon.cpp) is expected to call
 // SaveEventsData afterward so the file exists from then on.
@@ -373,6 +427,9 @@ bool LoadEventsData(const std::string& addonDir)
 
         json j = json::parse(file);
 
+        int savedVersion = j.value("data_version", 0);
+        bool resurrectMissingDefaults = savedVersion < EVENTS_DATA_VERSION;
+
         std::vector<WorldEvent> loadedEvents;
         if (j.contains("events") && j["events"].is_array())
             for (const auto& ej : j["events"])
@@ -383,9 +440,9 @@ bool LoadEventsData(const std::string& addonDir)
             for (const auto& gj : j["cyclicGroups"])
                 loadedGroups.push_back(DeserializeGroup(gj));
 
-        g_Events = MergeByKey(g_Events, loadedEvents, EventKey);
+        g_Events = MergeByKey(g_Events, loadedEvents, EventKey, resurrectMissingDefaults);
 
-        g_CyclicGroups = MergeGroups(g_CyclicGroups, loadedGroups);
+        g_CyclicGroups = MergeGroups(g_CyclicGroups, loadedGroups, resurrectMissingDefaults);
 
         return true;
     }

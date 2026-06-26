@@ -5,6 +5,7 @@
 #include "cyclicrender.h"
 #include "settings.h"
 #include "events_storage.h"
+#include "categories.h"
 #include "imgui.h"
 #include "version.h"
 
@@ -41,7 +42,15 @@ void AddonLoad(AddonAPI_t* aAPI)
     // file -> defaults are left untouched, and the SaveEventsData call
     // below then writes them out so the file exists from this run on.
     LoadEventsData(g_AddonDir);
+
+    // Categories have no compiled-in defaults to merge against (they're
+    // entirely user-created), so this just loads straight from the same
+    // events.json file. Order relative to LoadEventsData doesn't matter
+    // here — only the SAVE order below does, see categories.h.
+    LoadCategoriesData(g_AddonDir);
+
     SaveEventsData(g_AddonDir);
+    SaveCategoriesData(g_AddonDir); // must run AFTER SaveEventsData — see categories.h
 
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
@@ -57,6 +66,7 @@ void AddonUnload()
 
     SaveSettings(g_AddonDir);
     SaveEventsData(g_AddonDir);
+    SaveCategoriesData(g_AddonDir); // must run AFTER SaveEventsData — see categories.h
 
     // Force heap frees now while the CRT is still intact,
     // rather than leaving it to the static destructor at DLL unload.
@@ -65,6 +75,11 @@ void AddonUnload()
 
     g_CyclicGroups.clear();
     g_CyclicGroups.shrink_to_fit();
+
+    g_BasicCategories.clear();
+    g_BasicCategories.shrink_to_fit();
+    g_CyclicCategories.clear();
+    g_CyclicCategories.shrink_to_fit();
 
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Unloaded.");
 }
