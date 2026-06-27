@@ -22,6 +22,8 @@
 #include "imgui_internal.h" // ImGuiItemFlags_Disabled / PushItemFlag — not in the public header
 #include <cstring>
 #include <algorithm>
+#include <cctype>
+#include <map>
 
 // Scoped "disable + dim" helper for ImGui 1.80 (no native BeginDisabled/
 // EndDisabled in this version). Usage: DisabledBlock(cond) { ...widgets... }
@@ -220,6 +222,131 @@ static bool MakeDropTarget(const char* dragType, std::vector<Category>& categori
 }
 
 // ---------------------------------------------------------------------------
+// DrawNameAndContextMenu
+// ---------------------------------------------------------------------------
+// Draws a row's expand/collapse TreeNode WITH its name as the node's own
+// label (so the full row stays hoverable/clickable, not just a narrow
+// arrow glyph — an earlier version of this split the name out of the
+// label entirely, which silently shrank the hoverable area down to just
+// the arrow). Right-clicking that same TreeNode opens a small popup with
+// "Edit name" and "Delete". "Edit name" doesn't replace the label — it
+// just reveals an inline InputText + Save button immediately after it
+// (SameLine), additively, so the always-visible name stays exactly where
+// it was; the edit field is the only thing that's conditionally shown.
+//
+// editBuffers is a per-context std::map<int, std::string> the caller owns
+// (one each for Basic Events, Cyclic Groups, Basic Categories, Cyclic
+// Categories — see the static maps near each call site), keyed by index.
+// The map entry IS the in-progress edit text — it's seeded once when
+// editing starts and then left alone every subsequent frame (NOT
+// re-synced from currentName each frame, which was a real bug: re-syncing
+// every frame meant whatever the user had typed got silently overwritten
+// back to the original name before Save ever saw it, so edits never
+// actually stuck). InputText is allowed to mutate the map entry directly.
+//
+// editKey and removeIndex are deliberately separate parameters, not one
+// shared index: for slots specifically, the editBuffers map is shared
+// across every group (see DrawCyclicGroupRow), so the edit-tracking key
+// has to combine the group index too — but pendingRemoveSlotIndex must
+// still receive the bare slot index, since that's what the caller's
+// grp.slots.erase(...) actually indexes by. Every OTHER call site
+// (events, groups, categories) just passes the same value for both.
+//
+// Returns {open, newName}: open is the TreeNode's own expand/collapse
+// state (callers use this exactly like the old `bool open = TreeNode(...)`
+// did); newName is the possibly-edited name — callers assign this back
+// into their own ev.name / grp.name / cat.name and are responsible for
+// any follow-up (e.g. RenameCategoryMember). Sets pendingRemoveIndex =
+// removeIndex if "Delete" was clicked.
+// ---------------------------------------------------------------------------
+struct NameRowResult { bool open; std::string newName; };
+
+static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType = nullptr)
+{
+    bool open = ImGui::TreeNode(treeNodeId, "%s", currentName.empty() ? "(unnamed)" : currentName.c_str());
+
+    // Drag source attaches to the TreeNode itself, right after it's
+    // drawn — NOT after BeginPopupContextItem/the edit fields below,
+    // since those are conditional and the row should stay draggable by
+    // its name/header regardless of whether it's mid-rename. Optional:
+    // categories aren't drag SOURCES (only drag TARGETS), so they pass
+    // nullptr here and this is skipped entirely.
+    if (dragType)
+        MakeDragSource(dragType, currentName);
+
+    if (ImGui::BeginPopupContextItem("##name_context_menu"))
+    {
+        if (ImGui::MenuItem("Edit name"))
+            editBuffers[editKey] = currentName; // seed once, on transition into edit mode only
+        ImGui::Separator();
+        if (ImGui::MenuItem("Delete"))
+            pendingRemoveIndex = removeIndex;
+        ImGui::EndPopup();
+    }
+
+    auto it = editBuffers.find(editKey);
+    if (it == editBuffers.end())
+        return { open, currentName };
+
+    ImGui::SameLine();
+    char buf[128];
+    strncpy(buf, it->second.c_str(), sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    ImGui::SetNextItemWidth(160.0f);
+    if (ImGui::InputText("##inline_name_edit", buf, sizeof(buf)))
+        it->second = buf; // persists into NEXT frame via the map entry, not lost
+
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Save##name_edit_save"))
+    {
+        std::string saved = it->second;
+        editBuffers.erase(it);
+        return { open, saved };
+    }
+
+    return { open, currentName }; // unchanged until Save is actually clicked
+}
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+// One shared query filters both Basic Events and Cyclic Events at once —
+// a single search box, not two — per the call made this session. The
+// query itself is pure transient UI state (not something worth persisting
+// across sessions), hence a plain static local in AddonOptions rather
+// than a settings_table.h entry.
+//
+// Matching is case-insensitive substring, and for Cyclic Events checks
+// BOTH the group's own name AND every one of its slot names — so typing
+// "Crash Site" finds Dry Top even though "Dry Top" itself doesn't contain
+// that text, matching the call made this session that slot names should
+// be searchable too.
+// ---------------------------------------------------------------------------
+static bool ContainsCaseInsensitive(const std::string& haystack, const std::string& needleLower)
+{
+    if (needleLower.empty()) return true; // empty query matches everything
+    std::string haystackLower = haystack;
+    std::transform(haystackLower.begin(), haystackLower.end(), haystackLower.begin(),
+        [](unsigned char c) { return (char)std::tolower(c); });
+    return haystackLower.find(needleLower) != std::string::npos;
+}
+
+static bool EventMatchesSearch(const WorldEvent& ev, const std::string& queryLower)
+{
+    return ContainsCaseInsensitive(ev.name, queryLower);
+}
+
+static bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower)
+{
+    if (ContainsCaseInsensitive(grp.name, queryLower)) return true;
+    for (const auto& slot : grp.slots)
+        if (ContainsCaseInsensitive(slot.name, queryLower)) return true;
+    return false;
+}
+
+
+// ---------------------------------------------------------------------------
 // AddonOptions
 // ---------------------------------------------------------------------------
 // Draws the World Events section inside the Nexus options panel.
@@ -244,37 +371,31 @@ static bool MakeDropTarget(const char* dragType, std::vector<Category>& categori
 // ---------------------------------------------------------------------------
 static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 {
+    // Tracks which g_Events indices currently have their name in
+    // edit mode — see DrawNameAndContextMenu's comment. Function-static
+    // rather than a parameter since every call site for Basic Events
+    // shares the same underlying index space and the same intent: "is
+    // THIS event index currently being renamed," regardless of whether
+    // it's being drawn from the category pass or the uncategorized pass
+    // this frame.
+    static std::map<int, std::string> editingNames;
+
     WorldEvent& ev = g_Events[i];
 
-    // Name buffer is separate from ev.name (a std::string) because
-    // InputText needs a raw, fixed-size char* to write into — it can't
-    // write directly into a std::string in this ImGui version. Synced
-    // from ev.name once per row per frame; written back immediately
-    // whenever the user changes it (InputText's own return value tells
-    // us a change happened this frame, so there's no separate "did the
-    // user finish typing" step needed).
-    char nameBuf[128];
-    strncpy(nameBuf, ev.name.c_str(), sizeof(nameBuf) - 1);
-    nameBuf[sizeof(nameBuf) - 1] = '\0';
+    std::string oldName = ev.name;
+    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType);
+    bool open = nameResult.open;
+    if (nameResult.newName != oldName)
+    {
+        ev.name = nameResult.newName;
+        RenameCategoryMember(g_BasicCategories, oldName, ev.name);
+    }
 
-    bool open = ImGui::TreeNode("##event_node", "%s", ev.name.empty() ? "(unnamed)" : ev.name.c_str());
-    MakeDragSource(kBasicEventDragType, ev.name);
-    ImGui::SameLine();
-    bool removeClicked = ImGui::SmallButton("-##remove");
-    if (removeClicked)
-        pendingRemoveIndex = i;
     if (IsDuplicateEventName(g_Events, i))
         DrawDuplicateWarning();
 
     if (open)
     {
-        std::string oldName = ev.name;
-        if (ImGui::InputText("Name", nameBuf, sizeof(nameBuf)))
-        {
-            ev.name = nameBuf;
-            RenameCategoryMember(g_BasicCategories, oldName, ev.name);
-        }
-
         ImGui::SetNextItemWidth(100.0f);
         ImGui::InputFloat2("Location", &ev.continentX, "%.0f");
 
@@ -401,29 +522,24 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 // ---------------------------------------------------------------------------
 static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 {
+    static std::map<int, std::string> editingNames; // see the identical comment in DrawBasicEventRow
+
     CyclicGroup& grp = g_CyclicGroups[i];
 
-    char nameBuf[128];
-    strncpy(nameBuf, grp.name.c_str(), sizeof(nameBuf) - 1);
-    nameBuf[sizeof(nameBuf) - 1] = '\0';
+    std::string oldGroupName = grp.name;
+    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, grp.name, editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType);
+    bool open = nameResult.open;
+    if (nameResult.newName != oldGroupName)
+    {
+        grp.name = nameResult.newName;
+        RenameCategoryMember(g_CyclicCategories, oldGroupName, grp.name);
+    }
 
-    bool open = ImGui::TreeNode("##group_node", "%s", grp.name.empty() ? "(unnamed)" : grp.name.c_str());
-    MakeDragSource(kCyclicGroupDragType, grp.name);
-    ImGui::SameLine();
-    if (ImGui::SmallButton("-##remove_group"))
-        pendingRemoveGroupIndex = i;
     if (IsDuplicateGroupName(g_CyclicGroups, i))
         DrawDuplicateWarning();
 
     if (open)
     {
-        std::string oldGroupName = grp.name;
-        if (ImGui::InputText("Cycle Name", nameBuf, sizeof(nameBuf)))
-        {
-            grp.name = nameBuf;
-            RenameCategoryMember(g_CyclicCategories, oldGroupName, grp.name);
-        }
-
         // Compact row: Location, Period, base Color, Custom Idle toggle,
         // and the Idle Color swatch all share one line instead of each
         // taking a full row — the previous one-field-per-line layout
@@ -493,27 +609,31 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
         int pendingRemoveSlotIndex = -1;
 
+        // editingSlotNames is declared OUTSIDE this loop (function-static
+        // to DrawCyclicGroupRow), so it's shared across EVERY group this
+        // function is called for, not reset per group — keying it by
+        // bare slot index `s` would incorrectly conflate group A's slot 0
+        // with group B's slot 0. Combining the outer group index `i`
+        // with `s` gives each (group, slot) pair its own genuinely unique
+        // key in the shared set.
+        static std::map<int, std::string> editingSlotNames;
+
         for (int s = 0; s < (int)grp.slots.size(); s++)
         {
             CyclicGroup::Slot& slot = grp.slots[s];
             ImGui::PushID(s);
 
-            char slotNameBuf[128];
-            strncpy(slotNameBuf, slot.name.c_str(), sizeof(slotNameBuf) - 1);
-            slotNameBuf[sizeof(slotNameBuf) - 1] = '\0';
+            int slotEditKey = i * 100000 + s;
+            NameRowResult nameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, slot.name, editingSlotNames, pendingRemoveSlotIndex);
+            bool slotOpen = nameResult.open;
+            if (nameResult.newName != slot.name)
+                slot.name = nameResult.newName; // no RenameCategoryMember call — slots aren't categorized, only the two top-level lists are
 
-            bool slotOpen = ImGui::TreeNode("##slot_node", "%s", slot.name.empty() ? "(unnamed)" : slot.name.c_str());
-            ImGui::SameLine();
-            if (ImGui::SmallButton("-##remove_slot"))
-                pendingRemoveSlotIndex = s;
             if (IsDuplicateSlotKey(grp.slots, s))
                 DrawDuplicateWarning();
 
             if (slotOpen)
             {
-                if (ImGui::InputText("Event Name", slotNameBuf, sizeof(slotNameBuf)))
-                    slot.name = slotNameBuf;
-
                 ImGui::SetNextItemWidth(80.0f);
                 int offsetMinutes = slot.offset / 60;
                 if (ImGui::InputInt("Offset (min)", &offsetMinutes))
@@ -659,6 +779,23 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
 
+    // Static, not a setting: pure transient UI state, not worth
+    // persisting across sessions. One box filters BOTH Basic Events and
+    // Cyclic Events at once — see the long comment on the search helpers
+    // above for what "filters" means for each (event name only vs. group
+    // name + every slot name).
+    static char searchBuf[128] = "";
+    ImGui::SetNextItemWidth(200.0f);
+    ImGui::InputText("Search##global_search", searchBuf, sizeof(searchBuf));
+    std::string searchQueryLower = searchBuf;
+    std::transform(searchQueryLower.begin(), searchQueryLower.end(), searchQueryLower.begin(),
+        [](unsigned char c) { return (char)std::tolower(c); });
+    bool searchActive = !searchQueryLower.empty();
+    
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    
     // -----------------------------------------------------------------------
     // Basic Events (g_Events) — both branches. Each event is drawn as a
     // header with its fields nested underneath, matching the indentation
@@ -684,6 +821,7 @@ void AddonOptions()
 
     int pendingRemoveIndex = -1;
     int pendingRemoveBasicCategoryIndex = -1;
+    static std::map<int, std::string> editingBasicCategoryNames;
 
     // -----------------------------------------------------------------------
     // Category-aware draw order: each category's members are drawn first
@@ -713,20 +851,42 @@ void AddonOptions()
         Category& cat = g_BasicCategories[c];
         ImGui::PushID(1000000 + c); // offset well clear of any real event index
 
-        char catNameBuf[128];
-        strncpy(catNameBuf, cat.name.c_str(), sizeof(catNameBuf) - 1);
-        catNameBuf[sizeof(catNameBuf) - 1] = '\0';
+        // Pre-check (before drawing the TreeNode) whether this category
+        // contains at least one search match, so SetNextItemOpen can
+        // force it expanded BEFORE the TreeNode call itself — ImGui needs
+        // to know the open state before drawing the node, not after.
+        // Also pre-check whether the CATEGORY's own name matches, since a
+        // category whose name itself matches should show all its
+        // members, not just ones that individually match too.
+        bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
+        bool categoryHasMatch = categoryNameMatches;
+        if (!categoryHasMatch)
+            for (const std::string& memberName : cat.members)
+                for (const auto& ev : g_Events)
+                    if (ev.name == memberName && EventMatchesSearch(ev, searchQueryLower))
+                        categoryHasMatch = true;
 
-        bool catOpen = ImGui::TreeNode("##category_node", "%s", cat.name.empty() ? "(unnamed category)" : cat.name.c_str());
-        MakeDropTarget(kBasicEventDragType, g_BasicCategories, c);
-        ImGui::SameLine();
-        if (ImGui::SmallButton("-##remove_category"))
-            pendingRemoveBasicCategoryIndex = c;
-
-        if (catOpen)
+        // When a search is active and this category has no match at
+        // all, skip drawing its header entirely — previously it still
+        // rendered (just force-collapsed via SetNextItemOpen(false)
+        // above), which is why a non-matching category was still
+        // visible, just folded shut, instead of disappearing the way a
+        // non-matching event/group already does in the uncategorized
+        // pass. catOpen is left false in this case (TreeNode is simply
+        // never called), and the membership loop below still runs
+        // unconditionally either way — see its own comment for why that
+        // has to stay independent of whether the header drew at all.
+        bool catOpen = false;
+        if (!searchActive || categoryHasMatch)
         {
-            if (ImGui::InputText("Category Name", catNameBuf, sizeof(catNameBuf)))
-                cat.name = catNameBuf; // no rename-patching needed: nothing else references a CATEGORY by name (unlike events/groups, members point at THEM, not the reverse)
+            if (searchActive)
+                ImGui::SetNextItemOpen(categoryHasMatch, ImGuiCond_Always);
+
+            NameRowResult nameResult = DrawNameAndContextMenu("##category_node", c, c, cat.name, editingBasicCategoryNames, pendingRemoveBasicCategoryIndex);
+            catOpen = nameResult.open;
+            MakeDropTarget(kBasicEventDragType, g_BasicCategories, c);
+            if (nameResult.newName != cat.name)
+                cat.name = nameResult.newName; // no rename-patching needed: nothing else references a CATEGORY by name (unlike events/groups, members point at THEM, not the reverse)
         }
 
         // Membership bookkeeping happens UNCONDITIONALLY, every frame,
@@ -736,6 +896,14 @@ void AddonOptions()
         // categorized" and "is the category currently expanded enough to
         // draw it" are two separate questions. Only the actual row
         // DRAWING is gated on catOpen.
+        //
+        // Search filtering: a member is drawn if it matches the search
+        // itself, OR if the category's own name matches (in which case
+        // every member shows, not just individually-matching ones) — but
+        // isCategorized[i] is set regardless of whether it's drawn, so a
+        // member hidden by an active search still correctly stays out of
+        // the uncategorized pass rather than incorrectly reappearing
+        // there just because the search filtered it out of view here.
         for (const std::string& memberName : cat.members)
         {
             for (int i = 0; i < (int)g_Events.size(); i++)
@@ -743,7 +911,9 @@ void AddonOptions()
                 if (g_Events[i].name != memberName) continue;
                 isCategorized[i] = true;
 
-                if (catOpen)
+                bool memberMatches = categoryNameMatches || EventMatchesSearch(g_Events[i], searchQueryLower);
+
+                if (catOpen && memberMatches)
                 {
                     ImGui::PushID(i);
                     DrawBasicEventRow(i, pendingRemoveIndex);
@@ -770,6 +940,7 @@ void AddonOptions()
     for (int i = 0; i < (int)g_Events.size(); i++)
     {
         if (isCategorized[i]) continue;
+        if (!EventMatchesSearch(g_Events[i], searchQueryLower)) continue;
 
         ImGui::PushID(i);
         DrawBasicEventRow(i, pendingRemoveIndex);
@@ -823,6 +994,7 @@ void AddonOptions()
 
     int pendingRemoveGroupIndex = -1;
     int pendingRemoveCyclicCategoryIndex = -1;
+    static std::map<int, std::string> editingCyclicCategoryNames;
 
     // Same category-aware draw order as Basic Events above — see the
     // comment there for the full reasoning (matched by name, deletions
@@ -835,26 +1007,40 @@ void AddonOptions()
         Category& cat = g_CyclicCategories[c];
         ImGui::PushID(2000000 + c); // offset clear of both event indices and basic-category indices
 
-        char catNameBuf[128];
-        strncpy(catNameBuf, cat.name.c_str(), sizeof(catNameBuf) - 1);
-        catNameBuf[sizeof(catNameBuf) - 1] = '\0';
+        // Same pre-check as Basic Events above: figure out match state
+        // BEFORE the TreeNode call, since SetNextItemOpen has to be
+        // called before the node is drawn, not after.
+        bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
+        bool categoryHasMatch = categoryNameMatches;
+        if (!categoryHasMatch)
+            for (const std::string& memberName : cat.members)
+                for (const auto& grp : g_CyclicGroups)
+                    if (grp.name == memberName && GroupMatchesSearch(grp, searchQueryLower))
+                        categoryHasMatch = true;
 
-        bool catOpen = ImGui::TreeNode("##cyclic_category_node", "%s", cat.name.empty() ? "(unnamed category)" : cat.name.c_str());
-        MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, c);
-        ImGui::SameLine();
-        if (ImGui::SmallButton("-##remove_cyclic_category"))
-            pendingRemoveCyclicCategoryIndex = c;
-
-        if (catOpen)
+        // Same skip-when-no-match fix as Basic Events above: when a
+        // search is active and this category has no match at all, skip
+        // drawing its header entirely rather than just force-collapsing
+        // it — see the long comment there for the full reasoning.
+        bool catOpen = false;
+        if (!searchActive || categoryHasMatch)
         {
-            if (ImGui::InputText("Category Name", catNameBuf, sizeof(catNameBuf)))
-                cat.name = catNameBuf;
+            if (searchActive)
+                ImGui::SetNextItemOpen(categoryHasMatch, ImGuiCond_Always);
+
+            NameRowResult nameResult = DrawNameAndContextMenu("##cyclic_category_node", c, c, cat.name, editingCyclicCategoryNames, pendingRemoveCyclicCategoryIndex);
+            catOpen = nameResult.open;
+            MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, c);
+            if (nameResult.newName != cat.name)
+                cat.name = nameResult.newName;
         }
 
         // Same fix as Basic Events above: membership bookkeeping runs
         // unconditionally every frame; only the row DRAWING is gated on
         // catOpen, otherwise a folded category silently leaks its
-        // members back into the uncategorized list below.
+        // members back into the uncategorized list below. Search
+        // filtering follows the same rule as Basic Events too: a member
+        // draws if it matches OR the category's own name matches.
         for (const std::string& memberName : cat.members)
         {
             for (int i = 0; i < (int)g_CyclicGroups.size(); i++)
@@ -862,7 +1048,9 @@ void AddonOptions()
                 if (g_CyclicGroups[i].name != memberName) continue;
                 isGroupCategorized[i] = true;
 
-                if (catOpen)
+                bool memberMatches = categoryNameMatches || GroupMatchesSearch(g_CyclicGroups[i], searchQueryLower);
+
+                if (catOpen && memberMatches)
                 {
                     ImGui::PushID(i);
                     DrawCyclicGroupRow(i, pendingRemoveGroupIndex);
@@ -883,6 +1071,7 @@ void AddonOptions()
     for (int i = 0; i < (int)g_CyclicGroups.size(); i++)
     {
         if (isGroupCategorized[i]) continue;
+        if (!GroupMatchesSearch(g_CyclicGroups[i], searchQueryLower)) continue;
 
         ImGui::PushID(i);
         DrawCyclicGroupRow(i, pendingRemoveGroupIndex);

@@ -26,16 +26,6 @@
 #endif
 
 // ---------------------------------------------------------------------------
-// [Version]
-// ---------------------------------------------------------------------------
-// Tracks which migration step the user's saved cyclic_groups.json / events.json
-// have been brought up to. Independent of the addon's own build/release
-// version — this only changes when the on-disk DATA SHAPE or the set of
-// shipped groups/slots/events changes in a way that needs a merge step.
-SETTING(Version, CyclicDataVersion, int, 0)
-SETTING(Version, EventsDataVersion, int, 0)
-
-// ---------------------------------------------------------------------------
 // [Cyclic]
 // ---------------------------------------------------------------------------
 SETTING(Cyclic, ShowCyclicOverlay,   bool,  true)
