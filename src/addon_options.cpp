@@ -18,6 +18,8 @@
 #include "events.h"
 #include "cyclic.h"
 #include "categories.h"
+#include "maprender.h"
+#include "icon_whitener.h"
 #include "imgui.h"
 #include "imgui_internal.h" // ImGuiItemFlags_Disabled / PushItemFlag — not in the public header
 #include <cstring>
@@ -502,6 +504,31 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
                 ev.period = (hourIndex + 1) * 3600;
         }
 
+        // Icon dropdown — "Dot" (index 0, the default) keeps the plain
+        // colored circle; any other entry names a file in the addon's
+        // textures/ folder, drawn instead (tinted to the same status
+        // color the dot would use — see the long authoring-requirement
+        // comment on s_iconCache in maprender.cpp for why the source
+        // image needs to be gray/alpha, not full color).
+        const std::vector<std::string>& iconFiles = GetEventIconFilenames();
+        std::vector<const char*> iconLabels;
+        iconLabels.push_back("Dot");
+        for (const auto& fn : iconFiles)
+            iconLabels.push_back(fn.c_str());
+
+        int iconIndex = 0; // "Dot"
+        for (int k = 0; k < (int)iconFiles.size(); k++)
+            if (iconFiles[k] == ev.iconTexture)
+                iconIndex = k + 1;
+
+        ImGui::SetNextItemWidth(140.0f);
+        if (ImGui::Combo("Icon", &iconIndex, iconLabels.data(), (int)iconLabels.size()))
+            ev.iconTexture = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Refresh##icon_rescan"))
+            ScanEventIconFiles();
+
         ImGui::TreePop();
     }
 }
@@ -745,7 +772,23 @@ void AddonOptions()
 {
     ImGui::TextDisabled("Release: %s", DateAndTime.c_str());
     ImGui::TextUnformatted("World Events");
+    ImGui::SameLine();
+    DrawIconWhitenerButton();   // opens the Icon Whitener modal when clicked
+    DrawIconWhitenerPopup();    // renders the modal every frame (no-op when closed)
     ImGui::Separator();
+
+    // Static, not a setting: pure transient UI state, not worth
+    // persisting across sessions. One box filters BOTH Basic Events and
+    // Cyclic Events at once — see the long comment on the search helpers
+    // above for what "filters" means for each (event name only vs. group
+    // name + every slot name).
+    static char searchBuf[128] = "";
+    ImGui::SetNextItemWidth(200.0f);
+    ImGui::InputText("Search##global_search", searchBuf, sizeof(searchBuf));
+    std::string searchQueryLower = searchBuf;
+    std::transform(searchQueryLower.begin(), searchQueryLower.end(), searchQueryLower.begin(),
+        [](unsigned char c) { return (char)std::tolower(c); });
+    bool searchActive = !searchQueryLower.empty();
 
     ImGui::Checkbox("Show cyclic event overlay", &ShowCyclicOverlay);
 
@@ -779,23 +822,6 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Static, not a setting: pure transient UI state, not worth
-    // persisting across sessions. One box filters BOTH Basic Events and
-    // Cyclic Events at once — see the long comment on the search helpers
-    // above for what "filters" means for each (event name only vs. group
-    // name + every slot name).
-    static char searchBuf[128] = "";
-    ImGui::SetNextItemWidth(200.0f);
-    ImGui::InputText("Search##global_search", searchBuf, sizeof(searchBuf));
-    std::string searchQueryLower = searchBuf;
-    std::transform(searchQueryLower.begin(), searchQueryLower.end(), searchQueryLower.begin(),
-        [](unsigned char c) { return (char)std::tolower(c); });
-    bool searchActive = !searchQueryLower.empty();
-    
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-    
     // -----------------------------------------------------------------------
     // Basic Events (g_Events) — both branches. Each event is drawn as a
     // header with its fields nested underneath, matching the indentation

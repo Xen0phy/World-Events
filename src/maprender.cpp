@@ -3,6 +3,117 @@
 #include "events.h"
 #include "imgui.h"
 #include <ctime>
+#include <string>
+#include <unordered_map>
+#include <filesystem>
+#include <algorithm>
+#include <cctype>
+
+// ---------------------------------------------------------------------------
+// Icon textures — optional, per-event, user-supplied
+// ---------------------------------------------------------------------------
+// Mirrors the loading pattern already used for the Speedo's face/needle
+// textures in another addon this project's author maintains: scan a
+// "textures" folder under the addon's own directory, load on demand via
+// Nexus's async Textures_LoadFromFile (never Textures_GetOrCreateFromFile,
+// which can hand back a Texture_t* whose ->Resource is still null while
+// the file decodes in the background, with no signal for when it becomes
+// ready), and cache the result by filename.
+//
+// Unlike the Speedo (which has exactly one face texture and one needle
+// texture), an arbitrary number of DIFFERENT events can each reference a
+// different icon filename, so this needs a cache keyed by filename rather
+// than a single static pointer.
+//
+// AUTHORING REQUIREMENT: because the icon is recolored at draw time via a
+// multiplicative tint (ImDrawList::AddImage's `col` parameter multiplies
+// every pixel's RGB/A by the tint color), the source image's RGB needs to
+// already be a NEUTRAL GRAY (not necessarily pure white — any gray works,
+// preserving relative shading/"shadows" within the icon) with the actual
+// icon shape carried in the alpha channel. A full-color icon will tint
+// unpredictably rather than cleanly recolor, since multiplying non-gray
+// RGB by a tint shifts its hue instead of replacing it. This addon does
+// NOT desaturate arbitrary images automatically — that would need a real
+// image decoder (e.g. stb_image) to get at raw pixels before upload,
+// which is more than this addon's scope calls for; the user is expected
+// to prepare a gray/alpha icon themselves (e.g. desaturate + add a layer
+// mask in any image editor) before dropping it in the textures folder.
+// ---------------------------------------------------------------------------
+struct EventIconEntry
+{
+    Texture_t*  texture     = nullptr;
+    bool        requested   = false; // true once a load has been kicked off, even before it resolves
+};
+
+static std::unordered_map<std::string, EventIconEntry> s_iconCache;
+
+static std::vector<std::string> s_iconFilenames;
+static bool s_iconFilenamesScanned = false;
+
+// Scan (or re-scan) "<addon dir>/textures" and rebuild s_iconFilenames.
+// Call this to refresh after the user adds new files — there's no
+// automatic filesystem-watching, matching the Speedo's existing pattern.
+void ScanEventIconFiles()
+{
+    s_iconFilenames.clear();
+    s_iconFilenamesScanned = true;
+
+    std::string texDir = g_AddonDir + "\\textures";
+
+    std::error_code ec;
+    std::filesystem::create_directories(texDir, ec);
+
+    for (auto& entry : std::filesystem::directory_iterator(texDir, ec))
+    {
+        if (!entry.is_regular_file(ec)) continue;
+        auto ext = entry.path().extension().string();
+        for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
+        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg")
+            s_iconFilenames.push_back(entry.path().filename().string());
+    }
+    std::sort(s_iconFilenames.begin(), s_iconFilenames.end());
+}
+
+const std::vector<std::string>& GetEventIconFilenames()
+{
+    if (!s_iconFilenamesScanned)
+        ScanEventIconFiles();
+    return s_iconFilenames;
+}
+
+static void OnEventIconReceived(const char* aIdentifier, Texture_t* aTexture)
+{
+    auto it = s_iconCache.find(aIdentifier);
+    if (it != s_iconCache.end())
+        it->second.texture = aTexture;
+}
+
+// Returns the loaded Texture_t* for this filename, or nullptr if it's not
+// loaded yet (including: load not yet requested, in which case this also
+// kicks off an async request — same fire-and-forget pattern as the
+// Speedo's UpdateSpeedoTextures, just called per-filename on demand
+// instead of once per frame for a couple of fixed slots).
+static Texture_t* GetOrRequestEventIcon(const std::string& filename)
+{
+    if (filename.empty()) return nullptr;
+
+    auto& entry = s_iconCache[filename]; // default-constructs on first use
+    if (entry.texture && entry.texture->Resource)
+        return entry.texture;
+
+    if (!entry.requested)
+    {
+        entry.requested = true;
+        std::string fullPath = g_AddonDir + "\\textures\\" + filename;
+        // Identifier must be unique per filename so OnEventIconReceived
+        // can route the callback back to the right cache entry — the
+        // filename itself already is unique within this cache's key
+        // space, so it doubles as the identifier directly.
+        APIDefs->Textures_LoadFromFile(filename.c_str(), fullPath.c_str(), OnEventIconReceived);
+    }
+
+    return nullptr; // not ready yet this frame; falls back to the plain dot
+}
 
 // ---------------------------------------------------------------------------
 // SecondsUntilNext
@@ -171,8 +282,28 @@ void RenderMapEvents()
                       : (secs >= 0 && secs < 900)     ? IM_COL32(255, 140,   0, 180)  // orange — soon
                       :                                 IM_COL32(160, 160, 160, 180); // gray   — waiting
 
-        dl->AddCircleFilled(pos, RADIUS, colFill);
-        dl->AddCircle(pos, RADIUS, COL_RING, 0, RING_THICK);
+        Texture_t* icon = ev.iconTexture.empty() ? nullptr : GetOrRequestEventIcon(ev.iconTexture);
+
+        if (icon && icon->Resource)
+        {
+            // Tinted icon: colFill (the same status color the plain dot
+            // uses) is passed as AddImage's multiplicative tint, so the
+            // icon ends up gray/orange/red exactly like the dot would —
+            // see the long comment on s_iconCache above for why this only
+            // looks right when the source PNG's RGB is itself neutral
+            // gray with the shape carried in alpha.
+            float halfW = RADIUS * 3.0f; // icons read a bit small at the dot's own radius; slightly larger
+            float halfH = halfW * ((float)icon->Height / (float)icon->Width);
+            dl->AddImage((ImTextureID)icon->Resource,
+                ImVec2(pos.x - halfW, pos.y - halfH),
+                ImVec2(pos.x + halfW, pos.y + halfH),
+                ImVec2(0, 0), ImVec2(1, 1), colFill);
+        }
+        else
+        {
+            dl->AddCircleFilled(pos, RADIUS, colFill);
+            dl->AddCircle(pos, RADIUS, COL_RING, 0, RING_THICK);
+        }
 
         // Tooltip on hover
         if (ImGui::IsMouseHoveringRect(

@@ -25,6 +25,7 @@ add_library(gw2-world-events SHARED
     src/settings.cpp
     src/events_storage.cpp
     src/categories.cpp
+    src/icon_whitener.cpp
     include/imgui.cpp
     include/imgui_draw.cpp
     include/imgui_tables.cpp
@@ -34,6 +35,8 @@ add_library(gw2-world-events SHARED
 add_dependencies(gw2-world-events bump_rev)
 
 target_include_directories(gw2-world-events PRIVATE include)
+
+target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32)
 
 set_target_properties(gw2-world-events PROPERTIES
     OUTPUT_NAME "gw2-world-events"

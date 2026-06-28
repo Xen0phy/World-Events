@@ -91,6 +91,9 @@ static json SerializeEvent(const WorldEvent& ev)
     j["isVarying"]  = ev.isVarying;
     j["duration"]   = ev.duration;
 
+    if (!ev.iconTexture.empty())
+        j["iconTexture"] = ev.iconTexture; // omitted entirely when empty, matching customColor/idleColor's convention elsewhere in this file
+
     if (ev.isVarying)
         j["varyingTimes"] = ev.varyingTimes;
     else
@@ -104,11 +107,12 @@ static json SerializeEvent(const WorldEvent& ev)
 static WorldEvent DeserializeEvent(const json& j)
 {
     WorldEvent ev{};
-    ev.name       = j.value("name", std::string("Unnamed Event"));
-    ev.continentX = j.value("continentX", 0.0f);
-    ev.continentY = j.value("continentY", 0.0f);
-    ev.isVarying  = j.value("isVarying", false);
-    ev.duration   = j.value("duration", 0);
+    ev.name        = j.value("name", std::string("Unnamed Event"));
+    ev.continentX  = j.value("continentX", 0.0f);
+    ev.continentY  = j.value("continentY", 0.0f);
+    ev.isVarying   = j.value("isVarying", false);
+    ev.duration    = j.value("duration", 0);
+    ev.iconTexture = j.value("iconTexture", std::string());
 
     if (ev.isVarying)
         ev.varyingTimes = j.value("varyingTimes", std::vector<int>{});
