@@ -1,6 +1,7 @@
 #include "maprender.h"
 #include "addon.h"
 #include "events.h"
+#include "settings.h"
 #include "imgui.h"
 #include <ctime>
 #include <string>
@@ -276,33 +277,41 @@ void RenderMapEvents()
         if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
         if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
 
-        bool  active  = IsActive(ev, now);
-        int   secs    = SecondsUntilNext(ev, now);
-        ImU32 colFill = active                        ? IM_COL32(255,  50,  50, 180)  // red    — active
-                      : (secs >= 0 && secs < 900)     ? IM_COL32(255, 140,   0, 180)  // orange — soon
-                      :                                 IM_COL32(160, 160, 160, 180); // gray   — waiting
+        bool active = IsActive(ev, now);
+        int  secs   = SecondsUntilNext(ev, now);
+
+        // BasicEventColorActive/Soon/Waiting are user settings, stored as
+        // packed RRGGBBAA (R in the top byte — same convention as
+        // ColorSet::base in cyclic.h), NOT ImGui's native ABGR ImU32
+        // packing, so they need the same explicit channel extraction
+        // HEX()/ColorSet uses rather than being passed to IM_COL32-style
+        // calls directly. There's no separate hardcoded alpha layered on
+        // top any more — whatever alpha the user picked via the color
+        // swatch (the LSB of the packed value) IS the actual opacity
+        // used, for both the plain dot and the icon tint alike.
+        auto toImU32 = [](unsigned int rrggbbaa) {
+            return IM_COL32(
+                (rrggbbaa >> 24) & 0xFF,  // R
+                (rrggbbaa >> 16) & 0xFF,  // G
+                (rrggbbaa >>  8) & 0xFF,  // B
+                  rrggbbaa        & 0xFF  // A
+            );
+        };
+
+        ImU32 colFill = active                    ? toImU32(BasicEventColorActive)
+                      : (secs >= 0 && secs < 900) ? toImU32(BasicEventColorSoon)
+                      :                              toImU32(BasicEventColorWaiting);
 
         Texture_t* icon = ev.iconTexture.empty() ? nullptr : GetOrRequestEventIcon(ev.iconTexture);
 
         if (icon && icon->Resource)
         {
-            // Tinted icon: same hue as colFill, but at FULL alpha rather
-            // than colFill's own 180/255 — AddImage's tint multiplies
-            // against the texture's own per-pixel alpha too, not just
-            // RGB, so reusing colFill directly would make every icon
-            // semi-transparent regardless of how opaque its source PNG
-            // actually is (180/255 ≈ 70% opacity bleeding through any
-            // already-opaque icon pixel). The dot's own partial alpha
-            // was a deliberate look for a small filled circle; it was
-            // never meant to also be the icon's opacity.
-            ImU32 colTint = (colFill & 0x00FFFFFF) | 0xFF000000;
-
-            float halfW = RADIUS * 3.0f; // icons read a bit small at the dot's own radius; slightly larger
+            float halfW = RADIUS * 1.5f; // icons read a bit small at the dot's own radius; slightly larger
             float halfH = halfW * ((float)icon->Height / (float)icon->Width);
             dl->AddImage((ImTextureID)icon->Resource,
                 ImVec2(pos.x - halfW, pos.y - halfH),
                 ImVec2(pos.x + halfW, pos.y + halfH),
-                ImVec2(0, 0), ImVec2(1, 1), colTint);
+                ImVec2(0, 0), ImVec2(1, 1), colFill);
         }
         else
         {

@@ -76,11 +76,13 @@ static int PeriodSecondsToHourIndex(int periodSeconds)
 // DrawBulkIconPicker
 // ---------------------------------------------------------------------------
 // One dropdown that sets ev.iconTexture for every event index in
-// `targetIndices` at once — used at both the category level (apply to
-// everything in this category) and the "Basic Events" section header
-// level (apply to literally everything). Doesn't store anything new on
-// Category itself; it's a one-shot broadcast action, not a persistent
-// per-category setting.
+// `targetIndices` at once — used by the "Basic Events" section header's
+// "All icons" picker (apply to literally every event). A per-category
+// version of this existed earlier but was deliberately removed, leaving
+// only this section-wide bulk picker plus the individual per-event
+// dropdown in DrawBasicEventRow. The function itself is still written
+// generically (any index list), so it's reusable if a bulk picker is
+// ever wanted somewhere else again.
 //
 // Display state before the user touches it: if every target already
 // shares the exact same iconTexture (including "all empty", i.e. all
@@ -906,8 +908,9 @@ void AddonOptions()
     bool pendingAddBasicCategory = ImGui::SmallButton("+##add_basic_category");
 
     // Section-level bulk icon picker — applies to literally every Basic
-    // Event regardless of category. Separate from the per-category one
-    // below; this is the "set everything at once" version.
+    // Event regardless of category. There is deliberately no equivalent
+    // per-category picker — only this section-wide one and the
+    // individual per-event dropdown in DrawBasicEventRow exist.
     {
         std::vector<int> allIndices(g_Events.size());
         for (int i = 0; i < (int)g_Events.size(); i++) allIndices[i] = i;
@@ -917,6 +920,31 @@ void AddonOptions()
         ImGui::TextUnformatted("All icons:");
         ImGui::SameLine();
         DrawBulkIconPicker("##bulk_icon_all", allIndices);
+    }
+
+    // Status colors — one shared set for every Basic Event (not
+    // per-event), matching the dot's/icon-tint's three states: active,
+    // soon (<15 min out), and waiting. These fully replace the color
+    // AND alpha previously hardcoded in maprender.cpp — there's no
+    // separate opacity control beyond whatever alpha the picker itself
+    // lets the user choose for each color.
+    {
+        ImGui::TextUnformatted("Colors:");
+
+        ImGui::SameLine();
+        ImVec4 activeColor = RGBABaseToFloat4(BasicEventColorActive);
+        if (ImGui::ColorEdit4("Active##basic_color_active", &activeColor.x, ImGuiColorEditFlags_NoInputs))
+            BasicEventColorActive = Float4ToRGBABase(activeColor);
+
+        ImGui::SameLine();
+        ImVec4 soonColor = RGBABaseToFloat4(BasicEventColorSoon);
+        if (ImGui::ColorEdit4("Soon##basic_color_soon", &soonColor.x, ImGuiColorEditFlags_NoInputs))
+            BasicEventColorSoon = Float4ToRGBABase(soonColor);
+
+        ImGui::SameLine();
+        ImVec4 waitingColor = RGBABaseToFloat4(BasicEventColorWaiting);
+        if (ImGui::ColorEdit4("Waiting##basic_color_waiting", &waitingColor.x, ImGuiColorEditFlags_NoInputs))
+            BasicEventColorWaiting = Float4ToRGBABase(waitingColor);
     }
 
     int pendingRemoveIndex = -1;
@@ -996,9 +1024,6 @@ void AddonOptions()
             MakeDropTarget(kBasicEventDragType, g_BasicCategories, c);
             if (nameResult.newName != cat.name)
                 cat.name = nameResult.newName; // no rename-patching needed: nothing else references a CATEGORY by name (unlike events/groups, members point at THEM, not the reverse)
-
-            ImGui::SameLine();
-            DrawBulkIconPicker("##bulk_icon", memberIndices);
         }
 
         // Membership bookkeeping happens UNCONDITIONALLY, every frame,

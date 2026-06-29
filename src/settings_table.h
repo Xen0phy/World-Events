@@ -42,3 +42,24 @@ SETTING(Cyclic, CyclicThickness,     float, 40.0f)
 // computed from each group's own `period`, not a hardcoded constant).
 SETTING(Cyclic, CyclicMaxFutureDeg,  float, 270.0f)
 SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
+
+// ---------------------------------------------------------------------------
+// [BasicEvents]
+// ---------------------------------------------------------------------------
+// Status colors for the plain-dot AND icon-tint rendering in
+// maprender.cpp — one shared color per status, applied to every Basic
+// Event (not per-event; see DrawBulkIconPicker's "All icons" picker for
+// the equivalent all-at-once pattern already used for icon choice).
+// Stored as packed RRGGBBAA unsigned ints, matching CyclicGroup::colors'
+// existing convention in cyclic.h, rather than introducing a new
+// SETTING_ARRAY macro variant just for this.
+//
+// No separate alpha setting: previously each status color had a
+// hardcoded 180/255 alpha baked in at the call site in maprender.cpp:
+// IM_COL32(r, g, b, 180). These three settings REPLACE that entirely —
+// whatever alpha the user picks via the color swatch (the 4th channel,
+// part of the packed RRGGBBAA value below) IS the actual opacity used,
+// with nothing layered on top of it.
+SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232B4u) // red,    matches the old IM_COL32(255,50,50,180)
+SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00B4u) // orange, matches the old IM_COL32(255,140,0,180)
+SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray,   matches the old IM_COL32(160,160,160,180)

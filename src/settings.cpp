@@ -70,9 +70,10 @@ bool SaveSettings(const std::string& addonDir)
 // is needed.
 // ---------------------------------------------------------------------------
 template<typename T> T parse(const std::string& v);
-template<> bool  parse<bool> (const std::string& v) { return v == "1" || v == "true"; }
-template<> int   parse<int>  (const std::string& v) { return std::stoi(v); }
-template<> float parse<float>(const std::string& v) { return std::stof(v); }
+template<> bool         parse<bool>        (const std::string& v) { return v == "1" || v == "true"; }
+template<> int          parse<int>         (const std::string& v) { return std::stoi(v); }
+template<> float        parse<float>       (const std::string& v) { return std::stof(v); }
+template<> unsigned int parse<unsigned int>(const std::string& v) { return (unsigned int)std::stoul(v); }
 
 bool LoadSettings(const std::string& addonDir)
 {
