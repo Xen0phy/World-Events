@@ -73,6 +73,66 @@ static int PeriodSecondsToHourIndex(int periodSeconds)
 }
 
 // ---------------------------------------------------------------------------
+// DrawBulkIconPicker
+// ---------------------------------------------------------------------------
+// One dropdown that sets ev.iconTexture for every event index in
+// `targetIndices` at once — used at both the category level (apply to
+// everything in this category) and the "Basic Events" section header
+// level (apply to literally everything). Doesn't store anything new on
+// Category itself; it's a one-shot broadcast action, not a persistent
+// per-category setting.
+//
+// Display state before the user touches it: if every target already
+// shares the exact same iconTexture (including "all empty", i.e. all
+// using the plain dot), that shared value is shown selected. If they
+// disagree, an extra "(mixed)" entry is shown selected instead — but
+// "(mixed)" is purely a status display, not a real choice: it only
+// appears in the list while the state is actually mixed, and selecting
+// any OTHER entry applies that choice to every target and makes the
+// list resolve to non-mixed on the next frame, at which point "(mixed)"
+// naturally drops out of the item list entirely.
+// ---------------------------------------------------------------------------
+static void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices)
+{
+    if (targetIndices.empty()) return;
+
+    bool mixed = false;
+    std::string shared = g_Events[targetIndices[0]].iconTexture;
+    for (int idx : targetIndices)
+        if (g_Events[idx].iconTexture != shared) { mixed = true; break; }
+
+    const std::vector<std::string>& iconFiles = GetEventIconFilenames();
+    std::vector<const char*> iconLabels;
+    if (mixed) iconLabels.push_back("(mixed)");
+    iconLabels.push_back("Dot");
+    for (const auto& fn : iconFiles)
+        iconLabels.push_back(fn.c_str());
+
+    // "Dot"'s index is 0 normally, or 1 if "(mixed)" occupies slot 0; a
+    // real filename's index is offset by however many of those two lead
+    // entries exist ahead of it.
+    int dotIndex = mixed ? 1 : 0;
+    int iconIndex = mixed ? 0 : dotIndex;
+    if (!mixed && !shared.empty())
+        for (int k = 0; k < (int)iconFiles.size(); k++)
+            if (iconFiles[k] == shared)
+                iconIndex = dotIndex + 1 + k;
+
+    ImGui::SetNextItemWidth(140.0f);
+    if (ImGui::Combo(label, &iconIndex, iconLabels.data(), (int)iconLabels.size()))
+    {
+        // By the time this branch runs, ImGui has already confirmed the
+        // SELECTION changed, so iconIndex can't still be pointing at
+        // "(mixed)" (index 0 while mixed==true) — Combo only returns true
+        // when the result differs from what was passed in, and "(mixed)"
+        // was what was passed in for that case.
+        std::string newIcon = (iconIndex == dotIndex) ? std::string() : iconFiles[iconIndex - dotIndex - 1];
+        for (int idx : targetIndices)
+            g_Events[idx].iconTexture = newIcon;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Color conversion: ColorSet::base is RRGGBBAA (R in the top byte — see
 // HEX() in cyclic.h), which is NOT the same byte order as ImGui's own ImU32
 // (ABGR, via IM_COL32). ColorConvertU32ToFloat4/ColorConvertFloat4ToU32
@@ -845,6 +905,20 @@ void AddonOptions()
     ImGui::SameLine();
     bool pendingAddBasicCategory = ImGui::SmallButton("+##add_basic_category");
 
+    // Section-level bulk icon picker — applies to literally every Basic
+    // Event regardless of category. Separate from the per-category one
+    // below; this is the "set everything at once" version.
+    {
+        std::vector<int> allIndices(g_Events.size());
+        for (int i = 0; i < (int)g_Events.size(); i++) allIndices[i] = i;
+        ImGui::SameLine();
+        ImGui::TextDisabled("|");
+        ImGui::SameLine();
+        ImGui::TextUnformatted("All icons:");
+        ImGui::SameLine();
+        DrawBulkIconPicker("##bulk_icon_all", allIndices);
+    }
+
     int pendingRemoveIndex = -1;
     int pendingRemoveBasicCategoryIndex = -1;
     static std::map<int, std::string> editingBasicCategoryNames;
@@ -884,13 +958,22 @@ void AddonOptions()
         // Also pre-check whether the CATEGORY's own name matches, since a
         // category whose name itself matches should show all its
         // members, not just ones that individually match too.
+        // Resolve this category's members to actual g_Events indices
+        // once, up front — used both for the bulk icon picker (which
+        // needs the index list before the header even draws) and reused
+        // by the membership-bookkeeping loop below instead of
+        // re-searching by name a second time.
+        std::vector<int> memberIndices;
+        for (const std::string& memberName : cat.members)
+            for (int i = 0; i < (int)g_Events.size(); i++)
+                if (g_Events[i].name == memberName) { memberIndices.push_back(i); break; }
+
         bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
         bool categoryHasMatch = categoryNameMatches;
         if (!categoryHasMatch)
-            for (const std::string& memberName : cat.members)
-                for (const auto& ev : g_Events)
-                    if (ev.name == memberName && EventMatchesSearch(ev, searchQueryLower))
-                        categoryHasMatch = true;
+            for (int i : memberIndices)
+                if (EventMatchesSearch(g_Events[i], searchQueryLower))
+                    categoryHasMatch = true;
 
         // When a search is active and this category has no match at
         // all, skip drawing its header entirely — previously it still
@@ -913,6 +996,9 @@ void AddonOptions()
             MakeDropTarget(kBasicEventDragType, g_BasicCategories, c);
             if (nameResult.newName != cat.name)
                 cat.name = nameResult.newName; // no rename-patching needed: nothing else references a CATEGORY by name (unlike events/groups, members point at THEM, not the reverse)
+
+            ImGui::SameLine();
+            DrawBulkIconPicker("##bulk_icon", memberIndices);
         }
 
         // Membership bookkeeping happens UNCONDITIONALLY, every frame,
@@ -930,28 +1016,17 @@ void AddonOptions()
         // member hidden by an active search still correctly stays out of
         // the uncategorized pass rather than incorrectly reappearing
         // there just because the search filtered it out of view here.
-        for (const std::string& memberName : cat.members)
+        for (int i : memberIndices)
         {
-            for (int i = 0; i < (int)g_Events.size(); i++)
+            isCategorized[i] = true;
+
+            bool memberMatches = categoryNameMatches || EventMatchesSearch(g_Events[i], searchQueryLower);
+
+            if (catOpen && memberMatches)
             {
-                if (g_Events[i].name != memberName) continue;
-                isCategorized[i] = true;
-
-                bool memberMatches = categoryNameMatches || EventMatchesSearch(g_Events[i], searchQueryLower);
-
-                if (catOpen && memberMatches)
-                {
-                    ImGui::PushID(i);
-                    DrawBasicEventRow(i, pendingRemoveIndex);
-                    ImGui::PopID();
-                }
-                break; // names are this codebase's identity key — see
-                       // categories.h — so the first match is the only
-                       // one that should exist; stop once found rather
-                       // than potentially drawing a same-named event
-                       // twice if a duplicate exists (see the
-                       // duplicate-name warning elsewhere in this file
-                       // for surfacing that underlying problem itself).
+                ImGui::PushID(i);
+                DrawBasicEventRow(i, pendingRemoveIndex);
+                ImGui::PopID();
             }
         }
 

@@ -286,18 +286,23 @@ void RenderMapEvents()
 
         if (icon && icon->Resource)
         {
-            // Tinted icon: colFill (the same status color the plain dot
-            // uses) is passed as AddImage's multiplicative tint, so the
-            // icon ends up gray/orange/red exactly like the dot would —
-            // see the long comment on s_iconCache above for why this only
-            // looks right when the source PNG's RGB is itself neutral
-            // gray with the shape carried in alpha.
+            // Tinted icon: same hue as colFill, but at FULL alpha rather
+            // than colFill's own 180/255 — AddImage's tint multiplies
+            // against the texture's own per-pixel alpha too, not just
+            // RGB, so reusing colFill directly would make every icon
+            // semi-transparent regardless of how opaque its source PNG
+            // actually is (180/255 ≈ 70% opacity bleeding through any
+            // already-opaque icon pixel). The dot's own partial alpha
+            // was a deliberate look for a small filled circle; it was
+            // never meant to also be the icon's opacity.
+            ImU32 colTint = (colFill & 0x00FFFFFF) | 0xFF000000;
+
             float halfW = RADIUS * 3.0f; // icons read a bit small at the dot's own radius; slightly larger
             float halfH = halfW * ((float)icon->Height / (float)icon->Width);
             dl->AddImage((ImTextureID)icon->Resource,
                 ImVec2(pos.x - halfW, pos.y - halfH),
                 ImVec2(pos.x + halfW, pos.y + halfH),
-                ImVec2(0, 0), ImVec2(1, 1), colFill);
+                ImVec2(0, 0), ImVec2(1, 1), colTint);
         }
         else
         {
