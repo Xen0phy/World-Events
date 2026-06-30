@@ -7,6 +7,12 @@
 // using the current Mumble compass state.
 ImVec2 ContinentToScreen(float cx, float cy);
 
+// Returns the current zoom-based size multiplier (1.0 = no change), driven
+// by the BasicEventZoomScaling* settings and the current map's Compass.Scale.
+// Shared with cyclicrender.cpp so cyclic group rings scale the same way as
+// basic event markers do.
+float GetEventZoomSizeMultiplier();
+
 // Draw all events from g_Events onto the open world map.
 void RenderMapEvents();
 

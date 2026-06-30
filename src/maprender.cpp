@@ -204,6 +204,65 @@ static bool IsActive(const WorldEvent& ev, time_t now)
 }
 
 // ---------------------------------------------------------------------------
+// GetZoomPercent
+// ---------------------------------------------------------------------------
+// Returns how "zoomed in" the full-screen map currently is, as 0-100.
+//
+// Mumble's Compass.Scale is continent-units-per-pixel and gets SMALLER as
+// you zoom in, but it has no fixed, documented min/max we can rely on as a
+// constant (it depends on the player's screen resolution/UI scaling and,
+// to a lesser extent, the current map). Rather than hardcode a guessed
+// range, we track the smallest and largest Compass.Scale values we've
+// actually observed and interpolate within that — i.e. the scaling
+// calibrates itself the first time the user zooms fully in and fully out,
+// and (since this is backed by BasicEventZoomScaleMinObserved/MaxObserved
+// in settings_table.h, not a local static) stays calibrated across
+// restarts too.
+// ---------------------------------------------------------------------------
+static float GetZoomPercent(float scale)
+{
+    if (scale <= 0.0f) return 0.0f;
+
+    if (BasicEventZoomScaleMinObserved < 0.0f || scale < BasicEventZoomScaleMinObserved)
+        BasicEventZoomScaleMinObserved = scale;
+    if (BasicEventZoomScaleMaxObserved < 0.0f || scale > BasicEventZoomScaleMaxObserved)
+        BasicEventZoomScaleMaxObserved = scale;
+
+    float range = BasicEventZoomScaleMaxObserved - BasicEventZoomScaleMinObserved;
+    if (range < 0.0001f) return 0.0f; // no zoom variation observed yet
+
+    // scale is inverse to zoom: smallest scale == 100% zoomed in.
+    float pct = (BasicEventZoomScaleMaxObserved - scale) / range * 100.0f;
+    if (pct < 0.0f)   pct = 0.0f;
+    if (pct > 100.0f) pct = 100.0f;
+    return pct;
+}
+
+// ---------------------------------------------------------------------------
+// GetEventZoomSizeMultiplier
+// ---------------------------------------------------------------------------
+// Markers stay at 1.0x from 0% zoom up to BasicEventZoomStartPct, then grow
+// linearly to BasicEventZoomMaxMultiplier at 100% zoom. Declared in
+// maprender.h (not static) so cyclicrender.cpp can reuse the exact same
+// curve for cyclic group rings instead of duplicating this logic.
+// ---------------------------------------------------------------------------
+float GetEventZoomSizeMultiplier()
+{
+    float zoomPct = GetZoomPercent(MumbleLink->Context.Compass.Scale);
+
+    if (!BasicEventZoomScalingEnabled) return 1.0f;
+
+    float startPct = BasicEventZoomStartPct;
+    if (startPct >= 100.0f) return 1.0f; // growth window degenerate; never grow
+    if (zoomPct <= startPct) return 1.0f;
+
+    float t = (zoomPct - startPct) / (100.0f - startPct); // 0..1 across the growth window
+    if (t > 1.0f) t = 1.0f;
+
+    return 1.0f + t * (BasicEventZoomMaxMultiplier - 1.0f);
+}
+
+// ---------------------------------------------------------------------------
 // ContinentToScreen
 // ---------------------------------------------------------------------------
 // Maps a GW2 continent coordinate (cx, cy) to a screen pixel position.
@@ -237,10 +296,12 @@ ImVec2 ContinentToScreen(float cx, float cy)
 // ---------------------------------------------------------------------------
 // RenderMapEvents
 // ---------------------------------------------------------------------------
-// Draws a fixed-size dot for each event in g_Events.
-// The dot stays the same pixel size regardless of map zoom because the
-// zoom is already baked into Compass.Scale — we only use it to position
-// the center, then draw at a hardcoded pixel radius.
+// Draws a dot/icon for each event in g_Events. Size is normally fixed in
+// pixels regardless of map zoom (zoom is already baked into Compass.Scale,
+// which we only use to position the center) — but if BasicEventZoomScaling
+// is enabled, markers additionally grow as the map is zoomed in past
+// BasicEventZoomStartPct, up to BasicEventZoomMaxMultiplier at 100% zoom.
+// See GetZoomPercent()/GetEventZoomSizeMultiplier() above.
 // ---------------------------------------------------------------------------
 void RenderMapEvents()
 {
@@ -256,6 +317,9 @@ void RenderMapEvents()
     constexpr ImU32 COL_RING   = IM_COL32(255, 255, 255, 220); // white ring
 
     time_t now = time(nullptr);
+
+    // Same for every event this frame, so compute once rather than per-event.
+    float zoomMult = GetEventZoomSizeMultiplier();
 
     ImGui::SetNextWindowPos({0, 0});
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
@@ -313,7 +377,7 @@ void RenderMapEvents()
 
         if (icon && icon->Resource)
         {
-            float halfW = BasicEventIconSize;
+            float halfW = BasicEventIconSize * zoomMult;
             float halfH = halfW * ((float)icon->Height / (float)icon->Width);
             dl->AddImage((ImTextureID)icon->Resource,
                 ImVec2(pos.x - halfW, pos.y - halfH),
@@ -323,9 +387,10 @@ void RenderMapEvents()
         }
         else
         {
-            dl->AddCircleFilled(pos, BasicEventDotRadius, colFill);
-            dl->AddCircle(pos, BasicEventDotRadius, COL_RING, 0, RING_THICK);
-            hoverHalfExtent = BasicEventDotRadius;
+            float radius = BasicEventDotRadius * zoomMult;
+            dl->AddCircleFilled(pos, radius, colFill);
+            dl->AddCircle(pos, radius, COL_RING, 0, RING_THICK);
+            hoverHalfExtent = radius;
         }
 
         // Tooltip on hover

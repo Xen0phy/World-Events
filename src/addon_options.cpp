@@ -960,6 +960,24 @@ void AddonOptions()
         ImGui::SliderFloat("Icon size##basic_icon_size", &BasicEventIconSize, 2.0f, 40.0f, "%.0f px");
     }
 
+    // Zoom-based scaling — markers (and cyclic group rings, see
+    // cyclicrender.cpp) grow as the map is zoomed in. Disabled by default
+    // behavior is "stay fixed size", matching the old hardcoded behavior;
+    // this just makes it optional and tunable.
+    {
+        ImGui::Checkbox("Grow markers when zooming in##basic_zoom_scaling_enabled", &BasicEventZoomScalingEnabled);
+
+        if (BasicEventZoomScalingEnabled)
+        {
+            ImGui::SetNextItemWidth(80.0f);
+            ImGui::SliderFloat("Start growing at##basic_zoom_start_pct", &BasicEventZoomStartPct, 0.0f, 100.0f, "%.0f%%");
+
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(80.0f);
+            ImGui::SliderFloat("Max size at 100% zoom##basic_zoom_max_mult", &BasicEventZoomMaxMultiplier, 1.0f, 4.0f, "%.1fx");
+        }
+    }
+
     int pendingRemoveIndex = -1;
     int pendingRemoveBasicCategoryIndex = -1;
     static std::map<int, std::string> editingBasicCategoryNames;

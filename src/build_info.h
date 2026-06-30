@@ -2,4 +2,4 @@
 #pragma once
 #include <string>
 
-inline const std::string DateAndTime = "2026-06-30 23:46";
+inline const std::string DateAndTime = "2026-07-01 00:06";

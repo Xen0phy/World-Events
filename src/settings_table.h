@@ -29,8 +29,8 @@
 // [Cyclic]
 // ---------------------------------------------------------------------------
 SETTING(Cyclic, ShowCyclicOverlay,   bool,  true)
-SETTING(Cyclic, CyclicRadius,        float, 20.0f)
-SETTING(Cyclic, CyclicThickness,     float, 40.0f)
+SETTING(Cyclic, CyclicRadius,        float, 10.0f)
+SETTING(Cyclic, CyclicThickness,     float, 20.0f)
 
 // Stored as DEGREES, not seconds. Degrees are period-independent — 270°
 // means "75% of however long this particular group's cycle is", whether
@@ -60,9 +60,9 @@ SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
 // whatever alpha the user picks via the color swatch (the 4th channel,
 // part of the packed RRGGBBAA value below) IS the actual opacity used,
 // with nothing layered on top of it.
-SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232B4u) // red,    matches the old IM_COL32(255,50,50,180)
-SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00B4u) // orange, matches the old IM_COL32(255,140,0,180)
-SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray,   matches the old IM_COL32(160,160,160,180)
+SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232FFu) // red,    matches the old IM_COL32(255,50,50,180)
+SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00FFu) // orange, matches the old IM_COL32(255,140,0,180)
+SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0FFu) // gray,   matches the old IM_COL32(160,160,160,180)
 
 // Size, in pixels. Independent of each other — changing one does NOT
 // affect the other, even though the icon size used to be derived from
@@ -70,5 +70,25 @@ SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray,
 // icon's HALF-width (matching how maprender.cpp already computes it);
 // height is still derived from the icon texture's own aspect ratio, not
 // a separate setting, so user-supplied icons never render stretched.
-SETTING(BasicEvents, BasicEventDotRadius, float, 8.0f)  // matches the old hardcoded RADIUS
-SETTING(BasicEvents, BasicEventIconSize,  float, 12.0f) // matches the old hardcoded RADIUS(8.0f) * 1.5f
+SETTING(BasicEvents, BasicEventDotRadius, float, 8.0f)
+SETTING(BasicEvents, BasicEventIconSize,  float, 18.0f)
+
+// Zoom-based scaling. Markers stay at their base size (the settings
+// above) from fully-zoomed-out up until BasicEventZoomStartPct of the
+// way to fully-zoomed-in, then grow linearly, reaching
+// BasicEventZoomMaxMultiplier * base size at 100% zoom (fully zoomed
+// in). Compass.Scale itself is continent-units-per-pixel and has no
+// fixed 0–100 range exposed by Mumble, so "percent zoom" is derived at
+// render time from the current map's own min/max Compass.Scale — see
+// GetZoomPercent() in maprender.cpp for that mapping.
+SETTING(BasicEvents, BasicEventZoomScalingEnabled, bool,  true)
+SETTING(BasicEvents, BasicEventZoomStartPct,       float, 0.0f) // % zoom at which growth begins
+SETTING(BasicEvents, BasicEventZoomMaxMultiplier,  float, 3.0f)  // size multiplier at 100% zoom
+
+// Calibration data for the self-learning zoom range described above —
+// persisted so the very first frame after restarting the game/addon
+// already has a usable range instead of starting back at "no variation
+// observed yet" (which would mean a flat 0% / no growth) until the user
+// zooms fully in and out again. -1 means "not yet calibrated".
+SETTING(BasicEvents, BasicEventZoomScaleMinObserved, float, -1.0f)
+SETTING(BasicEvents, BasicEventZoomScaleMaxObserved, float, -1.0f)

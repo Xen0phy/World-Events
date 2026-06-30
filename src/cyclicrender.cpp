@@ -155,8 +155,9 @@ void RenderCyclicGroups()
     ImDrawList* dl  = ImGui::GetBackgroundDrawList();
     time_t      now = time(nullptr);
 
-    const float RADIUS    = CyclicRadius;
-    const float THICKNESS = CyclicThickness;
+    const float zoomMult  = GetEventZoomSizeMultiplier();
+    const float RADIUS    = CyclicRadius    * zoomMult;
+    const float THICKNESS = CyclicThickness * zoomMult;
     constexpr ImU32 COL_TRACK = IM_COL32(100, 100, 100, 120);
     constexpr ImU32 COL_HAND  = IM_COL32(255, 255, 255, 240);
 
