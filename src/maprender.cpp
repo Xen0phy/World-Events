@@ -343,6 +343,14 @@ void RenderMapEvents()
         bool active = IsActive(ev, now);
         int  secs   = SecondsUntilNext(ev, now);
 
+        // Time-window filter: active events always show; upcoming events
+        // only show if they start within the configured window. secs < 0
+        // means "no timer data yet" — let those through unfiltered rather
+        // than hiding events we simply don't have a countdown for.
+        if (BasicEventTimeFilterEnabled && !active && secs >= 0 &&
+            secs > BasicEventTimeFilterMinutes * 60)
+            continue;
+
         // BasicEventColorActive/Soon/Waiting are user settings, stored as
         // packed RRGGBBAA (R in the top byte — same convention as
         // ColorSet::base in cyclic.h), NOT ImGui's native ABGR ImU32

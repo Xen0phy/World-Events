@@ -978,6 +978,45 @@ void AddonOptions()
         }
     }
 
+    // Time-window filter — only show upcoming Basic Events starting within
+    // the next N minutes; active events always show. Deliberately NOT
+    // offered for cyclic groups — see the comment on
+    // BasicEventTimeFilterEnabled in settings_table.h for why.
+    {
+        ImGui::Checkbox("Only show events starting soon##basic_time_filter_enabled", &BasicEventTimeFilterEnabled);
+
+        if (BasicEventTimeFilterEnabled)
+        {
+            // SliderInt operates on a 15-minute STEP INDEX (0..24 => 0..360
+            // minutes), not minutes directly, so dragging always lands on a
+            // clean 15-minute increment. The slider's printf-style format
+            // is passed as a single space (a no-specifier format is valid
+            // printf and just suppresses the numeric readout) since plain
+            // minutes (e.g. "80") isn't the display we want past the 1h
+            // mark; the h/m-formatted label is drawn separately right after
+            // it instead.
+            int stepIndex = BasicEventTimeFilterMinutes / 15;
+            if (stepIndex < 0)  stepIndex = 0;
+            if (stepIndex > 24) stepIndex = 24;
+
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::SliderInt("##basic_time_filter_minutes", &stepIndex, 0, 24, " "))
+                BasicEventTimeFilterMinutes = stepIndex * 15;
+
+            int mins = BasicEventTimeFilterMinutes;
+            int h    = mins / 60;
+            int m    = mins % 60;
+
+            ImGui::SameLine();
+            if (h > 0 && m > 0)
+                ImGui::Text("%dh %02dm", h, m);
+            else if (h > 0)
+                ImGui::Text("%dh", h);
+            else
+                ImGui::Text("%dm", m);
+        }
+    }
+
     int pendingRemoveIndex = -1;
     int pendingRemoveBasicCategoryIndex = -1;
     static std::map<int, std::string> editingBasicCategoryNames;
