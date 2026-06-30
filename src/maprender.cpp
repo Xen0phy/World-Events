@@ -252,7 +252,6 @@ void RenderMapEvents()
     // GW2's own game-world rendering either way.
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
-    constexpr float RADIUS     = 8.0f;
     constexpr float RING_THICK = 1.5f;
     constexpr ImU32 COL_RING   = IM_COL32(255, 255, 255, 220); // white ring
 
@@ -304,25 +303,35 @@ void RenderMapEvents()
 
         Texture_t* icon = ev.iconTexture.empty() ? nullptr : GetOrRequestEventIcon(ev.iconTexture);
 
+        // hoverHalfExtent tracks whichever size is ACTUALLY drawn for
+        // this specific event, so the hover/tooltip rect matches what's
+        // visually on screen — an icon-using event and a plain-dot event
+        // can now have different effective sizes (BasicEventIconSize vs
+        // BasicEventDotRadius), so a single shared hover radius would be
+        // wrong for whichever one isn't currently active.
+        float hoverHalfExtent;
+
         if (icon && icon->Resource)
         {
-            float halfW = RADIUS * 1.5f; // icons read a bit small at the dot's own radius; slightly larger
+            float halfW = BasicEventIconSize;
             float halfH = halfW * ((float)icon->Height / (float)icon->Width);
             dl->AddImage((ImTextureID)icon->Resource,
                 ImVec2(pos.x - halfW, pos.y - halfH),
                 ImVec2(pos.x + halfW, pos.y + halfH),
                 ImVec2(0, 0), ImVec2(1, 1), colFill);
+            hoverHalfExtent = halfW; // width is usually the dominant dimension for icon art; close enough for a hover box
         }
         else
         {
-            dl->AddCircleFilled(pos, RADIUS, colFill);
-            dl->AddCircle(pos, RADIUS, COL_RING, 0, RING_THICK);
+            dl->AddCircleFilled(pos, BasicEventDotRadius, colFill);
+            dl->AddCircle(pos, BasicEventDotRadius, COL_RING, 0, RING_THICK);
+            hoverHalfExtent = BasicEventDotRadius;
         }
 
         // Tooltip on hover
         if (ImGui::IsMouseHoveringRect(
-                {pos.x - RADIUS, pos.y - RADIUS},
-                {pos.x + RADIUS, pos.y + RADIUS}))
+                {pos.x - hoverHalfExtent, pos.y - hoverHalfExtent},
+                {pos.x + hoverHalfExtent, pos.y + hoverHalfExtent}))
         {
             int secs = SecondsUntilNext(ev, now);
             if (secs < 0) continue; // skip events with no timer data yet

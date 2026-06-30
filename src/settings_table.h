@@ -63,3 +63,12 @@ SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
 SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232B4u) // red,    matches the old IM_COL32(255,50,50,180)
 SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00B4u) // orange, matches the old IM_COL32(255,140,0,180)
 SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray,   matches the old IM_COL32(160,160,160,180)
+
+// Size, in pixels. Independent of each other — changing one does NOT
+// affect the other, even though the icon size used to be derived from
+// the dot's radius (RADIUS * 1.5) before this. BasicEventIconSize is the
+// icon's HALF-width (matching how maprender.cpp already computes it);
+// height is still derived from the icon texture's own aspect ratio, not
+// a separate setting, so user-supplied icons never render stretched.
+SETTING(BasicEvents, BasicEventDotRadius, float, 8.0f)  // matches the old hardcoded RADIUS
+SETTING(BasicEvents, BasicEventIconSize,  float, 12.0f) // matches the old hardcoded RADIUS(8.0f) * 1.5f

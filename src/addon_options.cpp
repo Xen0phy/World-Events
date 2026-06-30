@@ -654,7 +654,7 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         // rather than ColorConvertU32ToFloat4.
         ImGui::SameLine();
         ImVec4 baseColor = RGBABaseToFloat4(grp.colors.base);
-        if (ImGui::ColorEdit4("Color", &baseColor.x, ImGuiColorEditFlags_NoInputs))
+        if (ImGui::ColorEdit4("Color", &baseColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
             grp.colors.base = Float4ToRGBABase(baseColor);
 
         // Idle color override — optional. Unchecked: idle track uses
@@ -679,7 +679,7 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         {
             ImU32 idleU32 = grp.idleColor.has_value() ? *grp.idleColor : grp.colors.ter();
             ImVec4 idleColorVec = ImGui::ColorConvertU32ToFloat4(idleU32);
-            if (ImGui::ColorEdit4("Idle Color", &idleColorVec.x, ImGuiColorEditFlags_NoInputs) && hasCustomIdle)
+            if (ImGui::ColorEdit4("Idle Color", &idleColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
                 grp.idleColor = ImGui::ColorConvertFloat4ToU32(idleColorVec);
         }
 
@@ -802,7 +802,7 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 {
                     ImU32 slotU32 = slot.customColor.has_value() ? *slot.customColor : grp.SlotColor(slot);
                     ImVec4 slotColorVec = ImGui::ColorConvertU32ToFloat4(slotU32);
-                    if (ImGui::ColorEdit4("Custom Color Value", &slotColorVec.x, ImGuiColorEditFlags_NoInputs) && hasCustomColor)
+                    if (ImGui::ColorEdit4("Custom Color Value", &slotColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
                         slot.customColor = ImGui::ColorConvertFloat4ToU32(slotColorVec);
                 }
 
@@ -933,18 +933,31 @@ void AddonOptions()
 
         ImGui::SameLine();
         ImVec4 activeColor = RGBABaseToFloat4(BasicEventColorActive);
-        if (ImGui::ColorEdit4("Active##basic_color_active", &activeColor.x, ImGuiColorEditFlags_NoInputs))
+        if (ImGui::ColorEdit4("Active##basic_color_active", &activeColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
             BasicEventColorActive = Float4ToRGBABase(activeColor);
 
         ImGui::SameLine();
         ImVec4 soonColor = RGBABaseToFloat4(BasicEventColorSoon);
-        if (ImGui::ColorEdit4("Soon##basic_color_soon", &soonColor.x, ImGuiColorEditFlags_NoInputs))
+        if (ImGui::ColorEdit4("Soon##basic_color_soon", &soonColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
             BasicEventColorSoon = Float4ToRGBABase(soonColor);
 
         ImGui::SameLine();
         ImVec4 waitingColor = RGBABaseToFloat4(BasicEventColorWaiting);
-        if (ImGui::ColorEdit4("Waiting##basic_color_waiting", &waitingColor.x, ImGuiColorEditFlags_NoInputs))
+        if (ImGui::ColorEdit4("Waiting##basic_color_waiting", &waitingColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
             BasicEventColorWaiting = Float4ToRGBABase(waitingColor);
+    }
+
+    // Size — independent of each other, NOT derived from one another the
+    // way the icon size used to be hardcoded as (dot radius * 1.5). An
+    // icon-using event and a plain-dot event can now look completely
+    // different sizes relative to each other if the user wants that.
+    {
+        ImGui::SetNextItemWidth(80.0f);
+        ImGui::SliderFloat("Dot radius##basic_dot_radius", &BasicEventDotRadius, 2.0f, 30.0f, "%.0f px");
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(80.0f);
+        ImGui::SliderFloat("Icon size##basic_icon_size", &BasicEventIconSize, 2.0f, 40.0f, "%.0f px");
     }
 
     int pendingRemoveIndex = -1;
