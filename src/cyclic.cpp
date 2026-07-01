@@ -63,8 +63,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "Dragon's Stand",
         35709.0f, 37182.0f, 7200, COL_HOT,
         {
-            { "Mordremoth Start",    5400, 1800, ColorTier::Primary },
-            { "Mordremoth Progress", 0,    5400, ColorTier::Secondary },
+            { "Mordremoth Start",    5400, 1800, ColorTier::Primary, "[&BIgIAAA=]" },
+            { "Mordremoth Progress", 0,    5400, ColorTier::Secondary, "[&BIgIAAA=]"},
         }
     },
 
@@ -106,14 +106,14 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "The Desolation",
         59943.0f, 50257.0f, 7200, COL_POF,
         {
-            { "Junundu Rising",  1800, 1200, ColorTier::Primary, 2 },
+            { "Junundu Rising",  1800, 1200, ColorTier::Primary, "", 2 },
             { "Maws of Torment", 3600, 1200, ColorTier::Secondary },
         }
     },
     { "Domain of Vabbi",
         66332.0f, 53596.0f, 7200, COL_POF,
         {
-            { "Forged with Fire", 0,    1800, ColorTier::Primary, 2 },
+            { "Forged with Fire", 0,    1800, ColorTier::Primary, "", 2 },
             { "Serpents' Ire",    1800, 1800, ColorTier::Secondary },
         }
     },

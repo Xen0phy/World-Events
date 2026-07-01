@@ -94,6 +94,9 @@ static json SerializeEvent(const WorldEvent& ev)
     if (!ev.iconTexture.empty())
         j["iconTexture"] = ev.iconTexture; // omitted entirely when empty, matching customColor/idleColor's convention elsewhere in this file
 
+    if (!ev.chatCode.empty())
+        j["chatCode"] = ev.chatCode; // same "omit when empty" convention
+
     if (ev.isVarying)
         j["varyingTimes"] = ev.varyingTimes;
     else
@@ -113,6 +116,7 @@ static WorldEvent DeserializeEvent(const json& j)
     ev.isVarying   = j.value("isVarying", false);
     ev.duration    = j.value("duration", 0);
     ev.iconTexture = j.value("iconTexture", std::string());
+    ev.chatCode    = j.value("chatCode", std::string());
 
     if (ev.isVarying)
         ev.varyingTimes = j.value("varyingTimes", std::vector<int>{});
@@ -173,6 +177,9 @@ static json SerializeSlot(const CyclicGroup::Slot& slot)
         j["customColor"] = ColorToHexString(*slot.customColor);
     // omitted entirely when unset — j.value() on load falls through cleanly
 
+    if (!slot.chatCode.empty())
+        j["chatCode"] = slot.chatCode; // same "omit when empty" convention
+
     return j;
 }
 
@@ -187,6 +194,8 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
 
     if (j.contains("customColor"))
         slot.customColor = HexStringToColor(j.value("customColor", std::string()), 0xFFFFFFFFu);
+
+    slot.chatCode = j.value("chatCode", std::string());
 
     return slot;
 }

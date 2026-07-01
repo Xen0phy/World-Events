@@ -16,6 +16,14 @@ struct WorldEvent
     // Periodic (isVarying = false)
     int         period;     // seconds, e.g. 7200 for 2h events
     int         offset;     // seconds from UTC midnight of first start
+    
+    // Optional GW2 chat/map code (e.g. "[&BIgIAAA=]" for a waypoint),
+    // free text set by the user in the options panel for this event.
+    // Empty string = no code set, matching iconTexture's "empty means
+    // unset" convention just above. Placed LAST, same reasoning as
+    // iconTexture: keeps every existing positional aggregate-initializer
+    // in events.cpp working unchanged.
+    std::string chatCode;
 
     // Optional: filename of a user-supplied icon in the addon's textures/
     // folder, drawn instead of the plain dot when non-empty. The icon is

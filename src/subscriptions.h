@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <vector>
 #include <string>
 
@@ -92,3 +93,18 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
 // ---------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir);
 bool LoadSubscriptionsData(const std::string& addonDir);
+
+// ---------------------------------------------------------------------------
+// PasteToChat
+// ---------------------------------------------------------------------------
+// Sends `message` to whatever window was focused when this was called, via
+// Enter -> Ctrl+V (paste) -> Enter, simulated on a detached background thread.
+//
+// NOTE: uses a deliberate mix of SendMessage (Enter/V) and SendInput (Ctrl).
+// This is empirically required for the target app — see notes further down.
+// Do not "simplify" to one mechanism without re-testing against a real target.
+//
+// Guarded by `send_in_progress` against overlapping calls (e.g. double-clicks).
+// ---------------------------------------------------------------------------
+void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms);
+

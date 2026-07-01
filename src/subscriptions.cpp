@@ -7,10 +7,14 @@
 // "basicCategories"/"cyclicCategories", as two more sibling keys.
 
 #include "subscriptions.h"
+#include "addon.h"
 #include "nlohmann_json.hpp"
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
+#include <atomic>
+#include <thread>
+#include <windows.h>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -145,4 +149,138 @@ bool LoadSubscriptionsData(const std::string& addonDir)
         return true;
     }
     catch (...) { return false; }
+}
+
+// ---------------------------------------------------------------------------
+// CopyTextToClipboard
+// ---------------------------------------------------------------------------
+// Plain Win32 clipboard write. No synthetic keystrokes, no
+// window-handle targeting, nothing sent to the game process; this only
+// touches the shared OS clipboard, same as any other app's "Copy" button.
+// ---------------------------------------------------------------------------
+bool CopyTextToClipboard(const std::string& text)
+{
+    if (!OpenClipboard(nullptr))
+        return false;
+
+    EmptyClipboard();
+
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
+    if (!hMem)
+    {
+        CloseClipboard();
+        return false;
+    }
+
+    void* pMem = GlobalLock(hMem);
+    memcpy(pMem, text.c_str(), text.size() + 1);
+    GlobalUnlock(hMem);
+
+    SetClipboardData(CF_TEXT, hMem);
+    CloseClipboard();
+    return true;
+}
+
+LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
+{
+    std::uint32_t scan_code = MapVirtualKeyA(key, MAPVK_VK_TO_VSC);
+
+    std::uint32_t l_param = 1; // repeat count, bits 0-15 (almost always 1)
+    l_param |= (scan_code & 0xFF) << 16; // bits 16-23
+    // bit 24: extended key flag - set if needed, e.g.:
+    // l_param |= (is_extended_key(key) ? 1u : 0u) << 24;
+    // bits 25-28: reserved, leave as 0
+    // bit 29: context code - 0 for normal key events
+    l_param |= (down && repeat ? 1u : 0u) << 30; // previous key state
+    l_param |= (!down ? 1u : 0u) << 31;           // transition state
+
+    return static_cast<LPARAM>(l_param);
+}
+
+// NOTE ON MIXED SendMessage/SendInput USAGE (do not "clean this up"):
+//
+// This function intentionally mixes two different input delivery mechanisms:
+//   - Enter and 'V' are delivered via SendMessage(tool_handle, WM_KEYDOWN/WM_KEYUP, ...)
+//   - Ctrl is delivered via SendInput(...)
+//
+// SendMessage posts directly to the target window's message queue, bypassing the
+// OS-level input pipeline. SendInput injects into the real, system-wide input stream
+// that Windows uses to track actual keyboard/modifier state (GetKeyState, etc).
+// Mixing them is normally considered fragile: an app *could* receive the WM_KEYDOWN
+// for 'V' via SendMessage without ever seeing Ctrl as "down" at the OS level, since
+// that Ctrl state only exists in the SendInput-driven input stream, not the message
+// queue. In theory, an app that checks GetKeyState(VK_CONTROL) to validate a paste
+// command could fail to recognize this as Ctrl+V.
+//
+// In practice, for the specific third-party target app this was built against:
+//   - A pure SendInput-only version (Ctrl + V both via SendInput) DID NOT WORK —
+//     the app never received/processed the input, even with SetForegroundWindow(),
+//     GetForegroundWindow() polling, focus-state verification, and generous delays.
+//   - A pure SendMessage-only version could not reliably deliver Ctrl as a modifier
+//     the target app would recognize.
+//   - This mixed version (Enter/V via SendMessage, Ctrl via SendInput) is the ONLY
+//     configuration that was empirically confirmed to work against the real target
+//     application, tested interactively, repeatedly.
+//
+// CONCLUSION: this is not an oversight or an unfinished refactor. It is the result
+// of deliberate trial and error against a specific opaque third-party app whose
+// internal input handling is unknown and not under our control. If you (human or
+// AI agent) are reading this and are tempted to "fix" this into a single consistent
+// mechanism (all-SendInput or all-SendMessage) because it looks more correct or
+// idiomatic — don't, without re-testing against the actual target application first.
+// The "theoretically cleaner" version was tried and silently failed (no errors,
+// no exceptions — SendInput/SetForegroundWindow just didn't produce visible input
+// in the target app). Treat this function as empirically pinned, not as a bug.
+//
+// If this ever needs to target a *different* application, re-run the same
+// experiment (pure SendInput vs pure SendMessage vs mixed) against that specific
+// app before assuming this exact pattern will still be necessary or sufficient.
+std::atomic<bool> send_in_progress{false};
+void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
+{
+    bool expected = false;
+    if (!send_in_progress.compare_exchange_strong(expected, true))
+    {
+        // Already sending — ignore this click rather than overlap
+        return;
+    }
+    HWND tool_handle = GetForegroundWindow();
+    CopyTextToClipboard(message);
+    std::thread(
+        [delay_ms, tool_handle]()
+        {
+            if (MumbleLink->Context.IsTextboxFocused != 1)
+            {
+                SendMessage(tool_handle, WM_KEYDOWN, VK_RETURN, get_l_param(VK_RETURN, true));
+                SendMessage(tool_handle, WM_KEYUP, VK_RETURN, get_l_param(VK_RETURN, false));
+                std::this_thread::sleep_for(delay_ms);
+            }
+
+            // Ctrl down
+            INPUT in{};
+            in.type = INPUT_KEYBOARD;
+            in.ki.wVk = VK_CONTROL;
+            SendInput(1, &in, sizeof(INPUT));
+            
+            std::this_thread::sleep_for(delay_ms);
+            
+            //SendMessage(tool_handle, WM_PASTE, 0, 0); not working
+            SendMessage(tool_handle, WM_KEYDOWN, 'V', get_l_param('V', true));
+            SendMessage(tool_handle, WM_KEYUP, 'V', get_l_param('V', false));
+            std::this_thread::sleep_for(delay_ms);
+            
+            // Ctrl up
+            in.ki.dwFlags = KEYEVENTF_KEYUP;
+            SendInput(1, &in, sizeof(INPUT));
+            
+            std::this_thread::sleep_for(delay_ms);
+
+            SendMessage(tool_handle, WM_KEYDOWN, VK_RETURN, get_l_param(VK_RETURN, true));
+            SendMessage(tool_handle, WM_KEYUP, VK_RETURN, get_l_param(VK_RETURN, false));
+            std::this_thread::sleep_for(delay_ms);
+
+            send_in_progress.store(false); // release the guard when done
+        }
+    )
+    .detach();
 }

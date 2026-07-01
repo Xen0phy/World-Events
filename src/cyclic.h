@@ -38,6 +38,18 @@ struct CyclicGroup
         int         offset;    // seconds from UTC midnight of first occurrence
         int         duration;  // seconds
         ColorTier   tier = ColorTier::Primary; // which of the group's colors.pri()/sec()/ter() to use by default
+
+        // Optional GW2 chat/map code (e.g. "[&BIgIAAA=]") the user can
+        // copy to clipboard for this specific slot/occurrence. Empty =
+        // unset. See WorldEvent::chatCode in events.h for the same field
+        // on the Basic Event side. Placed here (right after `tier`, the
+        // last field entries commonly set positionally) rather than at
+        // the very end, so a compiled-in entry can add just a chat code
+        // without also having to backfill `repeat`/`customColor` with
+        // their defaults — see the reorder discussion where this was
+        // introduced for why `repeat`/`customColor` still had to move.
+        std::string chatCode;
+
         int         repeat = 1; // number of evenly-spaced occurrences per period.
                                  // period must be evenly divisible by repeat.
 

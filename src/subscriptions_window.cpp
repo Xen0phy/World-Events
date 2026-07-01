@@ -8,6 +8,7 @@
 #include "maprender.h"
 #include "settings.h"
 #include "imgui.h"
+#include <windows.h>
 #include <ctime>
 #include <string>
 #include <vector>
@@ -105,38 +106,105 @@ static ImVec4 SubscriptionColorToImVec4(unsigned int rgba)
 static constexpr int kSoonThresholdSecs = 900;
 
 // ---------------------------------------------------------------------------
-// DrawStatusText
+// s_flashUntil / s_flashKey
 // ---------------------------------------------------------------------------
-// Shared "Active (ends in ...)" / "in Xh Ym" / "in Xm Ys" formatting,
-// matching the wording already used in the map/ring tooltips so the
-// watchlist reads consistently with the rest of the addon. Three text
-// colors: SubscriptionsActiveColor while active, SubscriptionsSoonColor
-// for anything starting within kSoonThresholdSecs, and the window's
-// normal default text color otherwise — deliberately no third
-// configurable "waiting" color the way the map markers have one, since
-// everything past the soon-window reads fine as plain text and doesn't
-// need to compete for the user's attention.
+// Tracks the single most-recently-clicked row (by its display name, which
+// is unique within one frame's row list — two rows can't show the exact
+// same "Group — Slot" or event name at once) and a GetTickCount64()
+// deadline for how long to keep flashing it. Static/file-local: this
+// window draws on the main thread only, once per frame, so plain statics
+// are fine here — no cross-thread access, unlike PasteToChat's detached
+// clipboard-then-paste thread elsewhere in the project.
 // ---------------------------------------------------------------------------
-static void DrawStatusText(const std::string& name, bool active, int secs)
+static std::string   s_flashKey;
+static unsigned long long s_flashUntil = 0;
+
+static constexpr unsigned long long kFlashDurationMs = 350;
+
+// ---------------------------------------------------------------------------
+// DrawSubscriptionRow
+// ---------------------------------------------------------------------------
+// Draws one watchlist row as a clickable Selectable rather than plain
+// Text, so the whole line acts like a button: click copies
+// "<name>: <chatCode>" to the clipboard (or just "<name>" if no chat code
+// is set for that event/slot yet — nothing to append, so nothing is
+// appended, rather than leaving a dangling "Name: " with an empty tail).
+//
+// Selectable (not a manual InvisibleButton+Text pair) is used because it
+// already gives free hover highlighting — a useful, standard affordance
+// that the row is clickable — and handles the "whole line is one widget"
+// sizing correctly without the FramePadding fights DrawSubscribeCheckbox
+// had to work around for the options-panel checkboxes.
+//
+// Text color still follows the same three-state Active/Soon/default rule
+// as before; a just-clicked row additionally flashes a bright highlight
+// for kFlashDurationMs as click confirmation (see s_flashKey/s_flashUntil
+// above) — chosen instead of a tooltip so the confirmation doesn't cover
+// the very text the user just clicked, and instead of a persistent
+// "Copied!" label so the window doesn't visually shift/grow when clicked.
+// ---------------------------------------------------------------------------
+static void DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs)
 {
+    std::string statusSuffix;
+    ImVec4 color;
+    bool useColor = true;
+
     if (active)
     {
-        ImGui::TextColored(SubscriptionColorToImVec4(SubscriptionsActiveColor),
-            "%s — Active (ends in %dm %02ds)",
-            name.c_str(), secs / 60, secs % 60);
+        char buf[32];
+        snprintf(buf, sizeof(buf), " — Active (ends in %dm %02ds)", secs / 60, secs % 60);
+        statusSuffix = buf;
+        color = SubscriptionColorToImVec4(SubscriptionsActiveColor);
     }
     else if (secs < kSoonThresholdSecs)
     {
-        ImGui::TextColored(SubscriptionColorToImVec4(SubscriptionsSoonColor),
-            "%s — in %dm %02ds", name.c_str(), secs / 60, secs % 60);
-    }
-    else if (secs >= 3600)
-    {
-        ImGui::Text("%s — in %dh %02dm", name.c_str(), secs / 3600, (secs % 3600) / 60);
+        char buf[32];
+        snprintf(buf, sizeof(buf), " — in %dm %02ds", secs / 60, secs % 60);
+        statusSuffix = buf;
+        color = SubscriptionColorToImVec4(SubscriptionsSoonColor);
     }
     else
     {
-        ImGui::Text("%s — in %dm %02ds", name.c_str(), secs / 60, secs % 60);
+        char buf[32];
+        if (secs >= 3600)
+            snprintf(buf, sizeof(buf), " — in %dh %02dm", secs / 3600, (secs % 3600) / 60);
+        else
+            snprintf(buf, sizeof(buf), " — in %dm %02ds", secs / 60, secs % 60);
+        statusSuffix = buf;
+        useColor = false;
+    }
+
+    std::string label = name + statusSuffix;
+
+    bool flashing = (s_flashKey == name) && (GetTickCount64() < s_flashUntil);
+
+    int pushedColors = 0;
+    if (flashing)
+    {
+        // Bright, attention-grabbing flash — deliberately NOT reusing
+        // SubscriptionsActiveColor/SoonColor, so a click on an active/soon
+        // row still visibly confirms even though those rows are already
+        // colored; a fixed white flash reads as "just happened" regardless
+        // of the row's own status color underneath.
+        ImGui::PushStyleColor(ImGuiCol_Header,        ImVec4(1.0f, 1.0f, 1.0f, 0.35f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered,  ImVec4(1.0f, 1.0f, 1.0f, 0.45f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive,   ImVec4(1.0f, 1.0f, 1.0f, 0.45f));
+        pushedColors = 3;
+    }
+
+    if (useColor) ImGui::PushStyleColor(ImGuiCol_Text, color);
+    bool clicked = ImGui::Selectable(label.c_str());
+    if (useColor) ImGui::PopStyleColor();
+
+    if (pushedColors) ImGui::PopStyleColor(pushedColors);
+
+    if (clicked)
+    {
+        std::string toCopy = chatCode.empty() ? name : (name + ": " + chatCode);
+        PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
+
+        s_flashKey   = name;
+        s_flashUntil = GetTickCount64() + kFlashDurationMs;
     }
 }
 
@@ -154,7 +222,7 @@ void RenderSubscriptionsWindow()
     // two separate sections the user has to visually merge themselves —
     // active entries first, then soonest-upcoming, matching the sort
     // already used for the per-group tooltip in cyclicrender.cpp.
-    struct Row { std::string name; bool active; int secs; };
+    struct Row { std::string name; std::string chatCode; bool active; int secs; };
     std::vector<Row> rows;
     rows.reserve(g_SubscribedBasicEvents.size() + g_SubscribedCyclicSlots.size());
 
@@ -169,7 +237,7 @@ void RenderSubscriptionsWindow()
         if (secs < 0) continue; // no timer data yet
         if (active && SubscriptionsHideActive) continue; // "only show what's not already happening"
 
-        rows.push_back({ it->name, active, secs });
+        rows.push_back({ it->name, it->chatCode, active, secs });
     }
 
     for (const auto& key : g_SubscribedCyclicSlots)
@@ -188,7 +256,7 @@ void RenderSubscriptionsWindow()
         for (const auto& slot : it->slots)
         {
             if (slot.offset != key.slotOffset) continue;
-            rows.push_back({ it->name + " — " + slot.name, status.active, status.secs });
+            rows.push_back({ it->name + " - " + slot.name, slot.chatCode, status.active, status.secs });
             break;
         }
     }
@@ -224,7 +292,10 @@ void RenderSubscriptionsWindow()
     else
     {
         for (const auto& row : rows)
-            DrawStatusText(row.name, row.active, row.secs);
+            DrawSubscriptionRow(row.name, row.chatCode, row.active, row.secs);
+
+        ImGui::Separator();
+        ImGui::TextDisabled("Click a row to copy its waypoint code.");
     }
 
     ImGui::End();
