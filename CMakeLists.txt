@@ -25,6 +25,8 @@ add_library(gw2-world-events SHARED
     src/settings.cpp
     src/events_storage.cpp
     src/categories.cpp
+    src/subscriptions.cpp
+    src/subscriptions_window.cpp
     src/icon_whitener.cpp
     include/imgui.cpp
     include/imgui_draw.cpp

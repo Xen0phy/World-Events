@@ -128,7 +128,7 @@ static Texture_t* GetOrRequestEventIcon(const std::string& filename)
 //
 // For periodic events, uses phase arithmetic to find the next start.
 // ---------------------------------------------------------------------------
-static int SecondsUntilNext(const WorldEvent& ev, time_t now)
+int GetSecondsUntilEventStart(const WorldEvent& ev, time_t now)
 {
     if (!ev.isVarying && ev.period <= 0) return -1;
     if ( ev.isVarying && ev.varyingTimes.empty()) return -1;
@@ -160,7 +160,7 @@ static int SecondsUntilNext(const WorldEvent& ev, time_t now)
 // Returns how many seconds until the current active window closes.
 // Only meaningful when IsActive() is true.
 // ---------------------------------------------------------------------------
-static int SecondsUntilEnd(const WorldEvent& ev, time_t now)
+int GetSecondsUntilEventEnd(const WorldEvent& ev, time_t now)
 {
     int secondsOfDay = (int)(now % 86400);
 
@@ -186,7 +186,7 @@ static int SecondsUntilEnd(const WorldEvent& ev, time_t now)
 // window. For periodic events, checks whether we are within the duration
 // window at the start of the current cycle.
 // ---------------------------------------------------------------------------
-static bool IsActive(const WorldEvent& ev, time_t now)
+bool IsEventActive(const WorldEvent& ev, time_t now)
 {
     if (ev.isVarying)
     {
@@ -198,7 +198,7 @@ static bool IsActive(const WorldEvent& ev, time_t now)
         return false;
     }
 
-    int secs = SecondsUntilNext(ev, now);
+    int secs = GetSecondsUntilEventStart(ev, now);
     if (secs < 0) return false;
     return secs > (ev.period - ev.duration);
 }
@@ -340,8 +340,8 @@ void RenderMapEvents()
         if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
         if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
 
-        bool active = IsActive(ev, now);
-        int  secs   = SecondsUntilNext(ev, now);
+        bool active = IsEventActive(ev, now);
+        int  secs   = GetSecondsUntilEventStart(ev, now);
 
         // Time-window filter: active events always show; upcoming events
         // only show if they start within the configured window. secs < 0
@@ -406,13 +406,13 @@ void RenderMapEvents()
                 {pos.x - hoverHalfExtent, pos.y - hoverHalfExtent},
                 {pos.x + hoverHalfExtent, pos.y + hoverHalfExtent}))
         {
-            int secs = SecondsUntilNext(ev, now);
+            int secs = GetSecondsUntilEventStart(ev, now);
             if (secs < 0) continue; // skip events with no timer data yet
 
             ImGui::BeginTooltip();
             if (active)
             {
-                int secsUntilEnd = SecondsUntilEnd(ev, now);
+                int secsUntilEnd = GetSecondsUntilEventEnd(ev, now);
                 ImGui::Text("%s — Active (ends in %dm %02ds)",
                     ev.name.c_str(), secsUntilEnd / 60, secsUntilEnd % 60);
             }

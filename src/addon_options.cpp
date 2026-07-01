@@ -13,19 +13,152 @@
 // groups/slots/events is a separate, later piece once JSON persistence for
 // g_CyclicGroups/g_Events exists.
 
+#include "addon.h"
 #include "settings.h"
 #include "build_info.h"
 #include "events.h"
 #include "cyclic.h"
 #include "categories.h"
+#include "subscriptions.h"
 #include "maprender.h"
 #include "icon_whitener.h"
 #include "imgui.h"
 #include "imgui_internal.h" // ImGuiItemFlags_Disabled / PushItemFlag — not in the public header
+#include "windows.h"
+#include <atomic>
 #include <cstring>
 #include <algorithm>
 #include <cctype>
 #include <map>
+#include <thread>
+#include <string>
+
+LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
+{
+    std::uint32_t scan_code = MapVirtualKeyA(key, MAPVK_VK_TO_VSC);
+
+    std::uint32_t l_param = 1; // repeat count, bits 0-15 (almost always 1)
+    l_param |= (scan_code & 0xFF) << 16; // bits 16-23
+    // bit 24: extended key flag - set if needed, e.g.:
+    // l_param |= (is_extended_key(key) ? 1u : 0u) << 24;
+    // bits 25-28: reserved, leave as 0
+    // bit 29: context code - 0 for normal key events
+    l_param |= (down && repeat ? 1u : 0u) << 30; // previous key state
+    l_param |= (!down ? 1u : 0u) << 31;           // transition state
+
+    return static_cast<LPARAM>(l_param);
+}
+
+bool CopyTextToClipboard(const std::string& text)
+{
+    if (!OpenClipboard(nullptr))
+        return false;
+
+    EmptyClipboard();
+
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
+    if (!hMem)
+    {
+        CloseClipboard();
+        return false;
+    }
+
+    void* pMem = GlobalLock(hMem);
+    memcpy(pMem, text.c_str(), text.size() + 1);
+    GlobalUnlock(hMem);
+
+    SetClipboardData(CF_TEXT, hMem);
+    CloseClipboard();
+    return true;
+}
+
+// NOTE ON MIXED SendMessage/SendInput USAGE (do not "clean this up"):
+//
+// This function intentionally mixes two different input delivery mechanisms:
+//   - Enter and 'V' are delivered via SendMessage(tool_handle, WM_KEYDOWN/WM_KEYUP, ...)
+//   - Ctrl is delivered via SendInput(...)
+//
+// SendMessage posts directly to the target window's message queue, bypassing the
+// OS-level input pipeline. SendInput injects into the real, system-wide input stream
+// that Windows uses to track actual keyboard/modifier state (GetKeyState, etc).
+// Mixing them is normally considered fragile: an app *could* receive the WM_KEYDOWN
+// for 'V' via SendMessage without ever seeing Ctrl as "down" at the OS level, since
+// that Ctrl state only exists in the SendInput-driven input stream, not the message
+// queue. In theory, an app that checks GetKeyState(VK_CONTROL) to validate a paste
+// command could fail to recognize this as Ctrl+V.
+//
+// In practice, for the specific third-party target app this was built against:
+//   - A pure SendInput-only version (Ctrl + V both via SendInput) DID NOT WORK —
+//     the app never received/processed the input, even with SetForegroundWindow(),
+//     GetForegroundWindow() polling, focus-state verification, and generous delays.
+//   - A pure SendMessage-only version could not reliably deliver Ctrl as a modifier
+//     the target app would recognize.
+//   - This mixed version (Enter/V via SendMessage, Ctrl via SendInput) is the ONLY
+//     configuration that was empirically confirmed to work against the real target
+//     application, tested interactively, repeatedly.
+//
+// CONCLUSION: this is not an oversight or an unfinished refactor. It is the result
+// of deliberate trial and error against a specific opaque third-party app whose
+// internal input handling is unknown and not under our control. If you (human or
+// AI agent) are reading this and are tempted to "fix" this into a single consistent
+// mechanism (all-SendInput or all-SendMessage) because it looks more correct or
+// idiomatic — don't, without re-testing against the actual target application first.
+// The "theoretically cleaner" version was tried and silently failed (no errors,
+// no exceptions — SendInput/SetForegroundWindow just didn't produce visible input
+// in the target app). Treat this function as empirically pinned, not as a bug.
+//
+// If this ever needs to target a *different* application, re-run the same
+// experiment (pure SendInput vs pure SendMessage vs mixed) against that specific
+// app before assuming this exact pattern will still be necessary or sufficient.
+std::atomic<bool> send_in_progress{false};
+void send_message(const std::string& message, std::chrono::milliseconds delay_ms)
+{
+    bool expected = false;
+    if (!send_in_progress.compare_exchange_strong(expected, true))
+    {
+        // Already sending — ignore this click rather than overlap
+        return;
+    }
+    HWND tool_handle = GetForegroundWindow();
+    CopyTextToClipboard(message);
+    std::thread(
+        [delay_ms, tool_handle]()
+        {
+            if (MumbleLink->Context.IsTextboxFocused != 1)
+            {
+                SendMessage(tool_handle, WM_KEYDOWN, VK_RETURN, get_l_param(VK_RETURN, true));
+                SendMessage(tool_handle, WM_KEYUP, VK_RETURN, get_l_param(VK_RETURN, false));
+                std::this_thread::sleep_for(delay_ms);
+            }
+
+            // Ctrl down
+            INPUT in{};
+            in.type = INPUT_KEYBOARD;
+            in.ki.wVk = VK_CONTROL;
+            SendInput(1, &in, sizeof(INPUT));
+            
+            std::this_thread::sleep_for(delay_ms);
+            
+            //SendMessage(tool_handle, WM_PASTE, 0, 0); not working
+            SendMessage(tool_handle, WM_KEYDOWN, 'V', get_l_param('V', true));
+            SendMessage(tool_handle, WM_KEYUP, 'V', get_l_param('V', false));
+            std::this_thread::sleep_for(delay_ms);
+            
+            // Ctrl up
+            in.ki.dwFlags = KEYEVENTF_KEYUP;
+            SendInput(1, &in, sizeof(INPUT));
+            
+            std::this_thread::sleep_for(delay_ms);
+
+            SendMessage(tool_handle, WM_KEYDOWN, VK_RETURN, get_l_param(VK_RETURN, true));
+            SendMessage(tool_handle, WM_KEYUP, VK_RETURN, get_l_param(VK_RETURN, false));
+            std::this_thread::sleep_for(delay_ms);
+
+            send_in_progress.store(false); // release the guard when done
+        }
+    )
+    .detach();
+}
 
 // Scoped "disable + dim" helper for ImGui 1.80 (no native BeginDisabled/
 // EndDisabled in this version). Usage: DisabledBlock(cond) { ...widgets... }
@@ -286,6 +419,43 @@ static bool MakeDropTarget(const char* dragType, std::vector<Category>& categori
 }
 
 // ---------------------------------------------------------------------------
+// DrawSubscribeCheckbox
+// ---------------------------------------------------------------------------
+// Small "Watch" checkbox meant to sit immediately BEFORE a TreeNode call,
+// on the same line — i.e. the caller does:
+//
+//   bool subscribed = ...;
+//   if (DrawSubscribeCheckbox("##watch_x", subscribed)) Toggle...(...);
+//   ImGui::SameLine();
+//   NameRowResult nameResult = DrawNameAndContextMenu(...);
+//
+// producing "[x] > TreeNode" rather than the arrow/label first.
+//
+// A plain ImGui::Checkbox is noticeably taller than the TreeNode arrow it
+// sits next to — Checkbox draws a full button-style frame using the
+// theme's FramePadding, while TreeNode only pads its arrow by a much
+// smaller amount. Sharing a row with the plain checkbox meant every row's
+// height (and therefore the vertical gap between rows) was governed by
+// the taller widget, which is what produced the extra vertical spacing
+// once these checkboxes were added. Scoping FramePadding down to zero for
+// JUST this checkbox (pushed/popped tightly around the single call, not
+// left active for anything else on the row) makes the checkbox's own
+// height match the tree arrow's, so the row height reverts to what it
+// was before subscriptions existed.
+//
+// Returns true if the checkbox was toggled this frame (same contract as
+// ImGui::Checkbox itself) — callers still own actually flipping the
+// underlying subscription state.
+// ---------------------------------------------------------------------------
+static bool DrawSubscribeCheckbox(const char* label, bool& value)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+    bool changed = ImGui::Checkbox(label, &value);
+    ImGui::PopStyleVar();
+    return changed;
+}
+
+// ---------------------------------------------------------------------------
 // DrawNameAndContextMenu
 // ---------------------------------------------------------------------------
 // Draws a row's expand/collapse TreeNode WITH its name as the node's own
@@ -446,6 +616,17 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
     WorldEvent& ev = g_Events[i];
 
+    // Subscribe checkbox drawn BEFORE the name/tree-arrow, on the same
+    // line ("[x] > Name") — see DrawSubscribeCheckbox's comment for why
+    // this needs the tightened FramePadding rather than a plain
+    // ImGui::Checkbox. Toggling this doesn't affect rendering or timing
+    // at all (see subscriptions.h); it only adds/removes ev.name from
+    // the watchlist window's list.
+    bool subscribed = IsBasicEventSubscribed(ev.name);
+    if (DrawSubscribeCheckbox("##subscribe", subscribed))
+        ToggleBasicEventSubscription(ev.name);
+    ImGui::SameLine();
+
     std::string oldName = ev.name;
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType);
     bool open = nameResult.open;
@@ -453,6 +634,7 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     {
         ev.name = nameResult.newName;
         RenameCategoryMember(g_BasicCategories, oldName, ev.name);
+        RenameSubscribedBasicEvent(oldName, ev.name);
     }
 
     if (IsDuplicateEventName(g_Events, i))
@@ -712,11 +894,27 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             CyclicGroup::Slot& slot = grp.slots[s];
             ImGui::PushID(s);
 
+            // Subscribe checkbox drawn BEFORE the name/tree-arrow, same
+            // "[x] > Name" layout and tightened-padding reasoning as
+            // DrawSubscribeCheckbox's comment. Per SLOT (an individual
+            // occurrence), not per group, per the call made this
+            // session: watching "Crash Site" shouldn't also silently
+            // watch every other event in the same cyclic group.
+            CyclicSubscriptionKey subKey{ grp.name, slot.offset };
+            bool subscribed = IsCyclicSlotSubscribed(subKey);
+            if (DrawSubscribeCheckbox("##subscribe", subscribed))
+                ToggleCyclicSlotSubscription(subKey);
+            ImGui::SameLine();
+
             int slotEditKey = i * 100000 + s;
             NameRowResult nameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, slot.name, editingSlotNames, pendingRemoveSlotIndex);
             bool slotOpen = nameResult.open;
             if (nameResult.newName != slot.name)
                 slot.name = nameResult.newName; // no RenameCategoryMember call — slots aren't categorized, only the two top-level lists are
+                // Also no RenameSubscribedBasicEvent-style patch needed here:
+                // cyclic slot subscriptions are keyed by (group name, slot
+                // OFFSET), not slot name — see subscriptions.h — so renaming
+                // a slot never invalidates its subscription key.
 
             if (IsDuplicateSlotKey(grp.slots, s))
                 DrawDuplicateWarning();
@@ -854,6 +1052,40 @@ void AddonOptions()
 
     ImGui::Checkbox("Show cyclic event overlay", &ShowCyclicOverlay);
 
+    // Watchlist window toggle — mirrors the "Watch" checkboxes on each
+    // event/slot row further down: this just opens/closes the window,
+    // it doesn't affect which events are actually subscribed (that's
+    // events.json data, see subscriptions.h, not this bool).
+    ImGui::Checkbox("Show subscriptions window", &ShowSubscriptionsWindow);
+
+    // Everything below only makes sense while the window itself is on —
+    // same dim-and-disable treatment as the cyclic overlay's controls
+    // below, for the same reason (stay visible/discoverable, just
+    // inert, rather than disappearing entirely).
+    DisabledBlock(!ShowSubscriptionsWindow)
+    {
+        ImGui::Checkbox("Hide active in window", &SubscriptionsHideActive);
+
+        ImGui::SameLine();
+        ImGui::TextUnformatted("Colors:");
+
+        // RGB only, no alpha bar — these feed straight into
+        // ImGui::TextColored (plain text, no separate opacity control),
+        // unlike the map's BasicEventColor* pickers just above, which
+        // DO need ColorEdit4/an alpha bar since they tint an actual
+        // drawn dot/icon. See SubscriptionsActiveColor's comment in
+        // settings_table.h.
+        ImGui::SameLine();
+        ImVec4 subActiveColor = RGBABaseToFloat4(SubscriptionsActiveColor);
+        if (ImGui::ColorEdit3("Active##sub_color_active", &subActiveColor.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
+            SubscriptionsActiveColor = Float4ToRGBABase(subActiveColor);
+
+        ImGui::SameLine();
+        ImVec4 subSoonColor = RGBABaseToFloat4(SubscriptionsSoonColor);
+        if (ImGui::ColorEdit3("Soon##sub_color_soon", &subSoonColor.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
+            SubscriptionsSoonColor = Float4ToRGBABase(subSoonColor);
+    }
+
     // Everything below only makes sense while the overlay itself is on —
     // dim and disable it otherwise rather than hiding it outright, so the
     // user can still see what these controls are without losing their
@@ -879,6 +1111,21 @@ void AddonOptions()
         ImGui::SliderFloat("Past window",   &CyclicMaxPastDeg,   0.0f, 360.0f, "%.0f deg");
         if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxFutureDeg = 360 - CyclicMaxPastDeg; }
     }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::InputInt("Delay", &delayMilliseconds);
+    
+    if (ImGui::Button("Copy waypoint"))
+        CopyTextToClipboard("test message");
+    ImGui::SameLine();
+    if (ImGui::Button("Test Enter"))
+        CopyTextToClipboard("Enter test");
+    ImGui::SameLine();
+    if (ImGui::Button("Send Message"))
+        send_message("this works", std::chrono::milliseconds(delayMilliseconds));
 
     ImGui::Spacing();
     ImGui::Separator();

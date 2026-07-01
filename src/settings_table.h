@@ -108,3 +108,41 @@ SETTING(BasicEvents, BasicEventZoomScaleMaxObserved, float, -1.0f)
 // compose with it.
 SETTING(BasicEvents, BasicEventTimeFilterEnabled,    bool, false)
 SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
+
+// ---------------------------------------------------------------------------
+// [Subscriptions]
+// ---------------------------------------------------------------------------
+// Open/closed state of the standalone watchlist window (subscriptions.h /
+// subscriptions_window.h). WHICH events are subscribed lives in
+// events.json instead (see subscriptions.cpp) — same split as everything
+// else in this file: settings.ini holds UI/display preferences, events.json
+// holds the actual event/grouping/membership data.
+SETTING(Subscriptions, ShowSubscriptionsWindow, bool, false)
+
+// When true, active rows are simply left out of the watchlist window's
+// list entirely (not just dimmed/recolored) — a "only show me what's NOT
+// already happening" mode. Only affects the watchlist window; Basic Event
+// markers on the map keep showing active events regardless (that's a
+// separate, existing on/off-map concern with its own established colors,
+// not something this toggle should also reach into).
+SETTING(Subscriptions, SubscriptionsHideActive, bool, false)
+
+// Text colors for the watchlist window's two highlighted states: an
+// active row, and a row starting within the next 15 minutes ("soon" —
+// same 900s threshold already used for BasicEventColorSoon on the map,
+// reused here rather than introducing a second configurable window,
+// per the call made this session). Rows that are neither just use the
+// window's normal default text color, so there's no separate "waiting"
+// setting the way the map markers have one — the list only needs to draw
+// attention to the two states that are actually time-sensitive.
+//
+// Stored as packed RRGGBBAA like the map's BasicEventColor* settings, but
+// note the LOW BYTE (alpha) is unused/ignored here: this feeds straight
+// into ImGui::TextColored, which is plain text with no separate opacity
+// control worth exposing, so the options-panel picker for these is a
+// ColorEdit3 (RGB only, see addon_options.cpp) rather than ColorEdit4 —
+// unlike BasicEventColor*, which DOES use every channel including alpha.
+SETTING(Subscriptions, SubscriptionsActiveColor, unsigned int, 0x66FF66FFu) // light green
+SETTING(Subscriptions, SubscriptionsSoonColor,   unsigned int, 0xFF8C00FFu) // orange, matches BasicEventColorSoon's RGB
+
+SETTING(System, delayMilliseconds, int, 50)

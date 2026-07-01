@@ -6,6 +6,8 @@
 #include "settings.h"
 #include "events_storage.h"
 #include "categories.h"
+#include "subscriptions.h"
+#include "subscriptions_window.h"
 #include "imgui.h"
 #include "version.h"
 
@@ -49,8 +51,15 @@ void AddonLoad(AddonAPI_t* aAPI)
     // here — only the SAVE order below does, see categories.h.
     LoadCategoriesData(g_AddonDir);
 
+    // Same file, same "no compiled-in defaults to merge" story as
+    // categories — see subscriptions.h. Order relative to the other
+    // Load*Data calls doesn't matter (it only reads its own two keys),
+    // only the SAVE order below does.
+    LoadSubscriptionsData(g_AddonDir);
+
     SaveEventsData(g_AddonDir);
-    SaveCategoriesData(g_AddonDir); // must run AFTER SaveEventsData — see categories.h
+    SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see categories.h
+    SaveSubscriptionsData(g_AddonDir);  // must run AFTER SaveEventsData — see subscriptions.h
 
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
@@ -66,7 +75,8 @@ void AddonUnload()
 
     SaveSettings(g_AddonDir);
     SaveEventsData(g_AddonDir);
-    SaveCategoriesData(g_AddonDir); // must run AFTER SaveEventsData — see categories.h
+    SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see categories.h
+    SaveSubscriptionsData(g_AddonDir);  // must run AFTER SaveEventsData — see subscriptions.h
 
     // Force heap frees now while the CRT is still intact,
     // rather than leaving it to the static destructor at DLL unload.
@@ -81,11 +91,25 @@ void AddonUnload()
     g_CyclicCategories.clear();
     g_CyclicCategories.shrink_to_fit();
 
+    g_SubscribedBasicEvents.clear();
+    g_SubscribedBasicEvents.shrink_to_fit();
+    g_SubscribedCyclicSlots.clear();
+    g_SubscribedCyclicSlots.shrink_to_fit();
+
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Unloaded.");
 }
 
 void AddonRender()
 {
+    // The subscriptions watchlist is a normal ImGui window (not a
+    // background-drawlist overlay onto the game world like the map
+    // markers/rings below), so it's useful — and expected to keep working
+    // — whether or not the full-screen map is currently open. It's drawn
+    // unconditionally on IsGameplay alone; the early-out above it only
+    // gates the two map-only overlays.
+    if (MumbleLink && NexusLink && NexusLink->IsGameplay)
+        RenderSubscriptionsWindow();
+
     if (!MumbleLink || !NexusLink)          return;
     if (!NexusLink->IsGameplay)             return;
     if (!MumbleLink->Context.IsMapOpen)     return;
