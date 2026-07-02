@@ -109,8 +109,10 @@ void AddonRender()
     // unconditionally on IsGameplay alone; the early-out above it only
     // gates the two map-only overlays.
     if (MumbleLink && NexusLink && NexusLink->IsGameplay)
+    {
         RenderSubscriptionsWindow();
         RenderSubscriptionsBar();
+    }
 
     if (!MumbleLink || !NexusLink)          return;
     if (!NexusLink->IsGameplay)             return;

@@ -1025,6 +1025,30 @@ void AddonOptions()
     // rationale and ShowSubscriptionsBar's comment in settings_table.h.
     ImGui::Checkbox("Show subscriptions distribution line", &ShowSubscriptionsBar);
 
+    // Only meaningful while the line itself is on — same dim-and-disable
+    // treatment used elsewhere in this file (e.g. the watchlist controls
+    // just below) so the control stays visible/discoverable rather than
+    // vanishing outright.
+    DisabledBlock(!ShowSubscriptionsBar)
+    {
+        ImGui::Indent();
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("Hover delay (ms)", &SubscriptionsBarHoverDelayMs, 50, 100))
+        {
+            // Clamp rather than reject — InputInt lets the user type/
+            // arrow past either end transiently, so clamp after the
+            // fact instead of blocking input. 0 is a valid, meaningful
+            // value (delay disabled entirely), so the floor is 0, not 1.
+            if (SubscriptionsBarHoverDelayMs < 0)    SubscriptionsBarHoverDelayMs = 0;
+            if (SubscriptionsBarHoverDelayMs > 5000) SubscriptionsBarHoverDelayMs = 5000;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How long the mouse has to sit still over a segment or dot before it pops out. 0 = instant.");
+        ImGui::Unindent();
+    }
+
     // Everything below only makes sense while the window itself is on —
     // same dim-and-disable treatment as the cyclic overlay's controls
     // below, for the same reason (stay visible/discoverable, just

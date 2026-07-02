@@ -126,6 +126,16 @@ SETTING(Subscriptions, ShowSubscriptionsWindow, bool, false)
 // both, or neither view can be open at once.
 SETTING(Subscriptions, ShowSubscriptionsBar, bool, false)
 
+// How long the mouse must sit still over a distribution-line segment or
+// dot marker (subscriptions_bar.cpp) before its curve-drop hover
+// animation starts — avoids every segment along the strip popping in and
+// out as the mouse merely passes over the top edge of the screen on its
+// way to/from somewhere else (e.g. the character select / login screen
+// menus, or just moving the mouse up to click a Nexus icon). 0 disables
+// the delay entirely (drop starts the instant the mouse touches a
+// segment, same as the very first version of this feature).
+SETTING(Subscriptions, SubscriptionsBarHoverDelayMs, int, 500)
+
 // When true, active rows are simply left out of the watchlist window's
 // list entirely (not just dimmed/recolored) — a "only show me what's NOT
 // already happening" mode. Only affects the watchlist window; Basic Event

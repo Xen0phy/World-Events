@@ -83,10 +83,115 @@ struct LineSegment
     bool        active;
     int         statusSecs; // secs left if active, secs until start otherwise
     ImU32       color;
+    int         lane = 0;   // 0 = this segment is the one drawn on the single resting baseline for its time range; >0 = this segment is currently hidden behind a lane-0 segment and only shows up as a dot marker + on hover — see AssignLanes
 };
 
 // ---------------------------------------------------------------------------
-// CollectVisibleSegments
+// AssignLanes
+// ---------------------------------------------------------------------------
+// Two subscriptions can easily land at the same time (e.g. two Cyclic
+// bosses that spawn together, or a Basic Event overlapping a subscribed
+// slot). Rather than drawing extra permanent lines for that (which ate
+// screen space at rest — see the earlier iteration of this file), the
+// resting baseline only ever draws ONE segment per point in time: the
+// lane-0 segment. Every other overlapping segment (lane > 0) draws no
+// line of its own at rest — it's only surfaced via a small dot marker at
+// its start tick (see DotTickSeconds/collect dots below) and via the
+// normal hover-drop, exactly like a lane-0 segment.
+//
+// This does simple greedy interval-graph coloring: walk segments
+// left-to-right, and for each one assign the lowest-numbered lane whose
+// most-recently-placed segment has already ended (with a hair of
+// x-margin so near-misses still separate visually). Segments assumed
+// already sorted by startX (CollectVisibleSegments sorts right before
+// calling this).
+// ---------------------------------------------------------------------------
+static void AssignLanes(std::vector<LineSegment>& segs)
+{
+    constexpr float kLaneMargin = 1.0f; // px — treat near-touching segments as overlapping too, not just strictly-overlapping ones
+    std::vector<float> laneEndX; // laneEndX[lane] = endX of the last segment placed in that lane
+
+    for (auto& seg : segs)
+    {
+        int chosenLane = -1;
+        for (int lane = 0; lane < (int)laneEndX.size(); lane++)
+        {
+            if (seg.startX >= laneEndX[lane] - kLaneMargin) { chosenLane = lane; break; }
+        }
+        if (chosenLane < 0)
+        {
+            chosenLane = (int)laneEndX.size();
+            laneEndX.push_back(0.0f);
+        }
+        seg.lane = chosenLane;
+        laneEndX[chosenLane] = seg.endX;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DotMark
+// ---------------------------------------------------------------------------
+// One small marker on the baseline: "a hidden (lane>0) event starts at
+// this 5-minute tick, and it overlaps whatever's currently shown there".
+// segIndex points back into the same segs vector CollectOverlapDots was
+// given, so hovering/clicking a dot can drive the exact same drop
+// animation and click-to-copy as hovering that segment's own line would.
+// ---------------------------------------------------------------------------
+struct DotMark
+{
+    float x;        // baseline x position of this tick (unnudged — nudging for co-occurring dots happens at draw time)
+    int   segIndex; // index into segs of the hidden event this dot represents
+};
+
+// ---------------------------------------------------------------------------
+// CollectOverlapDots
+// ---------------------------------------------------------------------------
+// GW2 events always start on 5-minute marks, so "does a hidden event
+// start here" only ever needs checking at 5-minute ticks, not every
+// second. For every lane>0 (hidden) segment, this checks whether its
+// start tick falls inside the time range of whatever lane-0 segment is
+// currently occupying the baseline at that x — if so, that's exactly
+// "here starts another event which is overlapping with a displayed
+// event", and gets a dot. A hidden segment whose start doesn't land
+// inside any lane-0 segment's range (e.g. it starts in a pure gap on the
+// baseline) gets no dot — there's nothing being hidden to flag.
+// ---------------------------------------------------------------------------
+static std::vector<DotMark> CollectOverlapDots(const std::vector<LineSegment>& segs, float stripWidth)
+{
+    std::vector<DotMark> dots;
+
+    // Bucket the lane-0 segments so "is x inside a currently-shown
+    // segment" is a simple scan rather than needing a full timeline
+    // reconstruction — there are only ever a handful of subscriptions
+    // visible in a 2h window, so this stays cheap.
+    std::vector<int> lane0Indices;
+    for (int i = 0; i < (int)segs.size(); i++)
+        if (segs[i].lane == 0) lane0Indices.push_back(i);
+
+    for (int i = 0; i < (int)segs.size(); i++)
+    {
+        if (segs[i].lane == 0) continue; // only hidden segments need a dot at all
+
+        float startX = segs[i].startX;
+        for (int lane0Idx : lane0Indices)
+        {
+            const LineSegment& shown = segs[lane0Idx];
+            if (startX >= shown.startX && startX < shown.endX)
+            {
+                dots.push_back({ startX, i });
+                break; // one dot per hidden segment's start, even if it somehow matched more than one shown range
+            }
+        }
+    }
+
+    // Sort by x, then group ties (multiple hidden events starting on the
+    // exact same tick) together for the horizontal nudge-apart pass at
+    // draw time — see the render loop's kDotSpacingPx use below.
+    std::sort(dots.begin(), dots.end(), [](const DotMark& a, const DotMark& b) { return a.x < b.x; });
+
+    return dots;
+}
+
 // ---------------------------------------------------------------------------
 // Walks the same two subscription lists RenderSubscriptionsWindow does
 // (g_SubscribedBasicEvents / g_SubscribedCyclicSlots) and produces one
@@ -208,6 +313,8 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         return a.startX < b.startX;
     });
 
+    AssignLanes(segs);
+
     return segs;
 }
 
@@ -245,8 +352,16 @@ static float FlatBlockDepthAt(float x, float start, float end, float tw)
 // (or just-unhovered, mid-ease-out) segment eases its own depth toward
 // a target every frame, independently of the others, so segments raise
 // and lower smoothly rather than snapping.
+//
+// hoverSeconds tracks how long the mouse has continuously sat over this
+// specific segment/dot (raw hover, before any delay is applied) — reset
+// to 0 the instant hover is lost, so briefly passing over the strip
+// (e.g. moving the mouse up to click a Nexus icon) doesn't "bank"
+// partial progress toward a later, unrelated hover. The eased amount's
+// target only becomes 1.0 once hoverSeconds clears
+// SubscriptionsBarHoverDelayMs/1000 — see the easing loop below.
 // ---------------------------------------------------------------------------
-struct DropState { float amount = 0.0f; }; // eased 0..1 drop amount
+struct DropState { float amount = 0.0f; float hoverSeconds = 0.0f; };
 static std::unordered_map<std::string, DropState> s_dropStates;
 
 static constexpr float kTransitionWidth = 26.0f; // px — curved shoulder width, scaled down from the HTML's 60px for a much thinner overlay strip
@@ -275,47 +390,124 @@ void RenderSubscriptionsBar()
         s_dropStates.clear();
         return;
     }
+    std::vector<DotMark> dots = CollectOverlapDots(segs, screenW);
 
     // ---- Layout constants (local space: y=0 is the baseline strip itself,
     // dropped blocks extend DOWNWARD from there since the line lives on
     // the top edge) ----
-    constexpr float kLineThick   = 2.0f;
-    constexpr float kBaselineY   = kLineThick * 0.5f;  // line is centered on this y, so offsetting by half its thickness puts the stroke's visible top edge flush with the actual screen edge instead of half of it getting clipped off-screen
-    constexpr float kMaxDropPx   = 54.0f; // how far a fully-hovered block drops down from the baseline — sized to comfortably fit two centered lines of label text
-    constexpr float kGapPx       = 3.0f;  // thin background-colored notch between adjacent segments
+    constexpr float kLineThick    = 2.0f;
+    constexpr float kBaselineY    = kLineThick * 0.5f;  // line is centered on this y, so offsetting by half its thickness puts the stroke's visible top edge flush with the actual screen edge instead of half of it getting clipped off-screen
+    constexpr float kMaxDropPx    = 54.0f; // how far a single fully-hovered block drops down from the baseline — sized to comfortably fit two centered lines of label text
+    constexpr float kGapPx        = 3.0f;  // thin background-colored notch between adjacent lane-0 segments
+    constexpr float kStackGapPx   = 4.0f;  // vertical gap between stacked dropped blocks when multiple segments are hovered at once
+    constexpr float kDotRadius    = 2.5f;  // px
+    constexpr float kDotSpacingPx = 7.0f;  // horizontal spacing between two dots that land on the exact same tick, so a cluster reads as "several dots" rather than one blob
+    constexpr float kDotY         = kBaselineY + 8.0f; // dots sit a small, fixed distance below the baseline — not tied to any lane, since lanes no longer draw their own resting line
+    constexpr float kDotHitRadius = 5.0f;  // generous click/hover target around each dot's visual radius
+
+    // Nudge co-occurring dots (multiple hidden events starting on the
+    // exact same tick) apart horizontally so they render as a small
+    // cluster of distinct dots rather than one indistinguishable blob —
+    // matches "4 events start here -> 4 dots side by side" from the
+    // reference mock. Computed once per frame since dots.size() is tiny
+    // (a handful of subscriptions at most).
+    std::vector<float> dotDrawX(dots.size());
+    {
+        size_t i = 0;
+        while (i < dots.size())
+        {
+            size_t j = i;
+            while (j < dots.size() && fabsf(dots[j].x - dots[i].x) < 0.5f) j++; // group exact-tie ticks
+            size_t groupCount = j - i;
+            float groupCenter = dots[i].x;
+            float groupStart  = groupCenter - (groupCount - 1) * kDotSpacingPx * 0.5f;
+            for (size_t k = i; k < j; k++) dotDrawX[k] = groupStart + (k - i) * kDotSpacingPx;
+            i = j;
+        }
+    }
 
     ImVec2 mouse = io.MousePos;
     bool mouseValid = io.MousePos.x > -FLT_MAX; // ImGui reports (-FLT_MAX,-FLT_MAX) when there's no mouse
 
-    // Which segment (if any) is currently under the mouse, in the thin
-    // hover band right along the baseline — matches isTouching() in the
-    // HTML reference, simplified since this strip has no existing drop to
-    // extend the hit-test region downward (a subscription overlay doesn't
-    // need to keep tracking the mouse into an already-dropped block the
-    // way the interactive demo does).
-    constexpr float kHoverBand = 10.0f;
-    int hoveredIdx = -1;
-    if (mouseValid && mouse.y >= kBaselineY - kHoverBand && mouse.y <= kBaselineY + kHoverBand)
+    // Which segments are currently under the mouse. Two ways in:
+    //  1. The mouse is over a lane-0 segment's own resting-line x-range
+    //     (near the baseline y) — same as before.
+    //  2. The mouse is over one of that segment's dot markers (a lane>0
+    //     segment has no line of its own to hover, only its dot) — hit-
+    //     tested as a small circle around the dot's nudged draw position.
+    // Both feed into the same hoveredIndices list, so a hidden segment
+    // dropping in via its dot stacks together with the shown segment
+    // exactly like two lane-0 segments would.
+    // Vertical hover band matches the drawn line's actual on-screen
+    // footprint (kLineThick + 1px, per the AddLine call below) plus a
+    // couple px of forgiveness — NOT a generous fixed band. The line is
+    // only ~3px tall; a much taller invisible hit zone around it makes
+    // the pop-out trigger from empty space above/below the line, which
+    // reads as broken.
+    constexpr float kLineHalfHeight = (kLineThick + 1.0f) * 0.5f;
+    constexpr float kHoverBand = kLineHalfHeight + 2.0f;
+    std::vector<int> hoveredIndices;
+    if (mouseValid)
     {
-        for (int i = 0; i < (int)segs.size(); i++)
+        if (mouse.y >= kBaselineY - kHoverBand && mouse.y <= kBaselineY + kHoverBand)
         {
-            if (mouse.x >= segs[i].startX && mouse.x < segs[i].endX) { hoveredIdx = i; break; }
+            for (int i = 0; i < (int)segs.size(); i++)
+            {
+                if (segs[i].lane != 0) continue; // lane>0 segments have no line of their own to hover
+                if (mouse.x >= segs[i].startX && mouse.x < segs[i].endX) hoveredIndices.push_back(i);
+            }
+        }
+        for (size_t d = 0; d < dots.size(); d++)
+        {
+            float dx = mouse.x - dotDrawX[d];
+            float dy = mouse.y - kDotY;
+            if (dx * dx + dy * dy <= kDotHitRadius * kDotHitRadius)
+            {
+                int idx = dots[d].segIndex;
+                if (std::find(hoveredIndices.begin(), hoveredIndices.end(), idx) == hoveredIndices.end())
+                    hoveredIndices.push_back(idx);
+            }
         }
     }
+    // Stacking order: soonest-starting (or currently active) segment on
+    // top, since that's usually the more time-critical one to read first.
+    std::sort(hoveredIndices.begin(), hoveredIndices.end(), [&](int a, int b)
+    {
+        return segs[a].statusSecs < segs[b].statusSecs;
+    });
 
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
-    // ---- Ease every segment's drop amount toward its target this frame ----
+    // ---- Track raw hover duration, then ease every segment's drop
+    // amount toward a target gated by the configured delay ----
     float dt = io.DeltaTime > 0.0f ? std::min(io.DeltaTime, 0.1f) : 0.0f;
     // Frame-rate-independent version of the HTML's fixed *=0.12 lerp-per-
     // frame: raise the per-frame rate to a power of (dt * 60) so the same
     // half-life holds regardless of the addon's actual frame rate.
     float easeThisFrame = 1.0f - powf(1.0f - kEaseRate, dt > 0.0f ? dt * 60.0f : 1.0f);
+    float hoverDelaySeconds = std::max(0, SubscriptionsBarHoverDelayMs) / 1000.0f;
 
     for (int i = 0; i < (int)segs.size(); i++)
     {
-        float target = (i == hoveredIdx) ? 1.0f : 0.0f;
+        bool isHovered = std::find(hoveredIndices.begin(), hoveredIndices.end(), i) != hoveredIndices.end();
         DropState& st = s_dropStates[segs[i].key];
+
+        // Raw hover duration resets instantly on losing hover (no
+        // "banking" partial progress across separate hovers), and only
+        // accumulates while actually hovered this frame.
+        st.hoverSeconds = isHovered ? (st.hoverSeconds + dt) : 0.0f;
+
+        // The drop only targets 1.0 once the raw hover has cleared the
+        // configured delay — SubscriptionsBarHoverDelayMs=0 means
+        // hoverDelaySeconds is 0, so st.hoverSeconds >= 0 is satisfied
+        // on the very first hovered frame, i.e. instant, same as before
+        // this feature existed. Losing hover always targets 0
+        // immediately (no equivalent delay on the way back down — a
+        // delayed pop-in reads as responsive, a delayed pop-OUT reads as
+        // laggy/stuck).
+        bool pastDelay = isHovered && st.hoverSeconds >= hoverDelaySeconds;
+        float target = pastDelay ? 1.0f : 0.0f;
+
         st.amount += (target - st.amount) * easeThisFrame;
         if (fabsf(st.amount - target) < 0.001f) st.amount = target;
     }
@@ -337,14 +529,48 @@ void RenderSubscriptionsBar()
         }
     }
 
-    // ---- Baseline: thin line across the full screen width, tinted by
-    // whichever segment (if any) is currently dropped, else a neutral
-    // dim white — matches the HTML's per-segment-colored stroke copies
-    // of the shared baseline path. ----
+    // ---- Baseline: thin line across the full screen width — matches the
+    // HTML's shared baseline path. ----
     dl->AddLine(ImVec2(0, kBaselineY), ImVec2(screenW, kBaselineY),
         IM_COL32(255, 255, 255, 90), kLineThick);
 
-    // ---- Per-segment colored baseline overlay + dropped block ----
+    // ---- Overlap dot markers: one plain white dot per hidden (lane>0)
+    // event that starts on a 5-minute tick overlapping whatever's shown
+    // there. Colorless on purpose — with dozens of subscriptions a color
+    // key isn't something a user can realistically memorize, so a dot
+    // only signals "something's here", and hovering (below) is what
+    // reveals which event and its actual color, same as hovering any
+    // shown segment already does. Dots for segments currently mid-drop
+    // fade out as their block rises, so the dot doesn't visually clash
+    // with the now-visible dropped block.
+    for (size_t d = 0; d < dots.size(); d++)
+    {
+        float depth = s_dropStates[segs[dots[d].segIndex].key].amount;
+        float alpha = 1.0f - depth; // fades out as this dot's own segment drops in
+        if (alpha <= 0.02f) continue;
+        dl->AddCircleFilled(ImVec2(dotDrawX[d], kDotY), kDotRadius, IM_COL32(255, 255, 255, (int)(235 * alpha)), 12);
+    }
+
+    // Each stacked drop's own top-of-block y is computed as this frame's
+    // running total of the depths/heights of whichever hovered segments
+    // are stacked above it, so drops stack snugly without gaps and
+    // without overlapping each other, and shrink back together as their
+    // shared hover ends. Filled in below as each hovered segment is drawn.
+    std::unordered_map<std::string, float> stackTopY;
+    {
+        float runningY = kBaselineY;
+        for (int idx : hoveredIndices)
+        {
+            const LineSegment& s = segs[idx];
+            float depth = s_dropStates[s.key].amount;
+            stackTopY[s.key] = runningY;
+            runningY += kMaxDropPx * depth + kStackGapPx * depth;
+        }
+    }
+
+    // ---- Per-segment colored baseline overlay (lane-0 only) + dropped
+    // block (any segment currently easing toward/away from a hover,
+    // lane-0 or not). ----
     for (int i = 0; i < (int)segs.size(); i++)
     {
         const LineSegment& seg = segs[i];
@@ -362,13 +588,32 @@ void RenderSubscriptionsBar()
         ImU32 segColor = seg.color;
         ImU32 fillColor = (segColor & 0x00FFFFFF) | ((ImU32)(255 * (0.25f + 0.75f * (seg.active ? 1.0f : 0.7f))) << 24);
 
-        // Colored baseline segment (always visible, even at depth 0) —
-        // this is what makes the strip read as "N colored ticks" at a
-        // glance before the user ever hovers anything.
-        dl->AddLine(ImVec2(x0, kBaselineY), ImVec2(segEnd, kBaselineY), segColor, kLineThick + 1.0f);
+        if (seg.lane == 0)
+        {
+            // Colored baseline segment (always visible, even at depth 0)
+            // — this is what makes the strip read as "N colored ticks"
+            // at a glance before the user ever hovers anything. Only
+            // lane-0 segments get this: exactly one line's worth of
+            // height at rest, regardless of how many events overlap —
+            // overlap is signaled by dots instead (drawn above), not by
+            // a second permanent line.
+            dl->AddLine(ImVec2(x0, kBaselineY), ImVec2(segEnd, kBaselineY), segColor, kLineThick + 1.0f);
+        }
 
         if (depth > 0.002f)
         {
+            // Stacked target y for this segment's dropped block: if it's
+            // one of the currently-hovered segments, this is its
+            // reserved slot in the shared stack (topmost = soonest);
+            // otherwise (mid-ease-out, no longer hovered but still
+            // animating back down) just ease from the shared baseline —
+            // lane>0 segments have no resting y of their own to ease
+            // from, so they drop from/return to the same baseline every
+            // lane-0 segment uses.
+            float topY = kBaselineY;
+            auto stackIt = stackTopY.find(seg.key);
+            if (stackIt != stackTopY.end()) topY = stackIt->second;
+
             // Build the smooth dropped-block silhouette by sampling
             // FlatBlockDepthAt across [x0 - tw, segEnd + tw] and filling
             // the polygon baseline -> curve -> baseline, same shape the
@@ -384,15 +629,15 @@ void RenderSubscriptionsBar()
             int samples = std::max(8, (int)((right - left) / 4.0f));
 
             dl->PathClear();
-            dl->PathLineTo(ImVec2(left, kBaselineY));
+            dl->PathLineTo(ImVec2(left, topY));
             for (int s = 0; s <= samples; s++)
             {
                 float x = left + (right - left) * (s / (float)samples);
                 float d = FlatBlockDepthAt(x, x0, segEnd, tw) * depth;
-                float y = kBaselineY + d * kMaxDropPx;
+                float y = topY + d * kMaxDropPx;
                 dl->PathLineTo(ImVec2(x, y));
             }
-            dl->PathLineTo(ImVec2(right, kBaselineY));
+            dl->PathLineTo(ImVec2(right, topY));
             dl->PathFillConvex(fillColor);
 
             // Re-stroke the curve's top edge on top of the fill for a
@@ -403,13 +648,14 @@ void RenderSubscriptionsBar()
             {
                 float x = left + (right - left) * (s / (float)samples);
                 float d = FlatBlockDepthAt(x, x0, segEnd, tw) * depth;
-                float y = kBaselineY + d * kMaxDropPx;
+                float y = topY + d * kMaxDropPx;
                 dl->PathLineTo(ImVec2(x, y));
             }
             dl->PathStroke(segColor, false, kLineThick);
 
-            // Label + status, centered under the deepest point of the
-            // drop, fading in with depth so it doesn't pop in abruptly.
+            // Label + status, vertically centered inside this block's own
+            // slice of the stack, fading in with depth so it doesn't pop
+            // in abruptly.
             if (depth > 0.35f)
             {
                 char statusBuf[48];
@@ -423,17 +669,16 @@ void RenderSubscriptionsBar()
                 ImVec2 size1 = ImGui::CalcTextSize(line1.c_str());
                 ImVec2 size2 = ImGui::CalcTextSize(line2.c_str());
 
-                // Vertically center both lines inside the dropped block
-                // itself (between the baseline and the current drop
-                // depth), rather than placing them below it — matches
-                // the HTML reference, where the label lives inside the
-                // filled shape, not underneath it. Uses the drop's
-                // steady-state depth (kMaxDropPx) for the layout math so
-                // the text doesn't visibly slide as depth eases toward
-                // 1.0 — it simply fades in in place via alpha instead.
+                // Vertically center both lines inside this block's own
+                // slot in the stack (between topY and topY+kMaxDropPx),
+                // rather than placing them below it — matches the HTML
+                // reference, where the label lives inside the filled
+                // shape, not underneath it. Uses the drop's steady-state
+                // depth for the layout math so text doesn't visibly slide
+                // as depth eases toward 1.0 — it fades in in place instead.
                 float cx = (x0 + segEnd) * 0.5f;
-                float blockTop    = kBaselineY;
-                float blockBottom = kBaselineY + kMaxDropPx;
+                float blockTop    = topY;
+                float blockBottom = topY + kMaxDropPx;
                 float textBlockH  = size1.y + size2.y;
                 float labelY      = blockTop + (blockBottom - blockTop - textBlockH) * 0.5f;
 
@@ -451,12 +696,30 @@ void RenderSubscriptionsBar()
     }
 
     // Click on a hovered/dropped segment copies its waypoint code, same
-    // affordance as a row-click in the text watchlist window — only
-    // claims the mouse for this one instant, same WantCaptureMouse
-    // convention as RenderMapEvents/RenderCyclicGroups.
-    if (hoveredIdx >= 0 && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    // affordance as a row-click in the text watchlist window. Only
+    // segments that have actually finished (or nearly finished) dropping
+    // are eligible — clicking during the hover-delay window, before
+    // there's any visible block to click on, shouldn't silently copy
+    // something the user can't see yet. With multiple segments possibly
+    // stacked at once, pick whichever segment's stacked block the mouse
+    // y actually falls within (falls back to the topmost/soonest
+    // eligible one if the pointer's between blocks or still on the thin
+    // baseline itself) — only claims the mouse for this one instant,
+    // same WantCaptureMouse convention as RenderMapEvents/
+    // RenderCyclicGroups.
+    std::vector<int> droppedIndices;
+    for (int idx : hoveredIndices)
+        if (s_dropStates[segs[idx].key].amount > 0.5f) droppedIndices.push_back(idx);
+
+    if (!droppedIndices.empty() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-        const LineSegment& seg = segs[hoveredIdx];
+        int clickIdx = droppedIndices[0];
+        for (int idx : droppedIndices)
+        {
+            float topY = stackTopY[segs[idx].key];
+            if (mouse.y >= topY && mouse.y <= topY + kMaxDropPx) { clickIdx = idx; break; }
+        }
+        const LineSegment& seg = segs[clickIdx];
         std::string toCopy = seg.chatCode.empty() ? seg.name : (seg.name + ": " + seg.chatCode);
         PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
         io.WantCaptureMouse = true;
