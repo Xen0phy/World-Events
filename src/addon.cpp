@@ -8,6 +8,7 @@
 #include "categories.h"
 #include "subscriptions.h"
 #include "subscriptions_window.h"
+#include "subscriptions_bar.h"
 #include "imgui.h"
 #include "version.h"
 
@@ -109,6 +110,7 @@ void AddonRender()
     // gates the two map-only overlays.
     if (MumbleLink && NexusLink && NexusLink->IsGameplay)
         RenderSubscriptionsWindow();
+        RenderSubscriptionsBar();
 
     if (!MumbleLink || !NexusLink)          return;
     if (!NexusLink->IsGameplay)             return;

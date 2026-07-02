@@ -119,6 +119,13 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 // holds the actual event/grouping/membership data.
 SETTING(Subscriptions, ShowSubscriptionsWindow, bool, false)
 
+// Open/closed state of the alternate "distribution bar" watchlist view
+// (subscriptions_bar.h/.cpp) — same subscription data as
+// ShowSubscriptionsWindow above, drawn as colored segments along a fixed
+// 2h timeline strip instead of a text list. Independent toggle: either,
+// both, or neither view can be open at once.
+SETTING(Subscriptions, ShowSubscriptionsBar, bool, false)
+
 // When true, active rows are simply left out of the watchlist window's
 // list entirely (not just dimmed/recolored) — a "only show me what's NOT
 // already happening" mode. Only affects the watchlist window; Basic Event

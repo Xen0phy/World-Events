@@ -1018,6 +1018,13 @@ void AddonOptions()
     // events.json data, see subscriptions.h, not this bool).
     ImGui::Checkbox("Show subscriptions window", &ShowSubscriptionsWindow);
 
+    // Second, alternate view of the same subscription data — a thin
+    // animated line pinned to the top edge of the screen (not a window:
+    // no title bar, can't be dragged/resized/closed with a titlebar X,
+    // just this checkbox). See subscriptions_bar.h for the full
+    // rationale and ShowSubscriptionsBar's comment in settings_table.h.
+    ImGui::Checkbox("Show subscriptions distribution line", &ShowSubscriptionsBar);
+
     // Everything below only makes sense while the window itself is on —
     // same dim-and-disable treatment as the cyclic overlay's controls
     // below, for the same reason (stay visible/discoverable, just
