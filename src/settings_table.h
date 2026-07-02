@@ -136,6 +136,35 @@ SETTING(Subscriptions, ShowSubscriptionsBar, bool, false)
 // segment, same as the very first version of this feature).
 SETTING(Subscriptions, SubscriptionsBarHoverDelayMs, int, 500)
 
+// The corners of the screen right under the top edge are where GW2's own
+// UI actually lives (party/buffs top-left, minimap/compass top-right) —
+// there's only ~8px of genuinely free space directly under the line
+// there, nowhere near enough for a dropped block's label to be legible
+// without covering something. The wide middle strip of the screen has
+// much more free space, which is why the drop only needs to move for
+// segments whose x-range falls inside these edge margins.
+//
+// SubscriptionsBarUnsafeLeftPx / SubscriptionsBarUnsafeRightPx are each
+// measured inward from their respective screen edge (not from the
+// center) and are independent since GW2's left and right top UI blocks
+// aren't the same width (default 300 covers the default UI's compact
+// party/buff area on the left; SubscriptionsBarUnsafeRightPx covers the
+// minimap/compass on the right — see subscriptions_bar.cpp's
+// SegmentOverlapsUnsafeZone). 0 disables the left or right zone
+// individually, dropping straight down everywhere on that side, same as
+// before this feature existed.
+SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,  int, 300)
+SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx, int, 300)
+
+// How far down a dropped block starts (instead of the line itself) when
+// its segment falls inside either unsafe zone above — i.e. how tall the
+// corner UI actually is, in px, that the drop needs to clear. Same value
+// for both corners; if one side's UI is taller than the other in a
+// user's particular layout, they can only push this number up for both,
+// not per-side — that asymmetry wasn't worth a second setting for what's
+// already a corner-case (no pun intended) escape hatch.
+SETTING(Subscriptions, SubscriptionsBarUnsafeHeightPx, int, 90)
+
 // When true, active rows are simply left out of the watchlist window's
 // list entirely (not just dimmed/recolored) — a "only show me what's NOT
 // already happening" mode. Only affects the watchlist window; Basic Event

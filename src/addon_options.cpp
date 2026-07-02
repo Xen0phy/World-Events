@@ -1046,6 +1046,40 @@ void AddonOptions()
         ImGui::TextDisabled("(?)");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("How long the mouse has to sit still over a segment or dot before it pops out. 0 = instant.");
+
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("Unsafe zone - left (px)", &SubscriptionsBarUnsafeLeftPx, 10, 50))
+        {
+            if (SubscriptionsBarUnsafeLeftPx < 0)    SubscriptionsBarUnsafeLeftPx = 0;
+            if (SubscriptionsBarUnsafeLeftPx > 1000) SubscriptionsBarUnsafeLeftPx = 1000;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Width from the LEFT screen edge, in px, treated as covered by your own GW2 UI (e.g. party/buffs). Segments in this zone drop lower instead of covering it. 0 disables the left zone.");
+
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("Unsafe zone - right (px)", &SubscriptionsBarUnsafeRightPx, 10, 50))
+        {
+            if (SubscriptionsBarUnsafeRightPx < 0)    SubscriptionsBarUnsafeRightPx = 0;
+            if (SubscriptionsBarUnsafeRightPx > 1000) SubscriptionsBarUnsafeRightPx = 1000;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Width from the RIGHT screen edge, in px, treated as covered by your own GW2 UI (e.g. minimap/compass). Segments in this zone drop lower instead of covering it. 0 disables the right zone.");
+
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("Unsafe zone height (px)", &SubscriptionsBarUnsafeHeightPx, 10, 50))
+        {
+            if (SubscriptionsBarUnsafeHeightPx < 0)    SubscriptionsBarUnsafeHeightPx = 0;
+            if (SubscriptionsBarUnsafeHeightPx > 1000) SubscriptionsBarUnsafeHeightPx = 1000;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How tall your corner UI is, in px. Segments inside either unsafe zone start their drop this far down instead of from the line itself, so the popped-out block clears your UI.");
+
         ImGui::Unindent();
     }
 

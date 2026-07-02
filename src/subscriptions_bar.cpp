@@ -193,6 +193,32 @@ static std::vector<DotMark> CollectOverlapDots(const std::vector<LineSegment>& s
 }
 
 // ---------------------------------------------------------------------------
+// SegmentOverlapsUnsafeZone
+// ---------------------------------------------------------------------------
+// GW2's own UI lives in the top-left (party/buffs) and top-right
+// (minimap/compass) corners — there's only a handful of px of genuinely
+// free space directly under the line there, nowhere near enough for a
+// dropped block to sit without covering something. The wide middle
+// strip of the screen has real free space underneath it. This checks
+// whether a segment's x-range falls (even partially) inside either
+// configured unsafe margin, so its drop can start further down instead
+// of from the line itself — see SubscriptionsBarUnsafeLeftPx /
+// SubscriptionsBarUnsafeRightPx's comments in settings_table.h. A
+// setting of 0 disables that side's zone entirely (segment can never
+// overlap a zero-width zone).
+// ---------------------------------------------------------------------------
+static bool SegmentOverlapsUnsafeZone(const LineSegment& seg, float screenW)
+{
+    float leftZoneEnd    = (float)std::max(0, SubscriptionsBarUnsafeLeftPx);
+    float rightZoneStart = screenW - (float)std::max(0, SubscriptionsBarUnsafeRightPx);
+
+    bool inLeftZone  = leftZoneEnd  > 0.0f && seg.startX < leftZoneEnd;
+    bool inRightZone = rightZoneStart < screenW && seg.endX > rightZoneStart;
+
+    return inLeftZone || inRightZone;
+}
+
+// ---------------------------------------------------------------------------
 // Walks the same two subscription lists RenderSubscriptionsWindow does
 // (g_SubscribedBasicEvents / g_SubscribedCyclicSlots) and produces one
 // LineSegment per occurrence that overlaps the next kWindowSeconds,
@@ -332,17 +358,28 @@ static float SmoothStep(float t)
 // ---------------------------------------------------------------------------
 // FlatBlockDepthAt
 // ---------------------------------------------------------------------------
-// Depth profile (0..1) of a single "dropped" block at local-x position x:
-// flat 0 before start-tw, eases up across [start-tw, start], flat 1
-// across [start, end], eases back down across [end, end+tw]. Direct port
-// of flatBlockDepthAt() in distribution-line.html.
+// Depth profile (0..1) of a single "dropped" block at local-x position x,
+// shaped to stay within [start, end] — the segment's OWN width — rather
+// than flaring out past it: flat 0 outside [start, end] entirely, eases
+// up across [start, start+tw], flat 1 across [start+tw, end-tw], eases
+// back down across [end-tw, end]. So the widest point of the resulting
+// shape (the flat top) is exactly the segment's width, with the curved
+// shoulders tucked inward underneath it — not wider than the bar above
+// it. (Earlier version eased across [start-tw, start] / [end, end+tw],
+// which made the shoulders spill outside the segment's own x-range —
+// the "wider at the top" look this replaces.) For segments narrower than
+// 2*tw, tw is capped to half the segment's width so the two shoulders
+// meet at the midpoint instead of overlapping/inverting.
 // ---------------------------------------------------------------------------
 static float FlatBlockDepthAt(float x, float start, float end, float tw)
 {
-    if (x < start - tw) return 0.0f;
-    if (x < start)       return SmoothStep((x - (start - tw)) / tw);
-    if (x <= end)         return 1.0f;
-    if (x <= end + tw)    return SmoothStep(1.0f - (x - end) / tw);
+    float effectiveTw = std::min(tw, (end - start) * 0.5f);
+    if (effectiveTw <= 0.0f) return (x >= start && x <= end) ? 1.0f : 0.0f;
+
+    if (x < start)               return 0.0f;
+    if (x < start + effectiveTw) return SmoothStep((x - start) / effectiveTw);
+    if (x <= end - effectiveTw)  return 1.0f;
+    if (x <= end)                 return SmoothStep((end - x) / effectiveTw);
     return 0.0f;
 }
 
@@ -366,6 +403,63 @@ static std::unordered_map<std::string, DropState> s_dropStates;
 
 static constexpr float kTransitionWidth = 26.0f; // px — curved shoulder width, scaled down from the HTML's 60px for a much thinner overlay strip
 static constexpr float kEaseRate        = 0.18f; // per-frame lerp factor, matches the HTML's drop easing constant
+
+// ---------------------------------------------------------------------------
+// Pill-detach phase thresholds (fractions of DropState::amount, 0..1)
+// ---------------------------------------------------------------------------
+// Mocked interactively with the user (visualize:show_widget) before this was
+// written — see HANDOFF-subscriptions-bar.md's workflow note. Confirmed
+// design: the block grows using the EXACT SAME FlatBlockDepthAt flat-
+// top/curved-shoulder silhouette the bar already draws at rest (not a new
+// "blob" shape), then its shoulders neck inward toward the middle (using the
+// same depth function, inverted near the edges) until it visually separates
+// from the baseline, then the freed shape eases from the flat-top/curved
+// silhouette into a true stadium pill (rx = height/2) at a fixed vertical
+// offset below the bar. The pill's WIDTH is locked to the segment's own
+// on-bar width the entire time — only height/corner-radius/Y change during
+// the neck-to-pill transition; the pill is never narrower than the segment
+// was on the bar. Kept as named thresholds (not magic numbers inline) so the
+// four phases stay easy to retune together without re-deriving the mock.
+//   [0, kPinchStart)          : normal grow, full FlatBlockDepthAt silhouette, attached to baseline
+//   [kPinchStart, kPinchEnd)  : shoulders neck inward, still attached, height/rx starting to ease toward pill
+//   [kPinchEnd, kDetachEnd)   : detached pill shape, still easing width->locked/height->kPillH/rx->stadium, Y easing toward rest
+//   [kDetachEnd, 1]           : fully resolved floating pill at rest offset, label shown
+// ---------------------------------------------------------------------------
+static constexpr float kPinchStart = 0.60f;
+static constexpr float kPinchEnd   = 0.78f;
+static constexpr float kDetachEnd  = 0.92f;
+
+// ---------------------------------------------------------------------------
+// PillPinchFactor
+// ---------------------------------------------------------------------------
+// 0..1 "how much has this x-position necked inward", parameterized by
+// neckT (0..1, how far through the neck-in sub-phase we are) — reuses
+// FlatBlockDepthAt's own smoothstep shoulder logic but centered on the
+// segment's own middle, so the neck-in reads as a continuation of the same
+// curve language instead of a new interpolation curve.
+//
+// IMPORTANT continuity requirement: at neckT==1 this must return 0
+// EVERYWHERE (not just at the center) — the shape must be back to a plain
+// full-height rectangle right at the pinch/detach boundary, because that's
+// exactly what the detached-pill branch starts drawing from (a square-
+// cornered rect at pillRx==0). Pinch peaks in the MIDDLE of the neck-in
+// sub-phase and relaxes back to 0 by its end, rather than monotonically
+// increasing to a permanent taper — so the visible motion is "waist
+// pinches in, then the whole silhouette squares back off into a rect
+// right as it lets go of the baseline", not a taper that would otherwise
+// pop straight into a rectangle at the phase boundary.
+// ---------------------------------------------------------------------------
+static float PillPinchFactor(float x, float start, float end, float neckT)
+{
+    if (neckT <= 0.0f || neckT >= 1.0f) return 0.0f; // relaxed at both ends of the sub-phase
+    float half = (end - start) * 0.5f;
+    if (half <= 0.0f) return 0.0f;
+    float distFromEdge = std::min(x - start, end - x) / half; // 0 at either edge, 1 at center
+    float waistShape = 1.0f - std::min(1.0f, distFromEdge / 0.55f); // strongest away from center, ~0 at true center
+    // Envelope over neckT: 0 at neckT=0, peaks near neckT~0.6, back to 0 at neckT=1 (smoothstep up then down)
+    float envelope = (neckT < 0.6f) ? SmoothStep(neckT / 0.6f) : SmoothStep((1.0f - neckT) / 0.4f);
+    return std::max(0.0f, waistShape * envelope);
+}
 
 // ---------------------------------------------------------------------------
 // RenderSubscriptionsBar
@@ -556,9 +650,22 @@ void RenderSubscriptionsBar()
     // are stacked above it, so drops stack snugly without gaps and
     // without overlapping each other, and shrink back together as their
     // shared hover ends. Filled in below as each hovered segment is drawn.
+    //
+    // Unlike the earlier version of this feature, the running total's
+    // STARTING point is now ALWAYS the baseline (kBaselineY), regardless
+    // of unsafe-zone status — an attached pop-out always grows straight
+    // down from the bar itself, drawing over GW2's own corner UI same as
+    // any other segment, exactly like the user asked for. Unsafe-zone
+    // avoidance now happens only once a segment has fully DETACHED into a
+    // pill (see the per-segment draw loop's pillY: it eases toward
+    // SubscriptionsBarUnsafeHeightPx as its own resting Y, but only for
+    // segments whose own zone check is true) — so the block pops out normally first, then peels
+    // away and clears the corner UI as it becomes a pill, rather than
+    // starting pre-offset down.
     std::unordered_map<std::string, float> stackTopY;
     {
         float runningY = kBaselineY;
+
         for (int idx : hoveredIndices)
         {
             const LineSegment& s = segs[idx];
@@ -606,56 +713,113 @@ void RenderSubscriptionsBar()
             // one of the currently-hovered segments, this is its
             // reserved slot in the shared stack (topmost = soonest);
             // otherwise (mid-ease-out, no longer hovered but still
-            // animating back down) just ease from the shared baseline —
+            // animating back down) fall back to the baseline itself —
             // lane>0 segments have no resting y of their own to ease
-            // from, so they drop from/return to the same baseline every
-            // lane-0 segment uses.
+            // from, so they drop from/return to the same baseline origin
+            // every lane-0 segment at that x would use. Unsafe-zone
+            // avoidance is handled later, only for the detached-pill Y,
+            // not here.
             float topY = kBaselineY;
             auto stackIt = stackTopY.find(seg.key);
             if (stackIt != stackTopY.end()) topY = stackIt->second;
 
-            // Build the smooth dropped-block silhouette by sampling
-            // FlatBlockDepthAt across [x0 - tw, segEnd + tw] and filling
-            // the polygon baseline -> curve -> baseline, same shape the
-            // HTML builds via its sampled quadratic-Bezier path, just
-            // filled directly as an ImGui convex-ish polygon instead of
-            // an SVG <path> — PathFillConvex handles the smooth silhouette
-            // fine since the curve is monotonic-ish per shoulder and
-            // never folds back on itself.
-            float tw = kTransitionWidth;
-            float left  = std::max(0.0f, x0 - tw);
-            float right = std::min(screenW, segEnd + tw);
+            float cx = (x0 + segEnd) * 0.5f;
+            float segW = segEnd - x0;
 
-            int samples = std::max(8, (int)((right - left) / 4.0f));
+            // Pill-detach only applies to segments whose x-range overlaps
+            // an unsafe zone (GW2's own corner UI) — everywhere else, the
+            // block is a plain attached pop-out exactly like before this
+            // feature existed, per the user's correction: "everything
+            // else should've stayed as pop-out". A safe-zone segment
+            // therefore has pinchT/detachT permanently pinned to 0, so
+            // the "if (depth < kPinchEnd)" branch below is the ONLY
+            // branch it ever takes, at full FlatBlockDepthAt depth with
+            // no pinch — identical output to the original single-shape
+            // implementation.
+            bool inUnsafeZone = SegmentOverlapsUnsafeZone(seg, screenW);
 
-            dl->PathClear();
-            dl->PathLineTo(ImVec2(left, topY));
-            for (int s = 0; s <= samples; s++)
+            // Phase split, per the confirmed mock (see the kPinchStart/
+            // kPinchEnd/kDetachEnd block comment above): grow -> neck-in
+            // (still attached, still FlatBlockDepthAt-shaped) -> detach
+            // into a locked-width stadium pill -> settle at rest. Only
+            // reached at all for inUnsafeZone segments.
+            float pinchT  = inUnsafeZone ? std::min(1.0f, std::max(0.0f, (depth - kPinchStart) / (kPinchEnd - kPinchStart))) : 0.0f;
+            float detachT = inUnsafeZone ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd)   / (kDetachEnd - kPinchEnd))) : 0.0f;
+
+            // Corner radius eases from 0 (attached, square-ish flat-top
+            // block) to a true stadium cap (rx = kMaxDropPx/2) as
+            // detachT completes. Height stays fixed at kMaxDropPx the
+            // whole time — same height as a normal safe-zone pop-out,
+            // per the user's call — so the pill never gets cramped for
+            // its two lines of label text; only Y position and corner
+            // rounding change once it detaches, not height.
+            float blockH = kMaxDropPx;
+            float pillRx = (blockH * 0.5f) * detachT; // 0 while still attached/necking, ramps to a true stadium (rx=h/2) only once detaching
+
+            // Pill Y once detached: eases from topY (where it popped out,
+            // over the corner UI, same as any block) DOWN to
+            // SubscriptionsBarUnsafeHeightPx — the unsafe-zone clearance
+            // is now the pill's resting offset, not the attached block's
+            // starting point, per the user's correction: pop out normally
+            // over the UI first, THEN peel off and clear the unsafe zone
+            // as it becomes a pill. (Only ever non-zero for inUnsafeZone
+            // segments, since detachT is pinned to 0 otherwise.)
+            float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+            float pillY = topY + (unsafeRestY - topY) * detachT;
+
+            if (depth < kPinchEnd || !inUnsafeZone)
             {
-                float x = left + (right - left) * (s / (float)samples);
-                float d = FlatBlockDepthAt(x, x0, segEnd, tw) * depth;
-                float y = topY + d * kMaxDropPx;
-                dl->PathLineTo(ImVec2(x, y));
-            }
-            dl->PathLineTo(ImVec2(right, topY));
-            dl->PathFillConvex(fillColor);
+                // ---- Phases 1-2 (or the ONLY phase for safe-zone
+                // segments): attached, FlatBlockDepthAt silhouette,
+                // shoulders necking inward via PillPinchFactor as depth
+                // crosses kPinchStart (unsafe-zone segments only —
+                // pinchT is 0 for safe-zone ones, so PillPinchFactor is a
+                // no-op and this reduces to the original single-shape
+                // drop exactly). Height stays fixed at kMaxDropPx
+                // throughout. ----
+                float tw = kTransitionWidth;
+                int samples = std::max(8, (int)(segW / 4.0f));
 
-            // Re-stroke the curve's top edge on top of the fill for a
-            // crisp outline, same colored-stroke-over-fill layering as
-            // the HTML's lineGroup drawn above fillGroup.
-            dl->PathClear();
-            for (int s = 0; s <= samples; s++)
+                dl->PathClear();
+                dl->PathLineTo(ImVec2(x0, topY));
+                for (int s = 0; s <= samples; s++)
+                {
+                    float x = x0 + segW * (s / (float)samples);
+                    float d = FlatBlockDepthAt(x, x0, segEnd, tw) * depth;
+                    float pinch = PillPinchFactor(x, x0, segEnd, pinchT);
+                    d *= (1.0f - pinch);
+                    float y = topY + d * blockH;
+                    dl->PathLineTo(ImVec2(x, y));
+                }
+                dl->PathLineTo(ImVec2(segEnd, topY));
+                dl->PathFillConvex(fillColor);
+
+                dl->PathClear();
+                for (int s = 0; s <= samples; s++)
+                {
+                    float x = x0 + segW * (s / (float)samples);
+                    float d = FlatBlockDepthAt(x, x0, segEnd, tw) * depth;
+                    float pinch = PillPinchFactor(x, x0, segEnd, pinchT);
+                    d *= (1.0f - pinch);
+                    float y = topY + d * blockH;
+                    dl->PathLineTo(ImVec2(x, y));
+                }
+                dl->PathStroke(segColor, false, kLineThick);
+            }
+            else
             {
-                float x = left + (right - left) * (s / (float)samples);
-                float d = FlatBlockDepthAt(x, x0, segEnd, tw) * depth;
-                float y = topY + d * kMaxDropPx;
-                dl->PathLineTo(ImVec2(x, y));
+                // ---- Phases 3-4: detached. A true rounded rect whose
+                // width is locked to the segment's own on-bar width the
+                // whole time (never narrower than the bar above it, per
+                // the confirmed mock) and whose corner radius eases up to
+                // a full stadium cap (rx = h/2) as detachT completes. ----
+                dl->AddRectFilled(ImVec2(x0, pillY), ImVec2(segEnd, pillY + blockH), fillColor, pillRx);
+                dl->AddRect(ImVec2(x0, pillY), ImVec2(segEnd, pillY + blockH), segColor, pillRx, ImDrawCornerFlags_All, kLineThick);
             }
-            dl->PathStroke(segColor, false, kLineThick);
 
-            // Label + status, vertically centered inside this block's own
-            // slice of the stack, fading in with depth so it doesn't pop
-            // in abruptly.
+            // Label + status, vertically centered inside this block/pill's
+            // own slice of the stack, fading in with depth so it doesn't
+            // pop in abruptly.
             if (depth > 0.35f)
             {
                 char statusBuf[48];
@@ -669,27 +833,39 @@ void RenderSubscriptionsBar()
                 ImVec2 size1 = ImGui::CalcTextSize(line1.c_str());
                 ImVec2 size2 = ImGui::CalcTextSize(line2.c_str());
 
-                // Vertically center both lines inside this block's own
-                // slot in the stack (between topY and topY+kMaxDropPx),
-                // rather than placing them below it — matches the HTML
-                // reference, where the label lives inside the filled
+                // Vertically center both lines inside this block/pill's own
+                // current height and Y (blockH/pillY, both already eased
+                // above) rather than placing them below it — matches the
+                // HTML reference, where the label lives inside the filled
                 // shape, not underneath it. Uses the drop's steady-state
                 // depth for the layout math so text doesn't visibly slide
                 // as depth eases toward 1.0 — it fades in in place instead.
-                float cx = (x0 + segEnd) * 0.5f;
-                float blockTop    = topY;
-                float blockBottom = topY + kMaxDropPx;
+                float blockTop    = (depth < kPinchEnd || !inUnsafeZone) ? topY : pillY;
+                float blockBottom = blockTop + blockH;
                 float textBlockH  = size1.y + size2.y;
                 float labelY      = blockTop + (blockBottom - blockTop - textBlockH) * 0.5f;
 
                 float alpha = (depth - 0.35f) / 0.65f;
-                ImU32 textCol   = IM_COL32(255, 255, 255, (int)(230 * alpha));
-                ImU32 shadowCol = IM_COL32(0, 0, 0, (int)(180 * alpha));
+                ImU32 textCol = IM_COL32(255, 255, 255, (int)(230 * alpha));
 
-                // cheap 1px drop shadow for legibility over arbitrary game backgrounds
-                dl->AddText(ImVec2(cx - size1.x * 0.5f + 1, labelY + 1), shadowCol, line1.c_str());
+                // Tight gray backing plate behind the label instead of a
+                // text outline — tried a 4-direction outline first (see
+                // git history / handoff), user reported it didn't look
+                // good, asked for a plate instead. A dark, slightly
+                // translucent gray rect sized to the two lines' combined
+                // bounding box (plus a small pad) sits behind both lines,
+                // so legibility no longer depends on what's behind the
+                // segment's own fill color — reads cleanly against any
+                // game background without the "haze" look the outline had.
+                constexpr float kLabelPadX = 6.0f;
+                constexpr float kLabelPadY = 3.0f;
+                float plateW = std::max(size1.x, size2.x) + kLabelPadX * 2.0f;
+                ImVec2 plateMin(cx - plateW * 0.5f, labelY - kLabelPadY);
+                ImVec2 plateMax(cx + plateW * 0.5f, labelY + textBlockH + kLabelPadY);
+                ImU32 plateCol = IM_COL32(30, 30, 30, (int)(150 * alpha));
+                dl->AddRectFilled(plateMin, plateMax, plateCol, 4.0f);
+
                 dl->AddText(ImVec2(cx - size1.x * 0.5f, labelY), textCol, line1.c_str());
-                dl->AddText(ImVec2(cx - size2.x * 0.5f + 1, labelY + size1.y + 1), shadowCol, line2.c_str());
                 dl->AddText(ImVec2(cx - size2.x * 0.5f, labelY + size1.y), textCol, line2.c_str());
             }
         }
@@ -716,7 +892,13 @@ void RenderSubscriptionsBar()
         int clickIdx = droppedIndices[0];
         for (int idx : droppedIndices)
         {
-            float topY = stackTopY[segs[idx].key];
+            const LineSegment& s = segs[idx];
+            float depth = s_dropStates[s.key].amount;
+            bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
+            float detachT = inUnsafeZone ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd) / (kDetachEnd - kPinchEnd))) : 0.0f;
+            float baseTopY = stackTopY[s.key];
+            float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+            float topY = baseTopY + (unsafeRestY - baseTopY) * detachT;
             if (mouse.y >= topY && mouse.y <= topY + kMaxDropPx) { clickIdx = idx; break; }
         }
         const LineSegment& seg = segs[clickIdx];
