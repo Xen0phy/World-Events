@@ -161,6 +161,10 @@ void RenderCyclicGroups()
     constexpr ImU32 COL_TRACK = IM_COL32(100, 100, 100, 120);
     constexpr ImU32 COL_HAND  = IM_COL32(255, 255, 255, 240);
 
+    // This window always keeps NoMouseInputs — see the identical comment
+    // above Begin("##we_overlay") in RenderMapEvents (maprender.cpp).
+    // Drag capture is handled per-marker by a small anchor window
+    // instead, so this full-screen overlay never blocks map-dragging.
     ImGui::SetNextWindowPos({0, 0});
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
     ImGui::SetNextWindowBgAlpha(0.0f);
@@ -171,8 +175,11 @@ void RenderCyclicGroups()
         ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    for (const auto& grp : g_CyclicGroups)
+    for (int i = 0; i < (int)g_CyclicGroups.size(); i++)
     {
+        CyclicGroup& grp = g_CyclicGroups[i];
+        bool isBeingEdited = (g_EditMode.target == EditTarget::CyclicGroup && g_EditMode.index == i);
+
         // SECS_PER_DEG is derived from THIS group's own period, not a
         // hardcoded constant — Dry Top runs a 3600s cycle while most other
         // groups run 7200s, so a single global SECS_PER_DEG would silently
@@ -199,8 +206,14 @@ void RenderCyclicGroups()
 
         ImVec2 pos = ContinentToScreen(grp.continentX, grp.continentY);
 
-        if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
-        if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
+        // Off-screen culling is skipped for the group currently being
+        // dragged — see the identical reasoning in RenderMapEvents.
+        if (!isBeingEdited)
+        {
+            if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
+            if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
+        }
+
 
         // --- Background track, idle-colored (group's idleColor, defaulting
         // to colors.ter() — see CyclicGroup::IdleColor() in cyclic.h) ---
@@ -306,11 +319,73 @@ void RenderCyclicGroups()
         ImVec2 handBase = ArcPoint(pos, RADIUS - THICKNESS * 0.5f, HAND_DEG);
         dl->AddLine(handBase, handTip, COL_HAND, 2.0f);
 
-        // --- Tooltip on hover ---
         float hoverR = RADIUS + THICKNESS;
-        if (ImGui::IsMouseHoveringRect(
-                {pos.x - hoverR, pos.y - hoverR},
-                {pos.x + hoverR, pos.y + hoverR}))
+
+        // Edit-mode visual indicator — see the identical pulsing-ring
+        // comment in RenderMapEvents (maprender.cpp). Drawn just outside
+        // the ring's own outer edge (hoverR) so it doesn't compete
+        // visually with the arcs/hand inside it.
+        if (isBeingEdited)
+        {
+            float pulse     = 0.5f + 0.5f * sinf((float)ImGui::GetTime() * 4.0f);
+            float editR     = hoverR + 6.0f + pulse * 3.0f;
+            ImU32 editColor = IM_COL32(255, 255, 0, (int)(160 + pulse * 80));
+            dl->AddCircle(pos, editR, editColor, 0, 2.0f);
+        }
+
+        bool hovered = ImGui::IsMouseHoveringRect(
+            {pos.x - hoverR, pos.y - hoverR},
+            {pos.x + hoverR, pos.y + hoverR});
+
+        // Left-drag while armed — uses a small dedicated anchor window
+        // positioned over the ring's rect; see the detailed comment above
+        // the identical block in RenderMapEvents (maprender.cpp) for why.
+        //
+        // Staying armed across MULTIPLE separate press-drag-release cycles
+        // is intentional — the panel's "Drag" button (now showing "Stop")
+        // is what ends editing, not releasing the mouse button.
+        if (isBeingEdited)
+        {
+            char anchorId[32];
+            snprintf(anchorId, sizeof(anchorId), "##we_drag_anchor_cyclic_%d", i);
+
+            ImGui::SetNextWindowPos({pos.x - hoverR, pos.y - hoverR});
+            ImGui::SetNextWindowSize({hoverR * 2.0f, hoverR * 2.0f});
+            ImGui::SetNextWindowBgAlpha(0.0f);
+            ImGui::Begin(anchorId, nullptr,
+                ImGuiWindowFlags_NoTitleBar      |
+                ImGuiWindowFlags_NoResize        |
+                ImGuiWindowFlags_NoMove          |
+                ImGuiWindowFlags_NoScrollbar     |
+                ImGuiWindowFlags_NoSavedSettings |
+                ImGuiWindowFlags_NoBackground    |
+                ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+            ImGui::InvisibleButton("##we_drag_hit", {hoverR * 2.0f, hoverR * 2.0f});
+
+            if (ImGui::IsItemActivated())
+                g_EditMode.isDragging = true;
+
+            if (g_EditMode.isDragging && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            {
+                // See the identical WantCaptureMouse comment in RenderMapEvents.
+                ImGui::GetIO().WantCaptureMouse = true;
+
+                ImVec2 mouse = ImGui::GetMousePos();
+                ImVec2 newContinent = ScreenToContinent(mouse);
+                grp.continentX = newContinent.x;
+                grp.continentY = newContinent.y;
+            }
+
+            if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                g_EditMode.isDragging = false;
+
+            ImGui::End();
+        }
+
+        // --- Tooltip on hover --- (suppressed while dragging this ring,
+        // same reasoning as RenderMapEvents)
+        if (hovered && !isBeingEdited)
         {
             ImGui::BeginTooltip();
             ImGui::TextUnformatted(grp.name.c_str());

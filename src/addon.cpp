@@ -112,7 +112,22 @@ void AddonRender()
 
     if (!MumbleLink || !NexusLink)          return;
     if (!NexusLink->IsGameplay)             return;
-    if (!MumbleLink->Context.IsMapOpen)     return;
+
+    // Edit mode (drag-to-reposition, armed via the "Drag" button next to
+    // an event/group's Location field — see maprender.h) must never stay
+    // silently armed once the map is closed — otherwise reopening the map
+    // later could immediately start dragging whatever was being edited
+    // last time, with no visual cue why. Tracked via a simple last-frame
+    // flag rather than relying on IsMapOpen alone, since we need the
+    // FALLING edge (open -> closed) specifically, not just "currently
+    // closed".
+    static bool wasMapOpen = false;
+    bool isMapOpen = MumbleLink->Context.IsMapOpen;
+    if (wasMapOpen && !isMapOpen)
+        ClearEditMode();
+    wasMapOpen = isMapOpen;
+
+    if (!isMapOpen) return;
 
     RenderMapEvents();
     if (ShowCyclicOverlay)

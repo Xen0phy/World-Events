@@ -3,6 +3,7 @@
 #include "events.h"
 #include "settings.h"
 #include "imgui.h"
+#include <cmath>
 #include <ctime>
 #include <string>
 #include <unordered_map>
@@ -294,6 +295,38 @@ ImVec2 ContinentToScreen(float cx, float cy)
 }
 
 // ---------------------------------------------------------------------------
+// ScreenToContinent
+// ---------------------------------------------------------------------------
+// Exact inverse of ContinentToScreen, used while drag-editing a marker's
+// position: each frame the dragged marker's new screen position (mouse pos
+// + the original click offset, see EditTarget handling below) needs to be
+// converted back to a continent coordinate to store in continentX/Y.
+// ---------------------------------------------------------------------------
+ImVec2 ScreenToContinent(ImVec2 screenPos)
+{
+    const auto& compass = MumbleLink->Context.Compass;
+
+    float screenCX = NexusLink->Width  * 0.5f;
+    float screenCY = NexusLink->Height * 0.5f;
+
+    float scale = compass.Scale / NexusLink->Scaling;
+    if (scale < 0.0001f) scale = 1.0f;
+
+    return {
+        compass.Center.X + (screenPos.x - screenCX) * scale,
+        compass.Center.Y + (screenPos.y - screenCY) * scale
+    };
+}
+
+// Shared edit-mode state — see the comment on EditModeState in maprender.h.
+EditModeState g_EditMode;
+
+void ClearEditMode()
+{
+    g_EditMode = EditModeState{};
+}
+
+// ---------------------------------------------------------------------------
 // RenderMapEvents
 // ---------------------------------------------------------------------------
 // Draws a dot/icon for each event in g_Events. Size is normally fixed in
@@ -321,6 +354,14 @@ void RenderMapEvents()
     // Same for every event this frame, so compute once rather than per-event.
     float zoomMult = GetEventZoomSizeMultiplier();
 
+    // This window always keeps NoMouseInputs — even while a marker is
+    // being edited — so it can never block normal map-dragging anywhere
+    // on screen. Drag-capture for the marker itself is instead handled by
+    // a small separate "anchor" window created just below, positioned
+    // exactly over the marker and NOT given NoMouseInputs, only while
+    // that specific marker is armed. That tiny window is the only thing
+    // that ever claims the mouse — everywhere else on the full-screen
+    // overlay stays pass-through to the game at all times.
     ImGui::SetNextWindowPos({0, 0});
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
     ImGui::SetNextWindowBgAlpha(0.0f);
@@ -331,14 +372,24 @@ void RenderMapEvents()
         ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    for (const auto& ev : g_Events)
+    for (int i = 0; i < (int)g_Events.size(); i++)
     {
+        WorldEvent& ev = g_Events[i];
+        bool isBeingEdited = (g_EditMode.target == EditTarget::BasicEvent && g_EditMode.index == i);
+
         ImVec2 pos = ContinentToScreen(ev.continentX, ev.continentY);
 
         // Cull anything off-screen so we don't draw into infinite space
-        // if the map center is far from any event.
-        if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
-        if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
+        // if the map center is far from any event — UNLESS it's the one
+        // currently being dragged, since a fast drag can momentarily put
+        // the cursor (and therefore the marker) outside this generous
+        // margin for a frame or two; culling it mid-drag would drop the
+        // marker out of the loop and silently end the drag.
+        if (!isBeingEdited)
+        {
+            if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
+            if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
+        }
 
         bool active = IsEventActive(ev, now);
         int  secs   = GetSecondsUntilEventStart(ev, now);
@@ -346,8 +397,12 @@ void RenderMapEvents()
         // Time-window filter: active events always show; upcoming events
         // only show if they start within the configured window. secs < 0
         // means "no timer data yet" — let those through unfiltered rather
-        // than hiding events we simply don't have a countdown for.
-        if (BasicEventTimeFilterEnabled && !active && secs >= 0 &&
+        // than hiding events we simply don't have a countdown for. The
+        // marker currently being edited is exempt — filtering it out
+        // mid-drag (e.g. because dragging it pushed its computed status
+        // outside the window, or it's simply outside the window already)
+        // would end the drag the same way off-screen culling would.
+        if (!isBeingEdited && BasicEventTimeFilterEnabled && !active && secs >= 0 &&
             secs > BasicEventTimeFilterMinutes * 60)
             continue;
 
@@ -401,10 +456,91 @@ void RenderMapEvents()
             hoverHalfExtent = radius;
         }
 
-        // Tooltip on hover
-        if (ImGui::IsMouseHoveringRect(
-                {pos.x - hoverHalfExtent, pos.y - hoverHalfExtent},
-                {pos.x + hoverHalfExtent, pos.y + hoverHalfExtent}))
+        // Edit-mode visual indicator: a pulsing dashed-look ring around
+        // whichever marker is currently armed for drag-to-reposition, so
+        // it's obvious at a glance which one will move (especially once
+        // several markers are close together at low zoom). Pulses via
+        // ImGui::GetTime() rather than a fixed appearance so it reads as
+        // "active/live" rather than just a static highlight color that
+        // could be mistaken for a status color.
+        if (isBeingEdited)
+        {
+            float pulse     = 0.5f + 0.5f * sinf((float)ImGui::GetTime() * 4.0f);
+            float ringR     = hoverHalfExtent + 6.0f + pulse * 3.0f;
+            ImU32 editColor = IM_COL32(255, 255, 0, (int)(160 + pulse * 80));
+            dl->AddCircle(pos, ringR, editColor, 0, 2.0f);
+        }
+
+        bool hovered = ImGui::IsMouseHoveringRect(
+            {pos.x - hoverHalfExtent, pos.y - hoverHalfExtent},
+            {pos.x + hoverHalfExtent, pos.y + hoverHalfExtent});
+
+        // Drag capture for this one marker uses a small separate "anchor"
+        // window, positioned exactly over the marker's rect, rather than
+        // a widget inside the big overlay. The big overlay always keeps
+        // NoMouseInputs now (see the comment above Begin("##we_overlay")),
+        // so it can never block map-dragging anywhere on screen — this
+        // little window is the ONLY thing that ever captures the mouse,
+        // and only while this specific marker is armed, and only over its
+        // own small rect. Recreated every frame at the marker's current
+        // screen position so it tracks correctly even while being
+        // dragged (the marker's pos moves each frame as it follows the
+        // cursor).
+        //
+        // Staying armed across MULTIPLE separate press-drag-release cycles
+        // is intentional — the panel's "Drag" button (now showing "Stop")
+        // is what ends editing, not releasing the mouse button, so the
+        // user can reposition a marker, let go to check how it looks, and
+        // grab it again without re-arming from the panel each time.
+        if (isBeingEdited)
+        {
+            char anchorId[32];
+            snprintf(anchorId, sizeof(anchorId), "##we_drag_anchor_%d", i);
+
+            ImGui::SetNextWindowPos({pos.x - hoverHalfExtent, pos.y - hoverHalfExtent});
+            ImGui::SetNextWindowSize({hoverHalfExtent * 2.0f, hoverHalfExtent * 2.0f});
+            ImGui::SetNextWindowBgAlpha(0.0f);
+            ImGui::Begin(anchorId, nullptr,
+                ImGuiWindowFlags_NoTitleBar      |
+                ImGuiWindowFlags_NoResize        |
+                ImGuiWindowFlags_NoMove          |
+                ImGuiWindowFlags_NoScrollbar     |
+                ImGuiWindowFlags_NoSavedSettings |
+                ImGuiWindowFlags_NoBackground    |
+                ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+            ImGui::InvisibleButton("##we_drag_hit", {hoverHalfExtent * 2.0f, hoverHalfExtent * 2.0f});
+
+            if (ImGui::IsItemActivated())
+                g_EditMode.isDragging = true;
+
+            if (g_EditMode.isDragging && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            {
+                // Claim mouse input for the overlay while dragging, so Nexus
+                // doesn't also forward this left-drag to GW2 itself — without
+                // this, the same drag could simultaneously pan/rotate the
+                // game's own map underneath the marker being moved. Set every
+                // frame the drag is active rather than once on mouse-down,
+                // since WantCaptureMouse is a per-frame flag Nexus re-reads
+                // every frame, not a sticky latch.
+                ImGui::GetIO().WantCaptureMouse = true;
+
+                ImVec2 mouse = ImGui::GetMousePos();
+                ImVec2 newContinent = ScreenToContinent(mouse);
+                ev.continentX = newContinent.x;
+                ev.continentY = newContinent.y;
+            }
+
+            if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                g_EditMode.isDragging = false;
+
+            ImGui::End();
+        }
+
+        // Tooltip on hover — suppressed while this marker is being
+        // dragged, since the cursor is now riding right on top of it and
+        // a tooltip there would just obscure the drag itself.
+        if (hovered && !isBeingEdited)
         {
             int secs = GetSecondsUntilEventStart(ev, now);
             if (secs < 0) continue; // skip events with no timer data yet

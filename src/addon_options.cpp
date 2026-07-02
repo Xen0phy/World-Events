@@ -25,6 +25,7 @@
 #include "imgui.h"
 #include "imgui_internal.h" // ImGuiItemFlags_Disabled / PushItemFlag — not in the public header
 #include <cstring>
+#include <cstdio>
 #include <algorithm>
 #include <cctype>
 #include <map>
@@ -326,6 +327,47 @@ static bool DrawSubscribeCheckbox(const char* label, bool& value)
 }
 
 // ---------------------------------------------------------------------------
+// DrawDragButton
+// ---------------------------------------------------------------------------
+// Small button placed next to the Location field that arms/disarms
+// map-drag edit mode for one Basic Event or Cyclic Group (see EditModeState
+// in maprender.h). Reads "Drag" when this row isn't the one currently being
+// edited, and "Stop" when it is — clicking it toggles. A hovered tooltip
+// explains the interaction either way, since "Drag"/"Stop" alone doesn't
+// say WHERE to actually drag it (the marker on the map, not this button).
+//
+// Right-click-on-the-map-marker was the original trigger for this, but
+// didn't reliably reach the overlay (something upstream appears to
+// intercept right-click before Nexus addons see it), so this button is the
+// trigger instead — same underlying g_EditMode plumbing either way.
+// ---------------------------------------------------------------------------
+static void DrawDragButton(EditTarget target, int index, const char* idSuffix)
+{
+    bool isBeingEdited = (g_EditMode.target == target && g_EditMode.index == index);
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%s##drag_btn_%s", isBeingEdited ? "Stop" : "Drag", idSuffix);
+
+    if (ImGui::SmallButton(buf))
+    {
+        if (isBeingEdited)
+            ClearEditMode();
+        else
+            g_EditMode = { target, index };
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        if (isBeingEdited)
+            ImGui::TextUnformatted("Click to stop dragging on the map.");
+        else
+            ImGui::TextUnformatted("Click, then left-click-drag this marker\non the map to reposition it.");
+        ImGui::EndTooltip();
+    }
+}
+
+// ---------------------------------------------------------------------------
 // DrawNameAndContextMenu
 // ---------------------------------------------------------------------------
 // Draws a row's expand/collapse TreeNode WITH its name as the node's own
@@ -514,6 +556,13 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     {
         ImGui::SetNextItemWidth(100.0f);
         ImGui::InputFloat2("Location", &ev.continentX, "%.0f");
+
+        ImGui::SameLine();
+        {
+            char idSuffix[16];
+            snprintf(idSuffix, sizeof(idSuffix), "be%d", i);
+            DrawDragButton(EditTarget::BasicEvent, i, idSuffix);
+        }
 
         ImGui::SameLine();
         ImGui::SetNextItemWidth(80.0f);
@@ -712,6 +761,13 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         // the picker itself), so no editing power is lost.
         ImGui::SetNextItemWidth(100.0f);
         ImGui::InputFloat2("Location", &grp.continentX, "%.0f");
+
+        ImGui::SameLine();
+        {
+            char idSuffix[16];
+            snprintf(idSuffix, sizeof(idSuffix), "cg%d", i);
+            DrawDragButton(EditTarget::CyclicGroup, i, idSuffix);
+        }
 
         ImGui::SameLine();
         ImGui::SetNextItemWidth(70.0f);
