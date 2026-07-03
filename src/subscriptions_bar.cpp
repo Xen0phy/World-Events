@@ -715,6 +715,62 @@ static float PillPinchFactor(float x, float start, float end, float neckT)
 }
 
 // ---------------------------------------------------------------------------
+// PathRoundedRect
+// ---------------------------------------------------------------------------
+// Builds a rounded-rect path via direct PathArcTo calls, then fills/strokes
+// it, instead of going through AddRectFilled/AddRect's own rounded-corner
+// path. Same winding order/geometry AddRect itself builds (left side first:
+// bottom-left arc -> top-left arc, then right side: top-right arc ->
+// bottom-right arc; see ImDrawList::AddRect in imgui_draw.cpp) so this is a
+// drop-in replacement, not a different shape.
+//
+// The difference from AddRect (this repo vendors ImGui 1.80, which has no
+// ImDrawFlags_RoundCorners* — see the handoff's "Environment / build
+// gotchas") is entirely in smoothness: AddRect's internal PathArcTo calls
+// hardcode num_segments=3 per corner, which is faceted/visible at this
+// pill's radius (see pill_stadium_vs_polygon_corners.svg — "Current:
+// AddRect rounded corner" vs "Proposed: PathArcTo stadium"). Calling
+// PathArcTo directly lets num_segments scale with the actual radius being
+// drawn, so a small attached-block corner radius and a full stadium cap
+// (rx = height/2) both read as smooth curves rather than a fixed facet
+// count that's fine for tiny UI corners but visibly polygonal at pill
+// scale.
+//
+// segments-per-quarter-circle scales with radius, floored so degenerate/
+// zero radii (attached phase, pillRx==0) still produce a clean rect and
+// never divide-by-zero or emit a zero-segment arc.
+static void PathRoundedRect(ImDrawList* dl, ImVec2 p0, ImVec2 p1, float rounding)
+{
+    // ImClamp/IM_PI live in imgui_internal.h, which this file doesn't
+    // otherwise include (see the includes list at the top) — use
+    // std::min/max and a local pi constant instead of pulling in imgui's
+    // internal header just for this.
+    constexpr float kPi = 3.14159265358979323846f;
+    rounding = std::max(0.0f, std::min(rounding, std::min((p1.x - p0.x) * 0.5f, (p1.y - p0.y) * 0.5f)));
+
+    if (rounding <= 0.0f)
+    {
+        dl->PathLineTo(ImVec2(p0.x, p0.y));
+        dl->PathLineTo(ImVec2(p1.x, p0.y));
+        dl->PathLineTo(ImVec2(p1.x, p1.y));
+        dl->PathLineTo(ImVec2(p0.x, p1.y));
+        return;
+    }
+
+    // Radius-scaled segment count per quarter-circle (4 segments per
+    // quarter for a small corner, up to 16 at this bar's largest expected
+    // pill radius) — smooth at stadium scale without over-tessellating
+    // small attached-block corners every frame.
+    int segsPerQuarter = std::max(4, std::min(16, (int)(rounding * 0.5f)));
+
+    float x0 = p0.x, y0 = p0.y, x1 = p1.x, y1 = p1.y;
+    dl->PathArcTo(ImVec2(x0 + rounding, y1 - rounding), rounding, kPi * 0.5f, kPi,        segsPerQuarter); // bottom-left
+    dl->PathArcTo(ImVec2(x0 + rounding, y0 + rounding), rounding, kPi,        kPi * 1.5f, segsPerQuarter); // top-left
+    dl->PathArcTo(ImVec2(x1 - rounding, y0 + rounding), rounding, kPi * 1.5f, kPi * 2.0f, segsPerQuarter); // top-right
+    dl->PathArcTo(ImVec2(x1 - rounding, y1 - rounding), rounding, 0.0f,       kPi * 0.5f, segsPerQuarter); // bottom-right
+}
+
+// ---------------------------------------------------------------------------
 // RenderSubscriptionsBar
 // ---------------------------------------------------------------------------
 void RenderSubscriptionsBar()
@@ -1502,9 +1558,24 @@ void RenderSubscriptionsBar()
                 // a full stadium cap (rx = h/2) as detachT completes.
                 // Uses dropX0/dropX1, not the raw x0/segEnd, so an
                 // edge-widened segment's pill stays widened once detached
-                // too (see EdgeSafeDropBounds). ----
-                dl->AddRectFilled(ImVec2(dropX0, pillY), ImVec2(dropX1, pillY + blockH), fillColor, pillRx);
-                dl->AddRect(ImVec2(dropX0, pillY), ImVec2(dropX1, pillY + blockH), segColor, pillRx, ImDrawCornerFlags_All, kLineThick);
+                // too (see EdgeSafeDropBounds).
+                //
+                // Drawn via PathRoundedRect (direct PathArcTo, radius-
+                // scaled segment count) instead of AddRectFilled/AddRect's
+                // own fixed-3-segment-per-corner rounding — at a full
+                // stadium radius (rx = h/2) that fixed facet count is
+                // visibly polygonal (see pill_stadium_vs_polygon_corners.
+                // svg). Same shape/geometry, smoother corners. ----
+                ImVec2 pillP0(dropX0, pillY);
+                ImVec2 pillP1(dropX1, pillY + blockH);
+
+                dl->PathClear();
+                PathRoundedRect(dl, pillP0, pillP1, pillRx);
+                dl->PathFillConvex(fillColor);
+
+                dl->PathClear();
+                PathRoundedRect(dl, pillP0, pillP1, pillRx);
+                dl->PathStroke(segColor, true, kLineThick);
             }
 
             // Label + status, vertically centered inside this block/pill's
