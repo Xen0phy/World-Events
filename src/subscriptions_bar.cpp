@@ -12,12 +12,22 @@
 #include "maprender.h"
 #include "settings.h"
 #include "imgui.h"
+// TEMPORARY (this session): addon.h pulls in Nexus.h -> <windows.h>, which
+// makes this file no longer syntax-checkable with the sandbox's
+// `g++ -fsyntax-only` command (see the handoff's "Environment / build
+// gotchas" section — same constraint addon.cpp/addon_options.cpp already
+// live with). Only added for APIDefs->Log() debug output below
+// (kDebugLogStackPacking). Remove this include and the debug block once
+// the row-packing bug report is diagnosed — don't leave it in permanently
+// just because it compiles fine on the real Windows build.
+#include "addon.h"
 #include <ctime>
 #include <cmath>
 #include <cfloat>
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <climits>
 #include <algorithm>
 
 // ---------------------------------------------------------------------------
@@ -82,6 +92,7 @@ struct LineSegment
     float       endX;
     bool        active;
     int         statusSecs; // secs left if active, secs until start otherwise
+    int         durationSecs; // endSec - startSec (clamped to window) — the STABLE integer-seconds source for PackStackRows' widest-first ordering. Using endX-startX directly there was tried first but flickered: two segments with near-identical on-screen pixel width could reorder frame-to-frame from float jitter as the strip re-renders, even though their underlying durations never change. durationSecs is set once here from the same startSec/endSec already computed above (clamped to kWindowSeconds, so an "active, ends off the right edge of the window" segment reports its CLAMPED remaining/visible duration, not its full real-world duration — deliberately consistent with startX/endX also being clamped, so "widest" still means "widest as drawn on screen right now", just without the float-precision flicker).
     ImU32       color;
     int         lane = 0;   // 0 = this segment is the one drawn on the single resting baseline for its time range; >0 = this segment is currently hidden behind a lane-0 segment and only shows up as a dot marker + on hover — see AssignLanes
 };
@@ -260,7 +271,7 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         if (endSec <= startSec) continue;
         segs.push_back({
             "Basic:" + it->name, it->name, it->chatCode,
-            secToX(startSec), secToX(endSec), active, statusSecs,
+            secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
             BasicEventColorFor(it->name)
         });
     }
@@ -327,7 +338,7 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             std::string label = it->name + " - " + slot.name;
             segs.push_back({
                 "Cyclic:" + it->name + ":" + offsetBuf, label, slot.chatCode,
-                secToX(startSec), secToX(endSec), active, statusSecs,
+                secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
                 it->SlotColor(slot)
             });
             break;
@@ -401,8 +412,147 @@ static float FlatBlockDepthAt(float x, float start, float end, float tw)
 struct DropState { float amount = 0.0f; float hoverSeconds = 0.0f; };
 static std::unordered_map<std::string, DropState> s_dropStates;
 
+// ---------------------------------------------------------------------------
+// PackStackRows
+// ---------------------------------------------------------------------------
+// Assigns each currently-hovered/dropping segment a row (0, 1, 2, ...) for
+// the vertical stack, so segments whose x-ranges DON'T actually overlap
+// each other can share a row instead of each claiming its own — e.g. one
+// wide segment on row 0, plus two narrow segments that don't overlap one
+// another sharing row 1, rather than spreading across three separate rows.
+//
+// Processing order is LONGEST-DURATION-FIRST (durationSecs descending,
+// see LineSegment's field comment for why seconds and not live pixel
+// width), soonest-first as a tiebreak for equal durations — NOT
+// soonest-first alone. This is a deliberate user request: a
+// longer-running bar should win the lowest available row over a
+// shorter one it overlaps, even if the shorter one happened to already
+// be resting in that row first (e.g. hovering a dot mid-way through an
+// already-open 30-minute bar to reveal an overlapping 60-minute bar —
+// the 60-minute bar should bump the 30-minute one up a row rather than
+// itself being pushed into a pill). Only matters when segments actually
+// x-overlap; two non-overlapping segments still freely share a row
+// regardless of duration or order, same as before this changed (see the
+// row-occupancy check below, which was widened from "does this start
+// past the row's trailing edge" to "does this avoid EVERY existing
+// occupant's span" specifically so a longer-but-later segment can still
+// be correctly rejected from a row whose current occupant it would
+// overlap in the middle of, not just at the tail).
+//
+// A segment simply takes the lowest-numbered row that has room for it,
+// same greedy interval-packing approach as AssignLanes above, just reused
+// at the hover-stack stage instead of the baseline-lane stage, with the
+// longest-duration-first ordering layered on top.
+//
+// Returns, per segment key: {row index, that row's max eased depth}.
+// rowMaxDepth is currently UNUSED by the row-to-Y conversion in
+// stackTopY (see its own comment: row spacing must NOT scale by live
+// eased depth, or a fully-open row overlaps a still-easing-in row below
+// it — a real bug hit and fixed shortly after this was first written).
+// Left in the returned struct since it's cheap to compute and may be
+// useful for a future refinement (e.g. easing a row's OWN drawn shape),
+// but don't assume something reads it just because it's here.
+// ---------------------------------------------------------------------------
+struct StackRowInfo
+{
+    int   row = 0;
+    float rowMaxDepth = 0.0f;
+};
+static std::unordered_map<std::string, StackRowInfo> PackStackRows(
+    const std::vector<LineSegment>& segs,
+    const std::vector<int>& order, // indices into segs, soonest-first (re-sorted internally to longest-duration-first, see comment above)
+    const std::unordered_map<std::string, DropState>& dropStates)
+{
+    constexpr float kRowMargin = 4.0f; // px — a little breathing room between two segments sharing a row, beyond bare x-touching
+    std::unordered_map<std::string, StackRowInfo> result;
+
+    // Re-sort processing order: longest-duration-first (durationSecs, a
+    // stable integer, not live pixel width — see LineSegment's field
+    // comment for why), soonest-first as the tiebreak (stable_sort
+    // preserves `order`'s original soonest-first relative order for
+    // equal durations). Row ASSIGNMENT (0, 1, 2...) still ends up
+    // correlating with time for typically-similar-duration segments,
+    // since the tiebreak is soonest-first — this only overrides that
+    // when durations genuinely differ.
+    std::vector<int> durationOrder = order;
+    std::stable_sort(durationOrder.begin(), durationOrder.end(),
+        [&](int a, int b)
+        {
+            return segs[a].durationSecs > segs[b].durationSecs;
+        });
+
+    // rowSpans[row] = every occupant's [startX, endX] placed in that row so
+    // far. Was a single trailing rowEndX[row] float before this changed —
+    // that assumed left-to-right insertion order within a row, which
+    // soonest-first guaranteed but longest-duration-first no longer does
+    // (a long segment starting LATER than a short one already in the row
+    // must still be checked against the short one's full span, not just
+    // whatever the row's rightmost edge happens to be at that point).
+    std::vector<std::vector<std::pair<float, float>>> rowSpans;
+    std::vector<float> rowDepth;  // rowDepth[row] = max eased depth among segments placed in that row so far
+
+    for (int idx : durationOrder)
+    {
+        const LineSegment& s = segs[idx];
+        auto dsIt = dropStates.find(s.key);
+        float depth = (dsIt != dropStates.end()) ? dsIt->second.amount : 0.0f;
+
+        int chosenRow = -1;
+        for (int row = 0; row < (int)rowSpans.size(); row++)
+        {
+            bool fits = true;
+            for (const auto& span : rowSpans[row])
+            {
+                if (s.startX < span.second - kRowMargin && s.endX > span.first + kRowMargin)
+                {
+                    fits = false;
+                    break;
+                }
+            }
+            if (fits) { chosenRow = row; break; }
+        }
+        if (chosenRow < 0)
+        {
+            chosenRow = (int)rowSpans.size();
+            rowSpans.push_back({});
+            rowDepth.push_back(0.0f);
+        }
+
+        rowSpans[chosenRow].push_back({s.startX, s.endX});
+        rowDepth[chosenRow] = std::max(rowDepth[chosenRow], depth);
+        result[s.key].row = chosenRow;
+    }
+
+    // Second pass: now that every row's final max depth is known, write it
+    // back into every segment's result entry (a row's height can only be
+    // determined once ALL its occupants have been placed, which may
+    // happen after an earlier occupant in soonest-first order).
+    for (int idx : order)
+    {
+        const LineSegment& s = segs[idx];
+        auto it = result.find(s.key);
+        if (it != result.end()) it->second.rowMaxDepth = rowDepth[it->second.row];
+    }
+
+    return result;
+}
+
+
 static constexpr float kTransitionWidth = 26.0f; // px — curved shoulder width, scaled down from the HTML's 60px for a much thinner overlay strip
 static constexpr float kEaseRate        = 0.18f; // per-frame lerp factor, matches the HTML's drop easing constant
+
+// TEMPORARY (this session) — set true to dump every hovered segment's
+// PackStackRows input/output to the Nexus log each frame something is
+// hovered, to diagnose a reported bug: two adjacent, non-overlapping
+// segments (Admiral Taidha 58m+15m, Great Jungle Wurm 73m+15m) landed on
+// visibly different stack rows despite a standalone test of the exact
+// same PackStackRows code, given the same startX/endX/order, correctly
+// merging them into one row — so the bug (if real) must be in what
+// actually reaches PackStackRows at runtime, not the packing algorithm
+// itself. Off by default; flip to true, reproduce, paste the logged
+// lines back for the next session, then flip back to false (or just
+// remove this whole debug block, see addon.h's include comment above).
+static constexpr bool kDebugLogStackPacking = true;
 
 // ---------------------------------------------------------------------------
 // Pill-detach phase thresholds (fractions of DropState::amount, 0..1)
@@ -491,7 +641,14 @@ void RenderSubscriptionsBar()
     // the top edge) ----
     constexpr float kLineThick    = 2.0f;
     constexpr float kBaselineY    = kLineThick * 0.5f;  // line is centered on this y, so offsetting by half its thickness puts the stroke's visible top edge flush with the actual screen edge instead of half of it getting clipped off-screen
-    constexpr float kMaxDropPx    = 54.0f; // how far a single fully-hovered block drops down from the baseline — sized to comfortably fit two centered lines of label text
+    // How far a single fully-hovered block drops down from the baseline
+    // (and, once pill-detach kicks in, the pill's fixed height too — see
+    // SubscriptionsBarMaxDropPx's comment in settings_table.h). User-
+    // configurable; floored at 8px so the pill math further down (which
+    // relies on a positive height for its stadium corner radius,
+    // pillRx = kMaxDropPx/2) never degenerates from a 0-or-negative
+    // setting value.
+    const float kMaxDropPx = (float)std::max(8, SubscriptionsBarMaxDropPx);
     constexpr float kGapPx        = 3.0f;  // thin background-colored notch between adjacent lane-0 segments
     constexpr float kStackGapPx   = 4.0f;  // vertical gap between stacked dropped blocks when multiple segments are hovered at once
     constexpr float kDotRadius    = 2.5f;  // px
@@ -524,22 +681,96 @@ void RenderSubscriptionsBar()
     bool mouseValid = io.MousePos.x > -FLT_MAX; // ImGui reports (-FLT_MAX,-FLT_MAX) when there's no mouse
 
     // Which segments are currently under the mouse. Two ways in:
-    //  1. The mouse is over a lane-0 segment's own resting-line x-range
-    //     (near the baseline y) — same as before.
+    //  1. The mouse is over a lane-0 segment's own x-range, anywhere from
+    //     the baseline down through the full vertical extent that segment
+    //     could possibly be dropped/detached to (a "hover column", not a
+    //     thin band). A thin band-only test only covers the resting line
+    //     itself: once a block pops out and the user moves the mouse
+    //     straight down onto it, they cross empty vertical space with no
+    //     hover coverage on the way, hover is lost mid-transit, the block
+    //     eases back up, and the mouse arrives where the block used to be
+    //     — this was the "can't reach the pill" / "click does nothing"
+    //     bug. Originally fixed with a per-segment worst-case column (down
+    //     to the deepest ANY pill could ever rest) but that was too tall
+    //     for a plain safe-zone pop-out or a barely-detached pill — exiting
+    //     felt like it required crossing much more empty space than the
+    //     block/pill's own actual height. Replaced with a single SHARED
+    //     horizontal band across the full screen width, whose bottom edge
+    //     tracks the deepest thing actually open THIS moment — computed
+    //     just below from every segment currently mid-drop (amount > 0),
+    //     using last frame's depth/stacking/unsafe-zone state (one frame
+    //     of latency, same reasoning as everywhere else in this file: the
+    //     eased values barely move frame to frame, so this is visually
+    //     exact). Being a single shared band rather than one column per
+    //     segment also means it naturally covers dot-hover for free (see
+    //     point 2 below) and grows/shrinks correctly as segments
+    //     stack/unstack, without extra bookkeeping.
     //  2. The mouse is over one of that segment's dot markers (a lane>0
     //     segment has no line of its own to hover, only its dot) — hit-
-    //     tested as a small circle around the dot's nudged draw position.
-    // Both feed into the same hoveredIndices list, so a hidden segment
+    //     tested as a small circle around the dot's nudged draw position,
+    //     for STARTING a hover (the dot itself is tiny and needs precise
+    //     targeting to trigger). Once a dot's segment has actually started
+    //     dropping, the shared sustain band below covers it same as any
+    //     other segment, so leaving the tiny dot circle but staying within
+    //     the open band no longer instantly collapses it.
+    // All feed into the same hoveredIndices list, so a hidden segment
     // dropping in via its dot stacks together with the shown segment
     // exactly like two lane-0 segments would.
-    // Vertical hover band matches the drawn line's actual on-screen
-    // footprint (kLineThick + 1px, per the AddLine call below) plus a
-    // couple px of forgiveness — NOT a generous fixed band. The line is
-    // only ~3px tall; a much taller invisible hit zone around it makes
-    // the pop-out trigger from empty space above/below the line, which
-    // reads as broken.
     constexpr float kLineHalfHeight = (kLineThick + 1.0f) * 0.5f;
-    constexpr float kHoverBand = kLineHalfHeight + 2.0f;
+    constexpr float kHoverBand = kLineHalfHeight + 2.0f; // the ONLY band that can start a fresh pop-out
+    // Shared sustain-band bottom: baseline by default (nothing open yet),
+    // pushed down to cover whichever currently-mid-drop segment(s) reach
+    // deepest, mirroring the same running-stack math used for the actual
+    // draw (stackTopY below) and the same topY/pillY unsafe-zone-detach
+    // math used per-segment in the draw loop — but using LAST frame's
+    // amount/order, since this frame's stack isn't known yet at this
+    // point (computed from hoveredIndices, which we're still building).
+    float sustainBottom = kBaselineY + kHoverBand;
+    {
+        // Reuse the exact same "soonest first" stacking order the real
+        // draw uses, over every segment that was mid-drop last frame —
+        // not just this frame's not-yet-known hoveredIndices — so a
+        // segment that's still easing OUT (no longer hovered, but not
+        // back to 0 yet) still gets covered until it's actually gone.
+        std::vector<int> openLastFrame;
+        for (int i = 0; i < (int)segs.size(); i++)
+            if (s_dropStates[segs[i].key].amount > 0.001f) openLastFrame.push_back(i);
+        std::sort(openLastFrame.begin(), openLastFrame.end(), [&](int a, int b)
+        {
+            return segs[a].statusSecs < segs[b].statusSecs;
+        });
+
+        // This estimate intentionally does NOT use the row-packing from
+        // PackStackRows below (see to-do #7/#8 stacking rework) — it only
+        // needs a conservative UPPER BOUND on how deep the sustain band
+        // must reach, and one-row-per-segment can only ever be taller
+        // than (or equal to) the real packed stack, never shorter. Using
+        // the simpler unpacked math here keeps this estimate safely
+        // conservative without needing to duplicate the packing logic a
+        // frame early, before this frame's real hoveredIndices exists.
+        float runningY = kBaselineY;
+        float runningPillY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx); // mirrors pillStackY's own base, computed properly further down for the actual draw
+        for (int idx : openLastFrame)
+        {
+            const LineSegment& s = segs[idx];
+            float depth = s_dropStates[s.key].amount;
+            float topY = runningY;
+
+            bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
+            float detachT = inUnsafeZone ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd) / (kDetachEnd - kPinchEnd))) : 0.0f;
+            float pillY = topY;
+            if (detachT > 0.0f)
+            {
+                pillY = topY + (runningPillY - topY) * detachT;
+                runningPillY += kMaxDropPx + kStackGapPx; // reserve this pill's own slot for whatever's stacked after it
+            }
+            float blockBottom = std::max(topY, pillY) + kMaxDropPx;
+
+            sustainBottom = std::max(sustainBottom, blockBottom + 4.0f); // small slop, not a full worst-case column
+
+            runningY += kMaxDropPx * depth + kStackGapPx * depth;
+        }
+    }
     std::vector<int> hoveredIndices;
     if (mouseValid)
     {
@@ -549,6 +780,38 @@ void RenderSubscriptionsBar()
             {
                 if (segs[i].lane != 0) continue; // lane>0 segments have no line of their own to hover
                 if (mouse.x >= segs[i].startX && mouse.x < segs[i].endX) hoveredIndices.push_back(i);
+            }
+        }
+        // Sustain path: only for segments already mid-drop (amount > 0),
+        // test against the SHARED band computed above (baseline down to
+        // sustainBottom) over that segment's own x-range PADDED by a
+        // small fixed margin left/right (kSustainPadX) — not just its
+        // bare width. Two reasons this needs padding, unlike the trigger
+        // test above:
+        //   1. A dot-triggered (lane>0) segment can have a very narrow
+        //      timeline extent, and the mouse arrives at its dot's tiny
+        //      hit-circle, not necessarily dead-center over that narrow
+        //      range — a bare-width sustain zone was too tight, so
+        //      leaving the dot's circle immediately dropped the pop-out
+        //      again even while still visually "over" it.
+        //   2. Lane>0 segments were ALSO being skipped here entirely
+        //      (stale `if (lane != 0) continue`, leftover from the
+        //      lane-0-only trigger test above) — dots have no line of
+        //      their own to trigger a hover, but once open via their dot,
+        //      they still need sustain coverage like anything else. Fixed
+        //      by removing that check for this path specifically.
+        // A fresh/idle segment (amount == 0) never reaches this — it can
+        // only ever be triggered by the thin band (lane-0) or a dot's own
+        // small circle (lane>0) above.
+        if (mouse.y >= kBaselineY - kHoverBand && mouse.y <= sustainBottom)
+        {
+            constexpr float kSustainPadX = 8.0f; // px of forgiveness left/right of the opened element's own width
+            for (int i = 0; i < (int)segs.size(); i++)
+            {
+                if (s_dropStates[segs[i].key].amount <= 0.0f) continue;
+                if (mouse.x < segs[i].startX - kSustainPadX || mouse.x >= segs[i].endX + kSustainPadX) continue;
+                if (std::find(hoveredIndices.begin(), hoveredIndices.end(), i) == hoveredIndices.end())
+                    hoveredIndices.push_back(i);
             }
         }
         for (size_t d = 0; d < dots.size(); d++)
@@ -565,9 +828,26 @@ void RenderSubscriptionsBar()
     }
     // Stacking order: soonest-starting (or currently active) segment on
     // top, since that's usually the more time-critical one to read first.
-    std::sort(hoveredIndices.begin(), hoveredIndices.end(), [&](int a, int b)
+    // MUST be std::stable_sort, not std::sort: two hovered segments can
+    // share the exact same statusSecs (e.g. two upcoming events starting
+    // in the same number of seconds), and an unstable sort's tie-break
+    // is unspecified — it can silently flip which of the two comes first
+    // from one frame to the next even though neither segment's own data
+    // changed. That reordering fed directly into PackStackRows as its
+    // `order` param, which uses this same order as ITS tiebreak whenever
+    // two segments have equal durationSecs — so an unstable tie here was
+    // the real source of a reported "stack rows keep switching every
+    // second or two" bug that survived switching PackStackRows from live
+    // pixel width to stable integer duration; the duration value itself
+    // was never the flickering part, the incoming order was. The
+    // std::string key comparison as a final tiebreak (below the
+    // statusSecs compare) makes the order fully deterministic even for
+    // an exact statusSecs tie, rather than leaving it to whatever
+    // relative order segs happened to be in.
+    std::stable_sort(hoveredIndices.begin(), hoveredIndices.end(), [&](int a, int b)
     {
-        return segs[a].statusSecs < segs[b].statusSecs;
+        if (segs[a].statusSecs != segs[b].statusSecs) return segs[a].statusSecs < segs[b].statusSecs;
+        return segs[a].key < segs[b].key;
     });
 
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
@@ -663,15 +943,197 @@ void RenderSubscriptionsBar()
     // away and clears the corner UI as it becomes a pill, rather than
     // starting pre-offset down.
     std::unordered_map<std::string, float> stackTopY;
-    {
-        float runningY = kBaselineY;
+    std::unordered_map<std::string, StackRowInfo> stackRows = PackStackRows(segs, hoveredIndices, s_dropStates);
 
+    // TEMPORARY (this session) — see kDebugLogStackPacking's comment
+    // above. Logs once per frame while ANY segment is hovered, so expect
+    // a burst of near-identical lines while the mouse sits still — that's
+    // fine, just grab any one frame's worth once it looks wrong on
+    // screen. Each line is one hoveredIndices entry, in the exact order
+    // PackStackRows received them (soonest-first), showing exactly what
+    // the packing decision was based on.
+    if (kDebugLogStackPacking && !hoveredIndices.empty() && APIDefs)
+    {
+        char buf[256];
+        APIDefs->Log(LOGL_INFO, "WorldEvents", "---- stack pack frame ----");
         for (int idx : hoveredIndices)
         {
             const LineSegment& s = segs[idx];
             float depth = s_dropStates[s.key].amount;
-            stackTopY[s.key] = runningY;
-            runningY += kMaxDropPx * depth + kStackGapPx * depth;
+            int row = -1;
+            auto it = stackRows.find(s.key);
+            if (it != stackRows.end()) row = it->second.row;
+            snprintf(buf, sizeof(buf),
+                "key=%s startX=%.1f endX=%.1f statusSecs=%d depth=%.2f -> row=%d",
+                s.key.c_str(), s.startX, s.endX, s.statusSecs, depth, row);
+            APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
+        }
+    }
+
+    {
+        // Convert each segment's packed row index into a cumulative Y:
+        // walk rows in ascending order, each row's height is that row's
+        // own max eased depth (the deepest occupant sharing it), so a row
+        // holding only shallow/still-easing-in segments doesn't reserve
+        // full kMaxDropPx worth of space it isn't using yet.
+        int maxRow = -1;
+        for (auto& kv : stackRows) maxRow = std::max(maxRow, kv.second.row);
+
+        // Row spacing is NOT scaled by live eased depth here, unlike a
+        // single segment's own animated Y. Reason: row 0 can already be
+        // fully open (depth==1) while row 1 is still easing in fresh
+        // (depth<<1) — if row 1's reserved space were scaled by ITS OWN
+        // still-small depth, row 1's rowTopY would sit too close to row
+        // 0's ALREADY-FULL-HEIGHT block, overlapping it (row 0 doesn't
+        // shrink just because row 1 hasn't grown yet). Reserve full
+        // height for every occupied row unconditionally instead — the
+        // per-segment draw loop still animates each segment's own drawn
+        // shape growing from 0, this only affects how much space
+        // subsequent rows are pushed down by, which must already assume
+        // "this row could be full height" from the moment it exists.
+        std::vector<float> rowTopY(maxRow + 1, 0.0f);
+        float runningY = kBaselineY;
+        for (int row = 0; row <= maxRow; row++)
+        {
+            rowTopY[row] = runningY;
+            runningY += kMaxDropPx + kStackGapPx;
+        }
+
+        for (int idx : hoveredIndices)
+        {
+            const LineSegment& s = segs[idx];
+            auto it = stackRows.find(s.key);
+            if (it != stackRows.end()) stackTopY[s.key] = rowTopY[it->second.row];
+        }
+    }
+
+    // Detached pills all ease toward the SAME configured clearance
+    // (SubscriptionsBarUnsafeHeightPx) once fully detached — that's a
+    // fixed absolute Y, not derived from stackTopY, since the whole point
+    // of detaching is to leave the attached stack behind and clear the
+    // corner UI. But with two+ unsafe-zone segments open at once (e.g. a
+    // dot's pill opened while another pill is already resting), both
+    // converging on that same single absolute Y stacks them exactly on
+    // top of each other right at the moment they finish detaching, even
+    // though their ATTACHED phase (stackTopY above) was correctly
+    // staggered. pillStackY gives each detached/detaching segment its own
+    // slot below the configured clearance, same soonest-first order and
+    // same kStackGapPx spacing as the attached stack, so pills stack
+    // instead of overlapping. This is one shared pass/slot pool for every
+    // pill regardless of WHY it detached (unsafe-zone or stack-position,
+    // see the inUnsafeZone/stackDetach check just below) so a pill from
+    // either trigger can never land on the same Y as another.
+    std::unordered_map<std::string, float> pillStackY;
+    {
+        // Base clearance is the LARGER of the configured unsafe-zone
+        // clearance and "past every attached (non-pill) row that sits
+        // above the first pill row." A pill's own row index only tells
+        // PackStackRows about OTHER pills sharing pillStackY's slot
+        // pool — it says nothing about a plain attached block sitting
+        // in row 0 while row 1 detaches into a pill (e.g. a wide
+        // safe-zone block with a narrower stack-detached segment
+        // beneath it). Without this, pillStackY's first slot started
+        // flat at SubscriptionsBarUnsafeHeightPx regardless of whether
+        // row 0 was itself a pill or just an ordinary attached block
+        // occupying that same screen space — so a small
+        // SubscriptionsBarUnsafeHeightPx (e.g. 30px, well inside a
+        // kMaxDropPx=54 attached block's own height) let a row-1 pill
+        // land its resting Y INSIDE row 0's attached block. Attached
+        // rows only exist in stackTopY, keyed by row via the same
+        // row-ascending stackTopY conversion above, so walk every row
+        // from 0 up to (but excluding) the lowest row that has any
+        // pill this frame, and push the base past each one's bottom
+        // edge (topY + kMaxDropPx + kStackGapPx) — mirroring the exact
+        // spacing stackTopY itself already reserves per row.
+        int lowestPillRow = INT_MAX;
+        for (int idx : hoveredIndices)
+        {
+            const LineSegment& s = segs[idx];
+            auto rowIt = stackRows.find(s.key);
+            if (rowIt == stackRows.end()) continue;
+            bool stackDetach = rowIt->second.row > 0;
+            bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
+            if (inUnsafeZone || stackDetach) lowestPillRow = std::min(lowestPillRow, rowIt->second.row);
+        }
+
+        float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+        float runningPillY = unsafeRestY;
+        if (lowestPillRow != INT_MAX)
+        {
+            for (int row = 0; row < lowestPillRow; row++)
+            {
+                auto rowTopIt = std::find_if(stackTopY.begin(), stackTopY.end(),
+                    [&](const std::pair<const std::string, float>& kv)
+                    {
+                        auto ri = stackRows.find(kv.first);
+                        return ri != stackRows.end() && ri->second.row == row;
+                    });
+                if (rowTopIt != stackTopY.end())
+                    runningPillY = std::max(runningPillY, rowTopIt->second + kMaxDropPx + kStackGapPx);
+            }
+        }
+
+        // Keyed by row, not by segment: two segments that PackStackRows
+        // already packed into the same row are, by construction,
+        // non-overlapping in x — so they can safely share one pill Y
+        // slot instead of each claiming its own. Without this, a pair
+        // that sits side-by-side while attached (same row) visibly
+        // separates vertically the moment both detach into pills, since
+        // the old per-segment loop below incremented runningPillY once
+        // per segment regardless of row. Segments with no row (not in
+        // stackRows, e.g. a lone unsafe-zone dot with nothing else
+        // hovered) fall back to a synthetic per-segment "row" via their
+        // own key, so they still each get a distinct slot as before.
+        // Collect (row, key) pairs first rather than assigning slots
+        // while walking hoveredIndices directly — hoveredIndices is
+        // soonest-first, NOT row-ascending, so a row-1 segment can be
+        // encountered before row-0's own pill (e.g. row 0 sits in the
+        // unsafe zone and is also a pill). Handing out runningPillY in
+        // encounter order let row 1 grab the topmost slot ahead of row
+        // 0's pill, so they'd render at the same Y / row 1 wouldn't
+        // reliably land below row 0. Sorting by row first (stable, so
+        // soonest-first is preserved within a row) guarantees slots are
+        // always handed out row 0, then row 1, then row 2, etc. —
+        // matching stackTopY's own ascending-row order — so a lower row
+        // can never end up above a higher one just because it happened
+        // to be hovered/processed first.
+        struct PillCandidate { int row; std::string key; };
+        std::vector<PillCandidate> candidates;
+        int nextSyntheticRow = -1000000; // negative space, well clear of any real row index
+
+        for (int idx : hoveredIndices)
+        {
+            const LineSegment& s = segs[idx];
+            auto rowIt = stackRows.find(s.key);
+            bool stackDetach = (rowIt != stackRows.end() && rowIt->second.row > 0); // to-do #8: any non-top row detaches into a pill, regardless of unsafe-zone
+            bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
+            if (!inUnsafeZone && !stackDetach) continue; // only pills need a slot here
+
+            float depth = s_dropStates[s.key].amount;
+            float detachT = std::min(1.0f, std::max(0.0f, (depth - kPinchEnd) / (kDetachEnd - kPinchEnd)));
+            if (detachT <= 0.0f) continue; // not detaching yet — still using stackTopY, no pill slot needed
+
+            int row = (rowIt != stackRows.end()) ? rowIt->second.row : nextSyntheticRow--;
+            candidates.push_back({row, s.key});
+        }
+
+        std::stable_sort(candidates.begin(), candidates.end(),
+            [](const PillCandidate& a, const PillCandidate& b) { return a.row < b.row; });
+
+        std::unordered_map<int, float> rowPillY;
+        for (const PillCandidate& c : candidates)
+        {
+            auto slotIt = rowPillY.find(c.row);
+            if (slotIt == rowPillY.end())
+            {
+                rowPillY[c.row] = runningPillY;
+                pillStackY[c.key] = runningPillY;
+                runningPillY += kMaxDropPx + kStackGapPx; // pills are always full height once they have any slot at all
+            }
+            else
+            {
+                pillStackY[c.key] = slotIt->second; // same row already has a slot — share it
+            }
         }
     }
 
@@ -726,25 +1188,36 @@ void RenderSubscriptionsBar()
             float cx = (x0 + segEnd) * 0.5f;
             float segW = segEnd - x0;
 
-            // Pill-detach only applies to segments whose x-range overlaps
-            // an unsafe zone (GW2's own corner UI) — everywhere else, the
-            // block is a plain attached pop-out exactly like before this
-            // feature existed, per the user's correction: "everything
-            // else should've stayed as pop-out". A safe-zone segment
-            // therefore has pinchT/detachT permanently pinned to 0, so
-            // the "if (depth < kPinchEnd)" branch below is the ONLY
+            // Pill-detach applies to a segment for either of two reasons:
+            // (1) its x-range overlaps an unsafe zone (GW2's own corner
+            // UI) — the original trigger — or (2) it's not in row 0 of
+            // the current hover stack, i.e. some other segment is stacked
+            // above it (to-do #8: "detached from the bar" is defined as
+            // stack position — any non-top row — the simplest of the
+            // three candidate definitions discussed, and the one that
+            // reuses the existing pinch/detach machinery outright rather
+            // than adding a new geometric condition). A segment with
+            // neither is a plain attached pop-out exactly like before
+            // this feature existed — pinchT/detachT permanently pinned to
+            // 0, so the "if (depth < kPinchEnd)" branch below is the ONLY
             // branch it ever takes, at full FlatBlockDepthAt depth with
             // no pinch — identical output to the original single-shape
             // implementation.
             bool inUnsafeZone = SegmentOverlapsUnsafeZone(seg, screenW);
+            bool stackDetach = false;
+            {
+                auto rowIt = stackRows.find(seg.key);
+                stackDetach = (rowIt != stackRows.end() && rowIt->second.row > 0);
+            }
+            bool shouldDetach = inUnsafeZone || stackDetach;
 
             // Phase split, per the confirmed mock (see the kPinchStart/
             // kPinchEnd/kDetachEnd block comment above): grow -> neck-in
             // (still attached, still FlatBlockDepthAt-shaped) -> detach
             // into a locked-width stadium pill -> settle at rest. Only
-            // reached at all for inUnsafeZone segments.
-            float pinchT  = inUnsafeZone ? std::min(1.0f, std::max(0.0f, (depth - kPinchStart) / (kPinchEnd - kPinchStart))) : 0.0f;
-            float detachT = inUnsafeZone ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd)   / (kDetachEnd - kPinchEnd))) : 0.0f;
+            // reached at all for segments that shouldDetach.
+            float pinchT  = shouldDetach ? std::min(1.0f, std::max(0.0f, (depth - kPinchStart) / (kPinchEnd - kPinchStart))) : 0.0f;
+            float detachT = shouldDetach ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd)   / (kDetachEnd - kPinchEnd))) : 0.0f;
 
             // Corner radius eases from 0 (attached, square-ish flat-top
             // block) to a true stadium cap (rx = kMaxDropPx/2) as
@@ -757,17 +1230,44 @@ void RenderSubscriptionsBar()
             float pillRx = (blockH * 0.5f) * detachT; // 0 while still attached/necking, ramps to a true stadium (rx=h/2) only once detaching
 
             // Pill Y once detached: eases from topY (where it popped out,
-            // over the corner UI, same as any block) DOWN to
-            // SubscriptionsBarUnsafeHeightPx — the unsafe-zone clearance
-            // is now the pill's resting offset, not the attached block's
-            // starting point, per the user's correction: pop out normally
-            // over the UI first, THEN peel off and clear the unsafe zone
-            // as it becomes a pill. (Only ever non-zero for inUnsafeZone
-            // segments, since detachT is pinned to 0 otherwise.)
+            // over the corner UI, same as any block) DOWN to this
+            // segment's own reserved slot in pillStackY — NOT a single
+            // shared SubscriptionsBarUnsafeHeightPx for every pill, which
+            // made two+ simultaneously-open unsafe-zone pills converge on
+            // the exact same absolute Y and sit stacked directly on top of
+            // each other the moment they finished detaching (e.g. hovering
+            // a dot while another pill was already resting). pillStackY
+            // gives each one its own staggered slot below the configured
+            // clearance instead, same soonest-first order as the attached
+            // stack. Falls back to the flat clearance value if this
+            // segment somehow has no slot yet (shouldn't normally happen
+            // once detachT > 0, since pillStackY is built from the same
+            // hoveredIndices set — this is just defensive).
             float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+            auto pillIt = pillStackY.find(seg.key);
+            if (pillIt != pillStackY.end()) unsafeRestY = pillIt->second;
             float pillY = topY + (unsafeRestY - topY) * detachT;
 
-            if (depth < kPinchEnd || !inUnsafeZone)
+            // TEMPORARY (this session) — see kDebugLogStackPacking's
+            // comment near kTransitionWidth. Extends the existing
+            // per-frame stack-pack log with the actual draw-time values
+            // this loop resolves to, since the earlier log only showed
+            // PackStackRows' row assignment, not what topY/pillY/detachT
+            // end up being once the pill-detach math runs. Same
+            // once-per-frame-while-hovered gating.
+            if (kDebugLogStackPacking && APIDefs)
+            {
+                char buf[256];
+                auto rowItDbg = stackRows.find(seg.key);
+                int rowDbg = (rowItDbg != stackRows.end()) ? rowItDbg->second.row : -1;
+                snprintf(buf, sizeof(buf),
+                    "  draw key=%s row=%d topY=%.1f unsafeRestY=%.1f detachT=%.2f pillY=%.1f shouldDetach=%d inUnsafeZone=%d stackDetach=%d",
+                    seg.key.c_str(), rowDbg,
+                    topY, unsafeRestY, detachT, pillY, (int)shouldDetach, (int)inUnsafeZone, (int)stackDetach);
+                APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
+            }
+
+            if (depth < kPinchEnd || !shouldDetach)
             {
                 // ---- Phases 1-2 (or the ONLY phase for safe-zone
                 // segments): attached, FlatBlockDepthAt silhouette,
@@ -840,7 +1340,7 @@ void RenderSubscriptionsBar()
                 // shape, not underneath it. Uses the drop's steady-state
                 // depth for the layout math so text doesn't visibly slide
                 // as depth eases toward 1.0 — it fades in in place instead.
-                float blockTop    = (depth < kPinchEnd || !inUnsafeZone) ? topY : pillY;
+                float blockTop    = (depth < kPinchEnd || !shouldDetach) ? topY : pillY;
                 float blockBottom = blockTop + blockH;
                 float textBlockH  = size1.y + size2.y;
                 float labelY      = blockTop + (blockBottom - blockTop - textBlockH) * 0.5f;
@@ -876,34 +1376,81 @@ void RenderSubscriptionsBar()
     // segments that have actually finished (or nearly finished) dropping
     // are eligible — clicking during the hover-delay window, before
     // there's any visible block to click on, shouldn't silently copy
-    // something the user can't see yet. With multiple segments possibly
-    // stacked at once, pick whichever segment's stacked block the mouse
-    // y actually falls within (falls back to the topmost/soonest
-    // eligible one if the pointer's between blocks or still on the thin
-    // baseline itself) — only claims the mouse for this one instant,
-    // same WantCaptureMouse convention as RenderMapEvents/
-    // RenderCyclicGroups.
-    std::vector<int> droppedIndices;
+    // something the user can't see yet.
+    //
+    // IMPORTANT: this bar is drawn entirely on the background draw list,
+    // with no ImGui::Begin() window anywhere (deliberate — see the
+    // handoff). That means a plain ImGui::IsMouseClicked() check here
+    // does NOT reliably fire: Nexus's WndProc hook only forwards mouse
+    // clicks into ImGui's input queue for screen positions actually
+    // covered by a live, non-NoInputs ImGui window/item that frame — a
+    // raw background-drawlist shape has no such item, so a "cold" click
+    // that only ever hovers empty background space above the game world
+    // never reaches ImGui as a click at all (confirmed: clicking some
+    // other real ImGui element first, so ImGui already has that frame's
+    // click, made this fire — proving the hit-test math itself was
+    // already correct). RenderMapEvents/RenderCyclicGroups hit this same
+    // constraint for their drag-to-reposition anchors and solve it the
+    // same way: a small invisible window + InvisibleButton positioned
+    // exactly over the clickable shape, tested with IsItemClicked()
+    // instead of raw mouse state. Do the same here, one tiny window per
+    // currently-dropped block/pill, positioned to match its own on-screen
+    // rect for this frame (same topY/pillY math the draw loop above
+    // already uses).
     for (int idx : hoveredIndices)
-        if (s_dropStates[segs[idx].key].amount > 0.5f) droppedIndices.push_back(idx);
-
-    if (!droppedIndices.empty() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-        int clickIdx = droppedIndices[0];
-        for (int idx : droppedIndices)
+        const LineSegment& s = segs[idx];
+        float depth = s_dropStates[s.key].amount;
+        if (depth <= 0.5f) continue; // not visibly dropped yet — nothing to click
+
+        float x0 = s.startX;
+        float segEnd = s.endX;
+        if (s.endX < screenW) segEnd -= kGapPx;
+        if (segEnd <= x0) segEnd = x0 + 1.0f;
+
+        bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
+        bool stackDetach = false;
         {
-            const LineSegment& s = segs[idx];
-            float depth = s_dropStates[s.key].amount;
-            bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
-            float detachT = inUnsafeZone ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd) / (kDetachEnd - kPinchEnd))) : 0.0f;
-            float baseTopY = stackTopY[s.key];
-            float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
-            float topY = baseTopY + (unsafeRestY - baseTopY) * detachT;
-            if (mouse.y >= topY && mouse.y <= topY + kMaxDropPx) { clickIdx = idx; break; }
+            auto rowIt = stackRows.find(s.key);
+            stackDetach = (rowIt != stackRows.end() && rowIt->second.row > 0);
         }
-        const LineSegment& seg = segs[clickIdx];
-        std::string toCopy = seg.chatCode.empty() ? seg.name : (seg.name + ": " + seg.chatCode);
-        PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
-        io.WantCaptureMouse = true;
+        bool shouldDetach = inUnsafeZone || stackDetach;
+        float detachT = shouldDetach ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd) / (kDetachEnd - kPinchEnd))) : 0.0f;
+        float baseTopY = stackTopY[s.key];
+        float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+        auto pillIt = pillStackY.find(s.key);
+        if (pillIt != pillStackY.end()) unsafeRestY = pillIt->second;
+        float topY = baseTopY + (unsafeRestY - baseTopY) * detachT;
+
+        float w = segEnd - x0;
+        float h = kMaxDropPx;
+        if (w < 1.0f) continue;
+
+        char winId[48];
+        snprintf(winId, sizeof(winId), "##we_subbar_click_%d", idx);
+
+        ImGui::SetNextWindowPos(ImVec2(x0, topY));
+        ImGui::SetNextWindowSize(ImVec2(w, h));
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        ImGui::Begin(winId, nullptr,
+            ImGuiWindowFlags_NoTitleBar      |
+            ImGuiWindowFlags_NoResize        |
+            ImGuiWindowFlags_NoMove          |
+            ImGuiWindowFlags_NoScrollbar     |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoBackground    |
+            ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::InvisibleButton("##we_subbar_click_hit", ImVec2(w, h));
+        bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        ImGui::End();
+
+        if (clicked)
+        {
+            std::string toCopy = s.chatCode.empty() ? s.name : (s.name + ": " + s.chatCode);
+            PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
+            io.WantCaptureMouse = true;
+            break; // one click, one segment — same as before
+        }
     }
+
 }

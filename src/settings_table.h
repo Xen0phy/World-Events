@@ -165,6 +165,16 @@ SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx, int, 300)
 // already a corner-case (no pun intended) escape hatch.
 SETTING(Subscriptions, SubscriptionsBarUnsafeHeightPx, int, 90)
 
+// How far a fully-hovered segment drops down from the baseline (attached
+// pop-out block), and, once pill-detach kicks in for unsafe-zone segments,
+// the pill's fixed height too — the two were explicitly unified into one
+// value (see subscriptions_bar.cpp's HANDOFF notes: "pill height must
+// equal a normal safe-zone pop-out's height exactly", no separate
+// pill-height constant). Sized by default to comfortably fit two centered
+// lines of label text; raise it if your font/DPI settings need more room,
+// lower it for a more compact pop-out.
+SETTING(Subscriptions, SubscriptionsBarMaxDropPx, int, 54)
+
 // When true, active rows are simply left out of the watchlist window's
 // list entirely (not just dimmed/recolored) — a "only show me what's NOT
 // already happening" mode. Only affects the watchlist window; Basic Event

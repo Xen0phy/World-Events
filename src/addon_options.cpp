@@ -1080,6 +1080,22 @@ void AddonOptions()
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("How tall your corner UI is, in px. Segments inside either unsafe zone start their drop this far down instead of from the line itself, so the popped-out block clears your UI.");
 
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("Pop-out height (px)", &SubscriptionsBarMaxDropPx, 2, 10))
+        {
+            // Floored at 8, not 0 — subscriptions_bar.cpp derives the
+            // detached pill's corner radius from half this value
+            // (pillRx = height/2 for a true stadium cap), so it needs a
+            // sane positive minimum rather than 0 being a valid "off"
+            // state the way the delay/unsafe-zone settings allow.
+            if (SubscriptionsBarMaxDropPx < 8)     SubscriptionsBarMaxDropPx = 8;
+            if (SubscriptionsBarMaxDropPx > 300)   SubscriptionsBarMaxDropPx = 300;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How tall the dropped block/pill is, in px. Sized by default to fit two centered lines of label text; raise it if your font/DPI needs more room.");
+
         ImGui::Unindent();
     }
 
