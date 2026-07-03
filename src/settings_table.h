@@ -183,6 +183,17 @@ SETTING(Subscriptions, SubscriptionsBarMaxDropPx, int, 54)
 // not something this toggle should also reach into).
 SETTING(Subscriptions, SubscriptionsHideActive, bool, false)
 
+// Same idea as SubscriptionsHideActive above, but for the distribution
+// bar (subscriptions_bar.cpp) instead of the watchlist window — its own
+// setting, not reused, since the two views are explicitly independent
+// (see ShowSubscriptionsBar's comment) and a user may want one filtered
+// without the other. A segment that's currently active is simply left
+// out of CollectVisibleSegments' output entirely when this is true, same
+// as SubscriptionsHideActive's window-list filtering — so lanes, dots,
+// stacking and drawing never see it and nothing else about the bar's
+// layout changes; an active segment just isn't there.
+SETTING(Subscriptions, SubscriptionsBarHideActive, bool, false)
+
 // Text colors for the watchlist window's two highlighted states: an
 // active row, and a row starting within the next 15 minutes ("soon" —
 // same 900s threshold already used for BasicEventColorSoon on the map,

@@ -290,6 +290,7 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         }
 
         if (endSec <= startSec) continue;
+        if (active && SubscriptionsBarHideActive) continue; // "only show what's not already happening" — see settings_table.h
         segs.push_back({
             "Basic:" + it->name, it->name, it->chatCode,
             secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
@@ -353,6 +354,7 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             }
 
             if (endSec <= startSec) break;
+            if (active && SubscriptionsBarHideActive) break; // "only show what's not already happening" — see settings_table.h; still break, same as the no-op-slot case above, since this key's one relevant occurrence has been resolved either way
 
             char offsetBuf[16];
             snprintf(offsetBuf, sizeof(offsetBuf), "%d", key.slotOffset);
