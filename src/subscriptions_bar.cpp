@@ -98,6 +98,27 @@ struct LineSegment
 };
 
 // ---------------------------------------------------------------------------
+// SegmentStatusLine
+// ---------------------------------------------------------------------------
+// The second label line ("Active - ends in 5m 30s" / "in 12m 04s"). Used in
+// two places: the draw loop's actual label text, and the edge-safe drop
+// bounds precompute (which needs to measure this exact string's width up
+// front to derive the minimum drop width — see EdgeSafeDropBounds' and the
+// dropBoundsByKey precompute loop's comments). Factored out so those two
+// call sites can't drift apart and silently disagree on what text is being
+// measured vs. what's actually drawn.
+// ---------------------------------------------------------------------------
+static std::string SegmentStatusLine(const LineSegment& seg)
+{
+    char buf[48];
+    if (seg.active)
+        snprintf(buf, sizeof(buf), "Active - ends in %dm %02ds", seg.statusSecs / 60, seg.statusSecs % 60);
+    else
+        snprintf(buf, sizeof(buf), "in %dm %02ds", seg.statusSecs / 60, seg.statusSecs % 60);
+    return std::string(buf);
+}
+
+// ---------------------------------------------------------------------------
 // AssignLanes
 // ---------------------------------------------------------------------------
 // Two subscriptions can easily land at the same time (e.g. two Cyclic
@@ -461,7 +482,8 @@ struct StackRowInfo
 static std::unordered_map<std::string, StackRowInfo> PackStackRows(
     const std::vector<LineSegment>& segs,
     const std::vector<int>& order, // indices into segs, soonest-first (re-sorted internally to longest-duration-first, see comment above)
-    const std::unordered_map<std::string, DropState>& dropStates)
+    const std::unordered_map<std::string, DropState>& dropStates,
+    const std::unordered_map<std::string, std::pair<float, float>>& dropBoundsByKey) // per-segment key -> edge-safe [dropX0, dropX1], see caller's comment — overlap is checked against THESE spans, not the segment's raw startX/endX, so widened (screen-edge) segments correctly get their own row against anything they now visually overlap
 {
     constexpr float kRowMargin = 4.0f; // px — a little breathing room between two segments sharing a row, beyond bare x-touching
     std::unordered_map<std::string, StackRowInfo> result;
@@ -497,13 +519,31 @@ static std::unordered_map<std::string, StackRowInfo> PackStackRows(
         auto dsIt = dropStates.find(s.key);
         float depth = (dsIt != dropStates.end()) ? dsIt->second.amount : 0.0f;
 
+        // Use this segment's edge-safe widened bounds for overlap
+        // purposes, not its raw startX/endX — see the caller's comment
+        // on dropBoundsByKey for why (two segments that don't overlap in
+        // their true narrow ranges can still overlap once widened for
+        // screen-edge legibility, and row-packing needs to know that).
+        // Falls back to the segment's own raw range if somehow missing
+        // (shouldn't happen — dropBoundsByKey is built from the same
+        // segs list — this is just defensive).
+        float sStartX = s.startX, sEndX = s.endX;
+        {
+            auto boundsIt = dropBoundsByKey.find(s.key);
+            if (boundsIt != dropBoundsByKey.end())
+            {
+                sStartX = boundsIt->second.first;
+                sEndX   = boundsIt->second.second;
+            }
+        }
+
         int chosenRow = -1;
         for (int row = 0; row < (int)rowSpans.size(); row++)
         {
             bool fits = true;
             for (const auto& span : rowSpans[row])
             {
-                if (s.startX < span.second - kRowMargin && s.endX > span.first + kRowMargin)
+                if (sStartX < span.second - kRowMargin && sEndX > span.first + kRowMargin)
                 {
                     fits = false;
                     break;
@@ -518,7 +558,7 @@ static std::unordered_map<std::string, StackRowInfo> PackStackRows(
             rowDepth.push_back(0.0f);
         }
 
-        rowSpans[chosenRow].push_back({s.startX, s.endX});
+        rowSpans[chosenRow].push_back({sStartX, sEndX});
         rowDepth[chosenRow] = std::max(rowDepth[chosenRow], depth);
         result[s.key].row = chosenRow;
     }
@@ -578,6 +618,67 @@ static constexpr bool kDebugLogStackPacking = true;
 static constexpr float kPinchStart = 0.60f;
 static constexpr float kPinchEnd   = 0.78f;
 static constexpr float kDetachEnd  = 0.92f;
+
+// ---------------------------------------------------------------------------
+// EdgeSafeDropBounds
+// ---------------------------------------------------------------------------
+// Screen-edge segment handling (handoff "Future to-dos" #5, clarified by the
+// user this session): an ACTIVE segment always starts at startX==0 (clamped
+// to "now" — see LineSegment's comment), so one that's close to ending has a
+// very narrow [0, endX] on-bar width. The dropped block/pill reuses that
+// same x0..segEnd unchanged for its own width (see the pill-detach doc
+// comment above — "pill width == segment's own on-bar width" was an
+// explicit, confirmed design call), so a narrow-enough segment produces a
+// pill too narrow to hold its own two-line label — the label overflowed the
+// plate/pill. Same problem symmetrically possible at the right screen edge
+// for an upcoming segment whose end got clamped to the window's right edge.
+//
+// User was shown two options (mocked interactively): (A) shrink the label
+// text to fit the narrow pill, or (B) keep the pill's on-screen width at a
+// legible minimum and let it slide its edge inward, off the segment's own
+// true startX/endX, only for the DROPPED shape (never the resting baseline
+// line, which always stays exactly at the segment's real x-range). User
+// picked (B) — matches the existing "never shrink below a usable minimum"
+// precedent already set for kMaxDropPx (see settings_table.h /
+// SubscriptionsBarMaxDropPx's handoff history).
+//
+// minWidth was originally a flat guessed constant (kMinDropWidthPx, 90px).
+// User reported that was still clipping/overly-generous depending on the
+// actual label — asked for it to be derived from the real text box instead.
+// Callers now measure each segment's own label (ImGui::CalcTextSize on
+// both lines + the plate's own padding) and pass THAT in as minWidth, so
+// the floor is exactly "however wide this segment's own label needs to
+// be", not a one-size-fits-all guess. See the dropBoundsByKey precompute
+// loop below for where that measurement happens.
+//
+// This only ever WIDENS the drop's x0/segEnd outward from the segment's own
+// [startX, endX] — an already-wide segment is returned unchanged (the
+// std::max/std::min below are no-ops once naturalW >= minWidth), so this
+// cannot affect ordinary (non-edge) segments at all. The shift is clamped
+// to stay inside [0, screenW] so the widened pill still can't poke past
+// the actual screen edge on the far side either.
+// ---------------------------------------------------------------------------
+static void EdgeSafeDropBounds(float startX, float endX, float screenW, float minWidth, float& outX0, float& outX1)
+{
+    float naturalW = endX - startX;
+    if (naturalW >= minWidth)
+    {
+        outX0 = startX;
+        outX1 = endX;
+        return;
+    }
+
+    float deficit = minWidth - naturalW;
+    // Prefer growing to the right first (reads more naturally left-to-right
+    // with the timeline), then spill any remainder left; each side is
+    // capped so the result never crosses the opposite screen edge.
+    float growRight = std::min(deficit, std::max(0.0f, screenW - endX));
+    float remaining = deficit - growRight;
+    float growLeft  = std::min(remaining, std::max(0.0f, startX));
+
+    outX0 = startX - growLeft;
+    outX1 = endX + growRight;
+}
 
 // ---------------------------------------------------------------------------
 // PillPinchFactor
@@ -655,6 +756,13 @@ void RenderSubscriptionsBar()
     constexpr float kDotSpacingPx = 7.0f;  // horizontal spacing between two dots that land on the exact same tick, so a cluster reads as "several dots" rather than one blob
     constexpr float kDotY         = kBaselineY + 8.0f; // dots sit a small, fixed distance below the baseline — not tied to any lane, since lanes no longer draw their own resting line
     constexpr float kDotHitRadius = 5.0f;  // generous click/hover target around each dot's visual radius
+    // Label plate padding — hoisted here (was previously a local
+    // constexpr right where the plate is drawn) so the edge-safe drop
+    // bounds precompute below can size the minimum drop width off the
+    // SAME padding the plate itself actually uses, rather than a
+    // separately-guessed constant that could drift out of sync with it.
+    constexpr float kLabelPadX    = 6.0f;
+    constexpr float kLabelPadY    = 3.0f;
 
     // Nudge co-occurring dots (multiple hidden events starting on the
     // exact same tick) apart horizontally so they render as a small
@@ -943,7 +1051,53 @@ void RenderSubscriptionsBar()
     // away and clears the corner UI as it becomes a pill, rather than
     // starting pre-offset down.
     std::unordered_map<std::string, float> stackTopY;
-    std::unordered_map<std::string, StackRowInfo> stackRows = PackStackRows(segs, hoveredIndices, s_dropStates);
+
+    // ---- Edge-safe drop bounds, precomputed once per segment ----
+    // Screen-edge segment handling: compute each segment's DROPPED
+    // block/pill x-range up front (same [x0, segEnd] gap treatment the
+    // draw loop below uses, then widened via EdgeSafeDropBounds if
+    // needed) and key it by segment key, so every downstream consumer —
+    // row-packing, drawing, click hit-testing — agrees on the exact same
+    // widened bounds.
+    //
+    // This used to be computed independently, inline, in the draw loop
+    // and the click hit-test loop, with PackStackRows in between still
+    // reading raw seg.startX/endX. That mismatch was a real bug: two
+    // segments whose TRUE narrow ranges didn't overlap (so row-packing
+    // correctly gave them both row 0) could still end up visually
+    // overlapping once independently widened at draw time — row-packing
+    // never knew about the widening, so no stack offset was ever applied
+    // and the pills rendered directly on top of each other. Precomputing
+    // bounds before PackStackRows runs, and having it pack using THESE
+    // spans instead of the raw ones, is what fixes that: any two
+    // segments whose widened boxes actually overlap on screen now
+    // correctly land in different rows.
+    std::unordered_map<std::string, std::pair<float, float>> dropBoundsByKey;
+    dropBoundsByKey.reserve(segs.size());
+    for (const auto& seg : segs)
+    {
+        float bx0 = seg.startX;
+        float bx1 = seg.endX;
+        if (seg.endX < screenW) bx1 -= kGapPx;
+        if (bx1 <= bx0) bx1 = bx0 + 1.0f;
+
+        // Minimum drop width derived from the actual label this segment
+        // will draw (see EdgeSafeDropBounds' comment — this replaced a
+        // flat guessed constant per user feedback). Uses the same
+        // SegmentStatusLine() the draw loop's label block calls, plus
+        // that same block's plate padding (kLabelPadX, hoisted above so
+        // both sides read the identical value), so this measurement can
+        // never silently drift from what's actually drawn.
+        ImVec2 nameSize   = ImGui::CalcTextSize(seg.name.c_str());
+        ImVec2 statusSize = ImGui::CalcTextSize(SegmentStatusLine(seg).c_str());
+        float minWidth = std::max(nameSize.x, statusSize.x) + kLabelPadX * 2.0f;
+
+        float dropX0, dropX1;
+        EdgeSafeDropBounds(bx0, bx1, screenW, minWidth, dropX0, dropX1);
+        dropBoundsByKey[seg.key] = { dropX0, dropX1 };
+    }
+
+    std::unordered_map<std::string, StackRowInfo> stackRows = PackStackRows(segs, hoveredIndices, s_dropStates, dropBoundsByKey);
 
     // TEMPORARY (this session) — see kDebugLogStackPacking's comment
     // above. Logs once per frame while ANY segment is hovered, so expect
@@ -1145,6 +1299,11 @@ void RenderSubscriptionsBar()
         const LineSegment& seg = segs[i];
         float depth = s_dropStates[seg.key].amount;
 
+        // Baseline line ALWAYS uses the segment's true x-range — only the
+        // dropped block/pill below gets the edge-safe minimum-width
+        // treatment (see EdgeSafeDropBounds). Keeping the resting line
+        // exact-to-time is what lets the dots/lane math above continue to
+        // reason about real x-positions untouched.
         float x0 = seg.startX;
         float x1 = seg.endX;
         // Small gap before this segment's right edge so adjacent segments
@@ -1185,8 +1344,30 @@ void RenderSubscriptionsBar()
             auto stackIt = stackTopY.find(seg.key);
             if (stackIt != stackTopY.end()) topY = stackIt->second;
 
-            float cx = (x0 + segEnd) * 0.5f;
-            float segW = segEnd - x0;
+            // Edge-safe drop bounds (screen-edge segment handling):
+            // looked up from dropBoundsByKey, precomputed once above
+            // (before PackStackRows ran) so row-packing and drawing
+            // agree on the exact same widened bounds — see that
+            // precompute block's comment for why recomputing this
+            // independently here was a bug (row-packing used to pack
+            // against the raw narrow bounds while drawing widened
+            // independently, so widened pills could silently overlap).
+            // Only the drop shape below uses these — the baseline line
+            // above already drew at the real x0/segEnd and is
+            // unaffected. Falls back to the raw x0/segEnd if somehow
+            // missing (shouldn't happen).
+            float dropX0 = x0, dropX1 = segEnd;
+            {
+                auto boundsIt = dropBoundsByKey.find(seg.key);
+                if (boundsIt != dropBoundsByKey.end())
+                {
+                    dropX0 = boundsIt->second.first;
+                    dropX1 = boundsIt->second.second;
+                }
+            }
+
+            float cx = (dropX0 + dropX1) * 0.5f;
+            float segW = dropX1 - dropX0;
 
             // Pill-detach applies to a segment for either of two reasons:
             // (1) its x-range overlaps an unsafe zone (GW2's own corner
@@ -1277,29 +1458,33 @@ void RenderSubscriptionsBar()
                 // no-op and this reduces to the original single-shape
                 // drop exactly). Height stays fixed at kMaxDropPx
                 // throughout. ----
+                // Uses dropX0/dropX1 (edge-safe, may be wider than the
+                // segment's true x0/segEnd — see EdgeSafeDropBounds) for
+                // the whole silhouette, not just cx/segW, so the shape
+                // that's drawn matches the width those were computed from.
                 float tw = kTransitionWidth;
                 int samples = std::max(8, (int)(segW / 4.0f));
 
                 dl->PathClear();
-                dl->PathLineTo(ImVec2(x0, topY));
+                dl->PathLineTo(ImVec2(dropX0, topY));
                 for (int s = 0; s <= samples; s++)
                 {
-                    float x = x0 + segW * (s / (float)samples);
-                    float d = FlatBlockDepthAt(x, x0, segEnd, tw) * depth;
-                    float pinch = PillPinchFactor(x, x0, segEnd, pinchT);
+                    float x = dropX0 + segW * (s / (float)samples);
+                    float d = FlatBlockDepthAt(x, dropX0, dropX1, tw) * depth;
+                    float pinch = PillPinchFactor(x, dropX0, dropX1, pinchT);
                     d *= (1.0f - pinch);
                     float y = topY + d * blockH;
                     dl->PathLineTo(ImVec2(x, y));
                 }
-                dl->PathLineTo(ImVec2(segEnd, topY));
+                dl->PathLineTo(ImVec2(dropX1, topY));
                 dl->PathFillConvex(fillColor);
 
                 dl->PathClear();
                 for (int s = 0; s <= samples; s++)
                 {
-                    float x = x0 + segW * (s / (float)samples);
-                    float d = FlatBlockDepthAt(x, x0, segEnd, tw) * depth;
-                    float pinch = PillPinchFactor(x, x0, segEnd, pinchT);
+                    float x = dropX0 + segW * (s / (float)samples);
+                    float d = FlatBlockDepthAt(x, dropX0, dropX1, tw) * depth;
+                    float pinch = PillPinchFactor(x, dropX0, dropX1, pinchT);
                     d *= (1.0f - pinch);
                     float y = topY + d * blockH;
                     dl->PathLineTo(ImVec2(x, y));
@@ -1312,9 +1497,12 @@ void RenderSubscriptionsBar()
                 // width is locked to the segment's own on-bar width the
                 // whole time (never narrower than the bar above it, per
                 // the confirmed mock) and whose corner radius eases up to
-                // a full stadium cap (rx = h/2) as detachT completes. ----
-                dl->AddRectFilled(ImVec2(x0, pillY), ImVec2(segEnd, pillY + blockH), fillColor, pillRx);
-                dl->AddRect(ImVec2(x0, pillY), ImVec2(segEnd, pillY + blockH), segColor, pillRx, ImDrawCornerFlags_All, kLineThick);
+                // a full stadium cap (rx = h/2) as detachT completes.
+                // Uses dropX0/dropX1, not the raw x0/segEnd, so an
+                // edge-widened segment's pill stays widened once detached
+                // too (see EdgeSafeDropBounds). ----
+                dl->AddRectFilled(ImVec2(dropX0, pillY), ImVec2(dropX1, pillY + blockH), fillColor, pillRx);
+                dl->AddRect(ImVec2(dropX0, pillY), ImVec2(dropX1, pillY + blockH), segColor, pillRx, ImDrawCornerFlags_All, kLineThick);
             }
 
             // Label + status, vertically centered inside this block/pill's
@@ -1322,14 +1510,8 @@ void RenderSubscriptionsBar()
             // pop in abruptly.
             if (depth > 0.35f)
             {
-                char statusBuf[48];
-                if (seg.active)
-                    snprintf(statusBuf, sizeof(statusBuf), "Active - ends in %dm %02ds", seg.statusSecs / 60, seg.statusSecs % 60);
-                else
-                    snprintf(statusBuf, sizeof(statusBuf), "in %dm %02ds", seg.statusSecs / 60, seg.statusSecs % 60);
-
                 std::string line1 = seg.name;
-                std::string line2 = statusBuf;
+                std::string line2 = SegmentStatusLine(seg);
                 ImVec2 size1 = ImGui::CalcTextSize(line1.c_str());
                 ImVec2 size2 = ImGui::CalcTextSize(line2.c_str());
 
@@ -1357,8 +1539,6 @@ void RenderSubscriptionsBar()
                 // so legibility no longer depends on what's behind the
                 // segment's own fill color — reads cleanly against any
                 // game background without the "haze" look the outline had.
-                constexpr float kLabelPadX = 6.0f;
-                constexpr float kLabelPadY = 3.0f;
                 float plateW = std::max(size1.x, size2.x) + kLabelPadX * 2.0f;
                 ImVec2 plateMin(cx - plateW * 0.5f, labelY - kLabelPadY);
                 ImVec2 plateMax(cx + plateW * 0.5f, labelY + textBlockH + kLabelPadY);
@@ -1408,6 +1588,23 @@ void RenderSubscriptionsBar()
         if (s.endX < screenW) segEnd -= kGapPx;
         if (segEnd <= x0) segEnd = x0 + 1.0f;
 
+        // Edge-safe bounds looked up from dropBoundsByKey (same map the
+        // draw loop and PackStackRows use) so the invisible click window
+        // lines up with what was actually drawn and with the row that
+        // was actually assigned — an edge-widened pill's clickable area
+        // must widen with it, not stay pinned to the segment's true
+        // (narrower) x-range. Falls back to the raw x0/segEnd if somehow
+        // missing (shouldn't happen).
+        float dropX0 = x0, dropX1 = segEnd;
+        {
+            auto boundsIt = dropBoundsByKey.find(s.key);
+            if (boundsIt != dropBoundsByKey.end())
+            {
+                dropX0 = boundsIt->second.first;
+                dropX1 = boundsIt->second.second;
+            }
+        }
+
         bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
         bool stackDetach = false;
         {
@@ -1422,14 +1619,14 @@ void RenderSubscriptionsBar()
         if (pillIt != pillStackY.end()) unsafeRestY = pillIt->second;
         float topY = baseTopY + (unsafeRestY - baseTopY) * detachT;
 
-        float w = segEnd - x0;
+        float w = dropX1 - dropX0;
         float h = kMaxDropPx;
         if (w < 1.0f) continue;
 
         char winId[48];
         snprintf(winId, sizeof(winId), "##we_subbar_click_%d", idx);
 
-        ImGui::SetNextWindowPos(ImVec2(x0, topY));
+        ImGui::SetNextWindowPos(ImVec2(dropX0, topY));
         ImGui::SetNextWindowSize(ImVec2(w, h));
         ImGui::SetNextWindowBgAlpha(0.0f);
         ImGui::Begin(winId, nullptr,
