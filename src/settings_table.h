@@ -213,3 +213,4 @@ SETTING(Subscriptions, SubscriptionsActiveColor, unsigned int, 0x66FF66FFu) // l
 SETTING(Subscriptions, SubscriptionsSoonColor,   unsigned int, 0xFF8C00FFu) // orange, matches BasicEventColorSoon's RGB
 
 SETTING(System, delayMilliseconds, int, 50)
+SETTING(Subscriptions, SubscriptionsBarMinimalMode, bool, false)

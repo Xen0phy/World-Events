@@ -12,15 +12,6 @@
 #include "maprender.h"
 #include "settings.h"
 #include "imgui.h"
-// TEMPORARY (this session): addon.h pulls in Nexus.h -> <windows.h>, which
-// makes this file no longer syntax-checkable with the sandbox's
-// `g++ -fsyntax-only` command (see the handoff's "Environment / build
-// gotchas" section — same constraint addon.cpp/addon_options.cpp already
-// live with). Only added for APIDefs->Log() debug output below
-// (kDebugLogStackPacking). Remove this include and the debug block once
-// the row-packing bug report is diagnosed — don't leave it in permanently
-// just because it compiles fine on the real Windows build.
-#include "addon.h"
 #include <ctime>
 #include <cmath>
 #include <cfloat>
@@ -219,6 +210,34 @@ static std::vector<DotMark> CollectOverlapDots(const std::vector<LineSegment>& s
     // Sort by x, then group ties (multiple hidden events starting on the
     // exact same tick) together for the horizontal nudge-apart pass at
     // draw time — see the render loop's kDotSpacingPx use below.
+    std::sort(dots.begin(), dots.end(), [](const DotMark& a, const DotMark& b) { return a.x < b.x; });
+
+    return dots;
+}
+
+// ---------------------------------------------------------------------------
+// CollectAllEventDots
+// ---------------------------------------------------------------------------
+// Minimal-mode counterpart to CollectOverlapDots above. Normal mode only
+// dots lane>0 (hidden) segments, because lane-0 segments already have
+// their own colored baseline line to represent them at rest. Minimal
+// mode (SubscriptionsBarMinimalMode) removes that colored per-segment
+// line (the ambient white rail underneath it stays), so EVERY segment —
+// lane 0 included — needs a dot of its own, or it wouldn't have any
+// distinct visual representation on the strip. One dot per segment at
+// its own start tick, no lane-0/overlap distinction and no "does this
+// land inside a currently-shown range" check (there's no shown range
+// left to check against) — every subscribed event just gets a mark.
+// ---------------------------------------------------------------------------
+static std::vector<DotMark> CollectAllEventDots(const std::vector<LineSegment>& segs)
+{
+    std::vector<DotMark> dots;
+    dots.reserve(segs.size());
+    for (int i = 0; i < (int)segs.size(); i++)
+        dots.push_back({ segs[i].startX, i });
+
+    // Same sort-then-group-ties reasoning as CollectOverlapDots — see
+    // its own comment.
     std::sort(dots.begin(), dots.end(), [](const DotMark& a, const DotMark& b) { return a.x < b.x; });
 
     return dots;
@@ -595,19 +614,6 @@ static std::unordered_map<std::string, StackRowInfo> PackStackRows(
 static constexpr float kTransitionWidth = 26.0f; // px — curved shoulder width, scaled down from the HTML's 60px for a much thinner overlay strip
 static constexpr float kEaseRate        = 0.18f; // per-frame lerp factor, matches the HTML's drop easing constant
 
-// TEMPORARY (this session) — set true to dump every hovered segment's
-// PackStackRows input/output to the Nexus log each frame something is
-// hovered, to diagnose a reported bug: two adjacent, non-overlapping
-// segments (Admiral Taidha 58m+15m, Great Jungle Wurm 73m+15m) landed on
-// visibly different stack rows despite a standalone test of the exact
-// same PackStackRows code, given the same startX/endX/order, correctly
-// merging them into one row — so the bug (if real) must be in what
-// actually reaches PackStackRows at runtime, not the packing algorithm
-// itself. Off by default; flip to true, reproduce, paste the logged
-// lines back for the next session, then flip back to false (or just
-// remove this whole debug block, see addon.h's include comment above).
-static constexpr bool kDebugLogStackPacking = false;
-
 // ---------------------------------------------------------------------------
 // Pill-detach phase thresholds (fractions of DropState::amount, 0..1)
 // ---------------------------------------------------------------------------
@@ -763,16 +769,6 @@ static float PillPinchFactor(float x, float start, float end, float neckT)
 // historical reasons — see call site comment). blockH is the fully-
 // dropped depth in pixels (kMaxDropPx); actual reach is blockH * depth.
 // ---------------------------------------------------------------------------
-// debugLogKey: TEMPORARY (this session) — see kDebugLogStackPacking's
-// comment near kTransitionWidth. When non-null and kDebugLogStackPacking
-// is on, dumps every vertex this function pushes onto dl's path,
-// labeled rise/flat/fall, so the rise-side and fall-side coordinates can
-// be diffed directly against each other instead of re-deriving them by
-// hand — added to chase the "left shoulder renders as a straight
-// diagonal, right shoulder renders as a proper curve" bug (see "Pill
-// shape & animation" in the handoff for current status). Pass nullptr
-// (the default at every other call site) for zero overhead/no logging.
-//
 // ROOT CAUSE OF THE LEFT-SHOULDER BUG (found this session): the rise/fall
 // curve math itself was never wrong — an out-of-engine re-plot of this
 // function's own point sequence was already confirmed symmetric before
@@ -798,7 +794,7 @@ static float PillPinchFactor(float x, float start, float end, float neckT)
 // problems, since superseded). The single continuous path built by this
 // function is still used as-is for the STROKE (an outline doesn't care
 // about convexity), so only the fill call site changes.
-static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth, const char* debugLogKey = nullptr)
+static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth)
 {
     float effectiveTw = std::min(tw, (end - start) * 0.5f);
     float h = blockH * depth; // how far down (increasing y) the flat top sits below the baseline
@@ -858,38 +854,14 @@ static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float
     // (4 cubics, not per-pixel-column sampling).
     constexpr int kSegsPerCubic = 8;
 
-    bool debugLog = kDebugLogStackPacking && debugLogKey && APIDefs;
-    if (debugLog)
-    {
-        char buf[256];
-        snprintf(buf, sizeof(buf),
-            "  shoulders key=%s start=%.1f end=%.1f effectiveTw=%.2f baselineY=%.1f h=%.2f",
-            debugLogKey, start, end, effectiveTw, baselineY, h);
-        APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
-    }
-
     ImVec2 riseP0 = toRisePoint(kRise[0]);
     dl->PathLineTo(riseP0);
-    if (debugLog)
-    {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "    rise P0 (baseline) = (%.2f, %.2f)", riseP0.x, riseP0.y);
-        APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
-    }
     for (int i = 1; i < kNumPts; i += 3)
     {
         ImVec2 cp1 = toRisePoint(kRise[i]);
         ImVec2 cp2 = toRisePoint(kRise[i + 1]);
         ImVec2 ep  = toRisePoint(kRise[i + 2]);
         dl->PathBezierCubicCurveTo(cp1, cp2, ep, kSegsPerCubic);
-        if (debugLog)
-        {
-            char buf[192];
-            snprintf(buf, sizeof(buf),
-                "    rise C(i=%d) cp1=(%.2f,%.2f) cp2=(%.2f,%.2f) end=(%.2f,%.2f)",
-                i, cp1.x, cp1.y, cp2.x, cp2.y, ep.x, ep.y);
-            APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
-        }
     }
 
     // Flat block top (deepest part of the drop). The SVG's own path has
@@ -905,12 +877,6 @@ static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float
     // faint residual slope instead of a true flat run).
     ImVec2 flatEnd = toFallPoint(kRise[kNumPts - 1]);
     dl->PathLineTo(flatEnd);
-    if (debugLog)
-    {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "    flat-top end = (%.2f, %.2f)", flatEnd.x, flatEnd.y);
-        APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
-    }
 
     // Falling shoulder: same spline walked from its "flat top" end back
     // to its "baseline" end, mirrored horizontally via toFallPoint — i.e.
@@ -922,14 +888,6 @@ static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float
         ImVec2 cp2 = toFallPoint(kRise[i + 1]);
         ImVec2 ep  = toFallPoint(kRise[i]);
         dl->PathBezierCubicCurveTo(cp1, cp2, ep, kSegsPerCubic);
-        if (debugLog)
-        {
-            char buf[192];
-            snprintf(buf, sizeof(buf),
-                "    fall C(i=%d) cp1=(%.2f,%.2f) cp2=(%.2f,%.2f) end=(%.2f,%.2f)",
-                i, cp1.x, cp1.y, cp2.x, cp2.y, ep.x, ep.y);
-            APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
-        }
     }
 }
 
@@ -1173,7 +1131,16 @@ void RenderSubscriptionsBar()
         s_dropStates.clear();
         return;
     }
-    std::vector<DotMark> dots = CollectOverlapDots(segs, screenW);
+    // Minimal mode (SubscriptionsBarMinimalMode) drops the per-segment
+    // COLORED baseline (the ambient white rail stays — see the AddLine
+    // call further down), so every event needs its own dot (not just the
+    // hidden lane>0 ones normal mode dots) — see CollectAllEventDots'
+    // own comment. Everything else (hover/click/stacking/drop-animation)
+    // is unchanged and works identically off either dot set, since both
+    // just populate the same DotMark { x, segIndex } list.
+    std::vector<DotMark> dots = SubscriptionsBarMinimalMode
+        ? CollectAllEventDots(segs)
+        : CollectOverlapDots(segs, screenW);
 
     // ---- Layout constants (local space: y=0 is the baseline strip itself,
     // dropped blocks extend DOWNWARD from there since the line lives on
@@ -1192,7 +1159,15 @@ void RenderSubscriptionsBar()
     constexpr float kStackGapPx   = 4.0f;  // vertical gap between stacked dropped blocks when multiple segments are hovered at once
     constexpr float kDotRadius    = 2.5f;  // px
     constexpr float kDotSpacingPx = 7.0f;  // horizontal spacing between two dots that land on the exact same tick, so a cluster reads as "several dots" rather than one blob
-    constexpr float kDotY         = kBaselineY + 8.0f; // dots sit a small, fixed distance below the baseline — not tied to any lane, since lanes no longer draw their own resting line
+    // In normal mode, dots sit a small fixed distance below the baseline
+    // so they don't visually collide with the colored per-segment line
+    // living AT kBaselineY. Minimal mode removes that colored line (see
+    // the seg.lane==0 AddLine gating further down), so its dots move up
+    // onto kBaselineY itself, right on the ambient white rail — the
+    // colored line's spot is simply vacant, so the dots take the space it
+    // used to occupy rather than sitting awkwardly offset from where a
+    // user's eye already expects the strip's "content row" to be.
+    const float kDotY = SubscriptionsBarMinimalMode ? kBaselineY : (kBaselineY + 8.0f);
     constexpr float kDotHitRadius = 5.0f;  // generous click/hover target around each dot's visual radius
     // Label plate padding — hoisted here (was previously a local
     // constexpr right where the plate is drawn) so the edge-safe drop
@@ -1320,6 +1295,17 @@ void RenderSubscriptionsBar()
     std::vector<int> hoveredIndices;
     if (mouseValid)
     {
+        // Minimal mode still has the ambient baseline rail (see the
+        // AddLine call further down) — it only hides the per-segment
+        // COLORED line, not the hoverable line-band itself. So this test
+        // stays live in minimal mode exactly as in normal mode: hovering
+        // anywhere along a lane-0 segment's own span triggers it, same as
+        // if its colored line were visibly drawn there. Lane>0 segments
+        // still have no line of their own in either mode and rely
+        // entirely on their own dot hit-circle (the dots loop further
+        // down, which in minimal mode covers every segment via
+        // CollectAllEventDots, lane 0 included, since a dot is drawn for
+        // everyone even though lane-0 already has this line-band path too).
         if (mouse.y >= kBaselineY - kHoverBand && mouse.y <= kBaselineY + kHoverBand)
         {
             for (int i = 0; i < (int)segs.size(); i++)
@@ -1498,25 +1484,39 @@ void RenderSubscriptionsBar()
     }
 
     // ---- Baseline: thin line across the full screen width — matches the
-    // HTML's shared baseline path. ----
+    // HTML's shared baseline path. Minimal mode keeps this ambient rail;
+    // it only hides the per-segment COLORED line (see the AddLine gating
+    // further down, still `seg.lane == 0 && !SubscriptionsBarMinimalMode`)
+    // and uses plain white dots instead. Minimal mode is "normal mode
+    // without the segmented/colored bar", not "no line at all" — so this
+    // draws unconditionally in both modes now. ----
     dl->AddLine(ImVec2(0, kBaselineY), ImVec2(screenW, kBaselineY),
         IM_COL32(255, 255, 255, 90), kLineThick);
 
-    // ---- Overlap dot markers: one plain white dot per hidden (lane>0)
-    // event that starts on a 5-minute tick overlapping whatever's shown
-    // there. Colorless on purpose — with dozens of subscriptions a color
-    // key isn't something a user can realistically memorize, so a dot
-    // only signals "something's here", and hovering (below) is what
-    // reveals which event and its actual color, same as hovering any
-    // shown segment already does. Dots for segments currently mid-drop
-    // fade out as their block rises, so the dot doesn't visually clash
-    // with the now-visible dropped block.
+    // ---- Dot markers. Two modes:
+    //  - Normal: one plain white dot per hidden (lane>0) event overlapping
+    //    whatever's currently shown on the baseline (see CollectOverlapDots).
+    //    Colorless on purpose — with dozens of subscriptions a color key
+    //    isn't something a user can realistically memorize, so a dot only
+    //    signals "something's here", and hovering (below) is what reveals
+    //    which event and its actual color, same as hovering any shown
+    //    segment already does.
+    //  - Minimal (SubscriptionsBarMinimalMode): one dot per EVERY event
+    //    (see CollectAllEventDots), since lane-0 segments have no visible
+    //    colored line to mark them at rest here. Also plain white, same
+    //    color/reasoning as normal mode's dots — minimal mode is "normal
+    //    mode without the segmented/colored bar", not a separate color-key
+    //    design, so it shouldn't introduce one either.
+    // Both modes: dots for segments currently mid-drop fade out as their
+    // block rises, so the dot doesn't visually clash with the now-visible
+    // dropped block.
     for (size_t d = 0; d < dots.size(); d++)
     {
         float depth = s_dropStates[segs[dots[d].segIndex].key].amount;
         float alpha = 1.0f - depth; // fades out as this dot's own segment drops in
         if (alpha <= 0.02f) continue;
-        dl->AddCircleFilled(ImVec2(dotDrawX[d], kDotY), kDotRadius, IM_COL32(255, 255, 255, (int)(235 * alpha)), 12);
+        ImU32 dotColor = IM_COL32(255, 255, 255, (int)(235 * alpha));
+        dl->AddCircleFilled(ImVec2(dotDrawX[d], kDotY), kDotRadius, dotColor, 12);
     }
 
     // Each stacked drop's own top-of-block y is computed as this frame's
@@ -1584,31 +1584,6 @@ void RenderSubscriptionsBar()
     }
 
     std::unordered_map<std::string, StackRowInfo> stackRows = PackStackRows(segs, hoveredIndices, s_dropStates, dropBoundsByKey);
-
-    // TEMPORARY (this session) — see kDebugLogStackPacking's comment
-    // above. Logs once per frame while ANY segment is hovered, so expect
-    // a burst of near-identical lines while the mouse sits still — that's
-    // fine, just grab any one frame's worth once it looks wrong on
-    // screen. Each line is one hoveredIndices entry, in the exact order
-    // PackStackRows received them (soonest-first), showing exactly what
-    // the packing decision was based on.
-    if (kDebugLogStackPacking && !hoveredIndices.empty() && APIDefs)
-    {
-        char buf[256];
-        APIDefs->Log(LOGL_INFO, "WorldEvents", "---- stack pack frame ----");
-        for (int idx : hoveredIndices)
-        {
-            const LineSegment& s = segs[idx];
-            float depth = s_dropStates[s.key].amount;
-            int row = -1;
-            auto it = stackRows.find(s.key);
-            if (it != stackRows.end()) row = it->second.row;
-            snprintf(buf, sizeof(buf),
-                "key=%s startX=%.1f endX=%.1f statusSecs=%d depth=%.2f -> row=%d",
-                s.key.c_str(), s.startX, s.endX, s.statusSecs, depth, row);
-            APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
-        }
-    }
 
     {
         // Convert each segment's packed row index into a cumulative Y:
@@ -1802,7 +1777,7 @@ void RenderSubscriptionsBar()
         ImU32 segColor = seg.color;
         ImU32 fillColor = (segColor & 0x00FFFFFF) | ((ImU32)(255 * (0.25f + 0.75f * (seg.active ? 1.0f : 0.7f))) << 24);
 
-        if (seg.lane == 0)
+        if (seg.lane == 0 && !SubscriptionsBarMinimalMode)
         {
             // Colored baseline segment (always visible, even at depth 0)
             // — this is what makes the strip read as "N colored ticks"
@@ -1810,7 +1785,11 @@ void RenderSubscriptionsBar()
             // lane-0 segments get this: exactly one line's worth of
             // height at rest, regardless of how many events overlap —
             // overlap is signaled by dots instead (drawn above), not by
-            // a second permanent line.
+            // a second permanent line. Suppressed entirely in minimal
+            // mode (SubscriptionsBarMinimalMode) — that mode's whole
+            // point is no COLORED line, but the ambient white rail stays
+            // and every event still gets a plain white dot on it (see
+            // CollectAllEventDots / the dot draw loop above).
             dl->AddLine(ImVec2(x0, kBaselineY), ImVec2(segEnd, kBaselineY), segColor, kLineThick + 1.0f);
         }
 
@@ -1915,25 +1894,6 @@ void RenderSubscriptionsBar()
             if (pillIt != pillStackY.end()) unsafeRestY = pillIt->second;
             float pillY = topY + (unsafeRestY - topY) * detachT;
 
-            // TEMPORARY (this session) — see kDebugLogStackPacking's
-            // comment near kTransitionWidth. Extends the existing
-            // per-frame stack-pack log with the actual draw-time values
-            // this loop resolves to, since the earlier log only showed
-            // PackStackRows' row assignment, not what topY/pillY/detachT
-            // end up being once the pill-detach math runs. Same
-            // once-per-frame-while-hovered gating.
-            if (kDebugLogStackPacking && APIDefs)
-            {
-                char buf[256];
-                auto rowItDbg = stackRows.find(seg.key);
-                int rowDbg = (rowItDbg != stackRows.end()) ? rowItDbg->second.row : -1;
-                snprintf(buf, sizeof(buf),
-                    "  draw key=%s row=%d topY=%.1f unsafeRestY=%.1f detachT=%.2f pillY=%.1f shouldDetach=%d inUnsafeZone=%d stackDetach=%d",
-                    seg.key.c_str(), rowDbg,
-                    topY, unsafeRestY, detachT, pillY, (int)shouldDetach, (int)inUnsafeZone, (int)stackDetach);
-                APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
-            }
-
             if (depth < kPinchEnd || !shouldDetach)
             {
                 // ---- Phases 1-2 (or the ONLY phase for safe-zone
@@ -1973,7 +1933,7 @@ void RenderSubscriptionsBar()
                     FillFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth, fillColor);
 
                     dl->PathClear();
-                    PathFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth, seg.key.c_str());
+                    PathFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth);
                     dl->PathStroke(segColor, false, kLineThick);
                 }
                 else
@@ -2149,14 +2109,23 @@ void RenderSubscriptionsBar()
         // too big" if compensated for by oversizing the window instead
         // (the earlier, wrong fix).
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        // Deliberately NOT ImGuiWindowFlags_NoBringToFrontOnFocus: with
+        // that flag, a click here never promotes this window in ImGui's
+        // z-order stack, so the first time ANY other ImGui window (some
+        // other addon's panel, a game UI window, etc.) gets brought to
+        // front by its own interaction, it can end up permanently ahead
+        // of this one — and since ImGui hit-tests top-to-bottom, that
+        // other window then steals every future click anywhere the two
+        // overlap, forever, since this window could never climb back
+        // above it. Letting a click here bring it to front, same as any
+        // ordinary ImGui window, is what keeps this self-healing.
         ImGui::Begin("##we_subbar_line_click", nullptr,
             ImGuiWindowFlags_NoTitleBar      |
             ImGuiWindowFlags_NoResize        |
             ImGuiWindowFlags_NoMove          |
             ImGuiWindowFlags_NoScrollbar     |
             ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoBackground    |
-            ImGuiWindowFlags_NoBringToFrontOnFocus);
+            ImGuiWindowFlags_NoBackground);
         ImGui::PopStyleVar();
         ImGui::InvisibleButton("##we_subbar_line_click_hit", ImVec2(screenW, lineWinY1 - lineWinY0));
         bool lineClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
@@ -2280,14 +2249,17 @@ void RenderSubscriptionsBar()
         ImGui::SetNextWindowPos(ImVec2(dropX0, topY));
         ImGui::SetNextWindowSize(ImVec2(w, h));
         ImGui::SetNextWindowBgAlpha(0.0f);
+        // See the line-click window's own comment above for why
+        // NoBringToFrontOnFocus is deliberately NOT used here either —
+        // same self-healing-vs-permanently-buried z-order reasoning
+        // applies to a dropped block/pill's click window too.
         ImGui::Begin(winId, nullptr,
             ImGuiWindowFlags_NoTitleBar      |
             ImGuiWindowFlags_NoResize        |
             ImGuiWindowFlags_NoMove          |
             ImGuiWindowFlags_NoScrollbar     |
             ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoBackground    |
-            ImGuiWindowFlags_NoBringToFrontOnFocus);
+            ImGuiWindowFlags_NoBackground);
         ImGui::InvisibleButton("##we_subbar_click_hit", ImVec2(w, h));
         bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
         ImGui::End();

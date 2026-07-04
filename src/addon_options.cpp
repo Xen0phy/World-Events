@@ -1039,6 +1039,8 @@ void AddonOptions()
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Segments that are currently active are left off the bar entirely instead of showing as a dropped-to-startX line — only upcoming events are shown. Independent from \"Hide active in window\" above.");
 
+        ImGui::Checkbox("Minimal Mode", &SubscriptionsBarMinimalMode);
+
         ImGui::SetNextItemWidth(100);
         if (ImGui::InputInt("Hover delay (ms)", &SubscriptionsBarHoverDelayMs, 50, 100))
         {
