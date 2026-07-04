@@ -7,8 +7,6 @@
 #include "events_storage.h"
 #include "categories.h"
 #include "subscriptions.h"
-#include "subscriptions_window.h"
-#include "subscriptions_bar.h"
 #include "imgui.h"
 #include "version.h"
 

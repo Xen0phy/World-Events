@@ -214,3 +214,4 @@ SETTING(Subscriptions, SubscriptionsSoonColor,   unsigned int, 0xFF8C00FFu) // o
 
 SETTING(System, delayMilliseconds, int, 50)
 SETTING(Subscriptions, SubscriptionsBarMinimalMode, bool, false)
+SETTING(Subscriptions, SubscriptionsBarBottomAnchored, bool, false)

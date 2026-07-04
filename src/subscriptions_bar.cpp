@@ -257,6 +257,16 @@ static std::vector<DotMark> CollectAllEventDots(const std::vector<LineSegment>& 
 // SubscriptionsBarUnsafeRightPx's comments in settings_table.h. A
 // setting of 0 disables that side's zone entirely (segment can never
 // overlap a zero-width zone).
+//
+// NOTE (bottom-anchored mode): this still only knows about GW2's TOP
+// corner UI — the same handoff to-do that asked for bottom-anchoring
+// flagged that the game's bottom UI, if any, may need its own distinct
+// margins, and that's still true here. SubscriptionsBarBottomAnchored
+// does not change this function at all; it's still reusing the
+// top-corner-shaped Left/Right margins regardless of which edge the bar
+// itself is pinned to. Left as explicitly out of scope for this pass —
+// revisit if bottom-anchored users report the pill landing on top of
+// their own bottom-edge UI.
 // ---------------------------------------------------------------------------
 static bool SegmentOverlapsUnsafeZone(const LineSegment& seg, float screenW)
 {
@@ -794,10 +804,10 @@ static float PillPinchFactor(float x, float start, float end, float neckT)
 // problems, since superseded). The single continuous path built by this
 // function is still used as-is for the STROKE (an outline doesn't care
 // about convexity), so only the fill call site changes.
-static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth)
+static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth, float dropDir = 1.0f)
 {
     float effectiveTw = std::min(tw, (end - start) * 0.5f);
-    float h = blockH * depth; // how far down (increasing y) the flat top sits below the baseline
+    float h = dropDir * blockH * depth; // how far the flat top sits from the baseline, signed by dropDir (+1: down/increasing y for a top-anchored bar; -1: up/decreasing y for a bottom-anchored one)
 
     if (effectiveTw <= 0.0f)
     {
@@ -943,10 +953,10 @@ static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float
 //
 // depth==0 (h==0) degenerates every triangle to zero area — still correct
 // (invisible), no special-casing needed.
-static void FillFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth, ImU32 fillColor)
+static void FillFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth, ImU32 fillColor, float dropDir = 1.0f)
 {
     float effectiveTw = std::min(tw, (end - start) * 0.5f);
-    float h = blockH * depth;
+    float h = dropDir * blockH * depth; // signed, matching PathFlatBlockShoulders — see its own comment
 
     if (effectiveTw <= 0.0f)
     {
@@ -1122,6 +1132,7 @@ void RenderSubscriptionsBar()
 
     ImGuiIO& io = ImGui::GetIO();
     float screenW = io.DisplaySize.x;
+    float screenH = io.DisplaySize.y; // only needed for SubscriptionsBarBottomAnchored's flush-to-bottom-edge baseline; top-anchored math never references it
     if (screenW <= 0.0f) return;
 
     time_t now = time(nullptr);
@@ -1142,11 +1153,24 @@ void RenderSubscriptionsBar()
         ? CollectAllEventDots(segs)
         : CollectOverlapDots(segs, screenW);
 
-    // ---- Layout constants (local space: y=0 is the baseline strip itself,
-    // dropped blocks extend DOWNWARD from there since the line lives on
-    // the top edge) ----
+    // ---- Layout constants (local space: y=0 is the baseline strip itself.
+    // Anchoring: SubscriptionsBarBottomAnchored flips the bar from the top
+    // edge to the bottom edge of the screen. Everything below that used to
+    // hardcode "dropped blocks extend downward, increasing y" now instead
+    // goes through kDropDir (+1 top-anchored, -1 bottom-anchored), which
+    // flips every "+ depth-based offset" into "- depth-based offset" when
+    // bottom-anchored, so blocks/pills/dots grow UP off the bottom edge
+    // instead of down off the top edge, mirroring the top-anchored layout
+    // rather than being a separately-coded mode. ----
     constexpr float kLineThick    = 2.0f;
-    constexpr float kBaselineY    = kLineThick * 0.5f;  // line is centered on this y, so offsetting by half its thickness puts the stroke's visible top edge flush with the actual screen edge instead of half of it getting clipped off-screen
+    const float kDropDir = SubscriptionsBarBottomAnchored ? -1.0f : 1.0f;
+    // Top-anchored: line is centered a half-thickness below y=0, so the
+    // stroke's visible top edge is flush with the actual screen top instead
+    // of half of it clipping off-screen. Bottom-anchored: mirror of that,
+    // centered a half-thickness above the actual screen bottom edge.
+    const float kBaselineY = SubscriptionsBarBottomAnchored
+        ? (screenH - kLineThick * 0.5f)
+        : (kLineThick * 0.5f);
     // How far a single fully-hovered block drops down from the baseline
     // (and, once pill-detach kicks in, the pill's fixed height too — see
     // SubscriptionsBarMaxDropPx's comment in settings_table.h). User-
@@ -1167,7 +1191,7 @@ void RenderSubscriptionsBar()
     // colored line's spot is simply vacant, so the dots take the space it
     // used to occupy rather than sitting awkwardly offset from where a
     // user's eye already expects the strip's "content row" to be.
-    const float kDotY = SubscriptionsBarMinimalMode ? kBaselineY : (kBaselineY + 8.0f);
+    const float kDotY = SubscriptionsBarMinimalMode ? kBaselineY : (kBaselineY + kDropDir * 8.0f);
     constexpr float kDotHitRadius = 5.0f;  // generous click/hover target around each dot's visual radius
     // Label plate padding — hoisted here (was previously a local
     // constexpr right where the plate is drawn) so the edge-safe drop
@@ -1239,14 +1263,18 @@ void RenderSubscriptionsBar()
     // exactly like two lane-0 segments would.
     constexpr float kLineHalfHeight = (kLineThick + 1.0f) * 0.5f;
     constexpr float kHoverBand = kLineHalfHeight + 2.0f; // the ONLY band that can start a fresh pop-out
-    // Shared sustain-band bottom: baseline by default (nothing open yet),
-    // pushed down to cover whichever currently-mid-drop segment(s) reach
-    // deepest, mirroring the same running-stack math used for the actual
-    // draw (stackTopY below) and the same topY/pillY unsafe-zone-detach
-    // math used per-segment in the draw loop — but using LAST frame's
-    // amount/order, since this frame's stack isn't known yet at this
-    // point (computed from hoveredIndices, which we're still building).
-    float sustainBottom = kBaselineY + kHoverBand;
+    // Shared sustain-band far edge: baseline by default (nothing open
+    // yet), pushed further along kDropDir (down when top-anchored, up when
+    // bottom-anchored) to cover whichever currently-mid-drop segment(s)
+    // reach deepest, mirroring the same running-stack math used for the
+    // actual draw (stackTopY below) and the same topY/pillY unsafe-zone-
+    // detach math used per-segment in the draw loop — but using LAST
+    // frame's amount/order, since this frame's stack isn't known yet at
+    // this point (computed from hoveredIndices, which we're still
+    // building). Named sustainBottom for historical/top-anchored reasons;
+    // when bottom-anchored it's actually the band's upper (smaller-y) edge
+    // — "farther from the baseline along kDropDir" either way.
+    float sustainBottom = kBaselineY + kDropDir * kHoverBand;
     {
         // Reuse the exact same "soonest first" stacking order the real
         // draw uses, over every segment that was mid-drop last frame —
@@ -1270,7 +1298,8 @@ void RenderSubscriptionsBar()
         // conservative without needing to duplicate the packing logic a
         // frame early, before this frame's real hoveredIndices exists.
         float runningY = kBaselineY;
-        float runningPillY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx); // mirrors pillStackY's own base, computed properly further down for the actual draw
+        float unsafeBase = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+        float runningPillY = kBaselineY + kDropDir * unsafeBase; // mirrors pillStackY's own base, computed properly further down for the actual draw
         for (int idx : openLastFrame)
         {
             const LineSegment& s = segs[idx];
@@ -1283,13 +1312,18 @@ void RenderSubscriptionsBar()
             if (detachT > 0.0f)
             {
                 pillY = topY + (runningPillY - topY) * detachT;
-                runningPillY += kMaxDropPx + kStackGapPx; // reserve this pill's own slot for whatever's stacked after it
+                runningPillY += kDropDir * (kMaxDropPx + kStackGapPx); // reserve this pill's own slot for whatever's stacked after it
             }
-            float blockBottom = std::max(topY, pillY) + kMaxDropPx;
+            // "Farthest along kDropDir from topY/pillY" — std::max when
+            // top-anchored (larger y = farther down), std::min when
+            // bottom-anchored (smaller y = farther up).
+            float blockFar = (kDropDir > 0.0f ? std::max(topY, pillY) : std::min(topY, pillY)) + kDropDir * kMaxDropPx;
 
-            sustainBottom = std::max(sustainBottom, blockBottom + 4.0f); // small slop, not a full worst-case column
+            sustainBottom = (kDropDir > 0.0f)
+                ? std::max(sustainBottom, blockFar + 4.0f)
+                : std::min(sustainBottom, blockFar - 4.0f); // small slop, not a full worst-case column
 
-            runningY += kMaxDropPx * depth + kStackGapPx * depth;
+            runningY += kDropDir * (kMaxDropPx * depth + kStackGapPx * depth);
         }
     }
     std::vector<int> hoveredIndices;
@@ -1335,7 +1369,16 @@ void RenderSubscriptionsBar()
         // A fresh/idle segment (amount == 0) never reaches this — it can
         // only ever be triggered by the thin band (lane-0) or a dot's own
         // small circle (lane>0) above.
-        if (mouse.y >= kBaselineY - kHoverBand && mouse.y <= sustainBottom)
+        // Direction-aware range: top-anchored, the band runs from just
+        // above the baseline down to sustainBottom; bottom-anchored, it's
+        // mirrored (sustainBottom, which is now above the baseline, up to
+        // just below it) — std::min/max picks whichever bound is actually
+        // smaller/larger regardless of which one kDropDir made "the far
+        // edge".
+        float sustainNear = kBaselineY - kDropDir * kHoverBand;
+        float sustainLo = std::min(sustainNear, sustainBottom);
+        float sustainHi = std::max(sustainNear, sustainBottom);
+        if (mouse.y >= sustainLo && mouse.y <= sustainHi)
         {
             constexpr float kSustainPadX = 8.0f; // px of forgiveness left/right of the opened element's own width
             for (int i = 0; i < (int)segs.size(); i++)
@@ -1611,7 +1654,7 @@ void RenderSubscriptionsBar()
         for (int row = 0; row <= maxRow; row++)
         {
             rowTopY[row] = runningY;
-            runningY += kMaxDropPx + kStackGapPx;
+            runningY += kDropDir * (kMaxDropPx + kStackGapPx);
         }
 
         for (int idx : hoveredIndices)
@@ -1671,7 +1714,14 @@ void RenderSubscriptionsBar()
             if (inUnsafeZone || stackDetach) lowestPillRow = std::min(lowestPillRow, rowIt->second.row);
         }
 
-        float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+        // "Farther along kDropDir" helper for this block: top-anchored,
+        // farther means larger y (std::max); bottom-anchored, farther
+        // means smaller y (std::min) — every "push runningPillY past X"
+        // comparison below needs this instead of a bare std::max, since
+        // the direction "past" means flips with the anchor.
+        auto farther = [&](float a, float b) { return (kDropDir > 0.0f) ? std::max(a, b) : std::min(a, b); };
+
+        float unsafeRestY = kBaselineY + kDropDir * (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
         float runningPillY = unsafeRestY;
         if (lowestPillRow != INT_MAX)
         {
@@ -1684,7 +1734,7 @@ void RenderSubscriptionsBar()
                         return ri != stackRows.end() && ri->second.row == row;
                     });
                 if (rowTopIt != stackTopY.end())
-                    runningPillY = std::max(runningPillY, rowTopIt->second + kMaxDropPx + kStackGapPx);
+                    runningPillY = farther(runningPillY, rowTopIt->second + kDropDir * (kMaxDropPx + kStackGapPx));
             }
         }
 
@@ -1743,7 +1793,7 @@ void RenderSubscriptionsBar()
             {
                 rowPillY[c.row] = runningPillY;
                 pillStackY[c.key] = runningPillY;
-                runningPillY += kMaxDropPx + kStackGapPx; // pills are always full height once they have any slot at all
+                runningPillY += kDropDir * (kMaxDropPx + kStackGapPx); // pills are always full height once they have any slot at all
             }
             else
             {
@@ -1889,7 +1939,7 @@ void RenderSubscriptionsBar()
             // segment somehow has no slot yet (shouldn't normally happen
             // once detachT > 0, since pillStackY is built from the same
             // hoveredIndices set — this is just defensive).
-            float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+            float unsafeRestY = kBaselineY + kDropDir * (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
             auto pillIt = pillStackY.find(seg.key);
             if (pillIt != pillStackY.end()) unsafeRestY = pillIt->second;
             float pillY = topY + (unsafeRestY - topY) * detachT;
@@ -1930,10 +1980,10 @@ void RenderSubscriptionsBar()
                     // the whole outline.
                     // Debug logging (seg.key.c_str()) stays on the stroke
                     // build below, same as before — this call doesn't log.
-                    FillFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth, fillColor);
+                    FillFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth, fillColor, kDropDir);
 
                     dl->PathClear();
-                    PathFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth);
+                    PathFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth, kDropDir);
                     dl->PathStroke(segColor, false, kLineThick);
                 }
                 else
@@ -1952,7 +2002,7 @@ void RenderSubscriptionsBar()
                         float d = FlatBlockDepthAt(x, dropX0, dropX1, tw) * depth;
                         float pinch = PillPinchFactor(x, dropX0, dropX1, pinchT);
                         d *= (1.0f - pinch);
-                        float y = topY + d * blockH;
+                        float y = topY + kDropDir * d * blockH;
                         dl->PathLineTo(ImVec2(x, y));
                     }
                     dl->PathLineTo(ImVec2(dropX1, topY));
@@ -1965,7 +2015,7 @@ void RenderSubscriptionsBar()
                         float d = FlatBlockDepthAt(x, dropX0, dropX1, tw) * depth;
                         float pinch = PillPinchFactor(x, dropX0, dropX1, pinchT);
                         d *= (1.0f - pinch);
-                        float y = topY + d * blockH;
+                        float y = topY + kDropDir * d * blockH;
                         dl->PathLineTo(ImVec2(x, y));
                     }
                     dl->PathStroke(segColor, false, kLineThick);
@@ -1988,8 +2038,15 @@ void RenderSubscriptionsBar()
                 // stadium radius (rx = h/2) that fixed facet count is
                 // visibly polygonal (see pill_stadium_vs_polygon_corners.
                 // svg). Same shape/geometry, smoother corners. ----
-                ImVec2 pillP0(dropX0, pillY);
-                ImVec2 pillP1(dropX1, pillY + blockH);
+                // PathRoundedRect assumes p0.y < p1.y (its rounding clamp
+                // and PathArcTo corner placement both rely on p1.y - p0.y
+                // being positive) — pillY + kDropDir*blockH is the pill's
+                // OTHER edge, which sits below pillY when top-anchored but
+                // ABOVE it when bottom-anchored, so order by min/max rather
+                // than assuming pillY is always the top.
+                float pillOtherY = pillY + kDropDir * blockH;
+                ImVec2 pillP0(dropX0, std::min(pillY, pillOtherY));
+                ImVec2 pillP1(dropX1, std::max(pillY, pillOtherY));
 
                 dl->PathClear();
                 PathRoundedRect(dl, pillP0, pillP1, pillRx);
@@ -2017,8 +2074,18 @@ void RenderSubscriptionsBar()
                 // shape, not underneath it. Uses the drop's steady-state
                 // depth for the layout math so text doesn't visibly slide
                 // as depth eases toward 1.0 — it fades in in place instead.
-                float blockTop    = (depth < kPinchEnd || !shouldDetach) ? topY : pillY;
-                float blockBottom = blockTop + blockH;
+                // "blockTop"/"blockBottom" are historical top-anchored
+                // names — blockNear is whichever edge sits at the
+                // baseline/pop-out origin (topY or pillY), blockFar is the
+                // other edge, kDropDir * blockH away from it (below when
+                // top-anchored, above when bottom-anchored). Centering
+                // text is symmetric either way, so std::min/max just picks
+                // whichever of the two is visually on top for AddText's
+                // top-left-origin convention below.
+                float blockNear   = (depth < kPinchEnd || !shouldDetach) ? topY : pillY;
+                float blockFar    = blockNear + kDropDir * blockH;
+                float blockTop    = std::min(blockNear, blockFar);
+                float blockBottom = std::max(blockNear, blockFar);
                 float textBlockH  = size1.y + size2.y;
                 float labelY      = blockTop + (blockBottom - blockTop - textBlockH) * 0.5f;
 
@@ -2091,8 +2158,30 @@ void RenderSubscriptionsBar()
         // what turned out to be a WindowPadding inset bug (see below),
         // not an actual need for a bigger hit area; now that padding is
         // zeroed, the window can be sized to match the true thin line.
-        float lineWinY0 = std::max(0.0f, kBaselineY - kHoverBand);
-        float lineWinY1 = kBaselineY + kHoverBand;
+        // Clamp to whichever screen edge the bar is actually pinned to —
+        // top-anchored, that's y=0; bottom-anchored, it's screenH — so the
+        // band never extends past the physical screen edge either way.
+        //
+        // Bottom-anchored quirk: clicking the true bottom-most row was
+        // still missed even after this clamped to the literal screenH
+        // (no inset at all, matching the top side's plain 0.0f clamp
+        // exactly) — consistently 1px "too high" by feel. Rather than
+        // guess at the exact off-by-one (candidates include DisplaySize
+        // being an exclusive bound vs. OS cursor clamping vs. some
+        // Nexus-side coordinate quirk — no way to instrument this without
+        // an actual build+overlay, which this sandbox can't do), pad the
+        // window's bottom-anchored lower... no, UPPER extent past screenH
+        // by a few px of slack. This can't cause a false click floating
+        // in empty space below the real line, because lineClicked is
+        // re-validated against the exact, unpadded kBaselineY +/- 
+        // kHoverBand band right below before anything actually happens —
+        // this padding only widens the WINDOW (i.e. what Nexus/ImGui will
+        // even consider "clicked"), not the logical trigger band itself.
+        constexpr float kBottomEdgeSlackPx = 4.0f;
+        float lineWinY0 = std::max(SubscriptionsBarBottomAnchored ? -FLT_MAX : 0.0f, kBaselineY - kHoverBand);
+        float lineWinY1 = SubscriptionsBarBottomAnchored
+            ? (screenH + kBottomEdgeSlackPx)
+            : std::min(FLT_MAX, kBaselineY + kHoverBand);
 
         ImGui::SetNextWindowPos(ImVec2(0, lineWinY0));
         ImGui::SetNextWindowSize(ImVec2(screenW, lineWinY1 - lineWinY0));
@@ -2234,7 +2323,7 @@ void RenderSubscriptionsBar()
         bool shouldDetach = inUnsafeZone || stackDetach;
         float detachT = shouldDetach ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd) / (kDetachEnd - kPinchEnd))) : 0.0f;
         float baseTopY = stackTopY[s.key];
-        float unsafeRestY = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+        float unsafeRestY = kBaselineY + kDropDir * (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
         auto pillIt = pillStackY.find(s.key);
         if (pillIt != pillStackY.end()) unsafeRestY = pillIt->second;
         float topY = baseTopY + (unsafeRestY - baseTopY) * detachT;
@@ -2243,10 +2332,18 @@ void RenderSubscriptionsBar()
         float h = kMaxDropPx;
         if (w < 1.0f) continue;
 
+        // topY is the block's ORIGIN edge (the baseline/pop-out side),
+        // not necessarily its top-left corner — top-anchored, the block
+        // extends down from it (origin IS the top); bottom-anchored, it
+        // extends up (origin is the BOTTOM), so the window's actual
+        // top-left y is topY - h in that case. ImGui::SetNextWindowPos
+        // always wants the true top-left corner regardless of anchor.
+        float winTopY = (kDropDir > 0.0f) ? topY : (topY - h);
+
         char winId[48];
         snprintf(winId, sizeof(winId), "##we_subbar_click_%d", idx);
 
-        ImGui::SetNextWindowPos(ImVec2(dropX0, topY));
+        ImGui::SetNextWindowPos(ImVec2(dropX0, winTopY));
         ImGui::SetNextWindowSize(ImVec2(w, h));
         ImGui::SetNextWindowBgAlpha(0.0f);
         // See the line-click window's own comment above for why
