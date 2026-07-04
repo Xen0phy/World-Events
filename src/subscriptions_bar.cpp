@@ -594,7 +594,7 @@ static constexpr float kEaseRate        = 0.18f; // per-frame lerp factor, match
 // itself. Off by default; flip to true, reproduce, paste the logged
 // lines back for the next session, then flip back to false (or just
 // remove this whole debug block, see addon.h's include comment above).
-static constexpr bool kDebugLogStackPacking = true;
+static constexpr bool kDebugLogStackPacking = false;
 
 // ---------------------------------------------------------------------------
 // Pill-detach phase thresholds (fractions of DropState::amount, 0..1)
@@ -712,6 +712,374 @@ static float PillPinchFactor(float x, float start, float end, float neckT)
     // Envelope over neckT: 0 at neckT=0, peaks near neckT~0.6, back to 0 at neckT=1 (smoothstep up then down)
     float envelope = (neckT < 0.6f) ? SmoothStep(neckT / 0.6f) : SmoothStep((1.0f - neckT) / 0.4f);
     return std::max(0.0f, waistShape * envelope);
+}
+
+// ---------------------------------------------------------------------------
+// PathFlatBlockShoulders
+// ---------------------------------------------------------------------------
+// Draws the flat-top-with-curved-shoulders silhouette as actual geometry —
+// two real cubic bezier curves for the rising/falling shoulders plus
+// PathLineTo calls for the flat top/baseline runs — instead of walking
+// FlatBlockDepthAt's smoothstep sample-by-sample the way the original
+// implementation did (a per-pixel-column line approximation of the curve,
+// same category of thing PathRoundedRect already replaced for the pill
+// corners — see that function's own comment). Matches
+// shoulder_half_gaussian_static.svg: the rising edge is the RIGHT half of a
+// bell curve (slow off the baseline, steepest through the middle, slow into
+// the flat top), the falling edge is the LEFT half of one (mirror image),
+// spliced onto a flat block top in between. A half-Gaussian has no
+// closed-form Bezier equivalent, so the control points below are hand-tuned
+// to approximate that silhouette rather than a plain symmetric smoothstep
+// curve.
+//
+// Only used at pinch == 0 everywhere (see call site): PillPinchFactor's
+// waist-necking isn't expressible as a fixed Bezier, so the neck-in
+// sub-phase still falls back to the old per-sample walk. This is the
+// overwhelmingly common case though — safe-zone segments never pinch at
+// all, and unsafe-zone ones are only mid-pinch for a short sub-phase of
+// the drop animation — so real shoulder geometry is what's on screen
+// almost all the time.
+//
+// depth (0..1) scales the shoulder depth only, same as the old
+// FlatBlockDepthAt(x) * depth pattern — the curve's horizontal shape (tw,
+// the shoulder width) does not change with depth, only how far down it
+// reaches, matching the original grow animation exactly.
+//
+// baselineY is the attach line (screen-space small y — this bar's blocks
+// grow DOWNWARD, increasing y, away from the strip), matching this file's
+// existing topY variable at the call site (misleadingly named for
+// historical reasons — see call site comment). blockH is the fully-
+// dropped depth in pixels (kMaxDropPx); actual reach is blockH * depth.
+// ---------------------------------------------------------------------------
+// debugLogKey: TEMPORARY (this session) — see kDebugLogStackPacking's
+// comment near kTransitionWidth. When non-null and kDebugLogStackPacking
+// is on, dumps every vertex this function pushes onto dl's path,
+// labeled rise/flat/fall, so the rise-side and fall-side coordinates can
+// be diffed directly against each other instead of re-deriving them by
+// hand — added to chase the "left shoulder renders as a straight
+// diagonal, right shoulder renders as a proper curve" bug (see "Pill
+// shape & animation" in the handoff for current status). Pass nullptr
+// (the default at every other call site) for zero overhead/no logging.
+//
+// ROOT CAUSE OF THE LEFT-SHOULDER BUG (found this session): the rise/fall
+// curve math itself was never wrong — an out-of-engine re-plot of this
+// function's own point sequence was already confirmed symmetric before
+// this fix. The bug was in how the *fill* was built at the call site:
+// dl->PathFillConvex() fan-triangulates from the path's first vertex
+// (ImDrawList::PathFillConvex -> AddConvexPolyFilled) and silently
+// assumes the path is convex. This silhouette is NOT convex — it's an
+// open rise-flat-fall curve, and PathFillConvex implicitly closes it
+// with a straight edge from the last vertex (the fall-side baseline
+// point) back to the first (the rise-side baseline point). That closing
+// edge cuts straight across the shape, and the resulting fan — anchored
+// at the rise-side corner — keeps a consistent triangle winding for the
+// nearby rise curve but not for the far-side fall curve, which is what
+// actually produced the "left shoulder is a straight diagonal" artifact
+// (right shoulder = near the fan anchor = fine; left = far from it =
+// broken), even though the underlying vertices were correct all along.
+// This imgui version (1.80) has no AddConcavePolyFilled, so the fix is
+// FillFlatBlockShoulders(): decomposes the fill into a center rect plus
+// two convex shoulder-cap pieces, each filled via its own single
+// PathFillConvex call anchored at the corner it's actually convex from —
+// see that function's own comment for the full reasoning (including an
+// earlier centroid-fan version of this fix that had its own seam
+// problems, since superseded). The single continuous path built by this
+// function is still used as-is for the STROKE (an outline doesn't care
+// about convexity), so only the fill call site changes.
+static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth, const char* debugLogKey = nullptr)
+{
+    float effectiveTw = std::min(tw, (end - start) * 0.5f);
+    float h = blockH * depth; // how far down (increasing y) the flat top sits below the baseline
+
+    if (effectiveTw <= 0.0f)
+    {
+        // Degenerate (very narrow segment): no room for shoulders at all,
+        // matches FlatBlockDepthAt's own degenerate branch (a plain rect).
+        dl->PathLineTo(ImVec2(start, baselineY));
+        dl->PathLineTo(ImVec2(start, baselineY + h));
+        dl->PathLineTo(ImVec2(end, baselineY + h));
+        dl->PathLineTo(ImVec2(end, baselineY));
+        return;
+    }
+
+    // The reference SVG's rising shoulder is NOT one cubic stretched over
+    // the whole width — it's four short cubics chained into a spline (see
+    // shoulder_half_gaussian_static.svg's path: four "C" commands between
+    // the "L 130 190" baseline point and the flat top at x=215, y=90). A
+    // single cubic spanning the full tw, even with hand-tuned handles,
+    // reads as a kink/steep-then-flat shape rather than a smooth, evenly-
+    // rounded bell-curve half — the multi-segment chain is what actually
+    // produces that. Points below are digitized directly off the SVG's
+    // own path coordinates: fx is (x-130)/85 (0 at the baseline corner, 1
+    // at the flat-top corner), fy is (190-y)/100 (0 AT the baseline, 1 AT
+    // the flat top — i.e. how far down the drop this point sits, matching
+    // this function's own h/depth convention), so they reproduce the same
+    // proportions regardless of this bar's actual tw/blockH.
+    struct Pt { float fx, fy; };
+    // fx/fy fractions for: baseline start, then each cubic's (cp1, cp2, end).
+    static const Pt kRise[] = {
+        { 0.000f, 0.000f },                                       // P0: baseline
+        { 0.212f, 0.000f }, { 0.259f, 0.040f }, { 0.318f, 0.140f }, // C1
+        { 0.376f, 0.250f }, { 0.412f, 0.380f }, { 0.447f, 0.520f }, // C2
+        { 0.482f, 0.660f }, { 0.529f, 0.780f }, { 0.612f, 0.860f }, // C3
+        { 0.694f, 0.940f }, { 0.824f, 0.980f }, { 1.000f, 1.000f }, // C4: flat top
+    };
+    constexpr int kNumPts = sizeof(kRise) / sizeof(kRise[0]);
+
+    auto toRisePoint = [&](const Pt& p) {
+        return ImVec2(start + effectiveTw * p.fx, baselineY + h * p.fy);
+    };
+    auto toFallPoint = [&](const Pt& p) {
+        // Falling shoulder is the rising one mirrored horizontally about
+        // the segment's own center-to-end span, walked start-to-end.
+        return ImVec2(end - effectiveTw * p.fx, baselineY + h * p.fy);
+    };
+
+    // Fixed segment count per cubic (not the num_segments=0 "adaptive"
+    // mode) — adaptive tessellation's flatness test operates on each
+    // curve's own absolute on-screen coordinates (see
+    // PathBezierCubicCurveToCasteljau in imgui_draw.cpp), so a rise curve
+    // built from "start + x" and a fall curve built from "end - x" can in
+    // principle walk that recursion to different depths/results even
+    // though the input control points are an exact mirror image — a
+    // fixed count sidesteps that class of bug entirely and is cheap here
+    // (4 cubics, not per-pixel-column sampling).
+    constexpr int kSegsPerCubic = 8;
+
+    bool debugLog = kDebugLogStackPacking && debugLogKey && APIDefs;
+    if (debugLog)
+    {
+        char buf[256];
+        snprintf(buf, sizeof(buf),
+            "  shoulders key=%s start=%.1f end=%.1f effectiveTw=%.2f baselineY=%.1f h=%.2f",
+            debugLogKey, start, end, effectiveTw, baselineY, h);
+        APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
+    }
+
+    ImVec2 riseP0 = toRisePoint(kRise[0]);
+    dl->PathLineTo(riseP0);
+    if (debugLog)
+    {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "    rise P0 (baseline) = (%.2f, %.2f)", riseP0.x, riseP0.y);
+        APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
+    }
+    for (int i = 1; i < kNumPts; i += 3)
+    {
+        ImVec2 cp1 = toRisePoint(kRise[i]);
+        ImVec2 cp2 = toRisePoint(kRise[i + 1]);
+        ImVec2 ep  = toRisePoint(kRise[i + 2]);
+        dl->PathBezierCubicCurveTo(cp1, cp2, ep, kSegsPerCubic);
+        if (debugLog)
+        {
+            char buf[192];
+            snprintf(buf, sizeof(buf),
+                "    rise C(i=%d) cp1=(%.2f,%.2f) cp2=(%.2f,%.2f) end=(%.2f,%.2f)",
+                i, cp1.x, cp1.y, cp2.x, cp2.y, ep.x, ep.y);
+            APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
+        }
+    }
+
+    // Flat block top (deepest part of the drop). The SVG's own path has
+    // this as a separate explicit "L 320 90" straight segment AFTER its
+    // rise curve ends at (215, 90), not folded into the curve itself —
+    // this mirrors that exactly. The rise spline's last point already
+    // lands at (end-effectiveTw, baselineY+h) via kRise[12]=(1,1), so this
+    // draws the flat run across to the fall spline's own mirrored start
+    // point at the same y, explicitly, rather than relying on the two
+    // splines' endpoints to implicitly line up (they didn't: the fall
+    // loop's own first point is its (0.824, 0.98) control handle, not a
+    // (1,1) endpoint, so without this line the two curves met with a
+    // faint residual slope instead of a true flat run).
+    ImVec2 flatEnd = toFallPoint(kRise[kNumPts - 1]);
+    dl->PathLineTo(flatEnd);
+    if (debugLog)
+    {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "    flat-top end = (%.2f, %.2f)", flatEnd.x, flatEnd.y);
+        APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
+    }
+
+    // Falling shoulder: same spline walked from its "flat top" end back
+    // to its "baseline" end, mirrored horizontally via toFallPoint — i.e.
+    // traverse kRise back-to-front so the path continues start-to-end
+    // along the falling curve (flat top -> baseline) rather than jumping.
+    for (int i = kNumPts - 4; i >= 0; i -= 3)
+    {
+        ImVec2 cp1 = toFallPoint(kRise[i + 2]);
+        ImVec2 cp2 = toFallPoint(kRise[i + 1]);
+        ImVec2 ep  = toFallPoint(kRise[i]);
+        dl->PathBezierCubicCurveTo(cp1, cp2, ep, kSegsPerCubic);
+        if (debugLog)
+        {
+            char buf[192];
+            snprintf(buf, sizeof(buf),
+                "    fall C(i=%d) cp1=(%.2f,%.2f) cp2=(%.2f,%.2f) end=(%.2f,%.2f)",
+                i, cp1.x, cp1.y, cp2.x, cp2.y, ep.x, ep.y);
+            APIDefs->Log(LOGL_INFO, "WorldEvents", buf);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FillFlatBlockShoulders
+// ---------------------------------------------------------------------------
+// Fills the exact same silhouette PathFlatBlockShoulders() strokes.
+//
+// SUPERSEDES an in-between version (this session) that decomposed the fill
+// into 3 separate draw calls — 1 AddRectFilled (center) + 2 PathFillConvex
+// (shoulder caps) — reasoning that each piece is individually convex from
+// its own inner corner. That's numerically true, and the 3 pieces' shared-
+// edge coordinates ARE bit-identical (verified: both the rect and the caps
+// compute the seam as the literal expression `start + effectiveTw` /
+// `end - effectiveTw`). But bit-identical coordinates fed to two SEPARATE
+// draw calls still don't guarantee a seamless result: AddRectFilled (no
+// rounding) takes ImGui's PrimRect fast path, PathFillConvex takes
+// AddConvexPolyFilled — two independent primitives, each rasterized on its
+// own. A user report of the seam appearing/disappearing on close to a
+// 4-second cycle (line on the left shoulder, gap on the right) tracked
+// exactly with dropX0/dropX1 drifting by sub-pixel fractions each second
+// (EdgeSafeDropBounds resizes off CalcTextSize of the live countdown
+// label), which is consistent with two separately-rasterized primitives
+// disagreeing on a shared edge whenever that edge's exact sub-pixel
+// position crosses some rounding boundary — not consistent with a pure
+// AA-fringe theory (tried and ruled out first; see git history for that
+// dead end), since PrimRect doesn't even add fringe geometry.
+//
+// The only way to actually GUARANTEE two adjacent triangles can't crack
+// apart is the standard one from real-time mesh rendering: make them part
+// of the *same* indexed mesh, referencing the *same* vertex, submitted in
+// one draw call. Two separate calls can never offer that guarantee no
+// matter how carefully their input floats are kept in sync — a shared
+// vertex *index* is a stronger guarantee than a shared vertex *value*.
+//
+// So: this version tessellates the rise/fall curves via the same
+// dl->PathLineTo/PathBezierCubicCurveTo calls PathFlatBlockShoulders()
+// uses (guaranteeing point-for-point identical tessellation to the stroke,
+// not just to itself), lifts those points out of dl's scratch path, then
+// hand-triangulates the whole silhouette — center rect (2 tris) + left
+// cap fan + right cap fan, sharing actual vertex indices at the two seams
+// — into one manually-built vertex/index batch submitted via a single
+// PrimReserve, the same low-level call PrimRect itself uses. No
+// AddTriangleFilled loop (that was the OLD, abandoned approach — see
+// PathFlatBlockShoulders' ROOT CAUSE comment — and it failed for a
+// different reason: many independent draw calls, each independently
+// anti-aliased). Because this is genuinely one mesh, there's no fringe
+// geometry to reason about either way (raw Prim writes never add AA
+// fringe, matching PrimRect's own behavior) — the outer silhouette still
+// reads as smooth because the separate stroke pass right after this call
+// (PathFlatBlockShoulders + PathStroke) keeps its own antialiasing for
+// that visible edge; only this fill is hard-edged, same as before.
+//
+// depth==0 (h==0) degenerates every triangle to zero area — still correct
+// (invisible), no special-casing needed.
+static void FillFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth, ImU32 fillColor)
+{
+    float effectiveTw = std::min(tw, (end - start) * 0.5f);
+    float h = blockH * depth;
+
+    if (effectiveTw <= 0.0f)
+    {
+        // Degenerate (very narrow segment) — matches PathFlatBlockShoulders'
+        // own degenerate branch (a plain rect), so there's no separate
+        // "shoulder" geometry to speak of.
+        dl->AddRectFilled(ImVec2(start, baselineY), ImVec2(end, baselineY + h), fillColor);
+        return;
+    }
+
+    struct Pt { float fx, fy; };
+    static const Pt kRise[] = {
+        { 0.000f, 0.000f },
+        { 0.212f, 0.000f }, { 0.259f, 0.040f }, { 0.318f, 0.140f },
+        { 0.376f, 0.250f }, { 0.412f, 0.380f }, { 0.447f, 0.520f },
+        { 0.482f, 0.660f }, { 0.529f, 0.780f }, { 0.612f, 0.860f },
+        { 0.694f, 0.940f }, { 0.824f, 0.980f }, { 1.000f, 1.000f },
+    };
+    constexpr int kNumPts = sizeof(kRise) / sizeof(kRise[0]);
+    constexpr int kSegsPerCubic = 8; // must match PathFlatBlockShoulders
+
+    auto toRisePoint = [&](const Pt& p) { return ImVec2(start + effectiveTw * p.fx, baselineY + h * p.fy); };
+    auto toFallPoint = [&](const Pt& p) { return ImVec2(end - effectiveTw * p.fx, baselineY + h * p.fy); };
+
+    // Tessellate rise/fall curves via dl's own scratch path, using the
+    // exact same calls (same kSegsPerCubic, same control-point derivation)
+    // PathFlatBlockShoulders uses for the stroke — then lift the resulting
+    // points out before this function builds its own triangulation from
+    // them, rather than re-deriving points by hand and hoping they match.
+    dl->PathClear();
+    dl->PathLineTo(toRisePoint(kRise[0])); // [0] outer/baseline corner (start, baselineY)
+    for (int i = 1; i < kNumPts; i += 3)
+        dl->PathBezierCubicCurveTo(toRisePoint(kRise[i]), toRisePoint(kRise[i + 1]), toRisePoint(kRise[i + 2]), kSegsPerCubic);
+    // [last] inner corner (start+effectiveTw, baselineY+h)
+    std::vector<ImVec2> risePts(dl->_Path.Data, dl->_Path.Data + dl->_Path.Size);
+    dl->PathClear();
+
+    dl->PathLineTo(toFallPoint(kRise[0])); // [0] outer/baseline corner (end, baselineY)
+    for (int i = 1; i < kNumPts; i += 3)
+        dl->PathBezierCubicCurveTo(toFallPoint(kRise[i]), toFallPoint(kRise[i + 1]), toFallPoint(kRise[i + 2]), kSegsPerCubic);
+    // [last] inner corner (end-effectiveTw, baselineY+h)
+    std::vector<ImVec2> fallPts(dl->_Path.Data, dl->_Path.Data + dl->_Path.Size);
+    dl->PathClear();
+
+    int riseN = (int)risePts.size();
+    int fallN = (int)fallPts.size();
+    // Two more explicit corners neither curve's own point list includes:
+    // the *top* inner corners (baseline row), shared with the rect and
+    // the fan anchor each cap is convex from (see header comment).
+    ImVec2 innerTopLeft (start + effectiveTw, baselineY);
+    ImVec2 innerTopRight(end   - effectiveTw, baselineY);
+
+    // One combined vertex buffer: risePts, then fallPts, then the two
+    // inner-top corners. Every triangle below references indices into
+    // THIS single buffer — including at the two rect/cap seams — so
+    // there is no possibility of two separately-computed-but-supposedly-
+    // equal coordinates disagreeing: it's the same vertex, not a copy.
+    //
+    // Note: the white-pixel UV normally comes from dl->_Data->
+    // TexUvWhitePixel, but ImDrawListSharedData is only forward-declared
+    // in imgui.h (full definition is in imgui_internal.h, which this file
+    // deliberately doesn't include — see PathRoundedRect's comment above)
+    // so that member is inaccessible here; ImGui::GetFontTexUvWhitePixel()
+    // is the public equivalent and returns the same value.
+    const ImVec2 uv = ImGui::GetFontTexUvWhitePixel();
+    int vtxCount = riseN + fallN + 2;
+    int triCount = (riseN - 1) + (fallN - 1) + 2; // left fan + right fan + rect(2 tris)
+    dl->PrimReserve(triCount * 3, vtxCount);
+
+    unsigned int base = dl->_VtxCurrentIdx;
+    for (int i = 0; i < riseN; i++) { dl->_VtxWritePtr->pos = risePts[i]; dl->_VtxWritePtr->uv = uv; dl->_VtxWritePtr->col = fillColor; dl->_VtxWritePtr++; }
+    for (int i = 0; i < fallN; i++) { dl->_VtxWritePtr->pos = fallPts[i]; dl->_VtxWritePtr->uv = uv; dl->_VtxWritePtr->col = fillColor; dl->_VtxWritePtr++; }
+    dl->_VtxWritePtr->pos = innerTopLeft;  dl->_VtxWritePtr->uv = uv; dl->_VtxWritePtr->col = fillColor; dl->_VtxWritePtr++;
+    dl->_VtxWritePtr->pos = innerTopRight; dl->_VtxWritePtr->uv = uv; dl->_VtxWritePtr->col = fillColor; dl->_VtxWritePtr++;
+    dl->_VtxCurrentIdx += (unsigned int)vtxCount;
+
+    unsigned int idxRise0        = base;
+    unsigned int idxRiseInner    = base + (riseN - 1); // L_bottom
+    unsigned int idxFall0        = base + riseN;
+    unsigned int idxFallInner    = base + riseN + (fallN - 1); // R_bottom
+    unsigned int idxInnerTopLeft  = base + riseN + fallN;      // L_top
+    unsigned int idxInnerTopRight = base + riseN + fallN + 1;  // R_top
+
+    auto tri = [&](unsigned int a, unsigned int b, unsigned int c)
+    {
+        dl->_IdxWritePtr[0] = (ImDrawIdx)a; dl->_IdxWritePtr[1] = (ImDrawIdx)b; dl->_IdxWritePtr[2] = (ImDrawIdx)c;
+        dl->_IdxWritePtr += 3;
+    };
+
+    // Left cap: fan from its inner-top corner (shared with the rect)
+    // across the rise curve's own tessellated points.
+    for (int i = 0; i < riseN - 1; i++)
+        tri(idxInnerTopLeft, idxRise0 + i, idxRise0 + i + 1);
+
+    // Right cap: mirror, fan from its own inner-top corner.
+    for (int i = 0; i < fallN - 1; i++)
+        tri(idxInnerTopRight, idxFall0 + i, idxFall0 + i + 1);
+
+    // Center rectangle: innerTopLeft, innerTopRight, R_bottom, L_bottom —
+    // note this is now just 2 more triangles in the SAME mesh as the caps
+    // above, not a separate AddRectFilled call.
+    tri(idxInnerTopLeft, idxInnerTopRight, idxFallInner);
+    tri(idxInnerTopLeft, idxFallInner, idxRiseInner);
 }
 
 // ---------------------------------------------------------------------------
@@ -1521,33 +1889,67 @@ void RenderSubscriptionsBar()
                 // the whole silhouette, not just cx/segW, so the shape
                 // that's drawn matches the width those were computed from.
                 float tw = kTransitionWidth;
-                int samples = std::max(8, (int)(segW / 4.0f));
 
-                dl->PathClear();
-                dl->PathLineTo(ImVec2(dropX0, topY));
-                for (int s = 0; s <= samples; s++)
+                if (pinchT <= 0.0f)
                 {
-                    float x = dropX0 + segW * (s / (float)samples);
-                    float d = FlatBlockDepthAt(x, dropX0, dropX1, tw) * depth;
-                    float pinch = PillPinchFactor(x, dropX0, dropX1, pinchT);
-                    d *= (1.0f - pinch);
-                    float y = topY + d * blockH;
-                    dl->PathLineTo(ImVec2(x, y));
-                }
-                dl->PathLineTo(ImVec2(dropX1, topY));
-                dl->PathFillConvex(fillColor);
+                    // Common case (safe-zone segments always, unsafe-zone
+                    // ones outside the short neck-in sub-phase): real
+                    // bezier-curve shoulders via PathFlatBlockShoulders
+                    // instead of a per-pixel-column sampled walk of
+                    // FlatBlockDepthAt — see that function's comment for
+                    // why (mirrors PathRoundedRect replacing AddRect's
+                    // faceted corners for the same reason). topY here is
+                    // the attach/baseline line (see its own declaration
+                    // comment above) — blocks grow downward from it.
+                    // Fill: the silhouette as a whole isn't convex, but
+                    // FillFlatBlockShoulders decomposes it into a center
+                    // rect + two convex shoulder caps (each IS convex from
+                    // its own inner corner, see that function's comment),
+                    // so it's 3 cheap seam-free PathFillConvex-style calls
+                    // rather than a single Path*/PathFillConvex call over
+                    // the whole outline.
+                    // Debug logging (seg.key.c_str()) stays on the stroke
+                    // build below, same as before — this call doesn't log.
+                    FillFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth, fillColor);
 
-                dl->PathClear();
-                for (int s = 0; s <= samples; s++)
-                {
-                    float x = dropX0 + segW * (s / (float)samples);
-                    float d = FlatBlockDepthAt(x, dropX0, dropX1, tw) * depth;
-                    float pinch = PillPinchFactor(x, dropX0, dropX1, pinchT);
-                    d *= (1.0f - pinch);
-                    float y = topY + d * blockH;
-                    dl->PathLineTo(ImVec2(x, y));
+                    dl->PathClear();
+                    PathFlatBlockShoulders(dl, dropX0, dropX1, topY, blockH, tw, depth, seg.key.c_str());
+                    dl->PathStroke(segColor, false, kLineThick);
                 }
-                dl->PathStroke(segColor, false, kLineThick);
+                else
+                {
+                    // Neck-in sub-phase: PillPinchFactor's waist isn't a
+                    // fixed Bezier shape (it moves/reshapes with neckT),
+                    // so this sub-phase alone still walks FlatBlockDepthAt
+                    // sample-by-sample the original way.
+                    int samples = std::max(8, (int)(segW / 4.0f));
+
+                    dl->PathClear();
+                    dl->PathLineTo(ImVec2(dropX0, topY));
+                    for (int s = 0; s <= samples; s++)
+                    {
+                        float x = dropX0 + segW * (s / (float)samples);
+                        float d = FlatBlockDepthAt(x, dropX0, dropX1, tw) * depth;
+                        float pinch = PillPinchFactor(x, dropX0, dropX1, pinchT);
+                        d *= (1.0f - pinch);
+                        float y = topY + d * blockH;
+                        dl->PathLineTo(ImVec2(x, y));
+                    }
+                    dl->PathLineTo(ImVec2(dropX1, topY));
+                    dl->PathFillConvex(fillColor);
+
+                    dl->PathClear();
+                    for (int s = 0; s <= samples; s++)
+                    {
+                        float x = dropX0 + segW * (s / (float)samples);
+                        float d = FlatBlockDepthAt(x, dropX0, dropX1, tw) * depth;
+                        float pinch = PillPinchFactor(x, dropX0, dropX1, pinchT);
+                        d *= (1.0f - pinch);
+                        float y = topY + d * blockH;
+                        dl->PathLineTo(ImVec2(x, y));
+                    }
+                    dl->PathStroke(segColor, false, kLineThick);
+                }
             }
             else
             {
