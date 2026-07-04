@@ -432,7 +432,19 @@ static float FlatBlockDepthAt(float x, float start, float end, float tw)
 // target only becomes 1.0 once hoverSeconds clears
 // SubscriptionsBarHoverDelayMs/1000 — see the easing loop below.
 // ---------------------------------------------------------------------------
-struct DropState { float amount = 0.0f; float hoverSeconds = 0.0f; };
+// clickHoldSeconds: set by the click-on-the-thin-line feature (see the
+// click hit-test block further down) on the clicked segment and every
+// segment it directly x-overlaps. Counts down every frame; while > 0 the
+// segment is treated as hovered by the easing loop below, same as an
+// actual mouse hover, so it eases in/stays open/eases back out through
+// the exact same code path — no separate pop state, no snap. This is
+// what lets the click-triggered segments hold open for a short window
+// instead of flashing open for one frame and immediately collapsing
+// (which is what a naive one-shot `amount = 1.0f` write did — the very
+// next frame's easing loop saw isHovered=false for anything the mouse
+// wasn't actually over, reset hoverSeconds to 0, and eased target back
+// to 0 right away).
+struct DropState { float amount = 0.0f; float hoverSeconds = 0.0f; float clickHoldSeconds = 0.0f; };
 static std::unordered_map<std::string, DropState> s_dropStates;
 
 // ---------------------------------------------------------------------------
@@ -1360,6 +1372,20 @@ void RenderSubscriptionsBar()
             }
         }
     }
+    // Fold in any segment still under a click-triggered hold (see
+    // DropState::clickHoldSeconds, set by the click-on-the-thin-line
+    // block further down) before sorting — same reasoning as everything
+    // else feeding hoveredIndices here: it needs to go through the exact
+    // same deterministic stable_sort tiebreak as real hovers, not be
+    // appended afterward where it could dodge it and reintroduce the
+    // row-flicker class of bug that sort's own tiebreak exists to
+    // prevent.
+    for (int i = 0; i < (int)segs.size(); i++)
+    {
+        if (s_dropStates[segs[i].key].clickHoldSeconds <= 0.0f) continue;
+        if (std::find(hoveredIndices.begin(), hoveredIndices.end(), i) == hoveredIndices.end())
+            hoveredIndices.push_back(i);
+    }
     // Stacking order: soonest-starting (or currently active) segment on
     // top, since that's usually the more time-critical one to read first.
     // MUST be std::stable_sort, not std::sort: two hovered segments can
@@ -1397,8 +1423,42 @@ void RenderSubscriptionsBar()
 
     for (int i = 0; i < (int)segs.size(); i++)
     {
-        bool isHovered = std::find(hoveredIndices.begin(), hoveredIndices.end(), i) != hoveredIndices.end();
         DropState& st = s_dropStates[segs[i].key];
+
+        // clickHoldSeconds (set by the click-on-the-thin-line feature,
+        // see the click hit-test block further down) makes this segment
+        // count as hovered even though the mouse may not actually be
+        // over it — e.g. a stacked lane>0 dot pinned open by a click on a
+        // different, overlapping lane-0 segment. Counts down once per
+        // frame regardless of real hover state, so it's a fixed-duration
+        // hold rather than something that needs the mouse to keep
+        // re-triggering it.
+        //
+        // forcePastDelay lets clickHoldSeconds bypass this segment's OWN
+        // hoverSeconds>=hoverDelaySeconds check. This is only safe
+        // because the click hit-test block (further down) never sets
+        // clickHoldSeconds on ANY segment — including the one actually
+        // under the cursor — unless the clicked lane-0 segment has
+        // already cleared the real delay through genuine mouse dwell
+        // time first. That gate is what makes a raw click before the
+        // delay a no-op; once it's passed, the delay has already been
+        // legitimately earned once, and every other segment the click
+        // reveals shouldn't have to wait it out a second time on its own
+        // — that read as "click, then wait the same delay again, then
+        // everything pops," which isn't a click doing anything a plain
+        // hover wasn't already going to do. A previous version of this
+        // bypass was wrong because it fired for EVERY click regardless
+        // of whether the delay had been earned yet, letting a click
+        // alone (with no real dwell time) satisfy the delay — do not
+        // reintroduce the bypass without that click-site gate in place.
+        bool isHovered = std::find(hoveredIndices.begin(), hoveredIndices.end(), i) != hoveredIndices.end();
+        bool forcePastDelay = false;
+        if (st.clickHoldSeconds > 0.0f)
+        {
+            isHovered = true;
+            forcePastDelay = true;
+            st.clickHoldSeconds = std::max(0.0f, st.clickHoldSeconds - dt);
+        }
 
         // Raw hover duration resets instantly on losing hover (no
         // "banking" partial progress across separate hovers), and only
@@ -1413,7 +1473,7 @@ void RenderSubscriptionsBar()
         // immediately (no equivalent delay on the way back down — a
         // delayed pop-in reads as responsive, a delayed pop-OUT reads as
         // laggy/stuck).
-        bool pastDelay = isHovered && st.hoverSeconds >= hoverDelaySeconds;
+        bool pastDelay = isHovered && (forcePastDelay || st.hoverSeconds >= hoverDelaySeconds);
         float target = pastDelay ? 1.0f : 0.0f;
 
         st.amount += (target - st.amount) * easeThisFrame;
@@ -2052,6 +2112,122 @@ void RenderSubscriptionsBar()
     // currently-dropped block/pill, positioned to match its own on-screen
     // rect for this frame (same topY/pillY math the draw loop above
     // already uses).
+    //
+    // ---- Click-on-the-thin-line: pop out every directly-overlapping
+    // segment at once ----
+    // One single invisible window spanning the FULL screen width at the
+    // baseline band, instead of one tiny per-segment window — simpler,
+    // and avoids relying on many small windows (one per lane-0 segment,
+    // recreated every frame, several packed into a ~7px-tall strip right
+    // at the top screen edge) all individually receiving input correctly.
+    // On click, figure out which segment (if any) the mouse.x actually
+    // falls within, then force-pop it and everything it directly
+    // x-overlaps — same trigger logic as before, just gated by one
+    // hit-test window instead of many.
+    {
+        // Height matches the real trigger band (kBaselineY ± kHoverBand)
+        // exactly — same band the ordinary hover-trigger check above
+        // uses. The earlier padded-taller version was compensating for
+        // what turned out to be a WindowPadding inset bug (see below),
+        // not an actual need for a bigger hit area; now that padding is
+        // zeroed, the window can be sized to match the true thin line.
+        float lineWinY0 = std::max(0.0f, kBaselineY - kHoverBand);
+        float lineWinY1 = kBaselineY + kHoverBand;
+
+        ImGui::SetNextWindowPos(ImVec2(0, lineWinY0));
+        ImGui::SetNextWindowSize(ImVec2(screenW, lineWinY1 - lineWinY0));
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        // Zero WindowPadding: by default ImGui insets a window's content
+        // region (where InvisibleButton actually lands) by the style's
+        // WindowPadding (commonly ~8px each side), so without this the
+        // clickable rect sits several px right/down from the position set
+        // above. The existing per-dropped-block click window (below)
+        // never noticed this because its target area is tens of px tall;
+        // this one is only a few px tall, so the same offset was clearly
+        // visible as "the clickable area is a few px lower than the
+        // actual line" before this fix, and "the clickable area is way
+        // too big" if compensated for by oversizing the window instead
+        // (the earlier, wrong fix).
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::Begin("##we_subbar_line_click", nullptr,
+            ImGuiWindowFlags_NoTitleBar      |
+            ImGuiWindowFlags_NoResize        |
+            ImGuiWindowFlags_NoMove          |
+            ImGuiWindowFlags_NoScrollbar     |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoBackground    |
+            ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::PopStyleVar();
+        ImGui::InvisibleButton("##we_subbar_line_click_hit", ImVec2(screenW, lineWinY1 - lineWinY0));
+        bool lineClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        ImGui::End();
+
+        if (lineClicked)
+        {
+            if (mouse.y >= kBaselineY - kHoverBand && mouse.y <= kBaselineY + kHoverBand)
+            {
+                int clickedIdx = -1;
+                for (int i = 0; i < (int)segs.size(); i++)
+                {
+                    if (segs[i].lane != 0) continue;
+                    if (mouse.x >= segs[i].startX && mouse.x < segs[i].endX) { clickedIdx = i; break; }
+                }
+                // Require the clicked lane-0 segment to have ALREADY
+                // cleared the user's configured hover delay through
+                // real mouse dwell time before the click does anything.
+                // clickHoldSeconds itself unconditionally forces
+                // isHovered=true for a fixed 2s once set (see the drop
+                // loop above), so setting it on every click regardless
+                // of hoverSeconds re-opens the same bug as the removed
+                // forcePastDelay bypass, just from the other side: even
+                // with no explicit bypass of the hoverSeconds>=delay
+                // check, clickHoldSeconds keeps accumulating hoverSeconds
+                // for its own full 2s hold, which independently clears
+                // the delay on its own by the time the hold ends —
+                // producing exactly the reported symptom (quick click,
+                // move mouse away, brief pop right around when the
+                // configured delay elapses). A click is only meant to be
+                // a convenience click on a segment the mouse has already
+                // dwelt on long enough to legitimately be popped, not an
+                // independent second path to satisfy the delay — so gate
+                // on the clicked segment's own real hoverSeconds here,
+                // before ever touching clickHoldSeconds on any segment.
+                bool clickedPastDelay = clickedIdx >= 0 &&
+                    s_dropStates[segs[clickedIdx].key].hoverSeconds >= hoverDelaySeconds;
+                if (clickedPastDelay)
+                {
+                    // kClickHoldSeconds: how long a click-triggered
+                    // pop-out holds open on its own before naturally
+                    // easing back down (same easing the mouse leaving a
+                    // real hover already uses) if the mouse doesn't
+                    // relocate onto the segment/stack itself. Chosen to
+                    // read as a deliberate "quick access" glance, not a
+                    // toggle the user has to actively dismiss.
+                    constexpr float kClickHoldSeconds = 2.0f;
+                    // Gate by the actual mouse.x position, not by overlap
+                    // with the clicked segment's whole span — a segment
+                    // stacked below can be much wider than what's under
+                    // the cursor right now, and popping everything it
+                    // spans (rather than just what the cursor is actually
+                    // over) read as "too much pops out". So: trigger only
+                    // segments whose OWN x-range contains mouse.x, same
+                    // test as the ordinary lane-0 hover-trigger above,
+                    // just not restricted to lane==0 here since a lane>0
+                    // segment stacked under the cursor should trigger too
+                    // even though it has no line of its own to click.
+                    for (int j = 0; j < (int)segs.size(); j++)
+                    {
+                        if (mouse.x >= segs[j].startX && mouse.x < segs[j].endX)
+                            s_dropStates[segs[j].key].clickHoldSeconds = kClickHoldSeconds;
+                    }
+                    io.WantCaptureMouse = true;
+                }
+            }
+        }
+    }
+
+    // ---- Click hit-testing (existing): click an already-dropped block or
+    // pill to copy its waypoint ----
     for (int idx : hoveredIndices)
     {
         const LineSegment& s = segs[idx];
