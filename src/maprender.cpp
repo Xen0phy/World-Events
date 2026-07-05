@@ -4,6 +4,7 @@
 #include "settings.h"
 #include "imgui.h"
 #include <cmath>
+#include <cstdint>
 #include <ctime>
 #include <string>
 #include <unordered_map>
@@ -12,7 +13,7 @@
 #include <cctype>
 
 // ---------------------------------------------------------------------------
-// Icon textures — optional, per-event, user-supplied
+// Icon textures — optional, per-event, user-supplied OR bundled default
 // ---------------------------------------------------------------------------
 // Mirrors the loading pattern already used for the Speedo's face/needle
 // textures in another addon this project's author maintains: scan a
@@ -21,6 +22,14 @@
 // which can hand back a Texture_t* whose ->Resource is still null while
 // the file decodes in the background, with no signal for when it becomes
 // ready), and cache the result by filename.
+//
+// A second source was added alongside this: a small set of default icons
+// shipped compiled into the dll itself (see events_icons.h / s_defaultIcons
+// below), loaded via Textures_LoadFromMemory instead of LoadFromFile so no
+// files need to exist on disk for these to work out of the box. Disk is
+// always checked FIRST for a given filename — see GetOrRequestEventIcon —
+// so a user can still override/reskin a bundled icon by dropping a
+// same-named file into their own textures/ folder.
 //
 // Unlike the Speedo (which has exactly one face texture and one needle
 // texture), an arbitrary number of DIFFERENT events can each reference a
@@ -52,9 +61,52 @@ static std::unordered_map<std::string, EventIconEntry> s_iconCache;
 static std::vector<std::string> s_iconFilenames;
 static bool s_iconFilenamesScanned = false;
 
+// ---------------------------------------------------------------------------
+// Default (bundled) icons — shipped compiled into this dll, not read from
+// disk. events_icons.h holds the raw PNG bytes as static byte arrays (same
+// gray/alpha-recolor convention as the AUTHORING REQUIREMENT above — these
+// were verified gray/alpha before being embedded here), one array + one
+// "_size" companion per icon, same shape as this project's existing
+// hotbar_icon.h.
+//
+// Precedence is DISK FIRST, same filename: a user can drop a file named
+// e.g. "WorldBoss.png" into their own textures/ folder to reskin/override
+// a bundled icon without recompiling — see GetOrRequestEventIcon below.
+// This table is only consulted when nothing matching exists on disk.
+// ---------------------------------------------------------------------------
+#include "events_icons.h"
+
+struct DefaultIconEntry
+{
+    const char*    name;
+    const uint8_t* data;
+    uint64_t       size;
+};
+
+static const DefaultIconEntry s_defaultIcons[] =
+{
+    { "Convergence.png", g_ConvergenceIconData, g_ConvergenceIconData_size },
+    { "EventBoss.png",   g_EventBossIconData,   g_EventBossIconData_size },
+    { "EventMap.png",    g_EventMapIconData,    g_EventMapIconData_size },
+    { "WorldBoss.png",   g_WorldBossIconData,   g_WorldBossIconData_size },
+};
+
+static const DefaultIconEntry* FindDefaultIcon(const std::string& filename)
+{
+    for (const auto& entry : s_defaultIcons)
+        if (filename == entry.name)
+            return &entry;
+    return nullptr;
+}
+
 // Scan (or re-scan) "<addon dir>/textures" and rebuild s_iconFilenames.
 // Call this to refresh after the user adds new files — there's no
 // automatic filesystem-watching, matching the Speedo's existing pattern.
+//
+// Also merges in the bundled default icon names (s_defaultIcons above) so
+// they appear in the same dropdown as user-supplied files — a name already
+// present from disk is not duplicated, since disk always wins for that
+// name regardless (see GetOrRequestEventIcon).
 void ScanEventIconFiles()
 {
     s_iconFilenames.clear();
@@ -73,6 +125,11 @@ void ScanEventIconFiles()
         if (ext == ".png" || ext == ".jpg" || ext == ".jpeg")
             s_iconFilenames.push_back(entry.path().filename().string());
     }
+
+    for (const auto& defaultIcon : s_defaultIcons)
+        if (std::find(s_iconFilenames.begin(), s_iconFilenames.end(), defaultIcon.name) == s_iconFilenames.end())
+            s_iconFilenames.push_back(defaultIcon.name);
+
     std::sort(s_iconFilenames.begin(), s_iconFilenames.end());
 }
 
@@ -95,6 +152,13 @@ static void OnEventIconReceived(const char* aIdentifier, Texture_t* aTexture)
 // kicks off an async request — same fire-and-forget pattern as the
 // Speedo's UpdateSpeedoTextures, just called per-filename on demand
 // instead of once per frame for a couple of fixed slots).
+//
+// DISK FIRST: if a file by this name exists under <addonDir>/textures,
+// it's loaded from there exactly as before, even if the same name also
+// exists in s_defaultIcons — this is what lets a user override/reskin a
+// bundled icon just by dropping a same-named file, no rebuild needed.
+// Only when nothing matches on disk does this fall back to the bundled
+// table via Textures_LoadFromMemory instead of Textures_LoadFromFile.
 static Texture_t* GetOrRequestEventIcon(const std::string& filename)
 {
     if (filename.empty()) return nullptr;
@@ -111,7 +175,19 @@ static Texture_t* GetOrRequestEventIcon(const std::string& filename)
         // can route the callback back to the right cache entry — the
         // filename itself already is unique within this cache's key
         // space, so it doubles as the identifier directly.
-        APIDefs->Textures_LoadFromFile(filename.c_str(), fullPath.c_str(), OnEventIconReceived);
+        std::error_code ec;
+        if (std::filesystem::exists(fullPath, ec))
+        {
+            APIDefs->Textures_LoadFromFile(filename.c_str(), fullPath.c_str(), OnEventIconReceived);
+        }
+        else if (const DefaultIconEntry* bundled = FindDefaultIcon(filename))
+        {
+            // aData is a non-const void* in the Nexus signature even
+            // though this call only reads/decodes it — the bytes live in
+            // events_icons.h's static arrays for the whole process
+            // lifetime, so the cast away const is safe here.
+            APIDefs->Textures_LoadFromMemory(filename.c_str(), (void*)bundled->data, bundled->size, OnEventIconReceived);
+        }
     }
 
     return nullptr; // not ready yet this frame; falls back to the plain dot

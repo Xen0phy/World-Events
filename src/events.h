@@ -49,13 +49,6 @@ struct WorldEvent
     // all; only an event someone actually wants hidden needs
     // `.shown = false` added.
     bool shown = true;
-    
-    // Varying (isVarying = true)
-    std::vector<int> varyingTimes; // seconds from UTC midnight, sorted
-    
-    // Periodic (isVarying = false)
-    int         period;     // seconds, e.g. 7200 for 2h events
-    int         offset;     // seconds from UTC midnight of first start
 
     // Optional: filename of a user-supplied icon in the addon's textures/
     // folder, drawn instead of the plain dot when non-empty. The icon is
@@ -69,6 +62,13 @@ struct WorldEvent
     // LAST in the struct deliberately, so every existing positional
     // aggregate-initializer in events_basic.cpp keeps working unchanged.
     std::string iconTexture;
+    
+    // Varying (isVarying = true)
+    std::vector<int> varyingTimes; // seconds from UTC midnight, sorted
+    
+    // Periodic (isVarying = false)
+    int         period;     // seconds, e.g. 7200 for 2h events
+    int         offset;     // seconds from UTC midnight of first start
 };
 
 // All events. Populated in events_basic.cpp, used by maprender.cpp.
