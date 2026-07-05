@@ -43,6 +43,53 @@ extern std::vector<Category> g_BasicCategories;
 extern std::vector<Category> g_CyclicCategories;
 
 // ---------------------------------------------------------------------------
+// CategoryDefault / CategoryDefaultMember
+// ---------------------------------------------------------------------------
+// Compiled-in category defaults, defined the same way g_Events and
+// g_CyclicGroups are: written by hand in events_basic.cpp/events_cyclic.cpp,
+// referencing members BY NAME. This is a separate type from `Category`
+// (not just a `Category` with extra data) because it needs to travel through
+// LoadCategoriesData's merge step, where JSON membership normally wins —
+// `forced` is the one exception to that, so it needs to survive past the
+// point where everything else gets collapsed down to plain names.
+//
+// This is the direct replacement for grouping compiled-in entries with
+// plain `//` comments (see the "Core bosses"/"LLA"/etc. comments in
+// events_basic.cpp, or the expansion-name comments in events_cyclic.cpp) —
+// same grouping, but now real data the options-panel UI can render as
+// actual categories on a fresh install, instead of just a comment only
+// visible in source.
+struct CategoryDefaultMember
+{
+    std::string name;
+
+    // When true, this member is pushed into this category on every load
+    // where the saved file predates EVENTS_DATA_VERSION (see events.h),
+    // REGARDLESS of where the user's file currently has it — even if
+    // they'd previously dragged it to a different category, or out to
+    // uncategorized. Use sparingly: this overrides a user's own
+    // organization choice, so it's meant for "this one really belongs
+    // here" cases, not routine grouping. Default false means adding a
+    // new compiled-in category costs nothing extra for the common case —
+    // membership just seeds once and is then fully user-editable.
+    bool forced = false;
+};
+
+struct CategoryDefault
+{
+    std::string name;
+    std::vector<CategoryDefaultMember> members;
+};
+
+// Defined in events_basic.cpp and events_cyclic.cpp, right alongside
+// g_Events/g_CyclicGroups, mirroring that split. Consumed only by
+// LoadCategoriesData (categories.cpp) — nothing else should read these
+// directly, since g_BasicCategories/g_CyclicCategories are what everything
+// downstream (the options panel, rendering) actually uses.
+extern std::vector<CategoryDefault> g_DefaultBasicCategories;
+extern std::vector<CategoryDefault> g_DefaultCyclicCategories;
+
+// ---------------------------------------------------------------------------
 // RenameCategoryMember
 // ---------------------------------------------------------------------------
 // Call this from the SAME place a rename actually happens (i.e. right
@@ -87,6 +134,22 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 // dropping any category data just saved a moment earlier. The reverse
 // order (current call site in addon.cpp) is safe: SaveCategoriesData
 // always reads back whatever SaveEventsData just wrote.
+//
+// LoadCategoriesData merges g_DefaultBasicCategories/g_DefaultCyclicCategories
+// (compiled-in, see above) with whatever's in the JSON, keyed by category
+// name — same shape as LoadEventsData's merge in events_storage.cpp:
+//   - Category name in both   -> JSON's membership wins (preserves any
+//                                 drag-and-drop reorganization the user did).
+//   - Name only in defaults   -> new compiled-in category, added — but
+//                                 only when the saved file predates
+//                                 EVENTS_DATA_VERSION; on an up-to-date
+//                                 file, a missing default category means
+//                                 the user deleted it, so it stays gone.
+//   - Name only in the JSON   -> a user-created category, always kept.
+// After that merge, any member marked `forced` (see CategoryDefaultMember
+// above) is pushed into its target category — again, only when the file
+// predates EVENTS_DATA_VERSION, so it seeds/re-asserts on real content
+// changes without permanently overriding a user's later choice to move it.
 //
 // Both swallow exceptions and return false on failure.
 // ---------------------------------------------------------------------------

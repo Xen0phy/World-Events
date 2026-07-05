@@ -391,6 +391,15 @@ void RenderMapEvents()
             if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
         }
 
+        // Map-only hide: skip drawing entirely. Doesn't touch the
+        // Subscriptions bar/window (those are opt-in regardless) and
+        // doesn't remove it from the options panel list. Exempted while
+        // being edited/dragged, same reasoning as the culling and
+        // time-window filter above/below — hiding it mid-drag would
+        // silently end the drag.
+        if (!isBeingEdited && !ev.shown)
+            continue;
+
         bool active = IsEventActive(ev, now);
         int  secs   = GetSecondsUntilEventStart(ev, now);
 

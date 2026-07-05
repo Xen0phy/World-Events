@@ -43,10 +43,14 @@ void AddonLoad(AddonAPI_t* aAPI)
     // below then writes them out so the file exists from this run on.
     LoadEventsData(g_AddonDir);
 
-    // Categories have no compiled-in defaults to merge against (they're
-    // entirely user-created), so this just loads straight from the same
-    // events.json file. Order relative to LoadEventsData doesn't matter
-    // here — only the SAVE order below does, see categories.h.
+    // g_DefaultBasicCategories / g_DefaultCyclicCategories are the
+    // compiled-in category defaults (events_basic.cpp / events_cyclic.cpp),
+    // merged with events.json's "basicCategories"/"cyclicCategories" by
+    // name — see categories.cpp. LoadCategoriesData reads the on-disk
+    // "data_version" itself (same key LoadEventsData reads), so it doesn't
+    // depend on LoadEventsData having run first; order relative to
+    // LoadEventsData still doesn't matter here — only the SAVE order below
+    // does, see categories.h.
     LoadCategoriesData(g_AddonDir);
 
     // Same file, same "no compiled-in defaults to merge" story as

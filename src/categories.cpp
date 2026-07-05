@@ -1,10 +1,12 @@
 // categories.cpp
-// Storage and JSON persistence for user-created category groupings.
+// Storage and JSON persistence for category groupings.
 //
-// Unlike g_Events/g_CyclicGroups, categories have no compiled-in defaults
-// to merge against — they're entirely user-created, so loading just
-// replaces whatever's in memory with whatever's on disk. No merge step,
-// no name-collision handling beyond what RenameCategoryMember already does.
+// Categories can come from two places: compiled-in defaults
+// (g_DefaultBasicCategories/g_DefaultCyclicCategories, written by hand in
+// events_basic.cpp/events_cyclic.cpp — see categories.h) and user-created
+// ones (made through the options-panel drag-and-drop UI). Loading merges
+// the two by category NAME, the same way LoadEventsData merges g_Events/
+// g_CyclicGroups in events_storage.cpp — see MergeCategoryDefaults below.
 //
 // Persisted in events.json alongside "events"/"cyclicGroups", as two
 // sibling arrays: "basicCategories" and "cyclicCategories". This keeps the
@@ -13,10 +15,12 @@
 // data.
 
 #include "categories.h"
+#include "events.h" // EVENTS_DATA_VERSION — shared version number for the whole events.json file
 #include "nlohmann_json.hpp"
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
+#include <unordered_map>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -99,6 +103,108 @@ static std::vector<Category> DeserializeCategoryList(const json& arr)
 }
 
 // ---------------------------------------------------------------------------
+// Merging compiled-in default categories with what's on disk
+// ---------------------------------------------------------------------------
+// A CategoryDefault only carries plain names + a `forced` flag (see
+// categories.h) — this converts one down to a runtime Category so it can
+// be dropped straight into g_BasicCategories/g_CyclicCategories when no
+// JSON version exists yet to win instead.
+static Category CategoryDefaultToCategory(const CategoryDefault& def)
+{
+    Category cat;
+    cat.name = def.name;
+    for (const auto& m : def.members)
+        cat.members.push_back(m.name);
+    return cat;
+}
+
+// Same shape as MergeByKey in events_storage.cpp, just not the same
+// template — the element types differ (CategoryDefault vs Category), and
+// unlike events/groups there's nothing to merge one level deeper (a
+// Category's only content IS its member list, so "JSON wins" is the whole
+// merge for a matched name, not just a starting point).
+//
+//   - Name in both      -> keep the JSON category as-is (its membership,
+//                           however the user has arranged it, wins).
+//   - Name only in defaults -> new compiled-in category. Added only when
+//                           resurrectMissingDefaults is true; on an
+//                           up-to-date file, a missing default name means
+//                           the user deleted that category, not that it's
+//                           new.
+//   - Name only in JSON -> a category the user made themselves (or one
+//                           that used to be compiled-in and got removed
+//                           from the build) — always kept, never dropped.
+static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDefault>& defaults, const std::vector<Category>& loaded, bool resurrectMissingDefaults)
+{
+    std::unordered_map<std::string, size_t> loadedIndexByName;
+    for (size_t i = 0; i < loaded.size(); i++)
+        loadedIndexByName[loaded[i].name] = i; // last one wins if names somehow repeat in the file
+
+    std::vector<bool> matched(loaded.size(), false);
+    std::vector<Category> result;
+    result.reserve(defaults.size() + loaded.size());
+
+    for (const auto& def : defaults)
+    {
+        auto it = loadedIndexByName.find(def.name);
+        if (it != loadedIndexByName.end())
+        {
+            result.push_back(loaded[it->second]);
+            matched[it->second] = true;
+        }
+        else if (resurrectMissingDefaults)
+        {
+            result.push_back(CategoryDefaultToCategory(def));
+        }
+        // else: dropped — file is current, so this default's absence means
+        // the user deleted the category, not that it's newly-shipped.
+    }
+
+    for (size_t i = 0; i < loaded.size(); i++)
+        if (!matched[i])
+            result.push_back(loaded[i]);
+
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// ForceCategoryMembership
+// ---------------------------------------------------------------------------
+// Implements CategoryDefaultMember::forced: unconditionally places
+// memberName into the category named categoryName, removing it from every
+// OTHER category in the list first (membership stays exclusive — same rule
+// MoveCategoryMember already follows). If categoryName isn't in the merged
+// list yet for some reason (e.g. its own default was dropped because the
+// file was already current — shouldn't normally happen together with a
+// forced member still being processed, but handled defensively), the
+// category is created so the forced member always has somewhere to land.
+//
+// Only ever called when the caller has already confirmed the file predates
+// EVENTS_DATA_VERSION — see LoadCategoriesData below and the comment on
+// CategoryDefaultMember::forced in categories.h for why it's gated that
+// way instead of running on every load.
+static void ForceCategoryMembership(std::vector<Category>& categories, const std::string& categoryName, const std::string& memberName)
+{
+    for (auto& cat : categories)
+    {
+        auto it = std::find(cat.members.begin(), cat.members.end(), memberName);
+        if (it != cat.members.end())
+            cat.members.erase(it);
+    }
+
+    for (auto& cat : categories)
+    {
+        if (cat.name == categoryName)
+        {
+            cat.members.push_back(memberName);
+            return;
+        }
+    }
+
+    categories.push_back({categoryName, {memberName}});
+}
+
+// ---------------------------------------------------------------------------
 // SaveCategoriesData / LoadCategoriesData
 // ---------------------------------------------------------------------------
 // These read/write the SAME events.json file that SaveEventsData/
@@ -149,17 +255,55 @@ bool LoadCategoriesData(const std::string& addonDir)
     try
     {
         std::string filepath = addonDir + "\\events.json";
+
+        // savedVersion stays 0 and both loaded lists stay empty when there's
+        // no file yet — which naturally makes resurrectMissingDefaults true
+        // below and the merge resolve to exactly the compiled-in defaults,
+        // matching how g_Events/g_CyclicGroups behave on a first-ever run.
+        int64_t savedVersion = 0;
+        std::vector<Category> loadedBasic;
+        std::vector<Category> loadedCyclic;
+        bool fileExisted = false;
+
         std::ifstream file(filepath);
-        if (!file.is_open()) return false; // no file yet — categories stay empty
+        if (file.is_open())
+        {
+            fileExisted = true;
+            json j = json::parse(file);
 
-        json j = json::parse(file);
+            savedVersion = j.value("data_version", (int64_t)0);
 
-        if (j.contains("basicCategories"))
-            g_BasicCategories = DeserializeCategoryList(j["basicCategories"]);
-        if (j.contains("cyclicCategories"))
-            g_CyclicCategories = DeserializeCategoryList(j["cyclicCategories"]);
+            if (j.contains("basicCategories"))
+                loadedBasic = DeserializeCategoryList(j["basicCategories"]);
+            if (j.contains("cyclicCategories"))
+                loadedCyclic = DeserializeCategoryList(j["cyclicCategories"]);
+        }
 
-        return true;
+        // Same rule as LoadEventsData (events_storage.cpp): only treat a
+        // default missing from the file as new/shipped content — and only
+        // re-assert a forced member's placement — when the file genuinely
+        // predates this build. An up-to-date file means the user's own
+        // edits (deleting a category, moving a forced member elsewhere)
+        // are the current truth and shouldn't be fought on every load.
+        bool resurrectMissingDefaults = savedVersion < EVENTS_DATA_VERSION;
+
+        g_BasicCategories  = MergeCategoryDefaults(g_DefaultBasicCategories,  loadedBasic,  resurrectMissingDefaults);
+        g_CyclicCategories = MergeCategoryDefaults(g_DefaultCyclicCategories, loadedCyclic, resurrectMissingDefaults);
+
+        if (resurrectMissingDefaults)
+        {
+            for (const auto& def : g_DefaultBasicCategories)
+                for (const auto& m : def.members)
+                    if (m.forced)
+                        ForceCategoryMembership(g_BasicCategories, def.name, m.name);
+
+            for (const auto& def : g_DefaultCyclicCategories)
+                for (const auto& m : def.members)
+                    if (m.forced)
+                        ForceCategoryMembership(g_CyclicCategories, def.name, m.name);
+        }
+
+        return fileExisted;
     }
     catch (...) { return false; }
 }

@@ -2,6 +2,7 @@
 #include <vector>
 #include <optional>
 #include <string>
+#include <cstdint>
 #include "imgui.h"
 
 // ===========================================================================
@@ -19,10 +20,35 @@ struct WorldEvent
     // Optional GW2 chat/map code (e.g. "[&BIgIAAA=]" for a waypoint),
     // free text set by the user in the options panel for this event.
     // Empty string = no code set, matching iconTexture's "empty means
-    // unset" convention just above. Placed LAST, same reasoning as
-    // iconTexture: keeps every existing positional aggregate-initializer
-    // in events_basic.cpp working unchanged.
+    // unset" convention just above. NOT the last field anymore — see
+    // `shown` right below for why it sits here instead of at the end.
     std::string chatCode;
+
+    // Shows/hides this event on the MAP OVERLAY only (maprender.cpp skips
+    // it entirely when false) — it still shows up in the options panel
+    // list either way, and is NOT affected by/doesn't affect the
+    // Subscriptions bar/window, which are opt-in (the user has to
+    // specifically subscribe to something there regardless of this flag).
+    //
+    // Defaults to true (shown), not false: this sits right next to a
+    // subscribe checkbox in the options panel UI (addon_options.cpp), and
+    // two adjacent checkboxes that are BOTH unchecked-by-default/
+    // false-by-default look identical at a glance — a user can easily
+    // misread "not subscribed, not hidden" as "not subscribed, hidden" or
+    // vice versa. `shown` defaulting to true and rendering as a checked
+    // checkbox reads unambiguously as "on by default," distinct from the
+    // subscribe checkbox next to it starting unchecked.
+    //
+    // Placed right after chatCode, deliberately NOT at the end after
+    // iconTexture — every existing entry in events_basic.cpp already
+    // provides something past chatCode (varyingTimes, or period+offset),
+    // so putting `shown` at the very end would force every line to also
+    // spell out a value for iconTexture just to reach it. Right after
+    // chatCode, only one token needs to be inserted per line — and since
+    // true is the default, existing compiled-in entries need no token at
+    // all; only an event someone actually wants hidden needs
+    // `.shown = false` added.
+    bool shown = true;
     
     // Varying (isVarying = true)
     std::vector<int> varyingTimes; // seconds from UTC midnight, sorted
@@ -98,6 +124,23 @@ struct CyclicGroup
         // introduced for why `repeat`/`customColor` still had to move.
         std::string chatCode;
 
+        // Shows/hides this SLOT's arc only — the rest of the group's ring
+        // (background track + other slots) still draws normally when
+        // this is false. For hiding the WHOLE ring, see
+        // CyclicGroup::shown below instead.
+        //
+        // Defaults to true, same reasoning as WorldEvent::shown in this
+        // file: this sits next to a per-slot subscribe checkbox in the
+        // options panel, and two checkboxes both defaulting to
+        // false/unchecked are too easy to misread against each other.
+        //
+        // Placed right after chatCode for the same reason as
+        // WorldEvent::shown: most slots already provide something past
+        // chatCode positionally in events_cyclic.cpp (repeat, in the few
+        // slots that override it), so this avoids also having to spell
+        // out customColor just to reach a trailing field.
+        bool        shown = true;
+
         int         repeat = 1; // number of evenly-spaced occurrences per period.
                                  // period must be evenly divisible by repeat.
 
@@ -121,6 +164,27 @@ struct CyclicGroup
     // to the slot's own color for the user's taste).
     std::optional<ImU32> idleColor;
 
+    // Shows/hides the ENTIRE ring for this group — background track AND
+    // every slot — as if the group didn't exist this frame, when false.
+    // For hiding just one occurrence within an otherwise-visible ring,
+    // see Slot::shown above instead.
+    //
+    // Defaults to true, same reasoning as WorldEvent::shown/Slot::shown
+    // above: sits next to a group-level subscribe checkbox in the
+    // options panel, and two both-false-by-default checkboxes are too
+    // easy to misread against each other at a glance.
+    //
+    // Placed LAST (after idleColor), unlike WorldEvent::shown/
+    // Slot::shown which sit right after chatCode: there's no chatCode
+    // at this (whole-group) level to anchor next to, and every existing
+    // compiled-in group in events_cyclic.cpp already provides `colors`
+    // and `slots` positionally, so inserting this any earlier would
+    // force every one of those ~20+ entries to be touched for no
+    // reason. Trailing + defaulted to true means none of them need any
+    // changes at all; only a group someone actually wants hidden needs
+    // `.shown = false` added.
+    bool shown = true;
+
     ImU32 SlotColor(const Slot& slot) const
     {
         if (slot.customColor.has_value())
@@ -142,6 +206,49 @@ struct CyclicGroup
 
 // All cyclic groups. Populated in events_cyclic.cpp, used by cyclicrender.cpp.
 extern std::vector<CyclicGroup> g_CyclicGroups;
+
+// ===========================================================================
+// Data version
+// ===========================================================================
+// A date, as an int (YYYYMMDD), bumped whenever EITHER of these change:
+//   - the on-disk SHAPE changes in a way old files can't just fall through
+//     defaults for (a field is removed/renamed, not just added — adding a
+//     new optional field with a sensible j.value() default does NOT need
+//     a bump, since old files keep loading fine and the new field just
+//     falls back to its default until the user sets it)
+//   - the COMPILED-IN CONTENT changes (a group/event/slot was added,
+//     removed, or renamed in events_cyclic.cpp/events_basic.cpp, OR a
+//     default category / forced membership changed — see categories.h)
+//
+// This drives the merge behavior in both LoadEventsData (events_storage.cpp)
+// and LoadCategoriesData (categories.cpp): if the saved file's version
+// already matches this constant, the file is known to be fully current
+// with the compiled-in defaults, so a name present in the defaults but
+// missing from the file is treated as something the USER removed/renamed
+// — it is NOT resurrected. Resurrection (treating a missing default as new
+// shipped content) only happens when this constant is genuinely newer than
+// what's saved, i.e. an actual new build with actual new/changed content.
+//
+// Without this check, renaming something to collide with another existing
+// name would cause the old name to come back from the compiled defaults on
+// the very next load (looking, to the merge, identical to "a new build
+// added this back") while the renamed duplicate also persisted — a real
+// bug found and fixed this session. The same principle is why a `forced`
+// category membership (see categories.h) only re-asserts itself when this
+// version has advanced past what's saved, rather than on every load —
+// otherwise a user dragging a forced member elsewhere would see it snap
+// back on every single launch instead of just once per actual content
+// change.
+//
+// One constant shared by events/cyclicGroups/categories, since all three
+// live in the same events.json file under the same "data_version" key —
+// there's one file, so one version number for whether it's current.
+//
+// int64_t, not int: a plain YYYYMMDD (e.g. 20260705) fits in 32 bits, but
+// if this ever grows minute-level precision (YYYYMMDDHHmm, e.g.
+// 202607051350) it exceeds INT32_MAX (~2.1 billion) and silently wraps —
+// int64_t has headroom for either granularity without revisiting this.
+constexpr int64_t EVENTS_DATA_VERSION = 202607051350; // YYYYMMDDHHmm
 
 // ===========================================================================
 // Time

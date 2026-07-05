@@ -52,30 +52,9 @@
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
-// A date, as an int (YYYYMMDD), bumped whenever EITHER of these change:
-//   - the on-disk SHAPE changes in a way old files can't just fall through
-//     defaults for (a field is removed/renamed, not just added — adding a
-//     new optional field with a sensible j.value() default does NOT need
-//     a bump, since old files keep loading fine and the new field just
-//     falls back to its default until the user sets it)
-//   - the COMPILED-IN CONTENT changes (a group/event/slot was added,
-//     removed, or renamed in events_cyclic.cpp/events_basic.cpp)
-//
-// This drives the merge behavior in LoadEventsData below: if the saved
-// file's version already matches this constant, the file is known to be
-// fully current with the compiled-in defaults, so a name present in the
-// defaults but missing from the file is treated as something the USER
-// removed/renamed — it is NOT resurrected. Resurrection (treating a
-// missing default as new shipped content) only happens when this
-// constant is genuinely newer than what's saved, i.e. an actual new
-// build with actual new/changed content.
-//
-// Without this check, renaming something to collide with another
-// existing name would cause the old name to come back from the compiled
-// defaults on the very next load (looking, to the merge, identical to
-// "a new build added this back") while the renamed duplicate also
-// persisted — a real bug found and fixed this session.
-static constexpr int EVENTS_DATA_VERSION = 202607051205;
+// EVENTS_DATA_VERSION now lives in events.h — shared with categories.cpp,
+// since both this file and categories.cpp read/write the same
+// "data_version" key in the same events.json.
 
 // ---------------------------------------------------------------------------
 // WorldEvent (de)serialization
@@ -95,6 +74,9 @@ static json SerializeEvent(const WorldEvent& ev)
 
     if (!ev.chatCode.empty())
         j["chatCode"] = ev.chatCode; // same "omit when empty" convention
+
+    if (!ev.shown)
+        j["shown"] = false; // omitted entirely when true (the default) — inverse of the old `hidden` field's "omit when false" convention
 
     if (ev.isVarying)
         j["varyingTimes"] = ev.varyingTimes;
@@ -116,6 +98,15 @@ static WorldEvent DeserializeEvent(const json& j)
     ev.duration    = j.value("duration", 0);
     ev.iconTexture = j.value("iconTexture", std::string());
     ev.chatCode    = j.value("chatCode", std::string());
+    // "shown" is the current key; "hidden" is read as a fallback so files
+    // saved before the hidden->shown flip still load correctly (a
+    // previously-hidden event stays hidden: shown = !hidden). Once
+    // "shown" has been written back by a save, "hidden" is never written
+    // again and this fallback simply never triggers for that file.
+    if (j.contains("shown"))
+        ev.shown = j.value("shown", true);
+    else
+        ev.shown = !j.value("hidden", false);
 
     if (ev.isVarying)
         ev.varyingTimes = j.value("varyingTimes", std::vector<int>{});
@@ -179,6 +170,9 @@ static json SerializeSlot(const CyclicGroup::Slot& slot)
     if (!slot.chatCode.empty())
         j["chatCode"] = slot.chatCode; // same "omit when empty" convention
 
+    if (!slot.shown)
+        j["shown"] = false; // omitted entirely when true (the default) — see WorldEvent's shown field above for the same convention
+
     return j;
 }
 
@@ -195,6 +189,12 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
         slot.customColor = HexStringToColor(j.value("customColor", std::string()), 0xFFFFFFFFu);
 
     slot.chatCode = j.value("chatCode", std::string());
+    // Same "shown" current-key / "hidden" fallback migration as
+    // DeserializeEvent above.
+    if (j.contains("shown"))
+        slot.shown = j.value("shown", true);
+    else
+        slot.shown = !j.value("hidden", false);
 
     return slot;
 }
@@ -213,6 +213,9 @@ static json SerializeGroup(const CyclicGroup& grp)
 
     if (grp.idleColor.has_value())
         j["idleColor"] = ColorToHexString(*grp.idleColor);
+
+    if (!grp.shown)
+        j["shown"] = false; // omitted entirely when true (the default) — see WorldEvent's shown field above for the same convention
 
     json slots = json::array();
     for (const auto& slot : grp.slots)
@@ -233,6 +236,11 @@ static CyclicGroup DeserializeGroup(const json& j)
 
     if (j.contains("idleColor"))
         grp.idleColor = HexStringToColor(j.value("idleColor", std::string()), 0xFFFFFFFFu);
+
+    // Same "shown" current-key / "hidden" fallback migration as
+    // DeserializeEvent above.
+    if (j.contains("shown"))
+        grp.shown = j.value("shown", true);
 
     if (j.contains("slots") && j["slots"].is_array())
         for (const auto& sj : j["slots"])
@@ -439,7 +447,7 @@ bool LoadEventsData(const std::string& addonDir)
 
         json j = json::parse(file);
 
-        int savedVersion = j.value("data_version", 0);
+        int64_t savedVersion = j.value("data_version", (int64_t)0);
         bool resurrectMissingDefaults = savedVersion < EVENTS_DATA_VERSION;
 
         std::vector<WorldEvent> loadedEvents;

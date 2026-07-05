@@ -561,6 +561,19 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
         ToggleBasicEventSubscription(ev.name);
     ImGui::SameLine();
 
+    // Map-only show/hide toggle, same tightened-checkbox treatment as the
+    // subscribe checkbox right before it (so both sit at the same
+    // height as the tree arrow) — see DrawSubscribeCheckbox's comment.
+    // Doesn't touch the Subscriptions bar/window at all; those are
+    // opt-in via the checkbox above regardless of this one. Checked =
+    // shown (ev.shown defaults to true), so an unmodified event always
+    // starts with both checkboxes reading unambiguously: subscribe
+    // unchecked, shown checked.
+    DrawSubscribeCheckbox("##show_on_map", ev.shown);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Show on the map overlay\n(Subscriptions bar/window are unaffected)");
+    ImGui::SameLine();
+
     std::string oldName = ev.name;
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType);
     bool open = nameResult.open;
@@ -754,6 +767,50 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
     CyclicGroup& grp = g_CyclicGroups[i];
 
+    // Group-level "subscribe all" checkbox — mirrors DrawBasicEventRow's
+    // subscribe/shown pair for visual consistency, but unlike that pair
+    // this one has no storage of its own. Per-slot subscription is still
+    // the only real state (see CyclicSubscriptionKey's comment in
+    // subscriptions.h for why bulk-subscribing lives at the group level
+    // conceptually but not as data) — this checkbox just reads/writes
+    // ALL slots' subscriptions at once:
+    //   - displayed checked only if EVERY slot is currently subscribed
+    //     (an empty group reads unchecked, not vacuously checked)
+    //   - ticking it subscribes every slot; unticking it unsubscribes
+    //     every slot
+    // Deliberately NOT tri-state: a "some but not all" mix just reads as
+    // unchecked here, same as an all-unsubscribed group. The per-slot
+    // checkboxes below are still the source of truth for exactly which
+    // occurrences are watched; this is a bulk convenience action, not a
+    // second place that mixed state needs representing.
+    bool allSlotsSubscribed = !grp.slots.empty() &&
+        std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
+        {
+            return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.name, slot.offset });
+        });
+    if (DrawSubscribeCheckbox("##subscribe_group", allSlotsSubscribed))
+    {
+        for (const auto& slot : grp.slots)
+        {
+            CyclicSubscriptionKey key{ grp.name, slot.offset };
+            if (IsCyclicSlotSubscribed(key) != allSlotsSubscribed)
+                ToggleCyclicSlotSubscription(key);
+        }
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Subscribe/unsubscribe every occurrence in this cycle at once\n(checked only when all of them already are)");
+    ImGui::SameLine();
+
+    // Map-only show/hide toggle for the ENTIRE ring (background track +
+    // every slot) — see CyclicGroup::shown in events.h. Same tightened-
+    // checkbox treatment as DrawBasicEventRow's subscribe/shown pair, so
+    // it sits at the same height as the tree arrow rather than a full
+    // Checkbox frame.
+    DrawSubscribeCheckbox("##show_group_on_map", grp.shown);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Show this entire ring on the map overlay\n(no circle drawn at all while unchecked)");
+    ImGui::SameLine();
+
     std::string oldGroupName = grp.name;
     NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, grp.name, editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType);
     bool open = nameResult.open;
@@ -859,13 +916,22 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             // Subscribe checkbox drawn BEFORE the name/tree-arrow, same
             // "[x] > Name" layout and tightened-padding reasoning as
             // DrawSubscribeCheckbox's comment. Per SLOT (an individual
-            // occurrence), not per group, per the call made this
-            // session: watching "Crash Site" shouldn't also silently
-            // watch every other event in the same cyclic group.
+            // occurrence), not per group — this is still the source of
+            // truth for exactly which occurrences are watched. The
+            // group-level checkbox above is a bulk convenience over
+            // these same per-slot subscriptions, not a separate flag.
             CyclicSubscriptionKey subKey{ grp.name, slot.offset };
             bool subscribed = IsCyclicSlotSubscribed(subKey);
             if (DrawSubscribeCheckbox("##subscribe", subscribed))
                 ToggleCyclicSlotSubscription(subKey);
+            ImGui::SameLine();
+
+            // Map-only show/hide toggle for just THIS occurrence — the
+            // rest of the ring (background track + other slots) still
+            // draws normally. See CyclicGroup::Slot::shown in events.h.
+            DrawSubscribeCheckbox("##show_slot_on_map", slot.shown);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Show just this occurrence on the map overlay");
             ImGui::SameLine();
 
             int slotEditKey = i * 100000 + s;

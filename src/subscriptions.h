@@ -20,8 +20,10 @@
 // events_storage.cpp, etc).
 //
 // Cyclic Events are subscribed to PER SLOT (an individual occurrence
-// within a group, e.g. just "Crash Site" at 14:00 UTC, not all of "Dry
-// Top"), per the call made this session. A bare slot name is NOT a safe
+// within a group, e.g. just "Crash Site" at 14:00 UTC). This is still the
+// only real subscription state — a group-level "subscribe all" checkbox
+// in addon_options.cpp is a bulk convenience over these same per-slot
+// entries, not a separate group-level flag. A bare slot name is NOT a safe
 // key on its own — slot names aren't unique even within one group (Dry
 // Top ships two "Crash Site" slots at different offsets, same as the
 // duplicate-name warning logic in addon_options.cpp already has to

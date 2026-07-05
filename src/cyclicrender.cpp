@@ -213,6 +213,15 @@ void RenderCyclicGroups()
             if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
         }
 
+        // Map-only hide: skip the WHOLE ring (background track + every
+        // slot), as if the group didn't exist this frame — no circle at
+        // all. Exempted while being dragged, same reasoning as the
+        // culling just above. For hiding a single slot within an
+        // otherwise-visible ring instead, see the slot.shown check
+        // inside the slot loop below.
+        if (!isBeingEdited && !grp.shown)
+            continue;
+
 
         // --- Background track, idle-colored (group's idleColor, defaulting
         // to colors.ter() — see CyclicGroup::IdleColor() in cyclic.h) ---
@@ -234,6 +243,11 @@ void RenderCyclicGroups()
 
         for (const auto& slot : grp.slots)
         {
+            // Map-only hide for just this one occurrence — the group's
+            // background track and every other slot still draw normally.
+            if (!slot.shown)
+                continue;
+
             ImU32 color  = grp.SlotColor(slot);
             int repeat   = slot.repeat > 0 ? slot.repeat : 1;
             int subSpan  = grp.period / repeat; // spacing between repeated occurrences
