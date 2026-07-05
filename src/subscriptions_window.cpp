@@ -1,10 +1,8 @@
 // subscriptions_window.cpp
 // Draws the standalone "Subscriptions" watchlist window.
 
-#include "subscriptions_window.h"
 #include "subscriptions.h"
 #include "events.h"
-#include "cyclic.h"
 #include "maprender.h"
 #include "settings.h"
 #include "imgui.h"
@@ -40,7 +38,7 @@ static SlotStatus GetCyclicSlotStatus(const CyclicGroup& grp, int slotOffset, ti
     {
         if (slot.offset != slotOffset) continue;
 
-        int secondsOfDay = (int)(now % 86400);
+        int secondsOfDay = (int)(now % grp.period);
         int repeat  = slot.repeat > 0 ? slot.repeat : 1;
         int subSpan = grp.period / repeat;
 

@@ -17,7 +17,6 @@
 #include "settings.h"
 #include "build_info.h"
 #include "events.h"
-#include "cyclic.h"
 #include "categories.h"
 #include "subscriptions.h"
 #include "maprender.h"
@@ -56,24 +55,47 @@ struct ImGuiScopedDisabled
 #define DisabledBlock(cond) if (ImGuiScopedDisabled DISABLED_BLOCK_CONCAT(_disabled_scope_, __LINE__){cond})
 
 // ---------------------------------------------------------------------------
-// Period dropdown: whole hours only (1-6h), deliberately — no GW2 event or
+// Period field: whole hours only, 1-12h, deliberately — no GW2 event or
 // event chain runs on anything other than a whole-hour cycle, so this keeps
 // the field from accepting values that imply a typo (e.g. half an hour).
+// Drawn as a DragInt (see DrawPeriodHoursDragInt below) rather than a Combo
+// so raising the cap doesn't require growing a hardcoded label array — 12h
+// covers every period seen so far (including the 7h groups) with headroom.
 // ---------------------------------------------------------------------------
-static const char* const kPeriodHourLabels[] = { "1h", "2h", "3h", "4h", "5h", "6h" };
-static constexpr int kPeriodHourCount = 6;
+static constexpr int kMinPeriodHours = 1;
+static constexpr int kMaxPeriodHours = 12;
 
-// Converts a period in seconds to a 0-based hour index for the dropdown.
-// Clamped to [0, kPeriodHourCount-1] — any out-of-range or non-whole-hour
+// Converts a period in seconds to whole hours, clamped to
+// [kMinPeriodHours, kMaxPeriodHours]. Any out-of-range or non-whole-hour
 // value (which shouldn't occur from this UI, but could from a hand-edited
 // JSON file) just snaps to the nearest valid hour rather than crashing or
-// showing garbage.
-static int PeriodSecondsToHourIndex(int periodSeconds)
+// showing garbage — same reasoning as the old dropdown-index helper this
+// replaces, just without a label array to index into.
+static int PeriodSecondsToHours(int periodSeconds)
 {
     int hours = periodSeconds / 3600;
-    if (hours < 1) hours = 1;
-    if (hours > kPeriodHourCount) hours = kPeriodHourCount;
-    return hours - 1;
+    if (hours < kMinPeriodHours) hours = kMinPeriodHours;
+    if (hours > kMaxPeriodHours) hours = kMaxPeriodHours;
+    return hours;
+}
+
+// Draws the shared "Period" DragInt widget and writes the result (in
+// seconds) back through periodSeconds if the user changed it. Factored out
+// since both the Basic Event row and the Cyclic Group row need the exact
+// same widget/clamp behavior — see the two call sites.
+static void DrawPeriodHoursDragInt(int* periodSeconds)
+{
+    int hours = PeriodSecondsToHours(*periodSeconds);
+    if (ImGui::DragInt("Period", &hours, 0.1f, kMinPeriodHours, kMaxPeriodHours, "%dh"))
+    {
+        // DragInt's min/max only clamp the drag gesture itself — typing a
+        // value directly (ctrl+click to turn it into a text box) can still
+        // enter something outside [min, max], so clamp again explicitly
+        // rather than trusting the widget's own bounds.
+        if (hours < kMinPeriodHours) hours = kMinPeriodHours;
+        if (hours > kMaxPeriodHours) hours = kMaxPeriodHours;
+        *periodSeconds = hours * 3600;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -662,9 +684,7 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
             ImGui::SameLine();
             ImGui::SetNextItemWidth(70.0f);
-            int hourIndex = PeriodSecondsToHourIndex(ev.period);
-            if (ImGui::Combo("Period", &hourIndex, kPeriodHourLabels, kPeriodHourCount))
-                ev.period = (hourIndex + 1) * 3600;
+            DrawPeriodHoursDragInt(&ev.period);
         }
 
         // Icon dropdown — "Dot" (index 0, the default) keeps the plain
@@ -771,9 +791,7 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
         ImGui::SameLine();
         ImGui::SetNextItemWidth(70.0f);
-        int hourIndex = PeriodSecondsToHourIndex(grp.period);
-        if (ImGui::Combo("Period", &hourIndex, kPeriodHourLabels, kPeriodHourCount))
-            grp.period = (hourIndex + 1) * 3600;
+        DrawPeriodHoursDragInt(&grp.period);
 
         // Base color (colors.base) — RRGGBBAA, see RGBABaseToFloat4's
         // comment above for why this needs the explicit conversion

@@ -1,5 +1,4 @@
 #include "addon.h"
-#include "cyclic.h"
 #include "events.h"
 #include "maprender.h"
 #include "cyclicrender.h"
@@ -36,7 +35,7 @@ void AddonLoad(AddonAPI_t* aAPI)
     LoadSettings(g_AddonDir); // missing file -> globals keep settings_table.h defaults
 
     // g_Events / g_CyclicGroups are already populated with the compiled-in
-    // defaults at this point (events.cpp / cyclic.cpp run at static-init
+    // defaults at this point (events_basic.cpp / events_cyclic.cpp run at static-init
     // time, before AddonLoad). LoadEventsData merges those defaults with
     // whatever's saved on disk (by name — see events_storage.cpp) and
     // replaces g_Events / g_CyclicGroups with the merged result. Missing

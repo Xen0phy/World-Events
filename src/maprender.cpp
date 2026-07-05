@@ -151,7 +151,7 @@ int GetSecondsUntilEventStart(const WorldEvent& ev, time_t now)
     }
 
     // Periodic: phase = how far into the current cycle we are
-    int phase = ((secondsOfDay - ev.offset) % ev.period + ev.period) % ev.period;
+    int phase = (((int)(now % ev.period) - ev.offset) % ev.period + ev.period) % ev.period;
     return ev.period - phase;
 }
 
@@ -174,7 +174,7 @@ int GetSecondsUntilEventEnd(const WorldEvent& ev, time_t now)
     }
 
     // Periodic: phase is how far into the cycle we are, duration - phase = time left
-    int phase = ((secondsOfDay - ev.offset) % ev.period + ev.period) % ev.period;
+    int phase = (((int)(now % ev.period) - ev.offset) % ev.period + ev.period) % ev.period;
     return ev.duration - phase;
 }
 

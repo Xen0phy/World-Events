@@ -18,13 +18,13 @@ add_custom_target(bump_rev
 add_library(gw2-world-events SHARED
     src/addon.cpp
     src/addon_options.cpp
-    src/maprender.cpp
-    src/events.cpp
-    src/cyclicrender.cpp
-    src/cyclic.cpp
-    src/settings.cpp
-    src/events_storage.cpp
+    src/events_basic.cpp
+    src/events_cyclic.cpp
     src/categories.cpp
+    src/cyclicrender.cpp
+    src/events_storage.cpp
+    src/maprender.cpp
+    src/settings.cpp
     src/subscriptions.cpp
     src/subscriptions_window.cpp
     src/subscriptions_bar.cpp

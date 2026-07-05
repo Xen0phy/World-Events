@@ -1,6 +1,5 @@
 #include "cyclicrender.h"
 #include "addon.h"
-#include "cyclic.h"
 #include "maprender.h"
 #include "settings.h"
 #include "imgui.h"
@@ -231,7 +230,7 @@ void RenderCyclicGroups()
                 1.0f, 0.0f);
 
         // --- Draw each slot ---
-        int secondsOfDay = (int)(now % 86400);
+        int secondsOfDay = (int)(now % grp.period);
 
         for (const auto& slot : grp.slots)
         {

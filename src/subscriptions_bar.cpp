@@ -5,10 +5,8 @@
 // block under the mouse. Port of the reference distribution-line.html
 // mock's curve-drop hover animation onto ImGui's background draw list.
 
-#include "subscriptions_bar.h"
 #include "subscriptions.h"
 #include "events.h"
-#include "cyclic.h"
 #include "maprender.h"
 #include "settings.h"
 #include "imgui.h"
@@ -337,7 +335,7 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         {
             if (slot.offset != key.slotOffset) continue;
 
-            int secondsOfDay = (int)(now % 86400);
+            int secondsOfDay = (int)(now % it -> period);
             int repeat  = slot.repeat > 0 ? slot.repeat : 1;
             int subSpan = it->period / repeat;
 

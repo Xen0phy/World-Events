@@ -10,7 +10,7 @@
 //   }
 //
 // On load, the compiled-in defaults (g_Events / g_CyclicGroups as built by
-// events.cpp / cyclic.cpp) are MERGED with whatever's on disk, matched by
+// events_basic.cpp / events_cyclic.cpp) are MERGED with whatever's on disk, matched by
 // KEY — not by array position, since inserting a new group/event in the
 // middle of the compiled-in list would otherwise shift every later index
 // and corrupt the match. Groups and events are keyed by name alone (no
@@ -44,7 +44,6 @@
 // the conventions in settings.cpp.
 
 #include "events.h"
-#include "cyclic.h"
 #include "nlohmann_json.hpp"
 #include <fstream>
 #include <filesystem>
@@ -60,7 +59,7 @@ namespace fs = std::filesystem;
 //     a bump, since old files keep loading fine and the new field just
 //     falls back to its default until the user sets it)
 //   - the COMPILED-IN CONTENT changes (a group/event/slot was added,
-//     removed, or renamed in cyclic.cpp/events.cpp)
+//     removed, or renamed in events_cyclic.cpp/events_basic.cpp)
 //
 // This drives the merge behavior in LoadEventsData below: if the saved
 // file's version already matches this constant, the file is known to be
@@ -76,7 +75,7 @@ namespace fs = std::filesystem;
 // defaults on the very next load (looking, to the merge, identical to
 // "a new build added this back") while the renamed duplicate also
 // persisted — a real bug found and fixed this session.
-static constexpr int EVENTS_DATA_VERSION = 20260626;
+static constexpr int EVENTS_DATA_VERSION = 202607051205;
 
 // ---------------------------------------------------------------------------
 // WorldEvent (de)serialization
@@ -316,7 +315,7 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
 }
 
 // Key helpers. Plain name is fine for top-level groups/events today (no
-// duplicates exist in cyclic.cpp/events.cpp as of this writing), but slots
+// duplicates exist in events_cyclic.cpp/events_basic.cpp as of this writing), but slots
 // within a single group CAN legitimately share a name — e.g. Dry Top has
 // two slots both named "Crash Site" at different offsets, a real repeat
 // occurrence, not a typo. Composite name+offset keys are used everywhere
@@ -410,7 +409,7 @@ bool SaveEventsData(const std::string& addonDir)
 // LoadEventsData
 // ---------------------------------------------------------------------------
 // Merges the compiled-in g_Events/g_CyclicGroups (as already populated by
-// events.cpp/cyclic.cpp before this is called) with whatever's saved on
+// events_basic.cpp/events_cyclic.cpp before this is called) with whatever's saved on
 // disk, by name, per the rules described at the top of this file. The
 // merged result REPLACES g_Events/g_CyclicGroups in place.
 //
