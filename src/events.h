@@ -6,6 +6,49 @@
 #include "imgui.h"
 
 // ===========================================================================
+// Data version
+// ===========================================================================
+// A date, as an int (YYYYMMDD), bumped whenever EITHER of these change:
+//   - the on-disk SHAPE changes in a way old files can't just fall through
+//     defaults for (a field is removed/renamed, not just added — adding a
+//     new optional field with a sensible j.value() default does NOT need
+//     a bump, since old files keep loading fine and the new field just
+//     falls back to its default until the user sets it)
+//   - the COMPILED-IN CONTENT changes (a group/event/slot was added,
+//     removed, or renamed in events_cyclic.cpp/events_basic.cpp, OR a
+//     default category / forced membership changed — see categories.h)
+//
+// This drives the merge behavior in both LoadEventsData (events_storage.cpp)
+// and LoadCategoriesData (categories.cpp): if the saved file's version
+// already matches this constant, the file is known to be fully current
+// with the compiled-in defaults, so a name present in the defaults but
+// missing from the file is treated as something the USER removed/renamed
+// — it is NOT resurrected. Resurrection (treating a missing default as new
+// shipped content) only happens when this constant is genuinely newer than
+// what's saved, i.e. an actual new build with actual new/changed content.
+//
+// Without this check, renaming something to collide with another existing
+// name would cause the old name to come back from the compiled defaults on
+// the very next load (looking, to the merge, identical to "a new build
+// added this back") while the renamed duplicate also persisted — a real
+// bug found and fixed this session. The same principle is why a `forced`
+// category membership (see categories.h) only re-asserts itself when this
+// version has advanced past what's saved, rather than on every load —
+// otherwise a user dragging a forced member elsewhere would see it snap
+// back on every single launch instead of just once per actual content
+// change.
+//
+// One constant shared by events/cyclicGroups/categories, since all three
+// live in the same events.json file under the same "data_version" key —
+// there's one file, so one version number for whether it's current.
+//
+// int64_t, not int: a plain YYYYMMDD (e.g. 20260705) fits in 32 bits, but
+// if this ever grows minute-level precision (YYYYMMDDHHmm, e.g.
+// 202607051350) it exceeds INT32_MAX (~2.1 billion) and silently wraps —
+// int64_t has headroom for either granularity without revisiting this.
+constexpr int64_t EVENTS_DATA_VERSION = 202607060140; // YYYYMMDDHHmm
+
+// ===========================================================================
 // Basic Events
 // ===========================================================================
 
@@ -206,49 +249,6 @@ struct CyclicGroup
 
 // All cyclic groups. Populated in events_cyclic.cpp, used by cyclicrender.cpp.
 extern std::vector<CyclicGroup> g_CyclicGroups;
-
-// ===========================================================================
-// Data version
-// ===========================================================================
-// A date, as an int (YYYYMMDD), bumped whenever EITHER of these change:
-//   - the on-disk SHAPE changes in a way old files can't just fall through
-//     defaults for (a field is removed/renamed, not just added — adding a
-//     new optional field with a sensible j.value() default does NOT need
-//     a bump, since old files keep loading fine and the new field just
-//     falls back to its default until the user sets it)
-//   - the COMPILED-IN CONTENT changes (a group/event/slot was added,
-//     removed, or renamed in events_cyclic.cpp/events_basic.cpp, OR a
-//     default category / forced membership changed — see categories.h)
-//
-// This drives the merge behavior in both LoadEventsData (events_storage.cpp)
-// and LoadCategoriesData (categories.cpp): if the saved file's version
-// already matches this constant, the file is known to be fully current
-// with the compiled-in defaults, so a name present in the defaults but
-// missing from the file is treated as something the USER removed/renamed
-// — it is NOT resurrected. Resurrection (treating a missing default as new
-// shipped content) only happens when this constant is genuinely newer than
-// what's saved, i.e. an actual new build with actual new/changed content.
-//
-// Without this check, renaming something to collide with another existing
-// name would cause the old name to come back from the compiled defaults on
-// the very next load (looking, to the merge, identical to "a new build
-// added this back") while the renamed duplicate also persisted — a real
-// bug found and fixed this session. The same principle is why a `forced`
-// category membership (see categories.h) only re-asserts itself when this
-// version has advanced past what's saved, rather than on every load —
-// otherwise a user dragging a forced member elsewhere would see it snap
-// back on every single launch instead of just once per actual content
-// change.
-//
-// One constant shared by events/cyclicGroups/categories, since all three
-// live in the same events.json file under the same "data_version" key —
-// there's one file, so one version number for whether it's current.
-//
-// int64_t, not int: a plain YYYYMMDD (e.g. 20260705) fits in 32 bits, but
-// if this ever grows minute-level precision (YYYYMMDDHHmm, e.g.
-// 202607051350) it exceeds INT32_MAX (~2.1 billion) and silently wraps —
-// int64_t has headroom for either granularity without revisiting this.
-constexpr int64_t EVENTS_DATA_VERSION = 202607051350; // YYYYMMDDHHmm
 
 // ===========================================================================
 // Time

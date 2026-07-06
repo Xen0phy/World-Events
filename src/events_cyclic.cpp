@@ -165,7 +165,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
             { "Effigy",              m10,     m15, ColorTier::Primary,   "[&BA4MAAA=]" },
             { "Doomlore Shrine", MIN(38), MIN(22), ColorTier::Secondary, "[&BA4MAAA=]" },
             { "Ooze Pits",           m65,     m20, ColorTier::Secondary, "[&BPgLAAA=]" },
-            { "Doomlore Shrine",    m100,     m15, ColorTier::Secondary, "[&BPgLAAA=]" },
+            { "Metal Concert",      m100,     m15, ColorTier::Secondary, "[&BPgLAAA=]" },
         }
     },
     { "Bjora Marches",
