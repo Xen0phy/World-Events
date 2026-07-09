@@ -21,6 +21,7 @@
 #include "subscriptions.h"
 #include "maprender.h"
 #include "icon_whitener.h"
+#include "gw2_api.h"
 #include "imgui.h"
 #include "imgui_internal.h" // ImGuiItemFlags_Disabled / PushItemFlag — not in the public header
 #include <cstring>
@@ -426,12 +427,31 @@ static void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 // into their own ev.name / grp.name / cat.name and are responsible for
 // any follow-up (e.g. RenameCategoryMember). Sets pendingRemoveIndex =
 // removeIndex if "Delete" was clicked.
+//
+// autoTag: optional display-only suffix (e.g. "(auto)") appended to the
+// TreeNode's visible label when the caller's underlying event/group has
+// a live GW2 API cross-reference (WorldEvent::apiWorldBossId or
+// CyclicGroup::apiMapChestId — see events.h). Purely cosmetic: it is
+// NEVER folded into currentName/newName, so it doesn't get saved, doesn't
+// affect renaming, drag payloads, or category/search matching — those
+// all keep operating on the real name exactly as before. nullptr (the
+// default) means "no such cross-reference," matching every OTHER call
+// site (slots, categories) which have no equivalent concept and so never
+// pass this argument at all.
 // ---------------------------------------------------------------------------
 struct NameRowResult { bool open; std::string newName; };
 
-static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType = nullptr)
+static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType = nullptr, const char* autoTag = nullptr)
 {
-    bool open = ImGui::TreeNode(treeNodeId, "%s", currentName.empty() ? "(unnamed)" : currentName.c_str());
+    std::string label = currentName.empty() ? "(unnamed)" : currentName;
+    if (autoTag)
+    {
+        label += " ";
+        label += autoTag;
+    }
+    bool open = ImGui::TreeNode(treeNodeId, "%s", label.c_str());
+    if (autoTag && ImGui::IsItemHovered())
+        ImGui::SetTooltip("Automatically tracked via the GW2 API.\nDrops off the Subscriptions bar/window on its own\nonce claimed today (no need to check it off by hand).");
 
     // Drag source attaches to the TreeNode itself, right after it's
     // drawn — NOT after BeginPopupContextItem/the edit fields below,
@@ -575,7 +595,8 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     ImGui::SameLine();
 
     std::string oldName = ev.name;
-    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType);
+    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType,
+        ev.apiWorldBossId.empty() ? nullptr : "(auto)");
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
@@ -812,7 +833,8 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     ImGui::SameLine();
 
     std::string oldGroupName = grp.name;
-    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, grp.name, editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType);
+    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, grp.name, editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType,
+        grp.apiMapChestId.empty() ? nullptr : "(auto)");
     bool open = nameResult.open;
     if (nameResult.newName != oldGroupName)
     {
@@ -1192,6 +1214,67 @@ void AddonOptions()
             ImGui::SetTooltip("How tall the dropped block/pill is, in px. Sized by default to fit two centered lines of label text; raise it if your font/DPI needs more room.");
 
         ImGui::Unindent();
+    }
+
+    // Not gated by either ShowSubscriptionsWindow or ShowSubscriptionsBar
+    // (unlike the DisabledBlock sections above/below): this key drives
+    // auto-hiding an already-completed Core Boss or map meta from BOTH
+    // views (subscriptions_window.cpp / subscriptions_bar.cpp), so it
+    // belongs to "Subscriptions" as a whole rather than to either
+    // individual view's own controls.
+    ImGui::Spacing();
+    ImGui::TextUnformatted("GW2 API key (Core Bosses + 8 HoT/PoF map metas)");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "Needs the \"progression\" permission. When set, a subscribed\n"
+            "Core Boss (Admiral Taidha Covington, Tequatl, etc.) is\n"
+            "automatically left off the watchlist window and bar once\n"
+            "your account has already killed it since the last daily\n"
+            "reset. The same applies to any subscribed slot in Verdant\n"
+            "Brink, Auric Basin, Tangled Depths, Dragon's Stand, Crystal\n"
+            "Oasis, Elon Riverlands, The Desolation, or Domain of\n"
+            "Vabbi, once that map's Hero's Choice Chest has already been\n"
+            "claimed today (the whole ring hides together, not just the\n"
+            "one slot). Nothing else is affected: the public API has no\n"
+            "\"already done today\" signal for any other event type in\n"
+            "this addon (other map metas, invasions, LLA, convergences),\n"
+            "so those are never hidden by this.");
+
+    {
+        static char apiKeyBuf[128] = "";
+        static bool bufInitialized = false;
+        if (!bufInitialized) // one-time seed from the loaded setting, same pattern as other InputText fields in this file
+        {
+            strncpy(apiKeyBuf, Gw2ApiKey.c_str(), sizeof(apiKeyBuf) - 1);
+            apiKeyBuf[sizeof(apiKeyBuf) - 1] = '\0';
+            bufInitialized = true;
+        }
+
+        ImGui::SetNextItemWidth(280.0f);
+        if (ImGui::InputText("##gw2_api_key", apiKeyBuf, sizeof(apiKeyBuf), ImGuiInputTextFlags_Password))
+            Gw2ApiKey = apiKeyBuf;
+    }
+
+    ImGui::SameLine();
+    switch (GetGw2ApiStatus())
+    {
+        case Gw2ApiStatus::NoKey:
+            ImGui::TextDisabled("No key set");
+            break;
+        case Gw2ApiStatus::Pending:
+            ImGui::TextDisabled("Checking...");
+            break;
+        case Gw2ApiStatus::Ok:
+            ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "Connected");
+            break;
+        case Gw2ApiStatus::InvalidKey:
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Invalid key / missing permission");
+            break;
+        case Gw2ApiStatus::NetworkError:
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "Network error, retrying");
+            break;
     }
 
     // Everything below only makes sense while the window itself is on —

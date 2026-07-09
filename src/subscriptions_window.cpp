@@ -5,6 +5,7 @@
 #include "events.h"
 #include "maprender.h"
 #include "settings.h"
+#include "gw2_api.h"
 #include "imgui.h"
 #include <windows.h>
 #include <ctime>
@@ -230,6 +231,12 @@ void RenderSubscriptionsWindow()
             [&](const WorldEvent& ev) { return ev.name == evName; });
         if (it == g_Events.end()) continue; // deleted since subscribing — skip, leave the subscription alone
 
+        // Only meaningful for the 13 Core Bosses (see events.h's
+        // apiWorldBossId) — empty for everything else, so this is a
+        // no-op for the rest of the list regardless of API key/status.
+        if (!it->apiWorldBossId.empty() && IsWorldBossCompletedToday(it->apiWorldBossId))
+            continue;
+
         bool active = IsEventActive(*it, now);
         int  secs   = active ? GetSecondsUntilEventEnd(*it, now) : GetSecondsUntilEventStart(*it, now);
         if (secs < 0) continue; // no timer data yet
@@ -243,6 +250,13 @@ void RenderSubscriptionsWindow()
         auto it = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
             [&](const CyclicGroup& grp) { return grp.name == key.groupName; });
         if (it == g_CyclicGroups.end()) continue; // group deleted since subscribing
+
+        // Group-level equivalent of the apiWorldBossId check above — see
+        // CyclicGroup::apiMapChestId in events.h for why this applies to
+        // the WHOLE group rather than just this one slot. No-op for every
+        // group except the 8 HoT/PoF maps /v2/account/mapchests covers.
+        if (!it->apiMapChestId.empty() && IsMapChestClaimedToday(it->apiMapChestId))
+            continue;
 
         SlotStatus status = GetCyclicSlotStatus(*it, key.slotOffset, now);
         if (!status.found) continue; // slot deleted/re-offset since subscribing
@@ -275,10 +289,24 @@ void RenderSubscriptionsWindow()
 
     if (rows.empty())
     {
-        if (SubscriptionsHideActive && !(g_SubscribedBasicEvents.empty() && g_SubscribedCyclicSlots.empty()))
+        bool hasSubscriptions = !(g_SubscribedBasicEvents.empty() && g_SubscribedCyclicSlots.empty());
+
+        if (hasSubscriptions && SubscriptionsHideActive)
         {
             ImGui::TextDisabled("Nothing upcoming — everything");
             ImGui::TextDisabled("subscribed is currently active.");
+        }
+        else if (hasSubscriptions)
+        {
+            // Reachable when every subscribed Core Boss has already been
+            // killed today (see IsWorldBossCompletedToday above) and/or
+            // every subscribed meta-event slot's map chest has already
+            // been claimed today (see IsMapChestClaimedToday above), and
+            // nothing else is subscribed — distinct from "no
+            // subscriptions at all" below, since the fix here isn't
+            // "check a box", it's "wait for reset".
+            ImGui::TextDisabled("Nothing to show — everything");
+            ImGui::TextDisabled("subscribed is already done today.");
         }
         else
         {

@@ -23,6 +23,7 @@ add_library(gw2-world-events SHARED
     src/categories.cpp
     src/cyclicrender.cpp
     src/events_storage.cpp
+    src/gw2_api.cpp
     src/maprender.cpp
     src/settings.cpp
     src/subscriptions.cpp
@@ -39,7 +40,7 @@ add_dependencies(gw2-world-events bump_rev)
 
 target_include_directories(gw2-world-events PRIVATE include)
 
-target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32)
+target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp)
 
 set_target_properties(gw2-world-events PROPERTIES
     OUTPUT_NAME "gw2-world-events"

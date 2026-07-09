@@ -112,6 +112,22 @@ struct WorldEvent
     // Periodic (isVarying = false)
     int         period;     // seconds, e.g. 7200 for 2h events
     int         offset;     // seconds from UTC midnight of first start
+
+    // Cross-reference into the PUBLIC GW2 API's /v2/worldbosses id list
+    // (e.g. "tequatl_the_sunless"), used to ask /v2/account/worldbosses
+    // (see gw2_api.h) whether the account has already killed this boss
+    // since the last daily reset. Empty = no equivalent — most entries in
+    // this file (invasions, LLA, fractal incursions, convergences) have
+    // NO API-visible "done today" signal at all, since the public API
+    // only exposes this for the 13 classic Tyria world bosses. Leaving it
+    // empty is the correct/only option for those, not a TODO.
+    //
+    // Deliberately LAST: every existing row in events_basic.cpp already
+    // provides all 11 fields above positionally, so adding this at the
+    // end means only the 13 rows that actually have an API id need a
+    // 12th value appended — everything else keeps compiling unchanged
+    // and defaults to "" via aggregate init.
+    std::string apiWorldBossId;
 };
 
 // All events. Populated in events_basic.cpp, used by maprender.cpp.
@@ -227,6 +243,34 @@ struct CyclicGroup
     // changes at all; only a group someone actually wants hidden needs
     // `.shown = false` added.
     bool shown = true;
+
+    // Cross-reference into the PUBLIC GW2 API's /v2/mapchests id list
+    // (e.g. "auric_basin_heros_choice_chest"), used to ask
+    // /v2/account/mapchests (see gw2_api.h) whether the account has
+    // already claimed this map's Hero's Choice Chest since the last
+    // daily reset. Empty = no equivalent.
+    //
+    // GROUP-LEVEL, not per-slot, unlike WorldEvent::apiWorldBossId being
+    // per-event: every one of the 8 maps /v2/account/mapchests actually
+    // covers grants its single chest from whichever slot in this
+    // addon's data represents that map's climactic meta step (or, for
+    // The Desolation/Domain of Vabbi, from more than one slot sharing
+    // one daily limit) — so "done today" is a property of the whole
+    // ring, not of one slot in isolation. Checked once per group in
+    // subscriptions_window.cpp/subscriptions_bar.cpp's slot loop, same
+    // place the Basic Event apiWorldBossId check already lives.
+    //
+    // Every other CyclicGroup (invasions, LLA, fractal incursions,
+    // convergences, and every map meta /v2/mapchests doesn't cover) has
+    // NO API-visible "done today" signal at all and simply leaves this
+    // empty — not a TODO, the correct/only option for those.
+    //
+    // Deliberately LAST, same reasoning as `shown` just above: every
+    // existing compiled-in group already stops positionally at `slots`,
+    // so only the 8 groups that actually have a mapchest need to also
+    // spell out `idleColor`/`shown` (their defaults) positionally to
+    // reach this trailing field.
+    std::string apiMapChestId;
 
     ImU32 SlotColor(const Slot& slot) const
     {

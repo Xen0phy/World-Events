@@ -8,6 +8,7 @@
 #include "events.h"
 #include "maprender.h"
 #include "settings.h"
+#include "gw2_api.h"
 #include "imgui.h"
 #include <ctime>
 #include <cmath>
@@ -177,6 +178,12 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             [&](const WorldEvent& ev) { return ev.name == evName; });
         if (it == g_Events.end()) continue; // deleted since subscribing
 
+        // Same "already done today" check as the watchlist window — see
+        // events.h's apiWorldBossId and gw2_api.h. No-op for every event
+        // other than the 13 Core Bosses.
+        if (!it->apiWorldBossId.empty() && IsWorldBossCompletedToday(it->apiWorldBossId))
+            continue;
+
         bool active = IsEventActive(*it, now);
         int  startSec, endSec, statusSecs;
 
@@ -211,6 +218,14 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         auto it = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
             [&](const CyclicGroup& grp) { return grp.name == key.groupName; });
         if (it == g_CyclicGroups.end()) continue; // group deleted since subscribing
+
+        // Group-level equivalent of the Basic Event apiWorldBossId check
+        // just above in this same function — see CyclicGroup::apiMapChestId
+        // in events.h for why this applies to the WHOLE group rather than
+        // just this one slot. No-op for every group except the 8 HoT/PoF
+        // maps /v2/account/mapchests covers.
+        if (!it->apiMapChestId.empty() && IsMapChestClaimedToday(it->apiMapChestId))
+            continue;
 
         for (const auto& slot : it->slots)
         {

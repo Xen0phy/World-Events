@@ -74,6 +74,7 @@ template<> bool         parse<bool>        (const std::string& v) { return v == 
 template<> int          parse<int>         (const std::string& v) { return std::stoi(v); }
 template<> float        parse<float>       (const std::string& v) { return std::stof(v); }
 template<> unsigned int parse<unsigned int>(const std::string& v) { return (unsigned int)std::stoul(v); }
+template<> std::string  parse<std::string> (const std::string& v) { return v; }
 
 bool LoadSettings(const std::string& addonDir)
 {

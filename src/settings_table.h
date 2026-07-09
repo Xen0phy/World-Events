@@ -212,6 +212,17 @@ SETTING(Subscriptions, SubscriptionsBarHideActive, bool, false)
 SETTING(Subscriptions, SubscriptionsActiveColor, unsigned int, 0x66FF66FFu) // light green
 SETTING(Subscriptions, SubscriptionsSoonColor,   unsigned int, 0xFF8C00FFu) // orange, matches BasicEventColorSoon's RGB
 
+// GW2 API key (needs at minimum the "progression" permission), used ONLY
+// to call GET /v2/account/worldbosses — see gw2_api.h/.cpp. Drives
+// automatically hiding a subscribed Core Boss from the Subscriptions
+// window/bar once the account has already killed it since the last UTC
+// daily reset. Empty = feature off; nothing is hidden, and no requests
+// are made (see PollGw2Api's early-out). Stored in plaintext in
+// settings.ini, same as every other setting in this file — this addon
+// has no secret-storage mechanism, so treat this file like any other
+// plaintext credential file on disk.
+SETTING(Subscriptions, Gw2ApiKey, std::string, std::string())
+
 SETTING(System, delayMilliseconds, int, 50)
 SETTING(Subscriptions, SubscriptionsBarMinimalMode, bool, false)
 SETTING(Subscriptions, SubscriptionsBarBottomAnchored, bool, false)

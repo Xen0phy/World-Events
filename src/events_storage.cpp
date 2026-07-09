@@ -460,9 +460,58 @@ bool LoadEventsData(const std::string& addonDir)
             for (const auto& gj : j["cyclicGroups"])
                 loadedGroups.push_back(DeserializeGroup(gj));
 
+        // Snapshot the compiled-in-only cross-reference fields BEFORE the
+        // merge below overwrites g_Events/g_CyclicGroups — see the restamp
+        // step just after the merge for why this snapshot exists at all.
+        std::unordered_map<std::string, std::string> defaultWorldBossIdByName;
+        for (const auto& ev : g_Events)
+            if (!ev.apiWorldBossId.empty())
+                defaultWorldBossIdByName[ev.name] = ev.apiWorldBossId;
+
+        std::unordered_map<std::string, std::string> defaultMapChestIdByName;
+        for (const auto& grp : g_CyclicGroups)
+            if (!grp.apiMapChestId.empty())
+                defaultMapChestIdByName[grp.name] = grp.apiMapChestId;
+
         g_Events = MergeByKey(g_Events, loadedEvents, EventKey, resurrectMissingDefaults);
 
         g_CyclicGroups = MergeGroups(g_CyclicGroups, loadedGroups, resurrectMissingDefaults);
+
+        // Restamp apiWorldBossId/apiMapChestId from the compiled-in
+        // defaults for every matched entry.
+        //
+        // BUG FIX: neither field is ever written to or read from
+        // events.json (see Serialize/DeserializeEvent and
+        // Serialize/DeserializeGroup above — deliberately, since these
+        // are compiled-in cross-references, not user-editable settings).
+        // But MergeByKey/MergeGroups make the LOADED object win wholesale
+        // for any key that exists in both defaults and the file (so user
+        // customizations elsewhere on that entry survive) — and a freshly
+        // deserialized object never had apiWorldBossId/apiMapChestId set
+        // in the first place, since those keys don't exist in the JSON.
+        // Net effect, unfixed: apiWorldBossId silently went blank for
+        // every one of the 13 Core Bosses (and apiMapChestId would have
+        // for all 8 mapchest-covered map groups) on the very first load
+        // after the very first save — i.e. this whole "hide once done"
+        // feature would go dark after one addon restart. Restamping from
+        // the pre-merge compiled defaults here, by name, for every entry
+        // regardless of which branch of the merge it came from, is the
+        // fix — cheap, and correct even for a brand-new name that only
+        // exists in this build (resurrectMissingDefaults path) since
+        // defaultWorldBossIdByName/defaultMapChestIdByName were captured
+        // from those same compiled defaults above.
+        for (auto& ev : g_Events)
+        {
+            auto it = defaultWorldBossIdByName.find(ev.name);
+            if (it != defaultWorldBossIdByName.end())
+                ev.apiWorldBossId = it->second;
+        }
+        for (auto& grp : g_CyclicGroups)
+        {
+            auto it = defaultMapChestIdByName.find(grp.name);
+            if (it != defaultMapChestIdByName.end())
+                grp.apiMapChestId = it->second;
+        }
 
         return true;
     }

@@ -6,6 +6,7 @@
 #include "events_storage.h"
 #include "categories.h"
 #include "subscriptions.h"
+#include "gw2_api.h"
 #include "imgui.h"
 #include "version.h"
 
@@ -111,6 +112,12 @@ void AddonRender()
     // gates the two map-only overlays.
     if (MumbleLink && NexusLink && NexusLink->IsGameplay)
     {
+        // Cheap no-op most frames (see PollGw2Api's internal rate
+        // limiting) — called here, alongside the two views that actually
+        // consume its data, rather than unconditionally every frame
+        // regardless of gameplay state.
+        PollGw2Api();
+
         RenderSubscriptionsWindow();
         RenderSubscriptionsBar();
     }

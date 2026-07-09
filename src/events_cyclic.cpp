@@ -56,7 +56,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
             { "Night Bosses", m10, m20, ColorTier::Primary,   "[&BAgIAAA=]" },
             { "Securing Day", m30, m75, ColorTier::Tertiary,  "[&BAgIAAA=]" },
             { "Night Enemy",  m95, m25, ColorTier::Secondary, "[&BAgIAAA=]" },
-        }
+        },
+        std::nullopt, true, "verdant_brink_heros_choice_chest"
     },
     { "Auric Basin",
         34486.0f, 33919.0f, m120, COL_HOT,
@@ -64,7 +65,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
             { "Challenges", m45,m15,  ColorTier::Secondary, "[&BGwIAAA=]" },
             { "Octovine",   m60, m20, ColorTier::Primary,   "[&BAIIAAA=]" },
             { "Pylons",     m90, m75, ColorTier::Tertiary,  "[&BN0HAAA=]" },
-        }
+        },
+        std::nullopt, true, "auric_basin_heros_choice_chest"
     },
     { "Tangled Depths",
         37372.0f, 35317.0f, m120, COL_HOT,
@@ -72,14 +74,16 @@ std::vector<CyclicGroup> g_CyclicGroups =
             { "Prep",        m25, m5,  ColorTier::Secondary, "[&BPUHAAA=]" },
             { "Chak Gerent", m30, m40, ColorTier::Primary,   "[&BPUHAAA=]" },
             { "Outposts",    m70, m75, ColorTier::Tertiary,  "[&BAwIAAA=]" },
-        }
+        },
+        std::nullopt, true, "tangled_depths_heros_choice_chest"
     },
     { "Dragon's Stand",
         35722.0f, 37328.0f, m120, COL_HOT,
         {
             { "Mordremoth Start",    m90, m30, ColorTier::Primary,   "[&BIgIAAA=]" },
             { "Mordremoth Progress", 0,   m90, ColorTier::Secondary, "[&BIgIAAA=]" },
-        }
+        },
+        std::nullopt, true, "dragons_stand_heros_choice_chest"
     },
 
     // ---------------------------------------------------------------------------
@@ -102,7 +106,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
         {
             { "Casino Rounds", m5, m15, ColorTier::Secondary, "[&BLsKAAA=]" },
             { "Choya Pinata",  m20,m10, ColorTier::Primary,   "[&BLsKAAA=]" },
-        }
+        },
+        std::nullopt, true, "crystal_oasis_heros_choice_chest"
     },
     { "Desert Highlands",
         59964.0f, 41384.0f, m120, COL_POF,
@@ -115,21 +120,24 @@ std::vector<CyclicGroup> g_CyclicGroups =
         {
             { "The Path to Ascension", m90, m25, ColorTier::Secondary, "[&BFMKAAA=]" },
             { "Doppelganger",         m115, m20, ColorTier::Primary,   "[&BFMKAAA=]" },
-        }
+        },
+        std::nullopt, true, "elon_riverlands_heros_choice_chest"
     },
     { "The Desolation",
         59943.0f, 50257.0f, m120, COL_POF,
         {
             { "Junundu Rising",  m30, m20, ColorTier::Primary,   "[&BMEKAAA=]", false, 2 },
             { "Maws of Torment", m60, m20, ColorTier::Secondary, "[&BKMKAAA=]" },
-        }
+        },
+        std::nullopt, true, "the_desolation_heros_choice_chest"
     },
     { "Domain of Vabbi",
         66332.0f, 53596.0f, m120, COL_POF,
         {
             { "Forged with Fire", 0, m30, ColorTier::Primary,   "[&BO0KAAA=]", false, 2 },
             { "Serpents' Ire",  m30, m30, ColorTier::Secondary, "[&BHQKAAA=]" },
-        }
+        },
+        std::nullopt, true, "domain_of_vabbi_heros_choice_chest"
     },
     
     // ---------------------------------------------------------------------------

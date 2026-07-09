@@ -11,34 +11,40 @@ std::vector<WorldEvent> g_Events =
     {"Mount Balrior",                    43095.0f, 22672.0f, false, m20, "[&BK4OAAA=]",  true, "Convergence.png", {}, 3 * m60,             0},
 
     // Core bosses
-    {"Admiral Taidha Covington",         48872.0f, 33548.0f, false, m15, "[&BKgBAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,             0},
-    {"Claw of Jormag",                   56032.0f, 25417.0f, false, m15, "[&BHoCAAA=]",  true, "WorldBoss.png",   {}, 3 * m60, 3 * m60 + m30},
-    {"Fire Elemental",                   40346.0f, 33755.0f, false, m15, "[&BEcAAAA=]",  true, "WorldBoss.png",   {},    m120,           m45},
-    {"Golem Mark II",                    53954.0f, 38916.0f, false, m15, "[&BNQCAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,          m120},
-    {"Great Jungle Wurm",                42365.0f, 33145.0f, false, m15, "[&BEEFAAA=]",  true, "WorldBoss.png",   {},    m120,           m75},
+    // Trailing string on each of these 13 rows is the GW2 API's
+    // /v2/worldbosses id for this boss (verified against the wiki's
+    // documented list) — see WorldEvent::apiWorldBossId in events.h and
+    // gw2_api.h for what it's used for. No other section in this file
+    // gets one: these 13 are the ONLY events the public API can confirm
+    // "already done today" for.
+    {"Admiral Taidha Covington",         48872.0f, 33548.0f, false, m15, "[&BKgBAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,             0, "admiral_taidha_covington"},
+    {"Claw of Jormag",                   56032.0f, 25417.0f, false, m15, "[&BHoCAAA=]",  true, "WorldBoss.png",   {}, 3 * m60, 2 * m60 + m30, "claw_of_jormag"},
+    {"Fire Elemental",                   40346.0f, 33755.0f, false, m15, "[&BEcAAAA=]",  true, "WorldBoss.png",   {},    m120,           m45, "fire_elemental"},
+    {"Golem Mark II",                    53954.0f, 38916.0f, false, m15, "[&BNQCAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,          m120, "inquest_golem_mark_ii"},
+    {"Great Jungle Wurm",                42365.0f, 33145.0f, false, m15, "[&BEEFAAA=]",  true, "WorldBoss.png",   {},    m120,           m75, "great_jungle_wurm"},
     {"Karka Queen",                      46346.0f, 35978.0f,  true, m15, "[&BNUGAAA=]",  true, "WorldBoss.png",   {      m120, 
                                                                                                                                                                6 * m60,
                                                                                                                                                               10 * m60 + m30,
                                                                                                                                                               15 * m60,
                                                                                                                                                               18 * m60,
-                                                                                                                                                              23 * m60}},
-    {"Megadestroyer",                    51939.0f, 39395.0f, false, m15, "[&BM0CAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,           m30},
-    {"Modniir Ulgoth",                   49079.0f, 26174.0f, false, m15, "[&BLAAAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,           m90},
-    {"Shadow Behemoth",                  44837.0f, 29997.0f,  false, m15, "[&BPcAAAA=]",  true, "WorldBoss.png",   {},    m120,          m105},
-    {"Svanir Shaman Chief",              56071.0f, 29379.0f,  false, m15, "[&BMIDAAA=]",  true, "WorldBoss.png",   {},    m120,           m15},
+                                                                                                                                                              23 * m60}, 0, 0, "karka_queen"},
+    {"Megadestroyer",                    51939.0f, 39395.0f, false, m15, "[&BM0CAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,           m30, "megadestroyer"},
+    {"Modniir Ulgoth",                   49079.0f, 26174.0f, false, m15, "[&BLAAAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,           m90, "modniir_ulgoth"},
+    {"Shadow Behemoth",                  44837.0f, 29997.0f,  false, m15, "[&BPcAAAA=]",  true, "WorldBoss.png",   {},    m120,          m105, "shadow_behemoth"},
+    {"Svanir Shaman Chief",              56071.0f, 29379.0f,  false, m15, "[&BMIDAAA=]",  true, "WorldBoss.png",   {},    m120,           m15, "svanir_shaman_chief"},
     {"Tequatl the Sunless",              48412.0f, 38488.0f,   true, m15, "[&BNABAAA=]",  true, "WorldBoss.png",   {         0,
                                                                                                                                                                3 * m60,
                                                                                                                                                                7 * m60,
                                                                                                                                                               11 * m60 + m30,
                                                                                                                                                               16 * m60,
-                                                                                                                                                              19 * m60}},
-    {"The Shatterer",                    62512.0f, 29023.0f,  false, m15, "[&BE4DAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,           m60},
+                                                                                                                                                              19 * m60}, 0, 0, "tequatl_the_sunless"},
+    {"The Shatterer",                    62512.0f, 29023.0f,  false, m15, "[&BE4DAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,           m60, "the_shatterer"},
     {"Triple Trouble",                   49480.0f, 34069.0f,   true, m15, "[&BKoBAAA=]",  true, "WorldBoss.png",   {       m60,
                                                                                                                                                                4 * m60,
                                                                                                                                                                8 * m60,
                                                                                                                                                               12 * m60 + m30,
                                                                                                                                                               17 * m60,
-                                                                                                                                                              20 * m60}},
+                                                                                                                                                              20 * m60}, 0, 0, "triple_trouble_wurm"},
 
     // LEy Line Anomaly
     {"Ley Line Anomaly (Iron Marches)",  60822.0f, 28530.0f,  false, m20, "[&BOcBAAA=]",  true, "EventBoss.png",   {}, 6 * m60,           m20},
