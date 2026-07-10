@@ -16,10 +16,12 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <unordered_set>
+#include <unordered_map>
 #include <mutex>
 #include <atomic>
 #include <thread>
 #include <ctime>
+#include <cctype>
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -31,6 +33,7 @@ using json = nlohmann::json;
 static std::mutex                      s_mutex;
 static std::unordered_set<std::string> s_completedWorldBosses; // guarded by s_mutex
 static std::unordered_set<std::string> s_claimedMapChests;     // guarded by s_mutex — same cache-day/status as above, one fetch pass covers both
+static std::unordered_map<std::string, bool> s_weeklyObjectiveComplete; // guarded by s_mutex — key: lowercased objective title, value: complete? same cache-day/status as the two sets above, but see PollGw2Api's third fetch below for why a failure here doesn't invalidate the other two
 
 static std::atomic<Gw2ApiStatus> s_status{Gw2ApiStatus::NoKey};
 static std::atomic<bool>         s_fetchInProgress{false};
@@ -49,6 +52,18 @@ static std::atomic<long long> s_lastFetchAttemptUnixTime{0};
 static long long CurrentUtcDay()
 {
     return (long long)(time(nullptr) / 86400);
+}
+
+// ASCII-only lowercase, used solely for matching Wizard's Vault objective
+// titles case-insensitively (see s_weeklyObjectiveComplete/
+// GetWeeklyObjectiveState below). Every title observed so far is plain
+// ASCII English, so no locale/UTF-8 handling is needed here.
+static std::string AsciiLower(const std::string& s)
+{
+    std::string out = s;
+    for (char& c : out)
+        c = (char)tolower((unsigned char)c);
+    return out;
 }
 
 // The account/worldbosses list only changes when the player actually
@@ -219,10 +234,52 @@ void PollGw2Api()
             return;
         }
 
+        // Third call: Wizard's Vault weekly objectives. Deliberately a
+        // SOFT failure, unlike the two above — this feature is newer, and
+        // an older/differently-scoped API key, or ArenaNet changing just
+        // this one endpoint, must not take down the two already-working
+        // daily checks. On any failure here, weeklyOk stays false and
+        // s_weeklyObjectiveComplete below is simply left untouched (same
+        // "stale over wrong" rule as everywhere else in this file) —
+        // worst case, GetWeeklyObjectiveState just reports NotThisWeek
+        // for everything until a later poll succeeds.
+        std::unordered_map<std::string, bool> weeklyComplete;
+        bool weeklyOk = false;
+        {
+            std::string body;
+            int wvStatusCode = 0;
+            bool transportOk = HttpsGetJson(L"api.guildwars2.com", L"/v2/account/wizardsvault/weekly", apiKeyCopy, body, wvStatusCode);
+            if (transportOk && wvStatusCode == 200)
+            {
+                try
+                {
+                    json j = json::parse(body);
+                    if (j.contains("objectives") && j["objectives"].is_array())
+                    {
+                        for (const auto& obj : j["objectives"])
+                        {
+                            if (!obj.contains("title") || !obj["title"].is_string()) continue;
+                            std::string title = obj["title"].get<std::string>();
+                            int  progressCurrent  = obj.value("progress_current", 0);
+                            int  progressComplete = obj.value("progress_complete", 0);
+                            bool claimed          = obj.value("claimed", false);
+                            bool done = claimed || (progressComplete > 0 && progressCurrent >= progressComplete);
+                            weeklyComplete[AsciiLower(title)] = done;
+                        }
+                    }
+                    weeklyOk = true;
+                }
+                catch (...) { /* malformed body on a 200 — weeklyOk stays false, weeklyComplete discarded below */ }
+            }
+        }
+
         {
             std::lock_guard<std::mutex> lock(s_mutex);
             s_completedWorldBosses = std::move(completedWorldBosses);
             s_claimedMapChests     = std::move(claimedMapChests);
+            if (weeklyOk)
+                s_weeklyObjectiveComplete = std::move(weeklyComplete);
+            // else: leave s_weeklyObjectiveComplete exactly as it was.
         }
         s_cachedForDay.store(today);
         s_status.store(Gw2ApiStatus::Ok);
@@ -253,4 +310,16 @@ bool IsMapChestClaimedToday(const std::string& mapChestApiId)
 
     std::lock_guard<std::mutex> lock(s_mutex);
     return s_claimedMapChests.count(mapChestApiId) != 0;
+}
+
+WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title)
+{
+    if (title.empty()) return WeeklyObjectiveState::NotThisWeek;
+    if (s_cachedForDay.load() != CurrentUtcDay()) return WeeklyObjectiveState::NotThisWeek; // same "no data yet / stale" degradation as the two daily checks above
+
+    std::string key = AsciiLower(title);
+    std::lock_guard<std::mutex> lock(s_mutex);
+    auto it = s_weeklyObjectiveComplete.find(key);
+    if (it == s_weeklyObjectiveComplete.end()) return WeeklyObjectiveState::NotThisWeek; // not in the live rotation this week (or the soft-fail third fetch hasn't succeeded yet) — either way, not a match
+    return it->second ? WeeklyObjectiveState::Complete : WeeklyObjectiveState::Incomplete;
 }

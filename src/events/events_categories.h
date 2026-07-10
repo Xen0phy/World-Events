@@ -83,7 +83,7 @@ struct CategoryDefault
 
 // Defined in events_basic.cpp and events_cyclic.cpp, right alongside
 // g_Events/g_CyclicGroups, mirroring that split. Consumed only by
-// LoadCategoriesData (categories.cpp) — nothing else should read these
+// LoadCategoriesData (events_categories.cpp) — nothing else should read these
 // directly, since g_BasicCategories/g_CyclicCategories are what everything
 // downstream (the options panel, rendering) actually uses.
 extern std::vector<CategoryDefault> g_DefaultBasicCategories;

@@ -1,7 +1,7 @@
 // subscriptions.cpp
 // Storage and JSON persistence for the user's subscribed-events watchlist.
 //
-// Mirrors categories.cpp closely: no compiled-in defaults to merge
+// Mirrors events_categories.cpp closely: no compiled-in defaults to merge
 // against, so loading just replaces whatever's in memory with whatever's
 // on disk. Persisted in events.json alongside "events"/"cyclicGroups"/
 // "basicCategories"/"cyclicCategories", as two more sibling keys.

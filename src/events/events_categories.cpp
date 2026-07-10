@@ -1,9 +1,9 @@
-// categories.cpp
+// events_categories.cpp
 // Storage and JSON persistence for category groupings.
 //
 // Categories can come from two places: compiled-in defaults
 // (g_DefaultBasicCategories/g_DefaultCyclicCategories, written by hand in
-// events_basic.cpp/events_cyclic.cpp — see categories.h) and user-created
+// events_basic.cpp/events_cyclic.cpp — see events_categories.h) and user-created
 // ones (made through the options-panel drag-and-drop UI). Loading merges
 // the two by category NAME, the same way LoadEventsData merges g_Events/
 // g_CyclicGroups in events_storage.cpp — see MergeCategoryDefaults below.
@@ -14,7 +14,7 @@
 // only ever reference names that live there, never copies of the actual
 // data.
 
-#include "categories.h"
+#include "events_categories.h"
 #include "events.h" // EVENTS_DATA_VERSION — shared version number for the whole events.json file
 #include "nlohmann_json.hpp"
 #include <fstream>
@@ -106,7 +106,7 @@ static std::vector<Category> DeserializeCategoryList(const json& arr)
 // Merging compiled-in default categories with what's on disk
 // ---------------------------------------------------------------------------
 // A CategoryDefault only carries plain names + a `forced` flag (see
-// categories.h) — this converts one down to a runtime Category so it can
+// events_categories.h) — this converts one down to a runtime Category so it can
 // be dropped straight into g_BasicCategories/g_CyclicCategories when no
 // JSON version exists yet to win instead.
 static Category CategoryDefaultToCategory(const CategoryDefault& def)
@@ -181,7 +181,7 @@ static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDef
 //
 // Only ever called when the caller has already confirmed the file predates
 // EVENTS_DATA_VERSION — see LoadCategoriesData below and the comment on
-// CategoryDefaultMember::forced in categories.h for why it's gated that
+// CategoryDefaultMember::forced in events_categories.h for why it's gated that
 // way instead of running on every load.
 static void ForceCategoryMembership(std::vector<Category>& categories, const std::string& categoryName, const std::string& memberName)
 {

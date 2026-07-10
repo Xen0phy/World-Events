@@ -1,5 +1,5 @@
 #include "events.h"
-#include "categories.h"
+#include "events_categories.h"
 
 // Continent coordinates taken directly from Sognus's fallback data.
 // These are in GW2 continent 1 (Tyria) coordinates.
@@ -69,7 +69,7 @@ std::vector<WorldEvent> g_Events =
 };
 
 // Compiled-in default categories for the options-panel list, one per
-// comment-grouping above — see CategoryDefault in categories.h. Built on
+// comment-grouping above — see CategoryDefault in events_categories.h. Built on
 // first load (or whenever EVENTS_DATA_VERSION advances past what a user's
 // saved file has), then fully user-editable from there: renaming, deleting,
 // or moving members around all stick, since LoadCategoriesData only

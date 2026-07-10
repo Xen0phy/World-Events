@@ -9,6 +9,7 @@
 #include "maprender.h"
 #include "settings.h"
 #include "gw2_api.h"
+#include "weekly_vault.h"
 #include "imgui.h"
 #include <ctime>
 #include <cmath>
@@ -53,6 +54,7 @@ struct LineSegment
     int         durationSecs; // endSec - startSec, clamped to the window; used for widest-first stack ordering
     ImU32       color;
     int         lane = 0;     // 0 = drawn on the resting baseline; >0 = hidden behind lane 0, shown only via dot marker + hover
+    bool        isWeekly = false; // true = an active-and-incomplete weekly Wizard's Vault target this week (weekly_vault.h) — draws an additional small red marker, independent of everything else in this struct
 };
 
 // Builds the second label line: "Active - ends in Xm YYs" or "in Xm YYs".
@@ -103,6 +105,11 @@ struct DotMark
 // Builds one dot per lane>0 (hidden) segment whose start tick falls inside
 // the range of whatever lane-0 segment currently occupies the baseline at
 // that x. A hidden segment starting in a pure gap gets no dot.
+// Additionally includes one dot per lane-0 *weekly* segment at its own
+// start tick — lane-0 segments are normally represented by the colored
+// baseline line alone with no dot, but a weekly segment needs a dot
+// regardless of lane so its red marker (see the recoloring at the actual
+// draw site below) has somewhere to render.
 static std::vector<DotMark> CollectOverlapDots(const std::vector<LineSegment>& segs, float stripWidth)
 {
     std::vector<DotMark> dots;
@@ -113,7 +120,11 @@ static std::vector<DotMark> CollectOverlapDots(const std::vector<LineSegment>& s
 
     for (int i = 0; i < (int)segs.size(); i++)
     {
-        if (segs[i].lane == 0) continue;
+        if (segs[i].lane == 0)
+        {
+            if (segs[i].isWeekly) dots.push_back({ segs[i].startX, i });
+            continue;
+        }
 
         float startX = segs[i].startX;
         for (int lane0Idx : lane0Indices)
@@ -172,46 +183,155 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
 
     auto secToX = [&](int sec) { return (sec / (float)kWindowSeconds) * stripWidth; };
 
-    for (const auto& evName : g_SubscribedBasicEvents)
+    // ---- Basic Events ----
+    // Factored out of the loop below so the exact same segment-building
+    // logic (timing math, daily apiWorldBossId check, push_back) serves
+    // both the manual-subscription pass and the weekly-auto-track pass
+    // further down, differing only in the isWeekly flag they pass in.
+    auto AddBasicSegment = [&](const WorldEvent& ev, bool isWeekly)
     {
-        auto it = std::find_if(g_Events.begin(), g_Events.end(),
-            [&](const WorldEvent& ev) { return ev.name == evName; });
-        if (it == g_Events.end()) continue; // deleted since subscribing
-
         // Same "already done today" check as the watchlist window — see
         // events.h's apiWorldBossId and gw2_api.h. No-op for every event
-        // other than the 13 Core Bosses.
-        if (!it->apiWorldBossId.empty() && IsWorldBossCompletedToday(it->apiWorldBossId))
-            continue;
+        // other than the 13 Core Bosses. Entirely independent of the
+        // isWeekly/weekly Wizard's Vault check below — different reward
+        // track, different reset schedule (see weekly_vault.h).
+        if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
+            return;
 
-        bool active = IsEventActive(*it, now);
+        bool active = IsEventActive(ev, now);
         int  startSec, endSec, statusSecs;
 
         if (active)
         {
-            int secsLeft = GetSecondsUntilEventEnd(*it, now);
-            if (secsLeft < 0) continue; // no timer data
+            int secsLeft = GetSecondsUntilEventEnd(ev, now);
+            if (secsLeft < 0) return; // no timer data
             startSec   = 0; // already underway
             endSec     = std::min(secsLeft, kWindowSeconds);
             statusSecs = secsLeft;
         }
         else
         {
-            int secsUntilStart = GetSecondsUntilEventStart(*it, now);
-            if (secsUntilStart < 0 || secsUntilStart >= kWindowSeconds) continue;
+            int secsUntilStart = GetSecondsUntilEventStart(ev, now);
+            if (secsUntilStart < 0 || secsUntilStart >= kWindowSeconds) return;
             startSec   = secsUntilStart;
-            endSec     = std::min(secsUntilStart + it->duration, kWindowSeconds);
+            endSec     = std::min(secsUntilStart + ev.duration, kWindowSeconds);
             statusSecs = secsUntilStart;
         }
 
-        if (endSec <= startSec) continue;
-        if (active && SubscriptionsBarHideActive) continue;
-        segs.push_back({
-            "Basic:" + it->name, it->name, it->chatCode,
+        if (endSec <= startSec) return;
+        if (active && SubscriptionsBarHideActive) return;
+
+        LineSegment seg{
+            "Basic:" + ev.name, ev.name, ev.chatCode,
             secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
-            BasicEventColorFor(it->name)
-        });
+            BasicEventColorFor(ev.name)
+        };
+        seg.isWeekly = isWeekly;
+        segs.push_back(seg);
+    };
+
+    for (const auto& evName : g_SubscribedBasicEvents)
+    {
+        auto it = std::find_if(g_Events.begin(), g_Events.end(),
+            [&](const WorldEvent& ev) { return ev.name == evName; });
+        if (it == g_Events.end()) continue; // deleted since subscribing
+
+        bool weeklyComplete = false;
+        bool isWeekly = IsBasicEventWeeklyTarget(it->name, weeklyComplete) && !weeklyComplete;
+        AddBasicSegment(*it, isWeekly);
     }
+
+    // Auto-tracked: NOT manually subscribed, but an active-and-incomplete
+    // weekly Wizard's Vault target this week — see weekly_vault.cpp for
+    // where to adjust which events count toward which objective. Drops
+    // off again on its own the moment the objective completes, same as
+    // any other weekly target; a manually-subscribed one (handled by the
+    // loop just above) stays regardless.
+    for (const auto& ev : g_Events)
+    {
+        bool alreadyManual = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), ev.name) != g_SubscribedBasicEvents.end();
+        if (alreadyManual) continue; // already handled above
+
+        bool weeklyComplete = false;
+        if (!IsBasicEventWeeklyTarget(ev.name, weeklyComplete)) continue;
+        if (weeklyComplete) continue;
+
+        AddBasicSegment(ev, true);
+    }
+
+    // ---- Cyclic Events ----
+    // Same factoring-out as AddBasicSegment above, for the same reason.
+    auto AddCyclicSegment = [&](const CyclicGroup& grp, const CyclicGroup::Slot& slot, bool isWeekly)
+    {
+        // Group-level equivalent of the Basic Event apiWorldBossId check
+        // above — see CyclicGroup::apiMapChestId in events.h for why this
+        // applies to the WHOLE group rather than just this one slot. No-op
+        // for every group except the 8 HoT/PoF maps /v2/account/mapchests
+        // covers. Independent of the per-SLOT isWeekly check this function
+        // takes in — different reward track, different reset schedule.
+        if (!grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId))
+            return;
+
+        int secondsOfDay = (int)(now % grp.period);
+        int repeat  = slot.repeat > 0 ? slot.repeat : 1;
+        int subSpan = grp.period / repeat;
+
+        bool foundActive    = false;
+        int  activeSecsLeft = 0;
+        int  bestSecsUntil  = grp.period;
+
+        // Find whichever repeat of this slot is active, else the soonest upcoming one.
+        for (int r = 0; r < repeat; r++)
+        {
+            int baseOffset     = slot.offset + r * subSpan;
+            int phase          = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
+            bool slotActive    = (phase < slot.duration);
+            int secsUntilStart = slotActive ? 0 : (grp.period - phase);
+
+            if (slotActive)
+            {
+                foundActive    = true;
+                activeSecsLeft = slot.duration - phase;
+                break;
+            }
+            else if (secsUntilStart < bestSecsUntil)
+            {
+                bestSecsUntil = secsUntilStart;
+            }
+        }
+
+        int startSec, endSec, statusSecs;
+        bool active;
+        if (foundActive)
+        {
+            active     = true;
+            startSec   = 0;
+            endSec     = std::min(activeSecsLeft, kWindowSeconds);
+            statusSecs = activeSecsLeft;
+        }
+        else
+        {
+            if (bestSecsUntil >= kWindowSeconds) return; // not upcoming within the window
+            active     = false;
+            startSec   = bestSecsUntil;
+            endSec     = std::min(bestSecsUntil + slot.duration, kWindowSeconds);
+            statusSecs = bestSecsUntil;
+        }
+
+        if (endSec <= startSec) return;
+        if (active && SubscriptionsBarHideActive) return;
+
+        char offsetBuf[16];
+        snprintf(offsetBuf, sizeof(offsetBuf), "%d", slot.offset);
+        std::string label = grp.name + " - " + slot.name;
+        LineSegment seg{
+            "Cyclic:" + grp.name + ":" + offsetBuf, label, slot.chatCode,
+            secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
+            grp.SlotColor(slot)
+        };
+        seg.isWeekly = isWeekly;
+        segs.push_back(seg);
+    };
 
     for (const auto& key : g_SubscribedCyclicSlots)
     {
@@ -219,76 +339,32 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             [&](const CyclicGroup& grp) { return grp.name == key.groupName; });
         if (it == g_CyclicGroups.end()) continue; // group deleted since subscribing
 
-        // Group-level equivalent of the Basic Event apiWorldBossId check
-        // just above in this same function — see CyclicGroup::apiMapChestId
-        // in events.h for why this applies to the WHOLE group rather than
-        // just this one slot. No-op for every group except the 8 HoT/PoF
-        // maps /v2/account/mapchests covers.
-        if (!it->apiMapChestId.empty() && IsMapChestClaimedToday(it->apiMapChestId))
-            continue;
-
         for (const auto& slot : it->slots)
         {
             if (slot.offset != key.slotOffset) continue;
-
-            int secondsOfDay = (int)(now % it -> period);
-            int repeat  = slot.repeat > 0 ? slot.repeat : 1;
-            int subSpan = it->period / repeat;
-
-            bool foundActive    = false;
-            int  activeSecsLeft = 0;
-            int  bestSecsUntil  = it->period;
-
-            // Find whichever repeat of this slot is active, else the soonest upcoming one.
-            for (int r = 0; r < repeat; r++)
-            {
-                int baseOffset     = slot.offset + r * subSpan;
-                int phase          = ((secondsOfDay - baseOffset) % it->period + it->period) % it->period;
-                bool slotActive    = (phase < slot.duration);
-                int secsUntilStart = slotActive ? 0 : (it->period - phase);
-
-                if (slotActive)
-                {
-                    foundActive    = true;
-                    activeSecsLeft = slot.duration - phase;
-                    break;
-                }
-                else if (secsUntilStart < bestSecsUntil)
-                {
-                    bestSecsUntil = secsUntilStart;
-                }
-            }
-
-            int startSec, endSec, statusSecs;
-            bool active;
-            if (foundActive)
-            {
-                active     = true;
-                startSec   = 0;
-                endSec     = std::min(activeSecsLeft, kWindowSeconds);
-                statusSecs = activeSecsLeft;
-            }
-            else
-            {
-                if (bestSecsUntil >= kWindowSeconds) break; // not upcoming within the window
-                active     = false;
-                startSec   = bestSecsUntil;
-                endSec     = std::min(bestSecsUntil + slot.duration, kWindowSeconds);
-                statusSecs = bestSecsUntil;
-            }
-
-            if (endSec <= startSec) break;
-            if (active && SubscriptionsBarHideActive) break;
-
-            char offsetBuf[16];
-            snprintf(offsetBuf, sizeof(offsetBuf), "%d", key.slotOffset);
-            std::string label = it->name + " - " + slot.name;
-            segs.push_back({
-                "Cyclic:" + it->name + ":" + offsetBuf, label, slot.chatCode,
-                secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
-                it->SlotColor(slot)
-            });
+            bool weeklyComplete = false;
+            bool isWeekly = IsCyclicSlotWeeklyTarget(it->name, slot.name, weeklyComplete) && !weeklyComplete;
+            AddCyclicSegment(*it, slot, isWeekly);
             break;
+        }
+    }
+
+    // Auto-tracked weekly targets not already manually subscribed — same
+    // rule as the Basic Events pass above.
+    for (const auto& grp : g_CyclicGroups)
+    {
+        for (const auto& slot : grp.slots)
+        {
+            bool alreadyManual = std::find_if(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(),
+                [&](const CyclicSubscriptionKey& k) { return k.groupName == grp.name && k.slotOffset == slot.offset; })
+                != g_SubscribedCyclicSlots.end();
+            if (alreadyManual) continue;
+
+            bool weeklyComplete = false;
+            if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
+            if (weeklyComplete) continue;
+
+            AddCyclicSegment(grp, slot, true);
         }
     }
 
@@ -886,13 +962,18 @@ void RenderSubscriptionsBar()
     dl->AddLine(ImVec2(0, kBaselineY), ImVec2(screenW, kBaselineY),
         IM_COL32(255, 255, 255, 90), kLineThick);
 
-    // ---- Dot markers: plain white, fading out as their own segment drops in ----
+    // ---- Dot markers: white, red for an active-and-incomplete weekly
+    // Wizard's Vault target (see weekly_vault.h/.cpp for what sets
+    // isWeekly and why) — fading out as their own segment drops in ----
     for (size_t d = 0; d < dots.size(); d++)
     {
-        float depth = s_dropStates[segs[dots[d].segIndex].key].amount;
+        const LineSegment& dotSeg = segs[dots[d].segIndex];
+        float depth = s_dropStates[dotSeg.key].amount;
         float alpha = 1.0f - depth;
         if (alpha <= 0.02f) continue;
-        ImU32 dotColor = IM_COL32(255, 255, 255, (int)(235 * alpha));
+        ImU32 dotColor = dotSeg.isWeekly
+            ? IM_COL32(220, 40, 40, (int)(235 * alpha))
+            : IM_COL32(255, 255, 255, (int)(235 * alpha));
         dl->AddCircleFilled(ImVec2(dotDrawX[d], kDotY), kDotRadius, dotColor, 12);
     }
 
@@ -1193,6 +1274,9 @@ void RenderSubscriptionsBar()
         }
     }
 
+    // Weekly Wizard's Vault status is now shown by recoloring the dot
+    // markers themselves red (see the "Dot markers" pass above) instead
+    // of a separate marker pass here.
     // Click on a hovered/dropped segment copies its waypoint code. Only
     // segments that have (nearly) finished dropping are eligible.
     //

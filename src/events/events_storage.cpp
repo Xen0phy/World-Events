@@ -52,8 +52,8 @@
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
-// EVENTS_DATA_VERSION now lives in events.h — shared with categories.cpp,
-// since both this file and categories.cpp read/write the same
+// EVENTS_DATA_VERSION now lives in events.h — shared with events_categories.cpp,
+// since both this file and events_categories.cpp read/write the same
 // "data_version" key in the same events.json.
 
 // ---------------------------------------------------------------------------

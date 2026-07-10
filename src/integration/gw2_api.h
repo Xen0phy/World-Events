@@ -76,3 +76,31 @@ bool IsWorldBossCompletedToday(const std::string& worldBossApiId);
 // the same background pass as worldbosses (see gw2_api.cpp), so this
 // becomes current on the same ~2-minute cadence.
 bool IsMapChestClaimedToday(const std::string& mapChestApiId);
+
+// ---------------------------------------------------------------------------
+// Wizard's Vault WEEKLY objectives — GET /v2/account/wizardsvault/weekly
+// ---------------------------------------------------------------------------
+// A THIRD endpoint, fetched in the same background pass and on the same
+// kMinPollSeconds cadence as worldbosses/mapchests above, but reporting
+// something different in kind: rather than an id list this addon can
+// directly recognize, each objective comes back with only its own display
+// TITLE — Wizard's Vault objective ids aren't documented/stable across
+// ArenaNet's seasonal rotation the way worldbosses'/mapchests' ids are, so
+// title is the only thing to match against. See weekly_vault.h/.cpp for
+// the addon-side table that maps these titles to actual WorldEvent/
+// CyclicGroup::Slot entries — this file only exposes the raw API state.
+// ---------------------------------------------------------------------------
+enum class WeeklyObjectiveState
+{
+    NotThisWeek, // not found in the live objective list at all — covers "genuinely not part of this week's rotation," "no successful fetch yet," and "stale/network/key problem" all the same way, same degrade-safe rule as IsWorldBossCompletedToday/IsMapChestClaimedToday above: never silently treated as complete
+    Incomplete,
+    Complete,    // progress_complete reached, or already claimed, as of the most recent successful fetch
+};
+
+// `title` is matched case-insensitively (ASCII lowercasing only — every
+// objective title observed so far is plain ASCII) against each live
+// objective's own "title" field. Exact match, not substring — unlike
+// weekly_vault.cpp's mapping table, which is free to only cover a subset
+// of words, this function compares against the real API string directly
+// and has no fuzzy-matching logic of its own.
+WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title);

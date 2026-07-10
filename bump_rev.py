@@ -9,8 +9,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-VERSION_FILE = Path("src/version.h")
-BUILD_INFO_FILE = Path("src/build_info.h")
+VERSION_FILE = Path("src/addon/version.h")
+BUILD_INFO_FILE = Path("src/addon/build_info.h")
 
 text = VERSION_FILE.read_text(encoding="utf-8")
 

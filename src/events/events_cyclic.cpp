@@ -1,5 +1,5 @@
 #include "events.h"
-#include "categories.h"
+#include "events_categories.h"
 
 // ---------------------------------------------------------------------------
 // Color helpers
@@ -280,7 +280,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
 };
 
 // Compiled-in default categories for the options-panel list, one per
-// expansion-grouping comment above — see CategoryDefault in categories.h
+// expansion-grouping comment above — see CategoryDefault in events_categories.h
 // and the matching g_DefaultBasicCategories in events_basic.cpp. Built on
 // first load (or whenever EVENTS_DATA_VERSION advances past what a user's
 // saved file has), then fully user-editable from there.

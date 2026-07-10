@@ -6,6 +6,7 @@
 #include "maprender.h"
 #include "settings.h"
 #include "gw2_api.h"
+#include "weekly_vault.h"
 #include "imgui.h"
 #include <windows.h>
 #include <ctime>
@@ -142,8 +143,21 @@ static constexpr unsigned long long kFlashDurationMs = 350;
 // the very text the user just clicked, and instead of a persistent
 // "Copied!" label so the window doesn't visually shift/grow when clicked.
 // ---------------------------------------------------------------------------
-static void DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs)
+static void DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs, bool isWeekly)
 {
+    if (isWeekly)
+    {
+        // Small red dot marking this row as an active-and-incomplete
+        // weekly Wizard's Vault target this week — see weekly_vault.h/
+        // .cpp for what sets isWeekly and the event/slot -> objective
+        // mapping table. Purely visual; doesn't affect the row's click
+        // behavior below.
+        ImGui::TextColored(ImVec4(0.86f, 0.16f, 0.16f, 1.0f), "\xE2\x97\x8F"); // U+25CF BLACK CIRCLE
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Counts toward this week's Wizard's Vault objectives.");
+        ImGui::SameLine(0.0f, 4.0f);
+    }
+
     std::string statusSuffix;
     ImVec4 color;
     bool useColor = true;
@@ -221,7 +235,7 @@ void RenderSubscriptionsWindow()
     // two separate sections the user has to visually merge themselves —
     // active entries first, then soonest-upcoming, matching the sort
     // already used for the per-group tooltip in cyclicrender.cpp.
-    struct Row { std::string name; std::string chatCode; bool active; int secs; };
+    struct Row { std::string name; std::string chatCode; bool active; int secs; bool isWeekly; };
     std::vector<Row> rows;
     rows.reserve(g_SubscribedBasicEvents.size() + g_SubscribedCyclicSlots.size());
 
@@ -234,6 +248,8 @@ void RenderSubscriptionsWindow()
         // Only meaningful for the 13 Core Bosses (see events.h's
         // apiWorldBossId) — empty for everything else, so this is a
         // no-op for the rest of the list regardless of API key/status.
+        // Independent of the weekly Wizard's Vault check below — see
+        // weekly_vault.h.
         if (!it->apiWorldBossId.empty() && IsWorldBossCompletedToday(it->apiWorldBossId))
             continue;
 
@@ -242,7 +258,34 @@ void RenderSubscriptionsWindow()
         if (secs < 0) continue; // no timer data yet
         if (active && SubscriptionsHideActive) continue; // "only show what's not already happening"
 
-        rows.push_back({ it->name, it->chatCode, active, secs });
+        bool weeklyComplete = false;
+        bool isWeekly = IsBasicEventWeeklyTarget(it->name, weeklyComplete) && !weeklyComplete;
+        rows.push_back({ it->name, it->chatCode, active, secs, isWeekly });
+    }
+
+    // Auto-tracked: NOT manually subscribed, but an active-and-incomplete
+    // weekly Wizard's Vault target this week — see weekly_vault.cpp for
+    // where to adjust which events count. Disappears again on its own
+    // the moment the objective completes; a manually-subscribed one
+    // (handled by the loop just above) stays regardless.
+    for (const auto& ev : g_Events)
+    {
+        bool alreadyManual = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), ev.name) != g_SubscribedBasicEvents.end();
+        if (alreadyManual) continue;
+
+        bool weeklyComplete = false;
+        if (!IsBasicEventWeeklyTarget(ev.name, weeklyComplete)) continue;
+        if (weeklyComplete) continue;
+
+        if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
+            continue;
+
+        bool active = IsEventActive(ev, now);
+        int  secs   = active ? GetSecondsUntilEventEnd(ev, now) : GetSecondsUntilEventStart(ev, now);
+        if (secs < 0) continue;
+        if (active && SubscriptionsHideActive) continue;
+
+        rows.push_back({ ev.name, ev.chatCode, active, secs, true });
     }
 
     for (const auto& key : g_SubscribedCyclicSlots)
@@ -268,8 +311,36 @@ void RenderSubscriptionsWindow()
         for (const auto& slot : it->slots)
         {
             if (slot.offset != key.slotOffset) continue;
-            rows.push_back({ it->name + " - " + slot.name, slot.chatCode, status.active, status.secs });
+            bool weeklyComplete = false;
+            bool isWeekly = IsCyclicSlotWeeklyTarget(it->name, slot.name, weeklyComplete) && !weeklyComplete;
+            rows.push_back({ it->name + " - " + slot.name, slot.chatCode, status.active, status.secs, isWeekly });
             break;
+        }
+    }
+
+    // Auto-tracked weekly targets not already manually subscribed — same
+    // rule as the Basic Events pass above.
+    for (const auto& grp : g_CyclicGroups)
+    {
+        if (!grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId))
+            continue;
+
+        for (const auto& slot : grp.slots)
+        {
+            bool alreadyManual = std::find_if(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(),
+                [&](const CyclicSubscriptionKey& k) { return k.groupName == grp.name && k.slotOffset == slot.offset; })
+                != g_SubscribedCyclicSlots.end();
+            if (alreadyManual) continue;
+
+            bool weeklyComplete = false;
+            if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
+            if (weeklyComplete) continue;
+
+            SlotStatus status = GetCyclicSlotStatus(grp, slot.offset, now);
+            if (!status.found) continue;
+            if (status.active && SubscriptionsHideActive) continue;
+
+            rows.push_back({ grp.name + " - " + slot.name, slot.chatCode, status.active, status.secs, true });
         }
     }
 
@@ -318,7 +389,7 @@ void RenderSubscriptionsWindow()
     else
     {
         for (const auto& row : rows)
-            DrawSubscriptionRow(row.name, row.chatCode, row.active, row.secs);
+            DrawSubscriptionRow(row.name, row.chatCode, row.active, row.secs, row.isWeekly);
 
         ImGui::Separator();
         ImGui::TextDisabled("Click a row to copy its waypoint code.");

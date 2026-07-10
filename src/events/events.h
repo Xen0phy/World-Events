@@ -16,10 +16,10 @@
 //     falls back to its default until the user sets it)
 //   - the COMPILED-IN CONTENT changes (a group/event/slot was added,
 //     removed, or renamed in events_cyclic.cpp/events_basic.cpp, OR a
-//     default category / forced membership changed — see categories.h)
+//     default category / forced membership changed — see events_categories.h)
 //
 // This drives the merge behavior in both LoadEventsData (events_storage.cpp)
-// and LoadCategoriesData (categories.cpp): if the saved file's version
+// and LoadCategoriesData (events_categories.cpp): if the saved file's version
 // already matches this constant, the file is known to be fully current
 // with the compiled-in defaults, so a name present in the defaults but
 // missing from the file is treated as something the USER removed/renamed
@@ -32,7 +32,7 @@
 // the very next load (looking, to the merge, identical to "a new build
 // added this back") while the renamed duplicate also persisted — a real
 // bug found and fixed this session. The same principle is why a `forced`
-// category membership (see categories.h) only re-asserts itself when this
+// category membership (see events_categories.h) only re-asserts itself when this
 // version has advanced past what's saved, rather than on every load —
 // otherwise a user dragging a forced member elsewhere would see it snap
 // back on every single launch instead of just once per actual content

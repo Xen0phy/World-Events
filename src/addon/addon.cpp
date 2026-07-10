@@ -4,7 +4,7 @@
 #include "cyclicrender.h"
 #include "settings.h"
 #include "events_storage.h"
-#include "categories.h"
+#include "events_categories.h"
 #include "subscriptions.h"
 #include "gw2_api.h"
 #include "imgui.h"
@@ -47,11 +47,11 @@ void AddonLoad(AddonAPI_t* aAPI)
     // g_DefaultBasicCategories / g_DefaultCyclicCategories are the
     // compiled-in category defaults (events_basic.cpp / events_cyclic.cpp),
     // merged with events.json's "basicCategories"/"cyclicCategories" by
-    // name — see categories.cpp. LoadCategoriesData reads the on-disk
+    // name — see events_categories.cpp. LoadCategoriesData reads the on-disk
     // "data_version" itself (same key LoadEventsData reads), so it doesn't
     // depend on LoadEventsData having run first; order relative to
     // LoadEventsData still doesn't matter here — only the SAVE order below
-    // does, see categories.h.
+    // does, see events_categories.h.
     LoadCategoriesData(g_AddonDir);
 
     // Same file, same "no compiled-in defaults to merge" story as
@@ -61,7 +61,7 @@ void AddonLoad(AddonAPI_t* aAPI)
     LoadSubscriptionsData(g_AddonDir);
 
     SaveEventsData(g_AddonDir);
-    SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see categories.h
+    SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see events_categories.h
     SaveSubscriptionsData(g_AddonDir);  // must run AFTER SaveEventsData — see subscriptions.h
 
     APIDefs->GUI_Register(RT_Render, AddonRender);
@@ -78,7 +78,7 @@ void AddonUnload()
 
     SaveSettings(g_AddonDir);
     SaveEventsData(g_AddonDir);
-    SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see categories.h
+    SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see events_categories.h
     SaveSubscriptionsData(g_AddonDir);  // must run AFTER SaveEventsData — see subscriptions.h
 
     // Force heap frees now while the CRT is still intact,

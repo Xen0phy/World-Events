@@ -16,20 +16,21 @@ add_custom_target(bump_rev
 )
 
 add_library(gw2-world-events SHARED
-    src/addon.cpp
-    src/addon_options.cpp
-    src/events_basic.cpp
-    src/events_cyclic.cpp
-    src/categories.cpp
-    src/cyclicrender.cpp
-    src/events_storage.cpp
-    src/gw2_api.cpp
-    src/maprender.cpp
-    src/settings.cpp
-    src/subscriptions.cpp
-    src/subscriptions_window.cpp
-    src/subscriptions_bar.cpp
-    src/icon_whitener.cpp
+    src/addon/addon_options.cpp
+    src/addon/addon.cpp
+    src/core/settings.cpp
+    src/core/subscriptions.cpp
+    src/events/events_basic.cpp
+    src/events/events_categories.cpp
+    src/events/events_cyclic.cpp
+    src/events/events_storage.cpp
+    src/integration/gw2_api.cpp
+    src/integration/weekly_vault.cpp
+    src/overlay/maprender.cpp
+    src/ui/cyclicrender.cpp
+    src/ui/icon_whitener.cpp
+    src/ui/subscriptions_bar.cpp
+    src/ui/subscriptions_window.cpp
     include/imgui.cpp
     include/imgui_draw.cpp
     include/imgui_tables.cpp
@@ -38,7 +39,15 @@ add_library(gw2-world-events SHARED
 
 add_dependencies(gw2-world-events bump_rev)
 
-target_include_directories(gw2-world-events PRIVATE include)
+target_include_directories(gw2-world-events PRIVATE
+    include
+    src/addon
+    src/core
+    src/events
+    src/integration
+    src/overlay
+    src/ui
+)
 
 target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp)
 

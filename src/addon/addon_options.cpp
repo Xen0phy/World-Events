@@ -17,7 +17,7 @@
 #include "settings.h"
 #include "build_info.h"
 #include "events.h"
-#include "categories.h"
+#include "events_categories.h"
 #include "subscriptions.h"
 #include "maprender.h"
 #include "icon_whitener.h"
@@ -1484,7 +1484,7 @@ void AddonOptions()
     // categories themselves are listed in g_BasicCategories; whatever's
     // left over (not a member of any category) is drawn afterward as the
     // implicit "uncategorized" bucket. An item is matched into its
-    // category BY NAME — see categories.h — so a member name that no
+    // category BY NAME — see events_categories.h — so a member name that no
     // longer corresponds to any g_Events entry (e.g. the event was
     // deleted) is simply skipped when drawing, with no special handling
     // needed; it just silently doesn't render anywhere until the category
@@ -1496,7 +1496,7 @@ void AddonOptions()
     // membership already exists (from a hand-edited events.json, or once
     // drag-and-drop lands). Deleting a category does NOT delete its
     // members' underlying events — members are references, not copies
-    // (see categories.h) — it just dissolves the grouping, and those
+    // (see events_categories.h) — it just dissolves the grouping, and those
     // events fall back into the uncategorized bucket on the next frame.
     // -----------------------------------------------------------------------
     std::vector<bool> isCategorized(g_Events.size(), false);
