@@ -4,5 +4,4 @@ build/
 .clangd
 *.gz
 *.tar
-*.png
 Raidcore.html
