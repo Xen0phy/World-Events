@@ -131,7 +131,19 @@ static void DoConvert(const std::string& filename)
     HRESULT hr = S_OK;
     std::string errMsg;
 
-    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    // CoInitializeEx must be paired with exactly one CoUninitialize per
+    // thread that successfully initialized (or re-initialized) COM — S_OK
+    // means this call did the initializing, S_FALSE means COM was already
+    // initialized on this thread (e.g. by ImGui/the host) and this call
+    // just bumped its per-thread refcount, and in both cases a matching
+    // CoUninitialize is this function's responsibility to make. Any other
+    // result (e.g. RPC_E_CHANGED_MODE, if the thread is already COM-
+    // initialized with an incompatible concurrency model) means COM was
+    // NOT initialized by this call, so it must NOT be uninitialized by it
+    // either. Without this check, every "Convert & Save" click leaked one
+    // COM apartment reference on the UI thread that was never released.
+    HRESULT coInitResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    bool comNeedsUninit = (coInitResult == S_OK || coInitResult == S_FALSE);
 
     auto fail = [&](const char* where) {
         char buf[16]; snprintf(buf, sizeof(buf), "%08X", (unsigned)hr);
@@ -216,6 +228,9 @@ static void DoConvert(const std::string& filename)
     if (frame)      frame->Release();
     if (decoder)    decoder->Release();
     if (factory)    factory->Release();
+
+    if (comNeedsUninit)
+        CoUninitialize();
 
     if (!errMsg.empty())
     {

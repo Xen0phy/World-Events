@@ -3,7 +3,6 @@
 
 // Continent coordinates taken directly from Sognus's fallback data.
 // These are in GW2 continent 1 (Tyria) coordinates.
-// Timer logic comes later — for now these are just positions.
 std::vector<WorldEvent> g_Events =
 {
     // Instanced

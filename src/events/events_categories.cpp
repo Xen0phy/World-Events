@@ -180,9 +180,8 @@ static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDef
 // category is created so the forced member always has somewhere to land.
 //
 // Only ever called when the caller has already confirmed the file predates
-// EVENTS_DATA_VERSION — see LoadCategoriesData below and the comment on
-// CategoryDefaultMember::forced in events_categories.h for why it's gated that
-// way instead of running on every load.
+// EVENTS_DATA_VERSION — see LoadCategoriesData below and
+// CategoryDefaultMember::forced in events_categories.h.
 static void ForceCategoryMembership(std::vector<Category>& categories, const std::string& categoryName, const std::string& memberName)
 {
     for (auto& cat : categories)

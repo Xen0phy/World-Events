@@ -9,18 +9,14 @@
 //   - GET /v2/account/worldbosses — the classic Tyria world bosses the
 //     account has already killed since the last daily reset (UTC midnight).
 //   - GET /v2/account/mapchests — the Hero's Choice Chests the account has
-//     already claimed since the last daily reset. Of the many maps this
-//     covers, only the 8 HoT/PoF maps whose CyclicGroup has a non-empty
-//     apiMapChestId (see events.h) are ever looked up here — every other
-//     id this endpoint can return is simply never queried.
+//     already claimed since the last daily reset. Only the 8 HoT/PoF maps
+//     whose CyclicGroup has a non-empty apiMapChestId (see events.h) are
+//     ever looked up here; every other id this endpoint returns is ignored.
 //
-// This is deliberately not a general GW2 API wrapper. Everything else in
-// this addon (Basic Events other than the 13 Core Bosses, every Cyclic
-// Group other than those 8 maps, invasions, Ley Line Anomaly, fractal
-// incursions, and convergences) has NO equivalent "already done today"
-// signal anywhere in the public API. A WorldEvent with an empty
-// apiWorldBossId, or a CyclicGroup with an empty apiMapChestId (see
-// events.h for both), is simply never affected by this file, by design.
+// Not a general GW2 API wrapper: everything else in this addon has NO
+// equivalent "already done today" signal anywhere in the public API. A
+// WorldEvent with an empty apiWorldBossId, or a CyclicGroup with an empty
+// apiMapChestId (see events.h), is simply never affected by this file.
 //
 // Requires a user-supplied API key (Gw2ApiKey in settings_table.h) with
 // at least the "progression" permission. No key -> PollGw2Api is a
@@ -77,9 +73,6 @@ bool IsWorldBossCompletedToday(const std::string& worldBossApiId);
 // becomes current on the same ~2-minute cadence.
 bool IsMapChestClaimedToday(const std::string& mapChestApiId);
 
-// ---------------------------------------------------------------------------
-// Wizard's Vault WEEKLY objectives — GET /v2/account/wizardsvault/weekly
-// ---------------------------------------------------------------------------
 // A THIRD endpoint, fetched in the same background pass and on the same
 // kMinPollSeconds cadence as worldbosses/mapchests above, but reporting
 // something different in kind: rather than an id list this addon can
@@ -89,7 +82,6 @@ bool IsMapChestClaimedToday(const std::string& mapChestApiId);
 // title is the only thing to match against. See weekly_vault.h/.cpp for
 // the addon-side table that maps these titles to actual WorldEvent/
 // CyclicGroup::Slot entries — this file only exposes the raw API state.
-// ---------------------------------------------------------------------------
 enum class WeeklyObjectiveState
 {
     NotThisWeek, // not found in the live objective list at all — covers "genuinely not part of this week's rotation," "no successful fetch yet," and "stale/network/key problem" all the same way, same degrade-safe rule as IsWorldBossCompletedToday/IsMapChestClaimedToday above: never silently treated as complete

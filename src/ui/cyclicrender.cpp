@@ -125,13 +125,13 @@ static void DrawArc(ImDrawList* dl, ImVec2 center, float radius,
 
 static constexpr float HAND_DEG      = 0.0f;    // top   — now
 
-// NOTE: SECS_PER_DEG used to be a single file-scope constexpr hardcoded to
-// a 7200s cycle. It's now computed per-group inside RenderCyclicGroups
-// from that group's own `period`, since groups can have different cycle
-// lengths (Dry Top runs 3600s; most others run 7200s) — a single hardcoded
-// value silently misdrew any group whose period didn't match it.
+// NOTE: SECS_PER_DEG is computed per-group inside RenderCyclicGroups from
+// that group's own `period`, since groups can have different cycle
+// lengths (Dry Top runs 3600s; most others run 7200s) — a single
+// hardcoded value would silently misdraw any group whose period didn't
+// match it.
 //
-// MAX_FUTURE_SECS / MAX_PAST_SECS are likewise computed per-group now, from
+// MAX_FUTURE_SECS / MAX_PAST_SECS are likewise computed per-group, from
 // settings stored as DEGREES (CyclicMaxFutureDeg / CyclicMaxPastDeg, see
 // settings_table.h) so the user can adjust the entry/exit window at runtime
 // via the options panel, independent of any one group's period. ARC_FROM/
@@ -146,11 +146,11 @@ void RenderCyclicGroups()
     // drawn on the foreground list always painted over the hover tooltip,
     // regardless of draw call order within this function. The background
     // list draws FIRST among ImGui content, before every regular window
-    // and tooltip, so the tooltip now correctly composites on top.
-    // This only affects ordering relative to other ImGui content — GW2's
-    // own game-world rendering happens in an entirely separate pass below
-    // all ImGui content either way, so the rings still sit on top of the
-    // game itself exactly as before.
+    // and tooltip, so the tooltip composites on top correctly. This only
+    // affects ordering relative to other ImGui content — GW2's own
+    // game-world rendering happens in an entirely separate pass below all
+    // ImGui content either way, so the rings still sit on top of the game
+    // itself.
     ImDrawList* dl  = ImGui::GetBackgroundDrawList();
     time_t      now = time(nullptr);
 
@@ -160,10 +160,9 @@ void RenderCyclicGroups()
     constexpr ImU32 COL_TRACK = IM_COL32(100, 100, 100, 120);
     constexpr ImU32 COL_HAND  = IM_COL32(255, 255, 255, 240);
 
-    // This window always keeps NoMouseInputs — see the identical comment
-    // above Begin("##we_overlay") in RenderMapEvents (maprender.cpp).
-    // Drag capture is handled per-marker by a small anchor window
-    // instead, so this full-screen overlay never blocks map-dragging.
+    // This window always keeps NoMouseInputs. Drag capture is handled
+    // per-marker by a small anchor window instead, so this full-screen
+    // overlay never blocks map-dragging.
     ImGui::SetNextWindowPos({0, 0});
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
     ImGui::SetNextWindowBgAlpha(0.0f);
@@ -188,8 +187,8 @@ void RenderCyclicGroups()
 
         // CyclicMaxFutureDeg/CyclicMaxPastDeg are stored as DEGREES
         // (period-independent) and converted to this group's own seconds
-        // here, at the point of use — see settings_table.h for why seconds
-        // can't be the stored unit when groups have different periods.
+        // here, at the point of use, since a fixed seconds value can't
+        // work across groups with different periods.
         const float MAX_FUTURE_SECS = CyclicMaxFutureDeg * SECS_PER_DEG;
         const float MAX_PAST_SECS   = CyclicMaxPastDeg   * SECS_PER_DEG;
 
@@ -206,7 +205,7 @@ void RenderCyclicGroups()
         ImVec2 pos = ContinentToScreen(grp.continentX, grp.continentY);
 
         // Off-screen culling is skipped for the group currently being
-        // dragged — see the identical reasoning in RenderMapEvents.
+        // dragged.
         if (!isBeingEdited)
         {
             if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
@@ -215,16 +214,15 @@ void RenderCyclicGroups()
 
         // Map-only hide: skip the WHOLE ring (background track + every
         // slot), as if the group didn't exist this frame — no circle at
-        // all. Exempted while being dragged, same reasoning as the
-        // culling just above. For hiding a single slot within an
-        // otherwise-visible ring instead, see the slot.shown check
-        // inside the slot loop below.
+        // all. Exempted while being dragged. For hiding a single slot
+        // within an otherwise-visible ring instead, see the slot.shown
+        // check inside the slot loop below.
         if (!isBeingEdited && !grp.shown)
             continue;
 
 
         // --- Background track, idle-colored (group's idleColor, defaulting
-        // to colors.ter() — see CyclicGroup::IdleColor() in cyclic.h) ---
+        // to colors.ter() — see CyclicGroup::IdleColor() in events.h) ---
         // RGB comes from the idle color; alpha comes from COL_TRACK, so the
         // idle background stays visually translucent/recessed compared to
         // an active slot's full-opacity arc, regardless of which color
@@ -351,8 +349,8 @@ void RenderCyclicGroups()
             {pos.x + hoverR, pos.y + hoverR});
 
         // Left-drag while armed — uses a small dedicated anchor window
-        // positioned over the ring's rect; see the detailed comment above
-        // the identical block in RenderMapEvents (maprender.cpp) for why.
+        // positioned over the ring's rect, same technique as the
+        // identical block in RenderMapEvents (maprender.cpp).
         //
         // Staying armed across MULTIPLE separate press-drag-release cycles
         // is intentional — the panel's "Drag" button (now showing "Stop")
@@ -396,8 +394,7 @@ void RenderCyclicGroups()
             ImGui::End();
         }
 
-        // --- Tooltip on hover --- (suppressed while dragging this ring,
-        // same reasoning as RenderMapEvents)
+        // --- Tooltip on hover --- (suppressed while dragging this ring)
         if (hovered && !isBeingEdited)
         {
             ImGui::BeginTooltip();

@@ -18,6 +18,7 @@ add_custom_target(bump_rev
 add_library(gw2-world-events SHARED
     src/addon/addon_options.cpp
     src/addon/addon.cpp
+    src/core/background_threads.cpp
     src/core/settings.cpp
     src/core/subscriptions.cpp
     src/events/events_basic.cpp

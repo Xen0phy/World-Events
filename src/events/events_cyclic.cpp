@@ -29,10 +29,10 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "Eye of the North",
         57563.0f, 21831.0f, m120, COL_IBS,
         {
-            {"Twisted Marionette",      0, m20, ColorTier::Primary  , "[&BAkMAAA=]" },
+            {"Twisted Marionette",      0, m20, ColorTier::Primary,   "[&BAkMAAA=]" },
             {"Battle for Lions Arch", m30, m15, ColorTier::Secondary, "[&BAkMAAA=]" },
-            {"Dragonsorm",            m60, m20, ColorTier::Secondary, "[&BAkMAAA=]" },
-            {"Tower of Nightmres",    m90, m15, ColorTier::Secondary, "[&BAkMAAA=]" },
+            {"Dragonstorm",           m60, m20, ColorTier::Secondary, "[&BAkMAAA=]" },
+            {"Tower of Nightmares",   m90, m15, ColorTier::Secondary, "[&BAkMAAA=]" },
         }
     },
 
@@ -262,7 +262,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "Shipwreck Strand",
         10515.0f, 59212.0f, m120, COL_VOE,
         {
-            { "Hammerhart Rumble", m40, m20, ColorTier::Primary, "[&BJEPAAA=]" },
+            { "Hammerheart Rumble", m40, m20, ColorTier::Primary, "[&BJEPAAA=]" },
         }
     },
     { "Starlit Weald",

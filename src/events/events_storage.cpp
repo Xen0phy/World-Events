@@ -10,30 +10,22 @@
 //   }
 //
 // On load, the compiled-in defaults (g_Events / g_CyclicGroups as built by
-// events_basic.cpp / events_cyclic.cpp) are MERGED with whatever's on disk, matched by
-// KEY — not by array position, since inserting a new group/event in the
-// middle of the compiled-in list would otherwise shift every later index
-// and corrupt the match. Groups and events are keyed by name alone (no
-// duplicates exist among them as of this writing); SLOTS are keyed by
-// name+offset together, since slot names CAN legitimately repeat within a
-// single group — e.g. Dry Top has two slots both named "Crash Site" at
-// different offsets, a real repeated boss fight, not a typo. An earlier
-// version of this file keyed slots by name alone, which silently merged
-// Dry Top's two same-named slots into each other and then duplicated them
-// further on every subsequent load/save cycle — see SlotKey() below.
+// events_basic.cpp / events_cyclic.cpp) are MERGED with whatever's on disk,
+// matched by KEY — not by array position, since inserting a new group/event
+// in the middle of the compiled-in list would otherwise shift every later
+// index and corrupt the match. Groups and events are keyed by name alone;
+// SLOTS are keyed by name+offset together, since slot names CAN legitimately
+// repeat within a single group — e.g. Dry Top has two slots both named
+// "Crash Site" at different offsets, a real repeated boss fight, not a
+// typo (see SlotKey() below).
 //
-//   - Key exists in both       -> keep the JSON's version (preserves any
-//                                 user customization — color overrides,
-//                                 edited offsets, etc.). Slots within a
-//                                 matched group are merged the same way,
-//                                 one level deeper, by slot key.
-//   - Key only in defaults     -> new content shipped in this build; add
-//                                 it to the merged result.
-//   - Key only in the JSON     -> NOT dropped. We can't tell a renamed/
-//                                 removed compiled-in entry apart from
-//                                 something the user created entirely
-//                                 themselves (once group/slot editing UI
-//                                 exists), so orphaned entries are kept.
+//   - Key exists in both   -> keep the JSON's version (preserves any user
+//                             customization — color overrides, edited
+//                             offsets, etc.). Slots within a matched group
+//                             are merged the same way, one level deeper.
+//   - Key only in defaults -> new content shipped in this build; added.
+//   - Key only in the JSON -> kept — could be a user-created entry, or a
+//                             compiled-in one the user renamed.
 //
 // The merged result is what g_Events / g_CyclicGroups actually end up
 // holding, and is also what gets written back to disk afterward — so a
@@ -52,7 +44,7 @@
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
-// EVENTS_DATA_VERSION now lives in events.h — shared with events_categories.cpp,
+// EVENTS_DATA_VERSION lives in events.h, shared with events_categories.cpp,
 // since both this file and events_categories.cpp read/write the same
 // "data_version" key in the same events.json.
 
@@ -76,7 +68,7 @@ static json SerializeEvent(const WorldEvent& ev)
         j["chatCode"] = ev.chatCode; // same "omit when empty" convention
 
     if (!ev.shown)
-        j["shown"] = false; // omitted entirely when true (the default) — inverse of the old `hidden` field's "omit when false" convention
+        j["shown"] = false; // omitted entirely when true (the default)
 
     if (ev.isVarying)
         j["varyingTimes"] = ev.varyingTimes;
@@ -98,15 +90,7 @@ static WorldEvent DeserializeEvent(const json& j)
     ev.duration    = j.value("duration", 0);
     ev.iconTexture = j.value("iconTexture", std::string());
     ev.chatCode    = j.value("chatCode", std::string());
-    // "shown" is the current key; "hidden" is read as a fallback so files
-    // saved before the hidden->shown flip still load correctly (a
-    // previously-hidden event stays hidden: shown = !hidden). Once
-    // "shown" has been written back by a save, "hidden" is never written
-    // again and this fallback simply never triggers for that file.
-    if (j.contains("shown"))
-        ev.shown = j.value("shown", true);
-    else
-        ev.shown = !j.value("hidden", false);
+    ev.shown       = j.value("shown", true);
 
     if (ev.isVarying)
         ev.varyingTimes = j.value("varyingTimes", std::vector<int>{});
@@ -189,12 +173,7 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
         slot.customColor = HexStringToColor(j.value("customColor", std::string()), 0xFFFFFFFFu);
 
     slot.chatCode = j.value("chatCode", std::string());
-    // Same "shown" current-key / "hidden" fallback migration as
-    // DeserializeEvent above.
-    if (j.contains("shown"))
-        slot.shown = j.value("shown", true);
-    else
-        slot.shown = !j.value("hidden", false);
+    slot.shown    = j.value("shown", true);
 
     return slot;
 }
@@ -237,10 +216,7 @@ static CyclicGroup DeserializeGroup(const json& j)
     if (j.contains("idleColor"))
         grp.idleColor = HexStringToColor(j.value("idleColor", std::string()), 0xFFFFFFFFu);
 
-    // Same "shown" current-key / "hidden" fallback migration as
-    // DeserializeEvent above.
-    if (j.contains("shown"))
-        grp.shown = j.value("shown", true);
+    grp.shown = j.value("shown", true);
 
     if (j.contains("slots") && j["slots"].is_array())
         for (const auto& sj : j["slots"])
@@ -253,37 +229,24 @@ static CyclicGroup DeserializeGroup(const json& j)
 // MergeByKey
 // ---------------------------------------------------------------------------
 // Generic merge used for both top-level (events/groups) and nested (slots
-// within a matched group) merging:
-//   - key present in both  -> loaded (disk) version wins
-//   - key only in defaults -> append IF resurrectMissingDefaults is true
-//                              (new compiled-in content from a newer
-//                              build); otherwise DROPPED — the file is
-//                              already current with these defaults, so a
-//                              missing name means the user removed or
-//                              renamed it, not that it's new content.
-//   - key only in loaded   -> append (orphaned/user-created, kept as-is)
-// Preserves defaults' relative order first, then appends anything in
-// loaded that wasn't matched, in the order it appeared on disk.
+// within a matched group) merging — see the file-level comment above for
+// the merge rule. Preserves defaults' relative order first, then appends
+// anything in loaded that wasn't matched, in the order it appeared on disk.
 //
 // resurrectMissingDefaults should be true only when the file's saved
 // data_version is OLDER than the compiled-in EVENTS_DATA_VERSION — see
 // LoadEventsData. When the versions match, the file is known fully
 // current, and treating an unmatched default as "new content" instead of
-// "the user changed it" is exactly what caused a real bug this session:
-// renaming something to collide with another existing name made the old
-// name reappear from the compiled defaults on the next load, alongside
-// the renamed duplicate, since the merge couldn't tell a rename apart
-// from a brand new build adding content back.
+// "the user removed/renamed it" causes a real bug: renaming something to
+// collide with another existing name makes the old name reappear from the
+// compiled defaults on the next load, alongside the renamed duplicate.
 //
-// IMPORTANT: the key function must produce a value that's actually unique
-// within the list, or entries silently collide and corrupt each other on
-// merge (overwriting one another in the lookup map, double-counting, or
-// getting duplicated across repeated load/save cycles). Plain name is NOT
-// safe for this on its own — e.g. Dry Top has two slots both named
-// "Crash Site" (different offsets, a real and intentional repeat boss
-// fight), and a name-only key silently collapsed/duplicated them across
-// merges. getKey should combine name with whatever else disambiguates
-// otherwise-identical-looking entries — see callers below for the actual
+// IMPORTANT: getKey must produce a value that's actually unique within the
+// list, or entries silently collide and corrupt each other on merge. Plain
+// name is NOT safe on its own — e.g. Dry Top has two slots both named
+// "Crash Site" at different offsets (a real, intentional repeat boss
+// fight) — so getKey should combine name with whatever else disambiguates
+// otherwise-identical-looking entries; see callers below for the actual
 // key used for groups/events vs slots.
 // ---------------------------------------------------------------------------
 template<typename T, typename KeyFn>
@@ -342,10 +305,10 @@ static std::string EventKey(const WorldEvent& e) { return e.name; }
 //
 // resurrectMissingDefaults is forwarded to BOTH levels: a group missing
 // from the file is only re-added when the file predates this build's
-// content (see MergeByKey's comment above for why), and a SLOT missing
-// from an otherwise-matched group's loaded slot list follows the exact
-// same rule — a slot the user deleted from an existing group shouldn't
-// reappear just because the group itself still exists.
+// content, and a SLOT missing from an otherwise-matched group's loaded
+// slot list follows the exact same rule — a slot the user deleted from an
+// existing group shouldn't reappear just because the group itself still
+// exists.
 static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defaults, const std::vector<CyclicGroup>& loaded, bool resurrectMissingDefaults)
 {
     std::unordered_map<std::string, size_t> loadedIndexByKey;
@@ -461,8 +424,8 @@ bool LoadEventsData(const std::string& addonDir)
                 loadedGroups.push_back(DeserializeGroup(gj));
 
         // Snapshot the compiled-in-only cross-reference fields BEFORE the
-        // merge below overwrites g_Events/g_CyclicGroups — see the restamp
-        // step just after the merge for why this snapshot exists at all.
+        // merge below overwrites g_Events/g_CyclicGroups — restamped back
+        // in after the merge (see below).
         std::unordered_map<std::string, std::string> defaultWorldBossIdByName;
         for (const auto& ev : g_Events)
             if (!ev.apiWorldBossId.empty())
@@ -478,28 +441,12 @@ bool LoadEventsData(const std::string& addonDir)
         g_CyclicGroups = MergeGroups(g_CyclicGroups, loadedGroups, resurrectMissingDefaults);
 
         // Restamp apiWorldBossId/apiMapChestId from the compiled-in
-        // defaults for every matched entry.
-        //
-        // BUG FIX: neither field is ever written to or read from
-        // events.json (see Serialize/DeserializeEvent and
-        // Serialize/DeserializeGroup above — deliberately, since these
-        // are compiled-in cross-references, not user-editable settings).
-        // But MergeByKey/MergeGroups make the LOADED object win wholesale
-        // for any key that exists in both defaults and the file (so user
-        // customizations elsewhere on that entry survive) — and a freshly
-        // deserialized object never had apiWorldBossId/apiMapChestId set
-        // in the first place, since those keys don't exist in the JSON.
-        // Net effect, unfixed: apiWorldBossId silently went blank for
-        // every one of the 13 Core Bosses (and apiMapChestId would have
-        // for all 8 mapchest-covered map groups) on the very first load
-        // after the very first save — i.e. this whole "hide once done"
-        // feature would go dark after one addon restart. Restamping from
-        // the pre-merge compiled defaults here, by name, for every entry
-        // regardless of which branch of the merge it came from, is the
-        // fix — cheap, and correct even for a brand-new name that only
-        // exists in this build (resurrectMissingDefaults path) since
-        // defaultWorldBossIdByName/defaultMapChestIdByName were captured
-        // from those same compiled defaults above.
+        // defaults for every matched entry. Neither field is ever written
+        // to or read from events.json (deliberately — they're compiled-in
+        // cross-references, not user-editable settings), and MergeByKey/
+        // MergeGroups make the loaded object win wholesale for any
+        // matched key, so without this restamp both fields would go
+        // blank on any load after a save.
         for (auto& ev : g_Events)
         {
             auto it = defaultWorldBossIdByName.find(ev.name);

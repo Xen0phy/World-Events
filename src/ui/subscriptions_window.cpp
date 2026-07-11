@@ -80,14 +80,11 @@ static SlotStatus GetCyclicSlotStatus(const CyclicGroup& grp, int slotOffset, ti
 // SubscriptionColorToImVec4
 // ---------------------------------------------------------------------------
 // SubscriptionsActiveColor/SoonColor are stored as packed RRGGBBAA (R in
-// the top byte — same convention as ColorSet::base in cyclic.h and the
+// the top byte — same convention as ColorSet::base in events.h and the
 // map's BasicEventColor* settings), which is NOT the same byte order as
 // ImGui's own ImU32 (ABGR). The low byte (alpha) is deliberately ignored
 // here: these feed straight into ImGui::TextColored, which is plain text
-// with a fixed opacity of 1.0, not a translucency-capable draw — see the
-// long comment on these two settings in settings_table.h for why the
-// options-panel picker for them is a ColorEdit3 (RGB only) rather than
-// the ColorEdit4 the map's own status colors use.
+// with a fixed opacity of 1.0, not a translucency-capable draw.
 // ---------------------------------------------------------------------------
 static ImVec4 SubscriptionColorToImVec4(unsigned int rgba)
 {
@@ -95,14 +92,13 @@ static ImVec4 SubscriptionColorToImVec4(unsigned int rgba)
         ((rgba >> 24) & 0xFF) / 255.0f, // R
         ((rgba >> 16) & 0xFF) / 255.0f, // G
         ((rgba >>  8) & 0xFF) / 255.0f, // B
-        1.0f                             // alpha channel of `rgba` unused — see above
+        1.0f                             // alpha channel of `rgba` unused
     );
 }
 
 // 15 minutes — matches the "soon" threshold already hardcoded for
 // BasicEventColorSoon on the map (maprender.cpp's `secs < 900` check),
-// reused here rather than adding a second configurable window per the
-// call made this session.
+// reused here rather than adding a second configurable window.
 static constexpr int kSoonThresholdSecs = 900;
 
 // ---------------------------------------------------------------------------
@@ -127,21 +123,18 @@ static constexpr unsigned long long kFlashDurationMs = 350;
 // Draws one watchlist row as a clickable Selectable rather than plain
 // Text, so the whole line acts like a button: click copies
 // "<name>: <chatCode>" to the clipboard (or just "<name>" if no chat code
-// is set for that event/slot yet — nothing to append, so nothing is
-// appended, rather than leaving a dangling "Name: " with an empty tail).
+// is set yet, rather than leaving a dangling "Name: " with an empty tail).
 //
-// Selectable (not a manual InvisibleButton+Text pair) is used because it
-// already gives free hover highlighting — a useful, standard affordance
-// that the row is clickable — and handles the "whole line is one widget"
-// sizing correctly without the FramePadding fights DrawSubscribeCheckbox
-// had to work around for the options-panel checkboxes.
+// Selectable (not a manual InvisibleButton+Text pair) gives free hover
+// highlighting and handles "whole line is one widget" sizing without the
+// FramePadding fights DrawSubscribeCheckbox has to work around.
 //
-// Text color still follows the same three-state Active/Soon/default rule
-// as before; a just-clicked row additionally flashes a bright highlight
-// for kFlashDurationMs as click confirmation (see s_flashKey/s_flashUntil
-// above) — chosen instead of a tooltip so the confirmation doesn't cover
-// the very text the user just clicked, and instead of a persistent
-// "Copied!" label so the window doesn't visually shift/grow when clicked.
+// Text color follows the Active/Soon/default rule; a just-clicked row
+// additionally flashes a bright highlight for kFlashDurationMs as click
+// confirmation (see s_flashKey/s_flashUntil above) — chosen instead of a
+// tooltip so the confirmation doesn't cover the text just clicked, and
+// instead of a persistent "Copied!" label so the window doesn't visually
+// shift/grow when clicked.
 // ---------------------------------------------------------------------------
 static void DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs, bool isWeekly)
 {
@@ -294,10 +287,10 @@ void RenderSubscriptionsWindow()
             [&](const CyclicGroup& grp) { return grp.name == key.groupName; });
         if (it == g_CyclicGroups.end()) continue; // group deleted since subscribing
 
-        // Group-level equivalent of the apiWorldBossId check above — see
-        // CyclicGroup::apiMapChestId in events.h for why this applies to
-        // the WHOLE group rather than just this one slot. No-op for every
-        // group except the 8 HoT/PoF maps /v2/account/mapchests covers.
+        // Group-level equivalent of the apiWorldBossId check, applying to
+        // the WHOLE group rather than just this one slot. No-op for
+        // every group except the 8 HoT/PoF maps /v2/account/mapchests
+        // covers.
         if (!it->apiMapChestId.empty() && IsMapChestClaimedToday(it->apiMapChestId))
             continue;
 

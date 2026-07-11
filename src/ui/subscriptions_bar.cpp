@@ -260,15 +260,14 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
     }
 
     // ---- Cyclic Events ----
-    // Same factoring-out as AddBasicSegment above, for the same reason.
     auto AddCyclicSegment = [&](const CyclicGroup& grp, const CyclicGroup::Slot& slot, bool isWeekly)
     {
         // Group-level equivalent of the Basic Event apiWorldBossId check
-        // above — see CyclicGroup::apiMapChestId in events.h for why this
-        // applies to the WHOLE group rather than just this one slot. No-op
-        // for every group except the 8 HoT/PoF maps /v2/account/mapchests
-        // covers. Independent of the per-SLOT isWeekly check this function
-        // takes in — different reward track, different reset schedule.
+        // above, applying to the WHOLE group rather than just this one
+        // slot. No-op for every group except the 8 HoT/PoF maps
+        // /v2/account/mapchests covers. Independent of the per-SLOT
+        // isWeekly check this function takes in — different reward
+        // track, different reset schedule.
         if (!grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId))
             return;
 
@@ -1274,9 +1273,9 @@ void RenderSubscriptionsBar()
         }
     }
 
-    // Weekly Wizard's Vault status is now shown by recoloring the dot
-    // markers themselves red (see the "Dot markers" pass above) instead
-    // of a separate marker pass here.
+    // Weekly Wizard's Vault status is shown by recoloring the dot markers
+    // themselves red (see the "Dot markers" pass above), not a separate
+    // marker pass here.
     // Click on a hovered/dropped segment copies its waypoint code. Only
     // segments that have (nearly) finished dropping are eligible.
     //

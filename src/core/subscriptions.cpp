@@ -8,6 +8,7 @@
 
 #include "subscriptions.h"
 #include "addon.h"
+#include "background_threads.h"
 #include "nlohmann_json.hpp"
 #include <fstream>
 #include <filesystem>
@@ -47,9 +48,8 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
     for (auto& name : g_SubscribedBasicEvents)
         if (name == oldName)
             name = newName;
-        // Deliberately no break — same reasoning as RenameCategoryMember:
-        // patch every occurrence, not just the first, in case of a prior
-        // data inconsistency.
+        // Deliberately no break: patch every occurrence, not just the
+        // first, in case of a prior data inconsistency.
 }
 
 // ---------------------------------------------------------------------------
@@ -206,35 +206,16 @@ LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
 // SendMessage posts directly to the target window's message queue, bypassing the
 // OS-level input pipeline. SendInput injects into the real, system-wide input stream
 // that Windows uses to track actual keyboard/modifier state (GetKeyState, etc).
-// Mixing them is normally considered fragile: an app *could* receive the WM_KEYDOWN
-// for 'V' via SendMessage without ever seeing Ctrl as "down" at the OS level, since
-// that Ctrl state only exists in the SendInput-driven input stream, not the message
-// queue. In theory, an app that checks GetKeyState(VK_CONTROL) to validate a paste
-// command could fail to recognize this as Ctrl+V.
+// Mixing them is normally fragile: an app *could* receive the WM_KEYDOWN for 'V' via
+// SendMessage without ever seeing Ctrl as "down" at the OS level, since that Ctrl
+// state only exists in the SendInput-driven input stream, not the message queue.
 //
-// In practice, for the specific third-party target app this was built against:
-//   - A pure SendInput-only version (Ctrl + V both via SendInput) DID NOT WORK —
-//     the app never received/processed the input, even with SetForegroundWindow(),
-//     GetForegroundWindow() polling, focus-state verification, and generous delays.
-//   - A pure SendMessage-only version could not reliably deliver Ctrl as a modifier
-//     the target app would recognize.
-//   - This mixed version (Enter/V via SendMessage, Ctrl via SendInput) is the ONLY
-//     configuration that was empirically confirmed to work against the real target
-//     application, tested interactively, repeatedly.
-//
-// CONCLUSION: this is not an oversight or an unfinished refactor. It is the result
-// of deliberate trial and error against a specific opaque third-party app whose
-// internal input handling is unknown and not under our control. If you (human or
-// AI agent) are reading this and are tempted to "fix" this into a single consistent
-// mechanism (all-SendInput or all-SendMessage) because it looks more correct or
-// idiomatic — don't, without re-testing against the actual target application first.
-// The "theoretically cleaner" version was tried and silently failed (no errors,
-// no exceptions — SendInput/SetForegroundWindow just didn't produce visible input
-// in the target app). Treat this function as empirically pinned, not as a bug.
-//
-// If this ever needs to target a *different* application, re-run the same
-// experiment (pure SendInput vs pure SendMessage vs mixed) against that specific
-// app before assuming this exact pattern will still be necessary or sufficient.
+// This specific combination is required for the third-party target app this talks
+// to: an all-SendInput version and an all-SendMessage version both fail to deliver
+// a recognized Ctrl+V there. Do not unify this into a single mechanism without
+// re-testing against that actual target application — a "theoretically cleaner"
+// version can fail silently (no errors, just no input arriving) rather than
+// obviously breaking.
 std::atomic<bool> send_in_progress{false};
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 {
@@ -249,12 +230,27 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
     std::thread(
         [delay_ms, tool_handle]()
         {
+            // Registered for this thread's whole lifetime (every early
+            // "return" below included) so AddonUnload's
+            // WaitForBackgroundThreads can wait for it to actually finish
+            // instead of the DLL potentially being unloaded mid-sequence.
+            // See background_threads.h.
+            BackgroundThreadGuard threadGuard;
+
+            if (IsShuttingDown())
+            {
+                send_in_progress.store(false);
+                return;
+            }
+
             if (MumbleLink->Context.IsTextboxFocused != 1)
             {
                 SendMessage(tool_handle, WM_KEYDOWN, VK_RETURN, get_l_param(VK_RETURN, true));
                 SendMessage(tool_handle, WM_KEYUP, VK_RETURN, get_l_param(VK_RETURN, false));
                 std::this_thread::sleep_for(delay_ms);
             }
+
+            if (IsShuttingDown()) { send_in_progress.store(false); return; }
 
             // Ctrl down
             INPUT in{};
@@ -263,6 +259,17 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
             SendInput(1, &in, sizeof(INPUT));
             
             std::this_thread::sleep_for(delay_ms);
+
+            if (IsShuttingDown())
+            {
+                // Ctrl is physically "down" as far as the OS input stream
+                // is concerned — release it before bailing so an unload
+                // mid-sequence can't leave a stuck modifier key behind.
+                in.ki.dwFlags = KEYEVENTF_KEYUP;
+                SendInput(1, &in, sizeof(INPUT));
+                send_in_progress.store(false);
+                return;
+            }
             
             //SendMessage(tool_handle, WM_PASTE, 0, 0); not working
             SendMessage(tool_handle, WM_KEYDOWN, 'V', get_l_param('V', true));
@@ -274,6 +281,8 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
             SendInput(1, &in, sizeof(INPUT));
             
             std::this_thread::sleep_for(delay_ms);
+
+            if (IsShuttingDown()) { send_in_progress.store(false); return; }
 
             SendMessage(tool_handle, WM_KEYDOWN, VK_RETURN, get_l_param(VK_RETURN, true));
             SendMessage(tool_handle, WM_KEYUP, VK_RETURN, get_l_param(VK_RETURN, false));

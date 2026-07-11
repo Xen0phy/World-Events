@@ -51,27 +51,24 @@ SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
 // Event (not per-event; see DrawBulkIconPicker's "All icons" picker for
 // the equivalent all-at-once pattern already used for icon choice).
 // Stored as packed RRGGBBAA unsigned ints, matching CyclicGroup::colors'
-// existing convention in cyclic.h, rather than introducing a new
+// existing convention in events.h, rather than introducing a new
 // SETTING_ARRAY macro variant just for this.
 //
-// No separate alpha setting: previously each status color had a
-// hardcoded 180/255 alpha baked in at the call site in maprender.cpp:
-// IM_COL32(r, g, b, 180). These three settings REPLACE that entirely —
-// whatever alpha the user picks via the color swatch (the 4th channel,
-// part of the packed RRGGBBAA value below) IS the actual opacity used,
-// with nothing layered on top of it.
-SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232B4u) // red,    matches the old IM_COL32(255,50,50,180)
-SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00B4u) // orange, matches the old IM_COL32(255,140,0,180)
-SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray,   matches the old IM_COL32(160,160,160,180)
+// No separate alpha setting: alpha lives in the color itself (the 4th
+// channel of the packed RRGGBBAA value below) — whatever alpha the user
+// picks via the color swatch IS the actual opacity used, nothing layered
+// on top of it.
+SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232B4u) // red
+SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00B4u) // orange
+SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray
 
 // Size, in pixels. Independent of each other — changing one does NOT
-// affect the other, even though the icon size used to be derived from
-// the dot's radius (RADIUS * 1.5) before this. BasicEventIconSize is the
-// icon's HALF-width (matching how maprender.cpp already computes it);
-// height is still derived from the icon texture's own aspect ratio, not
-// a separate setting, so user-supplied icons never render stretched.
-SETTING(BasicEvents, BasicEventDotRadius, float, 8.0f)  // matches the old hardcoded RADIUS
-SETTING(BasicEvents, BasicEventIconSize,  float, 12.0f) // matches the old hardcoded RADIUS(8.0f) * 1.5f
+// affect the other. BasicEventIconSize is the icon's HALF-width (matching
+// how maprender.cpp already computes it); height is still derived from
+// the icon texture's own aspect ratio, not a separate setting, so
+// user-supplied icons never render stretched.
+SETTING(BasicEvents, BasicEventDotRadius, float, 8.0f)
+SETTING(BasicEvents, BasicEventIconSize,  float, 12.0f)
 
 // Zoom-based scaling. Markers stay at their base size (the settings
 // above) from fully-zoomed-out up until BasicEventZoomStartPct of the
@@ -95,10 +92,10 @@ SETTING(BasicEvents, BasicEventZoomScaleMaxObserved, float, -1.0f)
 
 // Time-window filter — only show upcoming Basic Events that start within
 // the next N minutes; currently-active events always show regardless.
-// Stored in minutes, in 10-minute steps, up to 360 (6h). 0 means "no
-// filter, show everything" — kept as a separate enabled flag rather than
-// overloading 0-minutes-means-off, since a 0-minute *window* is also a
-// theoretically valid (if useless) setting value to slide to.
+// Stored in minutes, in 10-minute steps, up to 360 (6h). A separate
+// enabled flag gates the filter, rather than using 0 minutes as an
+// "off" sentinel, since 0 is also a theoretically valid (if useless)
+// window value to slide to.
 //
 // Deliberately NOT applied to cyclic groups — see RenderCyclicGroups in
 // cyclicrender.cpp: a cyclic group's ring already shows its own rolling
@@ -133,7 +130,7 @@ SETTING(Subscriptions, ShowSubscriptionsBar, bool, false)
 // way to/from somewhere else (e.g. the character select / login screen
 // menus, or just moving the mouse up to click a Nexus icon). 0 disables
 // the delay entirely (drop starts the instant the mouse touches a
-// segment, same as the very first version of this feature).
+// segment).
 SETTING(Subscriptions, SubscriptionsBarHoverDelayMs, int, 500)
 
 // The corners of the screen right under the top edge are where GW2's own
@@ -151,8 +148,7 @@ SETTING(Subscriptions, SubscriptionsBarHoverDelayMs, int, 500)
 // party/buff area on the left; SubscriptionsBarUnsafeRightPx covers the
 // minimap/compass on the right — see subscriptions_bar.cpp's
 // SegmentOverlapsUnsafeZone). 0 disables the left or right zone
-// individually, dropping straight down everywhere on that side, same as
-// before this feature existed.
+// individually, dropping straight down everywhere on that side.
 SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,  int, 300)
 SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx, int, 300)
 
@@ -167,12 +163,11 @@ SETTING(Subscriptions, SubscriptionsBarUnsafeHeightPx, int, 90)
 
 // How far a fully-hovered segment drops down from the baseline (attached
 // pop-out block), and, once pill-detach kicks in for unsafe-zone segments,
-// the pill's fixed height too — the two were explicitly unified into one
-// value (see subscriptions_bar.cpp's HANDOFF notes: "pill height must
-// equal a normal safe-zone pop-out's height exactly", no separate
-// pill-height constant). Sized by default to comfortably fit two centered
-// lines of label text; raise it if your font/DPI settings need more room,
-// lower it for a more compact pop-out.
+// the pill's fixed height too — the two are deliberately unified into one
+// value (pill height must equal a normal safe-zone pop-out's height
+// exactly; there is no separate pill-height constant). Sized by default
+// to comfortably fit two centered lines of label text; raise it if your
+// font/DPI settings need more room, lower it for a more compact pop-out.
 SETTING(Subscriptions, SubscriptionsBarMaxDropPx, int, 54)
 
 // When true, active rows are simply left out of the watchlist window's
@@ -197,11 +192,11 @@ SETTING(Subscriptions, SubscriptionsBarHideActive, bool, false)
 // Text colors for the watchlist window's two highlighted states: an
 // active row, and a row starting within the next 15 minutes ("soon" —
 // same 900s threshold already used for BasicEventColorSoon on the map,
-// reused here rather than introducing a second configurable window,
-// per the call made this session). Rows that are neither just use the
-// window's normal default text color, so there's no separate "waiting"
-// setting the way the map markers have one — the list only needs to draw
-// attention to the two states that are actually time-sensitive.
+// reused here rather than introducing a second configurable window).
+// Rows that are neither just use the window's normal default text color,
+// so there's no separate "waiting" setting the way the map markers have
+// one — the list only needs to draw attention to the two states that are
+// actually time-sensitive.
 //
 // Stored as packed RRGGBBAA like the map's BasicEventColor* settings, but
 // note the LOW BYTE (alpha) is unused/ignored here: this feeds straight

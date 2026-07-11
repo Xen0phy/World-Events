@@ -15,26 +15,23 @@
 // ---------------------------------------------------------------------------
 // Icon textures — optional, per-event, user-supplied OR bundled default
 // ---------------------------------------------------------------------------
-// Mirrors the loading pattern already used for the Speedo's face/needle
-// textures in another addon this project's author maintains: scan a
-// "textures" folder under the addon's own directory, load on demand via
-// Nexus's async Textures_LoadFromFile (never Textures_GetOrCreateFromFile,
-// which can hand back a Texture_t* whose ->Resource is still null while
-// the file decodes in the background, with no signal for when it becomes
-// ready), and cache the result by filename.
+// Scans a "textures" folder under the addon's own directory, loads on
+// demand via Nexus's async Textures_LoadFromFile (never
+// Textures_GetOrCreateFromFile, which can hand back a Texture_t* whose
+// ->Resource is still null while the file decodes in the background, with
+// no signal for when it becomes ready), and caches the result by
+// filename.
 //
-// A second source was added alongside this: a small set of default icons
-// shipped compiled into the dll itself (see events_icons.h / s_defaultIcons
-// below), loaded via Textures_LoadFromMemory instead of LoadFromFile so no
-// files need to exist on disk for these to work out of the box. Disk is
-// always checked FIRST for a given filename — see GetOrRequestEventIcon —
-// so a user can still override/reskin a bundled icon by dropping a
-// same-named file into their own textures/ folder.
+// A small set of default icons ships compiled into the dll itself (see
+// events_icons.h / s_defaultIcons below), loaded via
+// Textures_LoadFromMemory instead of LoadFromFile so no files need to
+// exist on disk for these to work out of the box. Disk is always checked
+// FIRST for a given filename — see GetOrRequestEventIcon — so a user can
+// still override/reskin a bundled icon by dropping a same-named file into
+// their own textures/ folder.
 //
-// Unlike the Speedo (which has exactly one face texture and one needle
-// texture), an arbitrary number of DIFFERENT events can each reference a
-// different icon filename, so this needs a cache keyed by filename rather
-// than a single static pointer.
+// An arbitrary number of DIFFERENT events can each reference a different
+// icon filename, so this needs a cache keyed by filename.
 //
 // AUTHORING REQUIREMENT: because the icon is recolored at draw time via a
 // multiplicative tint (ImDrawList::AddImage's `col` parameter multiplies
@@ -61,19 +58,16 @@ static std::unordered_map<std::string, EventIconEntry> s_iconCache;
 static std::vector<std::string> s_iconFilenames;
 static bool s_iconFilenamesScanned = false;
 
-// ---------------------------------------------------------------------------
 // Default (bundled) icons — shipped compiled into this dll, not read from
 // disk. events_icons.h holds the raw PNG bytes as static byte arrays (same
 // gray/alpha-recolor convention as the AUTHORING REQUIREMENT above — these
 // were verified gray/alpha before being embedded here), one array + one
-// "_size" companion per icon, same shape as this project's existing
-// hotbar_icon.h.
+// "_size" companion per icon.
 //
 // Precedence is DISK FIRST, same filename: a user can drop a file named
 // e.g. "WorldBoss.png" into their own textures/ folder to reskin/override
 // a bundled icon without recompiling — see GetOrRequestEventIcon below.
 // This table is only consulted when nothing matching exists on disk.
-// ---------------------------------------------------------------------------
 #include "events_icons.h"
 
 struct DefaultIconEntry
@@ -193,9 +187,6 @@ static Texture_t* GetOrRequestEventIcon(const std::string& filename)
     return nullptr; // not ready yet this frame; falls back to the plain dot
 }
 
-// ---------------------------------------------------------------------------
-// SecondsUntilNext
-// ---------------------------------------------------------------------------
 // Returns how many seconds until the next occurrence of an event.
 //
 // For varying events, walks the list in order:
@@ -204,7 +195,6 @@ static Texture_t* GetOrRequestEventIcon(const std::string& filename)
 //   - if all times passed today        → wrap to first one tomorrow
 //
 // For periodic events, uses phase arithmetic to find the next start.
-// ---------------------------------------------------------------------------
 int GetSecondsUntilEventStart(const WorldEvent& ev, time_t now)
 {
     if (!ev.isVarying && ev.period <= 0) return -1;
@@ -231,12 +221,8 @@ int GetSecondsUntilEventStart(const WorldEvent& ev, time_t now)
     return ev.period - phase;
 }
 
-// ---------------------------------------------------------------------------
-// SecondsUntilEnd
-// ---------------------------------------------------------------------------
 // Returns how many seconds until the current active window closes.
-// Only meaningful when IsActive() is true.
-// ---------------------------------------------------------------------------
+// Only meaningful when IsEventActive() is true.
 int GetSecondsUntilEventEnd(const WorldEvent& ev, time_t now)
 {
     int secondsOfDay = (int)(now % 86400);
@@ -254,15 +240,11 @@ int GetSecondsUntilEventEnd(const WorldEvent& ev, time_t now)
     return ev.duration - phase;
 }
 
-// ---------------------------------------------------------------------------
-// IsActive
-// ---------------------------------------------------------------------------
 // Returns true if the event is currently running.
 //
 // For varying events, checks directly whether now falls inside any active
 // window. For periodic events, checks whether we are within the duration
 // window at the start of the current cycle.
-// ---------------------------------------------------------------------------
 bool IsEventActive(const WorldEvent& ev, time_t now)
 {
     if (ev.isVarying)
@@ -280,9 +262,6 @@ bool IsEventActive(const WorldEvent& ev, time_t now)
     return secs > (ev.period - ev.duration);
 }
 
-// ---------------------------------------------------------------------------
-// GetZoomPercent
-// ---------------------------------------------------------------------------
 // Returns how "zoomed in" the full-screen map currently is, as 0-100.
 //
 // Mumble's Compass.Scale is continent-units-per-pixel and gets SMALLER as
@@ -295,7 +274,6 @@ bool IsEventActive(const WorldEvent& ev, time_t now)
 // and (since this is backed by BasicEventZoomScaleMinObserved/MaxObserved
 // in settings_table.h, not a local static) stays calibrated across
 // restarts too.
-// ---------------------------------------------------------------------------
 static float GetZoomPercent(float scale)
 {
     if (scale <= 0.0f) return 0.0f;
@@ -315,14 +293,10 @@ static float GetZoomPercent(float scale)
     return pct;
 }
 
-// ---------------------------------------------------------------------------
-// GetEventZoomSizeMultiplier
-// ---------------------------------------------------------------------------
 // Markers stay at 1.0x from 0% zoom up to BasicEventZoomStartPct, then grow
 // linearly to BasicEventZoomMaxMultiplier at 100% zoom. Declared in
 // maprender.h (not static) so cyclicrender.cpp can reuse the exact same
 // curve for cyclic group rings instead of duplicating this logic.
-// ---------------------------------------------------------------------------
 float GetEventZoomSizeMultiplier()
 {
     float zoomPct = GetZoomPercent(MumbleLink->Context.Compass.Scale);
@@ -339,19 +313,13 @@ float GetEventZoomSizeMultiplier()
     return 1.0f + t * (BasicEventZoomMaxMultiplier - 1.0f);
 }
 
-// ---------------------------------------------------------------------------
-// ContinentToScreen
-// ---------------------------------------------------------------------------
 // Maps a GW2 continent coordinate (cx, cy) to a screen pixel position.
 //
 // The Mumble compass gives us everything we need:
 //   Compass.Center — the continent coordinate at the CENTER of the map view
 //   Compass.Scale  — continent units per pixel (decreases as you zoom in)
 //
-// The center of the map on screen is approximately the center of the window.
-// NOTE: This may need a small offset tuning once tested in-game, as GW2's
-// full-screen map has a thin UI border. We'll adjust that here if needed.
-// ---------------------------------------------------------------------------
+// The center of the map on screen is the center of the window.
 ImVec2 ContinentToScreen(float cx, float cy)
 {
     const auto& compass = MumbleLink->Context.Compass;
@@ -370,14 +338,10 @@ ImVec2 ContinentToScreen(float cx, float cy)
     };
 }
 
-// ---------------------------------------------------------------------------
-// ScreenToContinent
-// ---------------------------------------------------------------------------
 // Exact inverse of ContinentToScreen, used while drag-editing a marker's
 // position: each frame the dragged marker's new screen position (mouse pos
 // + the original click offset, see EditTarget handling below) needs to be
 // converted back to a continent coordinate to store in continentX/Y.
-// ---------------------------------------------------------------------------
 ImVec2 ScreenToContinent(ImVec2 screenPos)
 {
     const auto& compass = MumbleLink->Context.Compass;
@@ -402,21 +366,16 @@ void ClearEditMode()
     g_EditMode = EditModeState{};
 }
 
-// ---------------------------------------------------------------------------
-// RenderMapEvents
-// ---------------------------------------------------------------------------
 // Draws a dot/icon for each event in g_Events. Size is normally fixed in
 // pixels regardless of map zoom (zoom is already baked into Compass.Scale,
 // which we only use to position the center) — but if BasicEventZoomScaling
 // is enabled, markers additionally grow as the map is zoomed in past
 // BasicEventZoomStartPct, up to BasicEventZoomMaxMultiplier at 100% zoom.
 // See GetZoomPercent()/GetEventZoomSizeMultiplier() above.
-// ---------------------------------------------------------------------------
 void RenderMapEvents()
 {
-    // Background draw list, not foreground — see the comment in
-    // cyclicrender.cpp's RenderCyclicGroups for why: the foreground list
-    // composites AFTER tooltips, so the hover tooltip was rendering
+    // Background draw list, not foreground: the foreground list
+    // composites AFTER tooltips, so a hover tooltip was rendering
     // underneath these dots. Background draws before all ImGui content
     // (including tooltips), fixing that, while still sitting on top of
     // GW2's own game-world rendering either way.
@@ -470,9 +429,8 @@ void RenderMapEvents()
         // Map-only hide: skip drawing entirely. Doesn't touch the
         // Subscriptions bar/window (those are opt-in regardless) and
         // doesn't remove it from the options panel list. Exempted while
-        // being edited/dragged, same reasoning as the culling and
-        // time-window filter above/below — hiding it mid-drag would
-        // silently end the drag.
+        // being edited/dragged — hiding it mid-drag would silently end
+        // the drag.
         if (!isBeingEdited && !ev.shown)
             continue;
 
@@ -493,7 +451,7 @@ void RenderMapEvents()
 
         // BasicEventColorActive/Soon/Waiting are user settings, stored as
         // packed RRGGBBAA (R in the top byte — same convention as
-        // ColorSet::base in cyclic.h), NOT ImGui's native ABGR ImU32
+        // ColorSet::base in events.h), NOT ImGui's native ABGR ImU32
         // packing, so they need the same explicit channel extraction
         // HEX()/ColorSet uses rather than being passed to IM_COL32-style
         // calls directly. There's no separate hardcoded alpha layered on
@@ -518,7 +476,7 @@ void RenderMapEvents()
         // hoverHalfExtent tracks whichever size is ACTUALLY drawn for
         // this specific event, so the hover/tooltip rect matches what's
         // visually on screen — an icon-using event and a plain-dot event
-        // can now have different effective sizes (BasicEventIconSize vs
+        // can have different effective sizes (BasicEventIconSize vs
         // BasicEventDotRadius), so a single shared hover radius would be
         // wrong for whichever one isn't currently active.
         float hoverHalfExtent;
@@ -563,10 +521,10 @@ void RenderMapEvents()
         // Drag capture for this one marker uses a small separate "anchor"
         // window, positioned exactly over the marker's rect, rather than
         // a widget inside the big overlay. The big overlay always keeps
-        // NoMouseInputs now (see the comment above Begin("##we_overlay")),
-        // so it can never block map-dragging anywhere on screen — this
-        // little window is the ONLY thing that ever captures the mouse,
-        // and only while this specific marker is armed, and only over its
+        // NoMouseInputs (see Begin("##we_overlay") above), so it can
+        // never block map-dragging anywhere on screen — this little
+        // window is the ONLY thing that ever captures the mouse, and
+        // only while this specific marker is armed, and only over its
         // own small rect. Recreated every frame at the marker's current
         // screen position so it tracks correctly even while being
         // dragged (the marker's pos moves each frame as it follows the

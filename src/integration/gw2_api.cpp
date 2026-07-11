@@ -12,6 +12,7 @@
 //   background fetch that runs at most once every kMinPollSeconds.
 #include "gw2_api.h"
 #include "settings.h"
+#include "background_threads.h"
 #include "nlohmann_json.hpp"
 #include <windows.h>
 #include <winhttp.h>
@@ -33,7 +34,11 @@ using json = nlohmann::json;
 static std::mutex                      s_mutex;
 static std::unordered_set<std::string> s_completedWorldBosses; // guarded by s_mutex
 static std::unordered_set<std::string> s_claimedMapChests;     // guarded by s_mutex — same cache-day/status as above, one fetch pass covers both
-static std::unordered_map<std::string, bool> s_weeklyObjectiveComplete; // guarded by s_mutex — key: lowercased objective title, value: complete? same cache-day/status as the two sets above, but see PollGw2Api's third fetch below for why a failure here doesn't invalidate the other two
+
+// guarded by s_mutex — key: lowercased objective title, value: complete?
+// Same cache-day/status as the two sets above, but a failure on this
+// third fetch does NOT invalidate the other two (see PollGw2Api below).
+static std::unordered_map<std::string, bool> s_weeklyObjectiveComplete;
 
 static std::atomic<Gw2ApiStatus> s_status{Gw2ApiStatus::NoKey};
 static std::atomic<bool>         s_fetchInProgress{false};
@@ -75,6 +80,45 @@ static std::string AsciiLower(const std::string& s)
 static constexpr int kMinPollSeconds = 120;
 
 // ---------------------------------------------------------------------------
+// In-flight handle tracking / cancellation
+// ---------------------------------------------------------------------------
+// WinHTTP's documented way to cancel a synchronous call already blocked on
+// a handle is to close that handle from a *different* thread — the blocked
+// call then returns (with an error) instead of running out its full
+// timeout. s_active* below track whichever handles the current HttpsGetJson
+// call actually has open; CancelInFlightHttpRequest, registered as a
+// shutdown hook (see background_threads.h), closes them from the main/
+// render thread during AddonUnload so the fetch thread's blocking call
+// returns almost immediately instead of the unload having to wait out the
+// full WinHTTP timeout.
+//
+// s_activeHandlesMutex serializes every close against every other one:
+// both HttpsGetJson's own normal end-of-call cleanup and
+// CancelInFlightHttpRequest close handles and null out these globals under
+// the same lock, so a handle is never closed twice from two threads at
+// once — whichever one gets the lock first "wins" and the other sees the
+// slot already nulled and skips it.
+static std::mutex s_activeHandlesMutex;
+static HINTERNET  s_activeSession = nullptr;
+static HINTERNET  s_activeConnect = nullptr;
+static HINTERNET  s_activeRequest = nullptr;
+
+static void CancelInFlightHttpRequest()
+{
+    std::lock_guard<std::mutex> lock(s_activeHandlesMutex);
+    // Child handles first, same order normal cleanup uses.
+    if (s_activeRequest) { WinHttpCloseHandle(s_activeRequest); s_activeRequest = nullptr; }
+    if (s_activeConnect) { WinHttpCloseHandle(s_activeConnect); s_activeConnect = nullptr; }
+    if (s_activeSession) { WinHttpCloseHandle(s_activeSession); s_activeSession = nullptr; }
+}
+
+// Registered once, at static-init time for this translation unit — simpler
+// and race-free compared to lazily registering on HttpsGetJson's first
+// call (which would need its own synchronization to be correct if two
+// fetches ever somehow overlapped).
+static bool s_cancelHookRegistered = (RegisterShutdownHook(CancelInFlightHttpRequest), true);
+
+// ---------------------------------------------------------------------------
 // HttpsGetJson
 // ---------------------------------------------------------------------------
 // Synchronous HTTPS GET against `host`+`path`, with an
@@ -95,20 +139,45 @@ static bool HttpsGetJson(const wchar_t* host, const wchar_t* path,
         WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!hSession) return false;
+    {
+        std::lock_guard<std::mutex> lock(s_activeHandlesMutex);
+        s_activeSession = hSession;
+    }
 
     // A stuck/hanging TCP connection (bad wifi, captive portal, etc.)
     // must not leave the fetch thread — and therefore
     // s_fetchInProgress — stuck forever, since that would silently wedge
     // this feature until the addon reloads. 10s is generous for a tiny
-    // JSON response but still bounded.
+    // JSON response but still bounded. (CancelInFlightHttpRequest above is
+    // the OTHER way this can end early — on an addon unload rather than a
+    // hung connection.)
     WinHttpSetTimeouts(hSession, 10000, 10000, 10000, 10000);
 
     HINTERNET hConnect = WinHttpConnect(hSession, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
-    if (!hConnect) { WinHttpCloseHandle(hSession); return false; }
+    if (!hConnect)
+    {
+        std::lock_guard<std::mutex> lock(s_activeHandlesMutex);
+        if (s_activeSession) { WinHttpCloseHandle(s_activeSession); s_activeSession = nullptr; }
+        return false;
+    }
+    {
+        std::lock_guard<std::mutex> lock(s_activeHandlesMutex);
+        s_activeConnect = hConnect;
+    }
 
     HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", path,
         NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
-    if (!hRequest) { WinHttpCloseHandle(hConnect); WinHttpCloseHandle(hSession); return false; }
+    if (!hRequest)
+    {
+        std::lock_guard<std::mutex> lock(s_activeHandlesMutex);
+        if (s_activeConnect) { WinHttpCloseHandle(s_activeConnect); s_activeConnect = nullptr; }
+        if (s_activeSession) { WinHttpCloseHandle(s_activeSession); s_activeSession = nullptr; }
+        return false;
+    }
+    {
+        std::lock_guard<std::mutex> lock(s_activeHandlesMutex);
+        s_activeRequest = hRequest;
+    }
 
     std::wstring bearerW(bearerToken.begin(), bearerToken.end()); // API keys are ASCII hex/hyphen, safe to widen byte-for-byte
     std::wstring header = L"Authorization: Bearer " + bearerW;
@@ -138,9 +207,17 @@ static bool HttpsGetJson(const wchar_t* host, const wchar_t* path,
         }
     }
 
-    WinHttpCloseHandle(hRequest);
-    WinHttpCloseHandle(hConnect);
-    WinHttpCloseHandle(hSession);
+    // Normal end-of-call cleanup — each close is guarded the same way
+    // CancelInFlightHttpRequest's are, so if an unload already force-closed
+    // one or more of these (nulling the corresponding s_active* out from
+    // under this call, which is exactly why ok/outStatusCode above would
+    // have come back false/failed), this doesn't double-close it.
+    {
+        std::lock_guard<std::mutex> lock(s_activeHandlesMutex);
+        if (s_activeRequest) { WinHttpCloseHandle(s_activeRequest); s_activeRequest = nullptr; }
+        if (s_activeConnect) { WinHttpCloseHandle(s_activeConnect); s_activeConnect = nullptr; }
+        if (s_activeSession) { WinHttpCloseHandle(s_activeSession); s_activeSession = nullptr; }
+    }
     return ok;
 }
 
@@ -177,6 +254,19 @@ void PollGw2Api()
 
     std::thread([apiKeyCopy, today]()
     {
+        // Registered for the whole lifetime of this lambda (including every
+        // early "return" below) so AddonUnload's WaitForBackgroundThreads
+        // can tell this thread is still in flight and wait for it, rather
+        // than the DLL potentially being unloaded out from under it mid-
+        // request. See background_threads.h.
+        BackgroundThreadGuard threadGuard;
+
+        if (IsShuttingDown())
+        {
+            s_fetchInProgress.store(false);
+            return;
+        }
+
         // Small local helper: GET one of the two "already done today" id-list
         // endpoints and parse it into a flat string set. Returns false only
         // on a hard failure (transport error, bad key, malformed body);
@@ -217,6 +307,17 @@ void PollGw2Api()
             return;
         }
 
+        // Checkpoint: an unload in progress doesn't need this poll's result
+        // any more, and bailing here (rather than after all three calls)
+        // shortens how long WaitForBackgroundThreads has to wait — down to
+        // whatever's left of the CURRENT call's timeout, instead of up to
+        // three sequential calls' worth.
+        if (IsShuttingDown())
+        {
+            s_fetchInProgress.store(false);
+            return;
+        }
+
         std::unordered_set<std::string> claimedMapChests;
         bool mapChestsOk = FetchIdSet(L"/v2/account/mapchests", claimedMapChests, statusCode);
 
@@ -243,6 +344,13 @@ void PollGw2Api()
         // "stale over wrong" rule as everywhere else in this file) —
         // worst case, GetWeeklyObjectiveState just reports NotThisWeek
         // for everything until a later poll succeeds.
+        // Same checkpoint as above, one call earlier.
+        if (IsShuttingDown())
+        {
+            s_fetchInProgress.store(false);
+            return;
+        }
+
         std::unordered_map<std::string, bool> weeklyComplete;
         bool weeklyOk = false;
         {

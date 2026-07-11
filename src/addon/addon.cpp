@@ -3,6 +3,7 @@
 #include "maprender.h"
 #include "cyclicrender.h"
 #include "settings.h"
+#include "background_threads.h"
 #include "events_storage.h"
 #include "events_categories.h"
 #include "subscriptions.h"
@@ -75,6 +76,34 @@ void AddonUnload()
     // Deregister first — stop any in-flight render calls
     APIDefs->GUI_Deregister(AddonRender);
     APIDefs->GUI_Deregister(AddonOptions);
+
+    // Both PollGw2Api (gw2_api.cpp) and PasteToChat (subscriptions.cpp)
+    // fire off detached background threads. Nothing above stops one that's
+    // already running, and this DLL is typically FreeLibrary()'d shortly
+    // after this function returns — if such a thread is still executing
+    // when that happens, it resumes running code that no longer exists in
+    // memory. GUI_Deregister above means no *new* one can start from here
+    // on, so this blocks (briefly, and only if one happens to be mid-
+    // flight right now) until every one already running has actually
+    // finished, or bails out past a short bound rather than hanging the
+    // whole unload.
+    //
+    // 2s, not the ~30s a stuck WinHTTP call could otherwise take: gw2_api's
+    // registered shutdown hook force-closes any in-flight HTTP request the
+    // instant this is called (see background_threads.h / gw2_api.cpp), so
+    // that thread should reach its next checkpoint and exit almost
+    // immediately rather than this wait actually needing to cover a full
+    // network timeout. 2s is just headroom for that to happen (plus
+    // PasteToChat's short, uncancellable keystroke-delay sleeps) — not a
+    // budget for a hung request. Kept short on purpose: if the host ever
+    // calls AddonUnload as part of closing the whole game, a long wait here
+    // would stall that exit, and if the process gets killed outright
+    // (Task Manager, or the OS tearing it down after the window closes)
+    // every thread is torn down together regardless of this wait, so
+    // there's nothing to gain by making it longer "just in case" — it only
+    // matters for the "just this DLL gets unloaded, game keeps running"
+    // case, which is the fast/common one.
+    WaitForBackgroundThreads(2000);
 
     SaveSettings(g_AddonDir);
     SaveEventsData(g_AddonDir);

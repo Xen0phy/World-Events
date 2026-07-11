@@ -29,8 +29,7 @@ namespace fs = std::filesystem;
 // SaveSettings
 // ---------------------------------------------------------------------------
 // Writes all settings to "<addonDir>/settings.ini". Section headers are
-// written for human readability only — see LoadSettings for why they're not
-// actually load-bearing.
+// written for human readability only, not load-bearing.
 // ---------------------------------------------------------------------------
 bool SaveSettings(const std::string& addonDir)
 {
@@ -94,8 +93,20 @@ bool LoadSettings(const std::string& addonDir)
             std::string key = line.substr(0, eq);
             std::string val = line.substr(eq + 1);
 
+            // Each field's parse is individually try/catch'd — std::stoi/
+            // stof/stoul (via parse<T>) throw on a malformed value.
+            // Catching per-field means one corrupted/hand-edited line only
+            // leaves that one setting at whatever it already was
+            // (compiled-in default, or whatever a still-valid earlier line
+            // already set it to); the rest of the file keeps loading
+            // normally instead of the whole load aborting at that line.
             if (false) {}
-            #define SETTING(S, Key, Type, Default) else if (key == #Key) Key = parse<Type>(val);
+            #define SETTING(S, Key, Type, Default) \
+                else if (key == #Key) \
+                { \
+                    try { Key = parse<Type>(val); } \
+                    catch (...) { /* malformed value for this one key — leave it as-is, keep loading the rest of the file */ } \
+                }
             #include "settings_table.h"
             #undef SETTING
         }

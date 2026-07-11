@@ -8,8 +8,8 @@
 // load/save functions that persist them to settings.ini in the addon
 // directory.
 //
-// Definitions (actual storage) live in settings.cpp — see that file's
-// header comment for why there's exactly one translation unit that does this.
+// Definitions (actual storage) live in settings.cpp — exactly one
+// translation unit defines these globals.
 // ---------------------------------------------------------------------------
 
 #define SETTING(S, Key, Type, Default) extern Type Key;

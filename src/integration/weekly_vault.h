@@ -19,9 +19,7 @@
 //
 // THE ONE TABLE TO EDIT each time ArenaNet rotates the Vault's objective
 // list, or whenever a mapping turns out wrong: g_WeeklyObjectives in
-// weekly_vault.cpp. Read the big comment at the top of that file before
-// changing anything — in particular the note on why several entries are
-// deliberately left unmapped or flagged as a best guess.
+// weekly_vault.cpp. Read the comment at the top of that file first.
 // ---------------------------------------------------------------------------
 
 // One event/slot that can satisfy a weekly objective.

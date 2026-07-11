@@ -9,25 +9,22 @@
 // it has no effect on rendering, timing, or anything outside the options
 // UI. Members are referenced BY NAME, not nested/copied: a category never
 // contains an actual WorldEvent or CyclicGroup, it just lists the names of
-// ones that already exist in g_Events / g_CyclicGroups. This keeps
-// "events.json"'s cyclicGroups/events arrays exactly as they are today —
-// categories are a separate, optional layer on top, not a change to how
-// the real data is shaped or stored.
+// ones that already exist in g_Events / g_CyclicGroups. Categories are a
+// separate, optional layer on top of events.json's existing cyclicGroups/
+// events arrays, not a change to how that data is shaped or stored.
 //
 // Name is the only identity a member is matched by (same as everywhere
 // else in this codebase — see SlotKey/EventKey/GroupKey in
 // events_storage.cpp). If a user renames a group/event through the
-// editing UI, the rename code is responsible for patching any category
-// that referenced the old name — see RenameCategoryMember() below — so a
-// category never silently loses track of something just because it got
-// renamed.
+// editing UI, the rename code patches any category that referenced the
+// old name — see RenameCategoryMember() below.
 //
 // Because members are looked up by name in g_Events/g_CyclicGroups at
 // render time rather than stored as copies, a category can reference
 // names from EITHER list — e.g. one category mixing a Basic Event and a
-// Cyclic Event is fully supported by this data shape, even though the
-// first pass of category-aware UI only builds same-list categories
-// (Basic-only, Cyclic-only). Nothing here prevents mixing later.
+// Cyclic Event works fine with this data shape, even though the current
+// category-aware UI only builds same-list categories (Basic-only,
+// Cyclic-only).
 // ---------------------------------------------------------------------------
 struct Category
 {
@@ -48,17 +45,10 @@ extern std::vector<Category> g_CyclicCategories;
 // Compiled-in category defaults, defined the same way g_Events and
 // g_CyclicGroups are: written by hand in events_basic.cpp/events_cyclic.cpp,
 // referencing members BY NAME. This is a separate type from `Category`
-// (not just a `Category` with extra data) because it needs to travel through
-// LoadCategoriesData's merge step, where JSON membership normally wins —
-// `forced` is the one exception to that, so it needs to survive past the
-// point where everything else gets collapsed down to plain names.
-//
-// This is the direct replacement for grouping compiled-in entries with
-// plain `//` comments (see the "Core bosses"/"LLA"/etc. comments in
-// events_basic.cpp, or the expansion-name comments in events_cyclic.cpp) —
-// same grouping, but now real data the options-panel UI can render as
-// actual categories on a fresh install, instead of just a comment only
-// visible in source.
+// because it needs to travel through LoadCategoriesData's merge step,
+// where JSON membership normally wins — `forced` is the one exception to
+// that, so it needs to survive past the point where everything else gets
+// collapsed down to plain names.
 struct CategoryDefaultMember
 {
     std::string name;
@@ -128,28 +118,17 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 //
 // ORDERING MATTERS: call SaveEventsData() BEFORE SaveCategoriesData() in
 // the same save pass. SaveCategoriesData reads the file first (to avoid
-// clobbering events/cyclicGroups when it writes back), so if it ran first
-// and SaveEventsData ran after, SaveEventsData would have no knowledge of
-// the category keys and would overwrite the file without them — silently
-// dropping any category data just saved a moment earlier. The reverse
-// order (current call site in addon.cpp) is safe: SaveCategoriesData
-// always reads back whatever SaveEventsData just wrote.
+// clobbering events/cyclicGroups when it writes back), so if it ran
+// first, SaveEventsData would overwrite the file without the category
+// keys. The reverse order (current call site in addon.cpp) is safe.
 //
 // LoadCategoriesData merges g_DefaultBasicCategories/g_DefaultCyclicCategories
-// (compiled-in, see above) with whatever's in the JSON, keyed by category
-// name — same shape as LoadEventsData's merge in events_storage.cpp:
-//   - Category name in both   -> JSON's membership wins (preserves any
-//                                 drag-and-drop reorganization the user did).
-//   - Name only in defaults   -> new compiled-in category, added — but
-//                                 only when the saved file predates
-//                                 EVENTS_DATA_VERSION; on an up-to-date
-//                                 file, a missing default category means
-//                                 the user deleted it, so it stays gone.
-//   - Name only in the JSON   -> a user-created category, always kept.
-// After that merge, any member marked `forced` (see CategoryDefaultMember
-// above) is pushed into its target category — again, only when the file
-// predates EVENTS_DATA_VERSION, so it seeds/re-asserts on real content
-// changes without permanently overriding a user's later choice to move it.
+// with whatever's in the JSON, keyed by category name — same merge rule as
+// LoadEventsData (see events_storage.cpp's MergeByKey comment). After that
+// merge, any member marked `forced` (see CategoryDefaultMember above) is
+// pushed into its target category, gated the same way as the merge itself
+// (see EVENTS_DATA_VERSION in events.h) so it re-asserts on real content
+// changes without overriding a user's later choice to move it.
 //
 // Both swallow exceptions and return false on failure.
 // ---------------------------------------------------------------------------

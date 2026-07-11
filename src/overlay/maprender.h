@@ -32,14 +32,13 @@ ImVec2 ScreenToContinent(ImVec2 screenPos);
 // ---------------------------------------------------------------------------
 // Clicking the "Drag" button next to a Basic Event's or Cyclic Group's
 // Location field (in addon_options.cpp) arms drag-to-reposition for that
-// one marker; left-click-dragging it on the map then moves it. The button
-// (now reading "Stop") arms/disarms it — there's no separate gesture on
-// the map itself to end editing, since right-click wasn't reliably
-// reaching this overlay in testing (something upstream of us appears to
-// already consume it) and a left-click-to-close would conflict with
-// left-click being the drag button itself. At most one marker is ever
-// being edited at a time, and it can be EITHER a Basic Event OR a Cyclic
-// Group, never both — arming one always disarms the other.
+// one marker; left-click-dragging it on the map then moves it. The same
+// button (now reading "Stop") disarms it — there's no separate gesture on
+// the map itself to end editing, since right-click doesn't reliably reach
+// this overlay and a left-click-to-close would conflict with left-click
+// being the drag gesture itself. At most one marker is ever being edited
+// at a time, and it can be EITHER a Basic Event OR a Cyclic Group, never
+// both — arming one always disarms the other.
 //
 // Deliberately NOT in settings_table.h: this is momentary UI state, not a
 // persisted preference, identical in spirit to the search query in
@@ -57,7 +56,7 @@ struct EditModeState
     // "armed" (target/index set) is not the same as actively dragging —
     // without this distinction, ANY left-drag anywhere on screen (e.g.
     // dragging the settings window, or the mouse-down from clicking the
-    // "Stop" button) was mistaken for dragging the marker and yanked it
+    // "Stop" button) would be mistaken for dragging the marker and yank it
     // to wherever that unrelated drag/click happened to be.
     bool       isDragging = false;
 };

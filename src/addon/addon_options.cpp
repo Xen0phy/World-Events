@@ -3,15 +3,16 @@
 //
 // This is a Nexus UI callback — it draws into a panel that Nexus owns, not
 // a standalone window. All widgets write directly into the global settings
-// declared in settings.h / settings_table.h. There is no explicit "Save"
-// button: settings are written to disk on AddonUnload (see addon.cpp), the
-// same way your other addons handle it, so edits here just live in memory
-// until the addon (or the game) closes.
+// declared in settings.h / settings_table.h, or into g_Events/
+// g_CyclicGroups/g_BasicCategories/g_CyclicCategories directly. There is no
+// explicit "Save" button: everything is written to disk on AddonUnload
+// (see addon.cpp), so edits here just live in memory until the addon (or
+// the game) closes.
 //
-// This first pass only covers the flat scalar settings (overlay visibility,
-// ring radius/thickness, entry/exit window). Editing individual cyclic
-// groups/slots/events is a separate, later piece once JSON persistence for
-// g_CyclicGroups/g_Events exists.
+// Covers both the flat scalar settings (overlay visibility, ring radius/
+// thickness, entry/exit window) and full editing of individual events,
+// cyclic groups/slots, and categories — creating, renaming, deleting,
+// recoloring, drag-and-drop categorization, and icon assignment.
 
 #include "addon.h"
 #include "settings.h"
@@ -55,14 +56,12 @@ struct ImGuiScopedDisabled
 #define DISABLED_BLOCK_CONCAT(a, b)  DISABLED_BLOCK_CONCAT_(a, b)
 #define DisabledBlock(cond) if (ImGuiScopedDisabled DISABLED_BLOCK_CONCAT(_disabled_scope_, __LINE__){cond})
 
-// ---------------------------------------------------------------------------
 // Period field: whole hours only, 1-12h, deliberately — no GW2 event or
 // event chain runs on anything other than a whole-hour cycle, so this keeps
 // the field from accepting values that imply a typo (e.g. half an hour).
 // Drawn as a DragInt (see DrawPeriodHoursDragInt below) rather than a Combo
 // so raising the cap doesn't require growing a hardcoded label array — 12h
 // covers every period seen so far (including the 7h groups) with headroom.
-// ---------------------------------------------------------------------------
 static constexpr int kMinPeriodHours = 1;
 static constexpr int kMaxPeriodHours = 12;
 
@@ -70,8 +69,7 @@ static constexpr int kMaxPeriodHours = 12;
 // [kMinPeriodHours, kMaxPeriodHours]. Any out-of-range or non-whole-hour
 // value (which shouldn't occur from this UI, but could from a hand-edited
 // JSON file) just snaps to the nearest valid hour rather than crashing or
-// showing garbage — same reasoning as the old dropdown-index helper this
-// replaces, just without a label array to index into.
+// showing garbage.
 static int PeriodSecondsToHours(int periodSeconds)
 {
     int hours = periodSeconds / 3600;
@@ -104,22 +102,16 @@ static void DrawPeriodHoursDragInt(int* periodSeconds)
 // ---------------------------------------------------------------------------
 // One dropdown that sets ev.iconTexture for every event index in
 // `targetIndices` at once — used by the "Basic Events" section header's
-// "All icons" picker (apply to literally every event). A per-category
-// version of this existed earlier but was deliberately removed, leaving
-// only this section-wide bulk picker plus the individual per-event
-// dropdown in DrawBasicEventRow. The function itself is still written
-// generically (any index list), so it's reusable if a bulk picker is
-// ever wanted somewhere else again.
+// "All icons" picker (apply to literally every event). Written generically
+// (any index list), so it's reusable for a bulk picker anywhere else too.
 //
 // Display state before the user touches it: if every target already
 // shares the exact same iconTexture (including "all empty", i.e. all
 // using the plain dot), that shared value is shown selected. If they
-// disagree, an extra "(mixed)" entry is shown selected instead — but
-// "(mixed)" is purely a status display, not a real choice: it only
-// appears in the list while the state is actually mixed, and selecting
-// any OTHER entry applies that choice to every target and makes the
-// list resolve to non-mixed on the next frame, at which point "(mixed)"
-// naturally drops out of the item list entirely.
+// disagree, a "(mixed)" entry is shown instead — purely a status display,
+// not a real choice: selecting any OTHER entry applies that choice to
+// every target, and "(mixed)" naturally drops out of the list once the
+// state resolves to non-mixed.
 // ---------------------------------------------------------------------------
 static void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices)
 {
@@ -163,7 +155,7 @@ static void DrawBulkIconPicker(const char* label, const std::vector<int>& target
 
 // ---------------------------------------------------------------------------
 // Color conversion: ColorSet::base is RRGGBBAA (R in the top byte — see
-// HEX() in cyclic.h), which is NOT the same byte order as ImGui's own ImU32
+// HEX() in events.h), which is NOT the same byte order as ImGui's own ImU32
 // (ABGR, via IM_COL32). ColorConvertU32ToFloat4/ColorConvertFloat4ToU32
 // assume ImGui's ABGR packing, so they can't be used directly on `base` —
 // doing so would silently swap the R and B channels in the picker. These
@@ -200,10 +192,10 @@ static unsigned int Float4ToRGBABase(const ImVec4& c)
 // These match the actual merge keys used in events_storage.cpp, not just
 // "is this name used elsewhere" in general — the two are NOT the same
 // thing. Groups and events are matched by name alone (GroupKey/EventKey),
-// so a plain duplicate name genuinely causes merge ambiguity (the
-// scenario from the Dry Top / Domain-of-Vabbi-copy-paste sessions: the
-// last duplicate silently "wins" the slot in the merge, the other becomes
-// an orphan). Slots, however, are matched by name+offset together
+// so a plain duplicate name genuinely causes merge ambiguity (e.g. from
+// copy-pasting an entry as a starting point and forgetting to rename it:
+// the last duplicate silently "wins" the slot in the merge, the other
+// becomes an orphan). Slots, however, are matched by name+offset together
 // (SlotKey) — two slots sharing a name at DIFFERENT offsets (Dry Top's
 // two "Crash Site" slots) is normal and intentional, not a problem, so
 // the slot-level check only flags a collision when BOTH name and offset
@@ -262,9 +254,9 @@ static void DrawDuplicateWarning()
 // "WE_DRAG_CYCLIC_GROUP") rather than one shared type with a discriminator
 // field — AcceptDragDropPayload filters by type string, so a Basic Event
 // dragged over a Cyclic category's drop target is rejected at the API
-// level automatically. This is what gives "one list, no mixing" for free,
-// matching the call made earlier this session, without the drop-target
-// code needing to manually check which list a payload came from.
+// level automatically. This gives "one list, no mixing" for free, without
+// the drop-target code needing to manually check which list a payload
+// came from.
 // ---------------------------------------------------------------------------
 struct DragPayload
 {
@@ -325,17 +317,12 @@ static bool MakeDropTarget(const char* dragType, std::vector<Category>& categori
 //
 // producing "[x] > TreeNode" rather than the arrow/label first.
 //
-// A plain ImGui::Checkbox is noticeably taller than the TreeNode arrow it
-// sits next to — Checkbox draws a full button-style frame using the
-// theme's FramePadding, while TreeNode only pads its arrow by a much
-// smaller amount. Sharing a row with the plain checkbox meant every row's
-// height (and therefore the vertical gap between rows) was governed by
-// the taller widget, which is what produced the extra vertical spacing
-// once these checkboxes were added. Scoping FramePadding down to zero for
-// JUST this checkbox (pushed/popped tightly around the single call, not
-// left active for anything else on the row) makes the checkbox's own
-// height match the tree arrow's, so the row height reverts to what it
-// was before subscriptions existed.
+// A plain ImGui::Checkbox is noticeably taller than a TreeNode arrow,
+// since Checkbox draws a full button-style frame using the theme's
+// FramePadding. Zeroing FramePadding just for this one call (pushed/
+// popped tightly around it, not left active for the rest of the row)
+// makes the checkbox's height match the tree arrow's, keeping row height
+// consistent.
 //
 // Returns true if the checkbox was toggled this frame (same contract as
 // ImGui::Checkbox itself) — callers still own actually flipping the
@@ -358,11 +345,6 @@ static bool DrawSubscribeCheckbox(const char* label, bool& value)
 // edited, and "Stop" when it is — clicking it toggles. A hovered tooltip
 // explains the interaction either way, since "Drag"/"Stop" alone doesn't
 // say WHERE to actually drag it (the marker on the map, not this button).
-//
-// Right-click-on-the-map-marker was the original trigger for this, but
-// didn't reliably reach the overlay (something upstream appears to
-// intercept right-click before Nexus addons see it), so this button is the
-// trigger instead — same underlying g_EditMode plumbing either way.
 // ---------------------------------------------------------------------------
 static void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 {
@@ -394,50 +376,36 @@ static void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 // DrawNameAndContextMenu
 // ---------------------------------------------------------------------------
 // Draws a row's expand/collapse TreeNode WITH its name as the node's own
-// label (so the full row stays hoverable/clickable, not just a narrow
-// arrow glyph — an earlier version of this split the name out of the
-// label entirely, which silently shrank the hoverable area down to just
-// the arrow). Right-clicking that same TreeNode opens a small popup with
-// "Edit name" and "Delete". "Edit name" doesn't replace the label — it
-// just reveals an inline InputText + Save button immediately after it
-// (SameLine), additively, so the always-visible name stays exactly where
-// it was; the edit field is the only thing that's conditionally shown.
+// label (keeps the full row hoverable/clickable, not just the arrow
+// glyph). Right-clicking opens a popup with "Edit name" and "Delete" —
+// "Edit name" reveals an inline InputText + Save button next to the label
+// (SameLine) rather than replacing it.
 //
 // editBuffers is a per-context std::map<int, std::string> the caller owns
 // (one each for Basic Events, Cyclic Groups, Basic Categories, Cyclic
-// Categories — see the static maps near each call site), keyed by index.
-// The map entry IS the in-progress edit text — it's seeded once when
-// editing starts and then left alone every subsequent frame (NOT
-// re-synced from currentName each frame, which was a real bug: re-syncing
-// every frame meant whatever the user had typed got silently overwritten
-// back to the original name before Save ever saw it, so edits never
-// actually stuck). InputText is allowed to mutate the map entry directly.
+// Categories), keyed by index. The map entry IS the in-progress edit
+// text — seeded once when editing starts, then left alone every frame
+// (NOT re-synced from currentName, which would overwrite an in-progress
+// edit before Save saw it).
 //
-// editKey and removeIndex are deliberately separate parameters, not one
-// shared index: for slots specifically, the editBuffers map is shared
-// across every group (see DrawCyclicGroupRow), so the edit-tracking key
-// has to combine the group index too — but pendingRemoveSlotIndex must
-// still receive the bare slot index, since that's what the caller's
-// grp.slots.erase(...) actually indexes by. Every OTHER call site
-// (events, groups, categories) just passes the same value for both.
+// editKey and removeIndex are separate parameters because slots share one
+// editBuffers map across every group (see DrawCyclicGroupRow), so the
+// edit-tracking key has to combine the group index too, while
+// pendingRemoveSlotIndex still needs the bare slot index for
+// grp.slots.erase(...). Every other call site just passes the same value
+// for both.
 //
-// Returns {open, newName}: open is the TreeNode's own expand/collapse
-// state (callers use this exactly like the old `bool open = TreeNode(...)`
-// did); newName is the possibly-edited name — callers assign this back
-// into their own ev.name / grp.name / cat.name and are responsible for
-// any follow-up (e.g. RenameCategoryMember). Sets pendingRemoveIndex =
-// removeIndex if "Delete" was clicked.
+// Returns {open, newName}: open is the TreeNode's expand/collapse state;
+// newName is the possibly-edited name, which the caller assigns back into
+// ev.name/grp.name/cat.name and follows up on if needed (e.g.
+// RenameCategoryMember). Sets pendingRemoveIndex = removeIndex if
+// "Delete" was clicked.
 //
-// autoTag: optional display-only suffix (e.g. "(auto)") appended to the
-// TreeNode's visible label when the caller's underlying event/group has
-// a live GW2 API cross-reference (WorldEvent::apiWorldBossId or
-// CyclicGroup::apiMapChestId — see events.h). Purely cosmetic: it is
-// NEVER folded into currentName/newName, so it doesn't get saved, doesn't
-// affect renaming, drag payloads, or category/search matching — those
-// all keep operating on the real name exactly as before. nullptr (the
-// default) means "no such cross-reference," matching every OTHER call
-// site (slots, categories) which have no equivalent concept and so never
-// pass this argument at all.
+// autoTag: optional display-only suffix (e.g. "(auto)") shown when the
+// caller's event/group has a live GW2 API cross-reference
+// (WorldEvent::apiWorldBossId or CyclicGroup::apiMapChestId). Purely
+// cosmetic — never folded into newName, so it has no effect on saving,
+// renaming, drag payloads, or search/category matching.
 // ---------------------------------------------------------------------------
 struct NameRowResult { bool open; std::string newName; };
 
@@ -500,16 +468,14 @@ static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey,
 // Search
 // ---------------------------------------------------------------------------
 // One shared query filters both Basic Events and Cyclic Events at once —
-// a single search box, not two — per the call made this session. The
-// query itself is pure transient UI state (not something worth persisting
-// across sessions), hence a plain static local in AddonOptions rather
-// than a settings_table.h entry.
+// a single search box, not two. The query itself is pure transient UI
+// state (not something worth persisting across sessions), hence a plain
+// static local in AddonOptions rather than a settings_table.h entry.
 //
 // Matching is case-insensitive substring, and for Cyclic Events checks
 // BOTH the group's own name AND every one of its slot names — so typing
 // "Crash Site" finds Dry Top even though "Dry Top" itself doesn't contain
-// that text, matching the call made this session that slot names should
-// be searchable too.
+// that text.
 // ---------------------------------------------------------------------------
 static bool ContainsCaseInsensitive(const std::string& haystack, const std::string& needleLower)
 {
@@ -535,11 +501,6 @@ static bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryL
 
 
 // ---------------------------------------------------------------------------
-// AddonOptions
-// ---------------------------------------------------------------------------
-// Draws the World Events section inside the Nexus options panel.
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 // DrawBasicEventRow
 // ---------------------------------------------------------------------------
 // Draws one g_Events[i] row in full (header, name, location, duration,
@@ -554,8 +515,8 @@ static bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryL
 // membership — see DrawCategoryManager below).
 //
 // Sets pendingRemoveIndex = i if this row's remove button was clicked
-// this frame; does not modify g_Events directly (the caller still defers
-// the actual erase to after every row has been drawn, exactly as before).
+// this frame; does not modify g_Events directly (the caller defers the
+// actual erase to after every row has been drawn).
 // ---------------------------------------------------------------------------
 static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 {
@@ -571,11 +532,9 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     WorldEvent& ev = g_Events[i];
 
     // Subscribe checkbox drawn BEFORE the name/tree-arrow, on the same
-    // line ("[x] > Name") — see DrawSubscribeCheckbox's comment for why
-    // this needs the tightened FramePadding rather than a plain
-    // ImGui::Checkbox. Toggling this doesn't affect rendering or timing
-    // at all (see subscriptions.h); it only adds/removes ev.name from
-    // the watchlist window's list.
+    // line ("[x] > Name"), same as DrawSubscribeCheckbox. Toggling this
+    // doesn't affect rendering or timing at all (see subscriptions.h); it
+    // only adds/removes ev.name from the watchlist window's list.
     bool subscribed = IsBasicEventSubscribed(ev.name);
     if (DrawSubscribeCheckbox("##subscribe", subscribed))
         ToggleBasicEventSubscription(ev.name);
@@ -634,16 +593,13 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
         if (ev.isVarying)
         {
-            // ---------------------------------------------------------
             // Varying branch: a sorted list of individual start times,
             // each entered as an HH:MM time-of-day picker. Labeled UTC
-            // (not auto-detected/converted — see the discussion this
-            // session: the underlying schedule is UTC by design, and a
-            // user in a half-hour-offset timezone mentally translating
-            // their local clock when filling this in is an accepted,
-            // minor inconvenience rather than something the addon
-            // tries to silently correct for).
-            // ---------------------------------------------------------
+            // (not auto-detected/converted — the underlying schedule is
+            // UTC by design, and a user in a half-hour-offset timezone
+            // mentally translating their local clock when filling this
+            // in is an accepted, minor inconvenience rather than
+            // something the addon tries to silently correct for).
             ImGui::Spacing();
             ImGui::TextUnformatted("Times (UTC)");
             ImGui::SameLine();
@@ -723,10 +679,9 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
         // Icon dropdown — "Dot" (index 0, the default) keeps the plain
         // colored circle; any other entry names a file in the addon's
-        // textures/ folder, drawn instead (tinted to the same status
-        // color the dot would use — see the long authoring-requirement
-        // comment on s_iconCache in maprender.cpp for why the source
-        // image needs to be gray/alpha, not full color).
+        // textures/ folder, drawn instead, tinted to the same status
+        // color the dot would use (source image must be gray/alpha —
+        // see s_iconCache in maprender.cpp).
         const std::vector<std::string>& iconFiles = GetEventIconFilenames();
         std::vector<const char*> iconLabels;
         iconLabels.push_back("Dot");
@@ -776,25 +731,23 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 // the same way as DrawBasicEventRow, so both the "uncategorized" pass and
 // each category's "members" pass can call the identical drawing code.
 //
-// PushID/PopID for this row are the CALLER's responsibility, same
-// reasoning as DrawBasicEventRow.
+// PushID/PopID for this row are the CALLER's responsibility, same as
+// DrawBasicEventRow.
 //
 // Sets pendingRemoveGroupIndex = i if this row's remove button was
 // clicked this frame; does not modify g_CyclicGroups directly.
 // ---------------------------------------------------------------------------
 static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 {
-    static std::map<int, std::string> editingNames; // see the identical comment in DrawBasicEventRow
+    static std::map<int, std::string> editingNames;
 
     CyclicGroup& grp = g_CyclicGroups[i];
 
     // Group-level "subscribe all" checkbox — mirrors DrawBasicEventRow's
     // subscribe/shown pair for visual consistency, but unlike that pair
     // this one has no storage of its own. Per-slot subscription is still
-    // the only real state (see CyclicSubscriptionKey's comment in
-    // subscriptions.h for why bulk-subscribing lives at the group level
-    // conceptually but not as data) — this checkbox just reads/writes
-    // ALL slots' subscriptions at once:
+    // the only real state (see CyclicSubscriptionKey in subscriptions.h)
+    // — this checkbox just reads/writes ALL slots' subscriptions at once:
     //   - displayed checked only if EVERY slot is currently subscribed
     //     (an empty group reads unchecked, not vacuously checked)
     //   - ticking it subscribes every slot; unticking it unsubscribes
@@ -872,9 +825,8 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         ImGui::SetNextItemWidth(70.0f);
         DrawPeriodHoursDragInt(&grp.period);
 
-        // Base color (colors.base) — RRGGBBAA, see RGBABaseToFloat4's
-        // comment above for why this needs the explicit conversion
-        // rather than ColorConvertU32ToFloat4.
+        // Base color (colors.base) — RRGGBBAA, needs RGBABaseToFloat4's
+        // explicit conversion rather than ColorConvertU32ToFloat4.
         ImGui::SameLine();
         ImVec4 baseColor = RGBABaseToFloat4(grp.colors.base);
         if (ImGui::ColorEdit4("Color", &baseColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
@@ -882,7 +834,7 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
         // Idle color override — optional. Unchecked: idle track uses
         // colors.ter() automatically (see CyclicGroup::IdleColor() in
-        // cyclic.h); checked: the swatch becomes live and its value is
+        // events.h); checked: the swatch becomes live and its value is
         // stored as an explicit override. This DOES use
         // ColorConvertU32ToFloat4/Float4ToU32 directly, unlike the base
         // color above — idleColor is already a real ImGui ImU32 (it's
@@ -935,13 +887,12 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             CyclicGroup::Slot& slot = grp.slots[s];
             ImGui::PushID(s);
 
-            // Subscribe checkbox drawn BEFORE the name/tree-arrow, same
-            // "[x] > Name" layout and tightened-padding reasoning as
-            // DrawSubscribeCheckbox's comment. Per SLOT (an individual
-            // occurrence), not per group — this is still the source of
-            // truth for exactly which occurrences are watched. The
-            // group-level checkbox above is a bulk convenience over
-            // these same per-slot subscriptions, not a separate flag.
+            // Subscribe checkbox drawn BEFORE the name/tree-arrow, same as
+            // DrawSubscribeCheckbox. Per SLOT (an individual occurrence),
+            // not per group — this is still the source of truth for
+            // exactly which occurrences are watched. The group-level
+            // checkbox above is a bulk convenience over these same
+            // per-slot subscriptions, not a separate flag.
             CyclicSubscriptionKey subKey{ grp.name, slot.offset };
             bool subscribed = IsCyclicSlotSubscribed(subKey);
             if (DrawSubscribeCheckbox("##subscribe", subscribed))
@@ -988,16 +939,14 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                     slot.duration = durationMinutes * 60;
                 }
 
-                // Repeat must evenly divide the group's period — see
-                // the long comment on CyclicGroup::Slot::repeat in
-                // cyclic.h. A repeat that doesn't divide evenly leaves
-                // a leftover remainder so the pattern never closes
-                // cleanly back to the start of the cycle; rather than
-                // silently accepting a bad value, this snaps whatever
-                // the user types down to the nearest actual divisor of
-                // the CURRENT period (which can itself change via the
-                // Period dropdown above, so this is re-validated fresh
-                // every frame, not just at entry time).
+                // Repeat must evenly divide the group's period. A repeat
+                // that doesn't divide evenly leaves a leftover remainder
+                // so the pattern never closes cleanly back to the start
+                // of the cycle; rather than silently accepting a bad
+                // value, this snaps whatever the user types down to the
+                // nearest actual divisor of the CURRENT period (which can
+                // itself change via the Period dropdown above, so this is
+                // re-validated fresh every frame, not just at entry time).
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(60.0f);
                 int repeatInput = slot.repeat;
@@ -1054,11 +1003,10 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                         slot.customColor = ImGui::ColorConvertFloat4ToU32(slotColorVec);
                 }
 
-                // Chat/map code for this specific slot/occurrence — see
-                // the identical field on WorldEvent in DrawBasicEventRow
-                // for the full rationale. Live-edits straight into
-                // slot.chatCode; not a merge key (see SlotKey in
-                // events_storage.cpp, which is name+offset only), so no
+                // Chat/map code for this specific slot/occurrence, same
+                // as WorldEvent::chatCode. Live-edits straight into
+                // slot.chatCode; not a merge key (SlotKey in
+                // events_storage.cpp is name+offset only), so no
                 // Save-button buffering needed here either.
                 {
                     char chatCodeBuf[128];
@@ -1094,6 +1042,11 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     }
 }
 
+// ---------------------------------------------------------------------------
+// AddonOptions
+// ---------------------------------------------------------------------------
+// Draws the World Events section inside the Nexus options panel.
+// ---------------------------------------------------------------------------
 void AddonOptions()
 {
     ImGui::TextDisabled("Release: %s", DateAndTime.c_str());
@@ -1105,9 +1058,8 @@ void AddonOptions()
 
     // Static, not a setting: pure transient UI state, not worth
     // persisting across sessions. One box filters BOTH Basic Events and
-    // Cyclic Events at once — see the long comment on the search helpers
-    // above for what "filters" means for each (event name only vs. group
-    // name + every slot name).
+    // Cyclic Events at once (event name only for Basic; group name +
+    // every slot name for Cyclic).
     static char searchBuf[128] = "";
     ImGui::SetNextItemWidth(200.0f);
     ImGui::InputText("Search##global_search", searchBuf, sizeof(searchBuf));
@@ -1127,8 +1079,7 @@ void AddonOptions()
     // Second, alternate view of the same subscription data — a thin
     // animated line pinned to the top edge of the screen (not a window:
     // no title bar, can't be dragged/resized/closed with a titlebar X,
-    // just this checkbox). See subscriptions_bar.h for the full
-    // rationale and ShowSubscriptionsBar's comment in settings_table.h.
+    // just this checkbox).
     ImGui::Checkbox("Show subscriptions distribution line", &ShowSubscriptionsBar);
 
     // Only meaningful while the line itself is on — same dim-and-disable
@@ -1341,17 +1292,16 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // -----------------------------------------------------------------------
     // Basic Events (g_Events) — both branches. Each event is drawn as a
     // header with its fields nested underneath, matching the indentation
     // sketch: Name / Location / Duration / Varying toggle, then either
     // Offset+Period (periodic) or a nested time-of-day list (varying).
     //
-    // Add/remove are DEFERRED to after the loop, same reasoning as before —
-    // and the varying branch's own per-time add/remove (one level deeper)
-    // follows the identical deferred pattern, scoped to that one event's
-    // varyingTimes vector.
-    // -----------------------------------------------------------------------
+    // Add/remove are DEFERRED to after the loop — iterator/index
+    // invalidation otherwise, since erasing mid-loop would shift every
+    // later index. The varying branch's own per-time add/remove (one
+    // level deeper) follows the identical deferred pattern, scoped to
+    // that one event's varyingTimes vector.
     ImGui::TextUnformatted("Basic Events");
     MakeDropTarget(kBasicEventDragType, g_BasicCategories, -1); // drop here to uncategorize
     ImGui::SameLine();
@@ -1381,10 +1331,9 @@ void AddonOptions()
 
     // Status colors — one shared set for every Basic Event (not
     // per-event), matching the dot's/icon-tint's three states: active,
-    // soon (<15 min out), and waiting. These fully replace the color
-    // AND alpha previously hardcoded in maprender.cpp — there's no
-    // separate opacity control beyond whatever alpha the picker itself
-    // lets the user choose for each color.
+    // soon (<15 min out), and waiting. There's no separate opacity
+    // control beyond whatever alpha the picker itself lets the user
+    // choose for each color.
     {
         ImGui::TextUnformatted("Colors:");
 
@@ -1404,9 +1353,8 @@ void AddonOptions()
             BasicEventColorWaiting = Float4ToRGBABase(waitingColor);
     }
 
-    // Size — independent of each other, NOT derived from one another the
-    // way the icon size used to be hardcoded as (dot radius * 1.5). An
-    // icon-using event and a plain-dot event can now look completely
+    // Size — independent settings, not derived from one another, so an
+    // icon-using event and a plain-dot event can look completely
     // different sizes relative to each other if the user wants that.
     {
         ImGui::SetNextItemWidth(80.0f);
@@ -1437,8 +1385,8 @@ void AddonOptions()
 
     // Time-window filter — only show upcoming Basic Events starting within
     // the next N minutes; active events always show. Deliberately NOT
-    // offered for cyclic groups — see the comment on
-    // BasicEventTimeFilterEnabled in settings_table.h for why.
+    // offered for cyclic groups (see BasicEventTimeFilterEnabled in
+    // settings_table.h).
     {
         ImGui::Checkbox("Only show events starting soon##basic_time_filter_enabled", &BasicEventTimeFilterEnabled);
 
@@ -1490,14 +1438,15 @@ void AddonOptions()
     // needed; it just silently doesn't render anywhere until the category
     // itself is edited to remove that stale reference.
     //
-    // Assigning an item INTO a category is drag-and-drop (a later piece —
-    // see the session's planning) — this pass only covers creating,
-    // renaming, and deleting categories themselves, plus drawing whatever
-    // membership already exists (from a hand-edited events.json, or once
-    // drag-and-drop lands). Deleting a category does NOT delete its
-    // members' underlying events — members are references, not copies
-    // (see events_categories.h) — it just dissolves the grouping, and those
-    // events fall back into the uncategorized bucket on the next frame.
+    // Assigning an item INTO a category is drag-and-drop (see
+    // MakeDropTarget/BeginDragDropSource below and the payload-type
+    // comment above) — this pass covers creating, renaming, and deleting
+    // categories themselves, plus drawing whatever membership already
+    // exists (from drag-and-drop or a hand-edited events.json). Deleting
+    // a category does NOT delete its members' underlying events —
+    // members are references, not copies (see events_categories.h) — it
+    // just dissolves the grouping, and those events fall back into the
+    // uncategorized bucket on the next frame.
     // -----------------------------------------------------------------------
     std::vector<bool> isCategorized(g_Events.size(), false);
 
@@ -1531,15 +1480,13 @@ void AddonOptions()
                     categoryHasMatch = true;
 
         // When a search is active and this category has no match at
-        // all, skip drawing its header entirely — previously it still
-        // rendered (just force-collapsed via SetNextItemOpen(false)
-        // above), which is why a non-matching category was still
-        // visible, just folded shut, instead of disappearing the way a
-        // non-matching event/group already does in the uncategorized
-        // pass. catOpen is left false in this case (TreeNode is simply
-        // never called), and the membership loop below still runs
-        // unconditionally either way — see its own comment for why that
-        // has to stay independent of whether the header drew at all.
+        // all, skip drawing its header entirely, so a non-matching
+        // category disappears the same way a non-matching event/group
+        // already does in the uncategorized pass, rather than just
+        // sitting there folded shut. catOpen is left false in this case
+        // (TreeNode is simply never called), and the membership loop
+        // below still runs unconditionally regardless of whether the
+        // header drew.
         bool catOpen = false;
         if (!searchActive || categoryHasMatch)
         {
@@ -1554,12 +1501,11 @@ void AddonOptions()
         }
 
         // Membership bookkeeping happens UNCONDITIONALLY, every frame,
-        // regardless of catOpen — this is what's missing previously: an
-        // item must stay excluded from the uncategorized pass below even
-        // while its category is folded shut, since "is this item
-        // categorized" and "is the category currently expanded enough to
-        // draw it" are two separate questions. Only the actual row
-        // DRAWING is gated on catOpen.
+        // regardless of catOpen — an item must stay excluded from the
+        // uncategorized pass below even while its category is folded
+        // shut, since "is this item categorized" and "is the category
+        // currently expanded enough to draw it" are two separate
+        // questions. Only the actual row DRAWING is gated on catOpen.
         //
         // Search filtering: a member is drawn if it matches the search
         // itself, OR if the category's own name matches (in which case
@@ -1627,11 +1573,8 @@ void AddonOptions()
     ImGui::Spacing();
 
     // -----------------------------------------------------------------------
-    // Cyclic Events (g_CyclicGroups) — group-level fields only for this
-    // stage. Slot editing (the nested per-event list within each group) is
-    // a later stage; for now each group just shows its own name, location,
-    // period, base color, and an optional idle-color override, matching
-    // the same deferred add/remove pattern used for Basic Events above.
+    // Cyclic Events (g_CyclicGroups) — same deferred add/remove pattern
+    // used for Basic Events above.
     // -----------------------------------------------------------------------
     ImGui::TextUnformatted("Cyclic Events");
     MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, -1); // drop here to uncategorize
@@ -1649,10 +1592,7 @@ void AddonOptions()
     int pendingRemoveCyclicCategoryIndex = -1;
     static std::map<int, std::string> editingCyclicCategoryNames;
 
-    // Same category-aware draw order as Basic Events above — see the
-    // comment there for the full reasoning (matched by name, deletions
-    // dissolve the grouping without touching the underlying group,
-    // membership assignment is drag-and-drop, a later piece).
+    // Same category-aware draw order as Basic Events above.
     std::vector<bool> isGroupCategorized(g_CyclicGroups.size(), false);
 
     for (int c = 0; c < (int)g_CyclicCategories.size(); c++)
@@ -1671,10 +1611,9 @@ void AddonOptions()
                     if (grp.name == memberName && GroupMatchesSearch(grp, searchQueryLower))
                         categoryHasMatch = true;
 
-        // Same skip-when-no-match fix as Basic Events above: when a
-        // search is active and this category has no match at all, skip
-        // drawing its header entirely rather than just force-collapsing
-        // it — see the long comment there for the full reasoning.
+        // When a search is active and this category has no match at all,
+        // skip drawing its header entirely rather than just force-collapsing
+        // it, so an empty, irrelevant category doesn't clutter search results.
         bool catOpen = false;
         if (!searchActive || categoryHasMatch)
         {
@@ -1688,12 +1627,11 @@ void AddonOptions()
                 cat.name = nameResult.newName;
         }
 
-        // Same fix as Basic Events above: membership bookkeeping runs
-        // unconditionally every frame; only the row DRAWING is gated on
-        // catOpen, otherwise a folded category silently leaks its
-        // members back into the uncategorized list below. Search
-        // filtering follows the same rule as Basic Events too: a member
-        // draws if it matches OR the category's own name matches.
+        // Membership bookkeeping runs unconditionally every frame; only
+        // the row DRAWING is gated on catOpen, otherwise a folded
+        // category silently leaks its members back into the
+        // uncategorized list below. A member draws if it matches the
+        // search OR the category's own name matches.
         for (const std::string& memberName : cat.members)
         {
             for (int i = 0; i < (int)g_CyclicGroups.size(); i++)
