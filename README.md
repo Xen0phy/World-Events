@@ -9,7 +9,6 @@
 > **Requirements & Installation**
 >
 > - Requires the [Nexus](https://raidcore.gg/Nexus) addon loader and Guild Wars 2
-> - Your position is read from Mumble Link, already available in-game — nothing extra to set up
 > - Install it from the Nexus Library in-game, or download the latest `.dll` from [Releases](../../releases) and place it in your Nexus addons folder (`Guild Wars 2/addons`)
 > - In Nexus, find World Events in the addon list and press **Load**
 
