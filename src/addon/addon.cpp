@@ -149,6 +149,7 @@ void AddonRender()
 
         RenderSubscriptionsWindow();
         RenderSubscriptionsBar();
+        RenderSubscriptionsNotifications();
     }
 
     if (!MumbleLink || !NexusLink)          return;

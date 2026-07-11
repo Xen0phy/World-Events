@@ -1256,6 +1256,54 @@ void AddonOptions()
             SubscriptionsSoonColor = Float4ToRGBABase(subSoonColor);
     }
 
+    // Third, independent view of the same subscription data — small
+    // lower-right toast popups (subscriptions_notification.h/.cpp) instead
+    // of a persistent list/strip. Not gated by ShowSubscriptionsWindow/Bar:
+    // a user may want popups without either persistent view open at all.
+    ImGui::Spacing();
+    ImGui::Checkbox("Enable notification popups", &NotificationsEnabled);
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "Pops up a small toast in the lower-right corner for anything\n"
+            "on your subscription watchlist above, whether or not the\n"
+            "window or distribution line are open. Click a popup to paste\n"
+            "its waypoint code, same as clicking a row/segment there.");
+
+    DisabledBlock(!NotificationsEnabled)
+    {
+        ImGui::Indent();
+
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("Warn before start (min)", &NotificationLeadMinutes, 1, 5))
+        {
+            // 0 is a valid, meaningful value ("off" — only the on-start
+            // popup below still fires), so the floor is 0, not 1.
+            if (NotificationLeadMinutes < 0)   NotificationLeadMinutes = 0;
+            if (NotificationLeadMinutes > 120) NotificationLeadMinutes = 120;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How long before a subscribed event/slot starts to fire the \"starting soon\" popup. 0 disables it.");
+
+        ImGui::Checkbox("Notify again when it starts", &NotificationOnStart);
+
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("Popup duration (sec)", &NotificationDisplaySeconds, 1, 5))
+        {
+            if (NotificationDisplaySeconds < 1)   NotificationDisplaySeconds = 1;
+            if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How long a popup stays fully visible before it fades out. Hovering a popup pauses its timer.");
+
+        ImGui::Unindent();
+    }
+
     // Everything below only makes sense while the overlay itself is on —
     // dim and disable it otherwise rather than hiding it outright, so the
     // user can still see what these controls are without losing their

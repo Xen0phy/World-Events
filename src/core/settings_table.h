@@ -221,3 +221,33 @@ SETTING(Subscriptions, Gw2ApiKey, std::string, std::string())
 SETTING(System, delayMilliseconds, int, 50)
 SETTING(Subscriptions, SubscriptionsBarMinimalMode, bool, false)
 SETTING(Subscriptions, SubscriptionsBarBottomAnchored, bool, false)
+
+// ---------------------------------------------------------------------------
+// [Notifications]
+// ---------------------------------------------------------------------------
+// A fourth view of the same subscription data as the window/bar above (see
+// subscriptions_notification.h/.cpp): small "toast" popups in the
+// lower-right corner instead of a persistent list/strip. Master on/off
+// switch — when false, RenderSubscriptionsNotifications() is a complete
+// no-op (no state tracked, no popups fired, nothing drawn), same early-out
+// pattern as ShowSubscriptionsWindow/ShowSubscriptionsBar above.
+SETTING(Notifications, NotificationsEnabled, bool, false)
+
+// How many minutes before a subscribed Basic Event or Cyclic slot's next
+// occurrence starts to fire the "starting soon" popup. Fires once per
+// upcoming occurrence (re-armed the moment that occurrence's active window
+// closes — see s_notifyStates/NotifyState::leadFired in
+// subscriptions_notification.cpp). 0 disables this popup entirely; the
+// on-start popup below is independent and still fires regardless.
+SETTING(Notifications, NotificationLeadMinutes, int, 5)
+
+// Second, independent popup: fired the instant a subscribed Basic Event or
+// Cyclic slot actually goes active, regardless of whether the lead-time
+// popup above already fired for it. Its own on/off, since a user may want
+// only the advance warning, only the "it's live" ping, or both.
+SETTING(Notifications, NotificationOnStart, bool, true)
+
+// How long a popup stays fully visible before it starts fading out, in
+// seconds. Purely cosmetic — has no bearing on whether/when a popup fires,
+// only how long it lingers on screen once it has.
+SETTING(Notifications, NotificationDisplaySeconds, int, 8)

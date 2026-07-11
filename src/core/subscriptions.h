@@ -83,3 +83,30 @@ void RenderSubscriptionsWindow();
 // otherwise. Call once per frame from AddonRender, alongside
 // RenderSubscriptionsWindow.
 void RenderSubscriptionsBar();
+
+// A third view of the same subscription data as RenderSubscriptionsWindow /
+// RenderSubscriptionsBar (subscriptions.h): instead of a persistent list or
+// strip, this fires small, transient "toast" popups in the lower-right
+// corner of the screen —
+//
+//   - a "starting soon" popup, NotificationLeadMinutes before a subscribed
+//     Basic Event or Cyclic slot's next occurrence begins (0 = off), and
+//   - an "it's live" popup the instant that occurrence actually starts,
+//     independently gated by NotificationOnStart (settings_table.h).
+//
+// Both are entirely gated behind NotificationsEnabled — the master switch
+// mentioned in both settings above. Clicking a popup pastes its waypoint
+// code exactly like a row in the watchlist window / a segment on the
+// distribution bar (see PasteToChat in subscriptions.cpp).
+//
+// Unlike the window/bar, this has no "show/hide" checkbox of its own beyond
+// NotificationsEnabled: a fired popup is transient by nature, so there's
+// nothing to toggle the *visibility* of independent from the feature being
+// on at all.
+
+// Draws (and internally advances/fires) the notification popup stack.
+// No-op if NotificationsEnabled is false. Call once per frame from
+// AddonRender, alongside RenderSubscriptionsWindow/RenderSubscriptionsBar —
+// order relative to those two doesn't matter, this only reads the same
+// subscription/event data, it doesn't mutate it.
+void RenderSubscriptionsNotifications();
