@@ -20,6 +20,7 @@
 #include "events.h"
 #include "events_categories.h"
 #include "subscriptions.h"
+#include "events_tracking.h"
 #include "maprender.h"
 #include "icon_whitener.h"
 #include "gw2_api.h"
@@ -31,6 +32,7 @@
 #include <cctype>
 #include <map>
 #include <string>
+#include <functional>
 
 // Scoped "disable + dim" helper for ImGui 1.80 (no native BeginDisabled/
 // EndDisabled in this version). Usage: DisabledBlock(cond) { ...widgets... }
@@ -381,6 +383,16 @@ static void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 // "Edit name" reveals an inline InputText + Save button next to the label
 // (SameLine) rather than replacing it.
 //
+// toggleDone: optional callback wired to
+// ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday (see
+// events_tracking.h). When set, an extra "Mark done for today" entry is
+// added above "Edit name", mirroring the same right-click menu already on
+// the row in the Subscriptions window/bar/toast — same plain toggle, no
+// checkmark/label change, since those don't show one either. Left as
+// nullptr (the default) for rows with no "done" concept of their own:
+// Cyclic Groups (the group as a whole isn't a single trackable
+// occurrence — only its slots are) and both category rows.
+//
 // editBuffers is a per-context std::map<int, std::string> the caller owns
 // (one each for Basic Events, Cyclic Groups, Basic Categories, Cyclic
 // Categories), keyed by index. The map entry IS the in-progress edit
@@ -409,7 +421,7 @@ static void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 // ---------------------------------------------------------------------------
 struct NameRowResult { bool open; std::string newName; };
 
-static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType = nullptr, const char* autoTag = nullptr)
+static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType = nullptr, const char* autoTag = nullptr, std::function<void()> toggleDone = nullptr)
 {
     std::string label = currentName.empty() ? "(unnamed)" : currentName;
     if (autoTag)
@@ -432,6 +444,12 @@ static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey,
 
     if (ImGui::BeginPopupContextItem("##name_context_menu"))
     {
+        if (toggleDone)
+        {
+            if (ImGui::MenuItem("Mark done for today"))
+                toggleDone();
+            ImGui::Separator();
+        }
         if (ImGui::MenuItem("Edit name"))
             editBuffers[editKey] = currentName; // seed once, on transition into edit mode only
         ImGui::Separator();
@@ -555,7 +573,8 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
     std::string oldName = ev.name;
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType,
-        ev.apiWorldBossId.empty() ? nullptr : "(auto)");
+        ev.apiWorldBossId.empty() ? nullptr : "(auto)",
+        [&ev]() { ToggleBasicEventDoneToday(ev.name); });
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
@@ -908,7 +927,8 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             ImGui::SameLine();
 
             int slotEditKey = i * 100000 + s;
-            NameRowResult nameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, slot.name, editingSlotNames, pendingRemoveSlotIndex);
+            NameRowResult nameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, slot.name, editingSlotNames, pendingRemoveSlotIndex,
+                nullptr, nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); });
             bool slotOpen = nameResult.open;
             if (nameResult.newName != slot.name)
                 slot.name = nameResult.newName; // no RenameCategoryMember call — slots aren't categorized, only the two top-level lists are
@@ -1249,6 +1269,30 @@ void AddonOptions()
             break;
     }
 
+    // Manual counterpart to the API-based "already done today" hiding
+    // above — seeevents_tracking.h. Covers everything the public API
+    // doesn't (every event/slot other than the 13 Core Bosses and 8
+    // HoT/PoF map chests), and works with or without an API key set.
+    // Not gated by ShowSubscriptionsWindow/Bar/NotificationsEnabled for
+    // the same reason WeeklyAutoTrackEnabled above isn't: right-clicking
+    // to mark something done is available from all three views, so
+    // clearing those marks belongs here as a shared "Subscriptions"
+    // control rather than under any one view's own settings.
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Manually-marked \"done for today\" events");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "Right-click any row in the watchlist window, segment on the\n"
+            "distribution line, or notification popup to mark it done for\n"
+            "today. It then hides from all three views, the same way an\n"
+            "API-confirmed Core Boss kill or map chest claim does, until\n"
+            "the next daily reset (00:00 UTC) — or until you clear it\n"
+            "below. Right-click the same row again to undo it before then.");
+    if (ImGui::Button("Clear all manual done markers"))
+        ClearAllDoneMarkers();
+
     // Everything below only makes sense while the window itself is on —
     // same dim-and-disable treatment as the cyclic overlay's controls
     // below, for the same reason (stay visible/discoverable, just
@@ -1356,6 +1400,48 @@ void AddonOptions()
     ImGui::Spacing();
 
     ImGui::InputInt("Delay", &delayMilliseconds);
+
+    // Which chat channel a watchlist row/segment/toast click pastes
+    // into. Stored as the literal slash-command text itself
+    // (ChatChannelPrefix, e.g. "/p ") — see settings_table.h — so this
+    // Combo is the one place that owns the label<->command mapping;
+    // BuildChatPasteMessage (subscriptions.cpp) just prepends whatever
+    // it finds there. Index 0 ("Current chat") stores an empty prefix,
+    // i.e. paste as before with no channel switch.
+    {
+        static const char* const kChatChannelLabels[] = {
+            "Current chat (default)", "Say", "Party", "Squad",
+            "Guild (represented)", "Guild 1", "Guild 2", "Guild 3",
+            "Guild 4", "Guild 5", "Map"
+        };
+        static const char* const kChatChannelPrefixes[] = {
+            "", "/s ", "/p ", "/d ",
+            "/g ", "/g1 ", "/g2 ", "/g3 ",
+            "/g4 ", "/g5 ", "/m "
+        };
+        constexpr int kChatChannelCount = sizeof(kChatChannelLabels) / sizeof(kChatChannelLabels[0]);
+
+        int chatChannelIndex = 0;
+        for (int ci = 0; ci < kChatChannelCount; ci++)
+        {
+            if (ChatChannelPrefix == kChatChannelPrefixes[ci]) { chatChannelIndex = ci; break; }
+        }
+
+        ImGui::SetNextItemWidth(200.0f);
+        if (ImGui::Combo("Paste to", &chatChannelIndex, kChatChannelLabels, kChatChannelCount))
+            ChatChannelPrefix = kChatChannelPrefixes[chatChannelIndex];
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Which chat channel a watchlist row/segment/toast click\n"
+                "pastes into, regardless of whatever channel is currently\n"
+                "selected in-game. Prepends that channel's slash command\n"
+                "(e.g. \"/p \") before the name/waypoint. \"Current chat\"\n"
+                "pastes exactly as before, into whichever channel already\n"
+                "has focus.");
+    }
 
     ImGui::Spacing();
     ImGui::Separator();

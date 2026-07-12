@@ -21,6 +21,7 @@
 // as a row in the watchlist window / a segment on the distribution bar.
 
 #include "subscriptions.h"
+#include "events_tracking.h"
 #include "events.h"
 #include "maprender.h"
 #include "settings.h"
@@ -102,12 +103,21 @@ struct Popup
                            // additional thin red border, same "counts toward this week's Wizard's Vault objective"
                            // marker the watchlist window's red dot / distribution bar's red dot convey elsewhere;
                            // purely visual, doesn't affect click/dismiss behavior below.
+
+    // Identity for the right-click "Mark done for today" menu — see
+    // DrawAndExpirePopups below. Mirrors Candidate's own copy of the same
+    // trio (isBasic/basicName/cyclicKey), which is where these get filled
+    // in via SpawnPopup's extra parameters.
+    bool        isBasic = true;
+    std::string basicName;
+    CyclicSubscriptionKey cyclicKey;
 };
 
 static std::vector<Popup> s_popups;
 
 static void SpawnPopup(const std::string& key, const std::string& name, const std::string& chatCode,
-                        const std::string& message, unsigned int rgba, bool isWeekly)
+                        const std::string& message, unsigned int rgba, bool isWeekly,
+                        bool isBasic, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey)
 {
     Popup p;
     p.key          = key;
@@ -117,6 +127,9 @@ static void SpawnPopup(const std::string& key, const std::string& name, const st
     p.color        = rgba;
     p.spawnedAtMs  = GetTickCount64();
     p.isWeekly     = isWeekly;
+    p.isBasic      = isBasic;
+    p.basicName    = basicName;
+    p.cyclicKey    = cyclicKey;
     s_popups.push_back(std::move(p));
 
     // Drop the OLDEST rather than refusing the new one — the new arrival is
@@ -186,6 +199,13 @@ struct Candidate
     bool        active;
     int         secsUntilStart; // meaningful only when !active; 0 when active
     bool        isWeekly;
+
+    // Identity for the right-click "Mark done for today" menu — carried
+    // through into the spawned Popup via SpawnPopup. See Popup's own copy
+    // of this trio above.
+    bool        isBasic = true;
+    std::string basicName;
+    CyclicSubscriptionKey cyclicKey;
 };
 
 static void CollectCandidates(std::vector<Candidate>& out, time_t now)
@@ -204,6 +224,10 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         if (!it->apiWorldBossId.empty() && IsWorldBossCompletedToday(it->apiWorldBossId))
             continue;
 
+        // Manual counterpart to the API check above — seeevents_tracking.h.
+        if (IsBasicEventMarkedDoneToday(it->name))
+            continue;
+
         bool active = IsEventActive(*it, now);
         int  secsUntilStart = active ? 0 : GetSecondsUntilEventStart(*it, now);
         if (!active && secsUntilStart < 0) continue; // no timer data yet
@@ -211,7 +235,8 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         bool weeklyComplete = false;
         bool isWeekly = IsBasicEventWeeklyTarget(it->name, weeklyComplete) && !weeklyComplete;
 
-        out.push_back({ "Basic:" + it->name, it->name, it->chatCode, active, secsUntilStart, isWeekly });
+        out.push_back({ "Basic:" + it->name, it->name, it->chatCode, active, secsUntilStart, isWeekly,
+                         true, it->name, {} });
     }
 
     // ---- Auto-tracked Basic Events: NOT manually subscribed, but an
@@ -231,12 +256,15 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
 
             if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
                 continue;
+            if (IsBasicEventMarkedDoneToday(ev.name))
+                continue;
 
             bool active = IsEventActive(ev, now);
             int  secsUntilStart = active ? 0 : GetSecondsUntilEventStart(ev, now);
             if (!active && secsUntilStart < 0) continue;
 
-            out.push_back({ "Basic:" + ev.name, ev.name, ev.chatCode, active, secsUntilStart, true });
+            out.push_back({ "Basic:" + ev.name, ev.name, ev.chatCode, active, secsUntilStart, true,
+                             true, ev.name, {} });
         }
     }
 
@@ -285,10 +313,11 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         std::string key   = "Cyclic:" + grp.name + ":" + offsetBuf;
         std::string label = grp.name + " - " + slot.name;
 
+        CyclicSubscriptionKey ck{ grp.name, slot.offset };
         if (foundActive)
-            out.push_back({ key, label, slot.chatCode, true, 0, isWeekly });
+            out.push_back({ key, label, slot.chatCode, true, 0, isWeekly, false, "", ck });
         else
-            out.push_back({ key, label, slot.chatCode, false, bestSecsUntil, isWeekly });
+            out.push_back({ key, label, slot.chatCode, false, bestSecsUntil, isWeekly, false, "", ck });
     };
 
     for (const auto& subKey : g_SubscribedCyclicSlots)
@@ -301,6 +330,12 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         // no-op for every group except the 8 HoT/PoF maps
         // /v2/account/mapchests covers.
         if (!grpIt->apiMapChestId.empty() && IsMapChestClaimedToday(grpIt->apiMapChestId))
+            continue;
+
+        // Manual counterpart, per-slot rather than group-level — see
+        //events_tracking.h and the identical check in
+        // subscriptions_window.cpp/subscriptions_bar.cpp.
+        if (IsCyclicSlotMarkedDoneToday(subKey))
             continue;
 
         for (const auto& slot : grpIt->slots)
@@ -337,6 +372,8 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
                 if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
                 if (weeklyComplete) continue;
 
+                if (IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset })) continue;
+
                 AddCyclicCandidate(grp, slot, true);
             }
         }
@@ -367,7 +404,8 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
         {
             // Just went active this frame.
             if (NotificationOnStart)
-                SpawnPopup(c.key, c.name, c.chatCode, "Now active!", SubscriptionsActiveColor, c.isWeekly);
+                SpawnPopup(c.key, c.name, c.chatCode, "Now active!", SubscriptionsActiveColor, c.isWeekly,
+                           c.isBasic, c.basicName, c.cyclicKey);
 
             // An occurrence that's already live can no longer meaningfully
             // fire its "starting soon" warning — mark it fired so a lead
@@ -389,7 +427,8 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
             {
                 char buf[48];
                 snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
-                SpawnPopup(c.key, c.name, c.chatCode, buf, SubscriptionsSoonColor, c.isWeekly);
+                SpawnPopup(c.key, c.name, c.chatCode, buf, SubscriptionsSoonColor, c.isWeekly,
+                           c.isBasic, c.basicName, c.cyclicKey);
                 st.leadFired = true;
             }
         }
@@ -467,9 +506,32 @@ static void DrawAndExpirePopups()
             ImGuiWindowFlags_NoBackground      |
             ImGuiWindowFlags_NoFocusOnAppearing);
         ImGui::InvisibleButton("##we_notif_hit", ImVec2(kPopupWidth, kPopupHeight));
-        bool hovered = ImGui::IsItemHovered();
-        bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        bool hovered      = ImGui::IsItemHovered();
+        bool clicked      = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        bool rightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
         ImGui::End();
+
+        // Right-click: mark this event/slot done for today — same
+        // Toggle*DoneToday calls as the watchlist window/bar's own
+        // right-click menus (seeevents_tracking.h). Doesn't dismiss the
+        // toast itself; the occurrence disappearing from the other views
+        // is confirmation enough, and dismissing here too would make a
+        // misclick harder to undo before reaching for the options panel's
+        // "Clear all manual done markers" button.
+        if (rightClicked)
+        {
+            ImGui::OpenPopup(("##we_notif_done_popup_" + p.key).c_str());
+            io.WantCaptureMouse = true;
+        }
+        if (ImGui::BeginPopup(("##we_notif_done_popup_" + p.key).c_str()))
+        {
+            if (ImGui::Selectable("Mark done for today"))
+            {
+                if (p.isBasic) ToggleBasicEventDoneToday(p.basicName);
+                else           ToggleCyclicSlotDoneToday(p.cyclicKey);
+            }
+            ImGui::EndPopup();
+        }
 
         if (hovered)
         {
@@ -490,7 +552,7 @@ static void DrawAndExpirePopups()
 
         if (clicked)
         {
-            std::string toCopy = p.chatCode.empty() ? p.name : (p.name + ": " + p.chatCode);
+            std::string toCopy = BuildChatPasteMessage(p.name, p.chatCode);
             PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
             toRemove.push_back(i); // clicking dismisses it immediately, same as acting on a watchlist row
             io.WantCaptureMouse = true;

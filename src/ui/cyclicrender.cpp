@@ -258,15 +258,14 @@ void RenderCyclicGroups()
                 // active/fade-out segment renders correctly across the 0s/period
                 // boundary. (Tail of this cycle + head of next.)
                 //
-                // BUGFIX: pass 0's duration must be the slot's own duration
-                // (capped at what actually fits before the period boundary),
-                // NOT (period - baseOffset) — that older formula accidentally
-                // used "time remaining in the cycle" as the active-window
-                // length, which is only correct by coincidence when duration
-                // happens to reach exactly to the period boundary. For any
-                // slot/occurrence starting at offset 0 (e.g. "Mordremoth
-                // Progress", or repeat-occurrence r=0 of "Forged with Fire"),
-                // this made `active` true for almost the entire cycle.
+                // Pass 0's duration is the slot's own duration, capped at
+                // whatever actually fits before the period boundary — i.e.
+                // (slot.duration - wrapDur), not (period - baseOffset). The
+                // active window's length is the event's real duration; how
+                // much of the cycle happens to remain after the offset is a
+                // different number, and the two only coincide when an
+                // occurrence's duration happens to reach exactly to the
+                // period boundary.
                 int slotEnd = baseOffset + slot.duration;
                 int wrapDur = slotEnd > grp.period ? slotEnd % grp.period : 0;
                 int passes  = wrapDur ? 2 : 1;

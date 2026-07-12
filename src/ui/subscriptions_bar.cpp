@@ -5,6 +5,7 @@
 // filled colored block under the mouse.
 
 #include "subscriptions.h"
+#include "events_tracking.h"
 #include "events.h"
 #include "maprender.h"
 #include "settings.h"
@@ -55,6 +56,13 @@ struct LineSegment
     ImU32       color;
     int         lane = 0;     // 0 = drawn on the resting baseline; >0 = hidden behind lane 0, shown only via dot marker + hover
     bool        isWeekly = false; // true = an active-and-incomplete weekly Wizard's Vault target this week (weekly_vault.h) — draws an additional small red marker, independent of everything else in this struct
+
+    // Identity for the right-click "Mark done for today" menu — see the
+    // click hit-testing block near the end of this file. Mirrors the
+    // isBasic/basicName/cyclicKey trio in subscriptions_window.cpp's Row.
+    bool        isBasic = true;
+    std::string basicName;
+    CyclicSubscriptionKey cyclicKey;
 };
 
 // Builds the second label line: "Active - ends in Xm YYs" or "in Xm YYs".
@@ -198,6 +206,10 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
             return;
 
+        // Manual counterpart to the API check above — seeevents_tracking.h.
+        if (IsBasicEventMarkedDoneToday(ev.name))
+            return;
+
         bool active = IsEventActive(ev, now);
         int  startSec, endSec, statusSecs;
 
@@ -226,7 +238,9 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
             BasicEventColorFor(ev.name)
         };
-        seg.isWeekly = isWeekly;
+        seg.isWeekly  = isWeekly;
+        seg.isBasic   = true;
+        seg.basicName = ev.name;
         segs.push_back(seg);
     };
 
@@ -274,6 +288,11 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         // isWeekly check this function takes in — different reward
         // track, different reset schedule.
         if (!grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId))
+            return;
+
+        // Manual counterpart, per-slot rather than group-level — see
+        //events_tracking.h and the identical check in subscriptions_window.cpp.
+        if (IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset }))
             return;
 
         int secondsOfDay = (int)(now % grp.period);
@@ -333,7 +352,9 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
             grp.SlotColor(slot)
         };
-        seg.isWeekly = isWeekly;
+        seg.isWeekly  = isWeekly;
+        seg.isBasic   = false;
+        seg.cyclicKey = CyclicSubscriptionKey{ grp.name, slot.offset };
         segs.push_back(seg);
     };
 
@@ -1411,15 +1432,35 @@ void RenderSubscriptionsBar()
             ImGuiWindowFlags_NoSavedSettings |
             ImGuiWindowFlags_NoBackground);
         ImGui::InvisibleButton("##we_subbar_click_hit", ImVec2(w, h));
-        bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        bool clicked      = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        bool rightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
         ImGui::End();
 
         if (clicked)
         {
-            std::string toCopy = s.chatCode.empty() ? s.name : (s.name + ": " + s.chatCode);
+            std::string toCopy = BuildChatPasteMessage(s.name, s.chatCode);
             PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
             io.WantCaptureMouse = true;
             break; // one click, one segment
+        }
+
+        // Right-click: mark this event/slot done for today — same
+        // ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday as the
+        // watchlist window's row popup. Popup ID keyed off s.key, which
+        // is already unique per segment (see LineSegment::key above).
+        if (rightClicked)
+        {
+            ImGui::OpenPopup(("##we_subbar_done_popup_" + s.key).c_str());
+            io.WantCaptureMouse = true;
+        }
+        if (ImGui::BeginPopup(("##we_subbar_done_popup_" + s.key).c_str()))
+        {
+            if (ImGui::Selectable("Mark done for today"))
+            {
+                if (s.isBasic) ToggleBasicEventDoneToday(s.basicName);
+                else           ToggleCyclicSlotDoneToday(s.cyclicKey);
+            }
+            ImGui::EndPopup();
         }
     }
 

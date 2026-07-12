@@ -9,6 +9,7 @@
 #include "subscriptions.h"
 #include "addon.h"
 #include "background_threads.h"
+#include "settings.h"
 #include "nlohmann_json.hpp"
 #include <fstream>
 #include <filesystem>
@@ -216,6 +217,12 @@ LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
 // re-testing against that actual target application — a "theoretically cleaner"
 // version can fail silently (no errors, just no input arriving) rather than
 // obviously breaking.
+std::string BuildChatPasteMessage(const std::string& name, const std::string& chatCode)
+{
+    std::string body = chatCode.empty() ? name : (name + ": " + chatCode);
+    return ChatChannelPrefix + body; // empty prefix (default) leaves body untouched
+}
+
 std::atomic<bool> send_in_progress{false};
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 {

@@ -7,6 +7,7 @@
 #include "events_storage.h"
 #include "events_categories.h"
 #include "subscriptions.h"
+#include "events_tracking.h"
 #include "gw2_api.h"
 #include "imgui.h"
 #include "version.h"
@@ -61,9 +62,15 @@ void AddonLoad(AddonAPI_t* aAPI)
     // only the SAVE order below does.
     LoadSubscriptionsData(g_AddonDir);
 
+    // Same file/order story as subscriptions above — seeevents_tracking.h.
+    // Reads its own stored UTC day and self-discards if it's from a prior
+    // day, so no explicit rollover check is needed here.
+    LoadDailyTrackingData(g_AddonDir);
+
     SaveEventsData(g_AddonDir);
     SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see events_categories.h
     SaveSubscriptionsData(g_AddonDir);  // must run AFTER SaveEventsData — see subscriptions.h
+    SaveDailyTrackingData(g_AddonDir);  // must run AFTER SaveEventsData — seeevents_tracking.h
 
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
@@ -109,6 +116,7 @@ void AddonUnload()
     SaveEventsData(g_AddonDir);
     SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see events_categories.h
     SaveSubscriptionsData(g_AddonDir);  // must run AFTER SaveEventsData — see subscriptions.h
+    SaveDailyTrackingData(g_AddonDir);  // must run AFTER SaveEventsData — seeevents_tracking.h
 
     // Force heap frees now while the CRT is still intact,
     // rather than leaving it to the static destructor at DLL unload.

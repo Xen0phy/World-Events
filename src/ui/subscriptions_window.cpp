@@ -2,6 +2,7 @@
 // Draws the standalone "Subscriptions" watchlist window.
 
 #include "subscriptions.h"
+#include "events_tracking.h"
 #include "events.h"
 #include "maprender.h"
 #include "settings.h"
@@ -136,7 +137,8 @@ static constexpr unsigned long long kFlashDurationMs = 350;
 // instead of a persistent "Copied!" label so the window doesn't visually
 // shift/grow when clicked.
 // ---------------------------------------------------------------------------
-static void DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs, bool isWeekly)
+static void DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs, bool isWeekly,
+    bool isBasic, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey)
 {
     if (isWeekly)
     {
@@ -206,11 +208,31 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
 
     if (clicked)
     {
-        std::string toCopy = chatCode.empty() ? name : (name + ": " + chatCode);
+        std::string toCopy = BuildChatPasteMessage(name, chatCode);
         PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
 
         s_flashKey   = name;
         s_flashUntil = GetTickCount64() + kFlashDurationMs;
+    }
+
+    // Right-click: mark this event/slot done for today. Hides it from
+    // this window (and the bar/toast) until the next UTC daily reset, or
+    // until "Clear all manual done markers" is used in the options panel —
+    // seeevents_tracking.h. Popup ID is keyed off `name`, same as
+    // s_flashKey above, so it's unique per row without needing a
+    // separately-tracked numeric ID.
+    std::string popupId = "##we_done_popup_" + name;
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        ImGui::OpenPopup(popupId.c_str());
+
+    if (ImGui::BeginPopup(popupId.c_str()))
+    {
+        if (ImGui::Selectable("Mark done for today"))
+        {
+            if (isBasic) ToggleBasicEventDoneToday(basicName);
+            else         ToggleCyclicSlotDoneToday(cyclicKey);
+        }
+        ImGui::EndPopup();
     }
 }
 
@@ -228,7 +250,11 @@ void RenderSubscriptionsWindow()
     // two separate sections the user has to visually merge themselves —
     // active entries first, then soonest-upcoming, matching the sort
     // already used for the per-group tooltip in cyclicrender.cpp.
-    struct Row { std::string name; std::string chatCode; bool active; int secs; bool isWeekly; };
+    // isBasic/basicName/cyclicKey: whichever pair is relevant identifies
+    // this row for ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday —
+    // see the right-click "Mark done for today" menu in DrawSubscriptionRow.
+    struct Row { std::string name; std::string chatCode; bool active; int secs; bool isWeekly;
+                 bool isBasic = true; std::string basicName; CyclicSubscriptionKey cyclicKey; };
     std::vector<Row> rows;
     rows.reserve(g_SubscribedBasicEvents.size() + g_SubscribedCyclicSlots.size());
 
@@ -246,6 +272,12 @@ void RenderSubscriptionsWindow()
         if (!it->apiWorldBossId.empty() && IsWorldBossCompletedToday(it->apiWorldBossId))
             continue;
 
+        // Manual counterpart to the API check above — seeevents_tracking.h.
+        // Independent of apiWorldBossId; applies regardless of whether this
+        // event has any API-backed completion signal at all.
+        if (IsBasicEventMarkedDoneToday(it->name))
+            continue;
+
         bool active = IsEventActive(*it, now);
         int  secs   = active ? GetSecondsUntilEventEnd(*it, now) : GetSecondsUntilEventStart(*it, now);
         if (secs < 0) continue; // no timer data yet
@@ -253,7 +285,7 @@ void RenderSubscriptionsWindow()
 
         bool weeklyComplete = false;
         bool isWeekly = IsBasicEventWeeklyTarget(it->name, weeklyComplete) && !weeklyComplete;
-        rows.push_back({ it->name, it->chatCode, active, secs, isWeekly });
+        rows.push_back({ it->name, it->chatCode, active, secs, isWeekly, true, it->name, {} });
     }
 
     // Auto-tracked: NOT manually subscribed, but an active-and-incomplete
@@ -277,13 +309,15 @@ void RenderSubscriptionsWindow()
 
             if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
                 continue;
+            if (IsBasicEventMarkedDoneToday(ev.name))
+                continue;
 
             bool active = IsEventActive(ev, now);
             int  secs   = active ? GetSecondsUntilEventEnd(ev, now) : GetSecondsUntilEventStart(ev, now);
             if (secs < 0) continue;
             if (active && SubscriptionsHideActive) continue;
 
-            rows.push_back({ ev.name, ev.chatCode, active, secs, true });
+            rows.push_back({ ev.name, ev.chatCode, active, secs, true, true, ev.name, {} });
         }
     }
 
@@ -300,6 +334,12 @@ void RenderSubscriptionsWindow()
         if (!it->apiMapChestId.empty() && IsMapChestClaimedToday(it->apiMapChestId))
             continue;
 
+        // Manual counterpart to the API check above — per-slot, unlike the
+        // group-level apiMapChestId check, since a manual mark only ever
+        // covers the one occurrence it was set on. Seeevents_tracking.h.
+        if (IsCyclicSlotMarkedDoneToday(key))
+            continue;
+
         SlotStatus status = GetCyclicSlotStatus(*it, key.slotOffset, now);
         if (!status.found) continue; // slot deleted/re-offset since subscribing
         if (status.active && SubscriptionsHideActive) continue;
@@ -312,7 +352,8 @@ void RenderSubscriptionsWindow()
             if (slot.offset != key.slotOffset) continue;
             bool weeklyComplete = false;
             bool isWeekly = IsCyclicSlotWeeklyTarget(it->name, slot.name, weeklyComplete) && !weeklyComplete;
-            rows.push_back({ it->name + " - " + slot.name, slot.chatCode, status.active, status.secs, isWeekly });
+            rows.push_back({ it->name + " - " + slot.name, slot.chatCode, status.active, status.secs, isWeekly,
+                              false, "", CyclicSubscriptionKey{ it->name, slot.offset } });
             break;
         }
     }
@@ -338,11 +379,14 @@ void RenderSubscriptionsWindow()
                 if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
                 if (weeklyComplete) continue;
 
+                if (IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset })) continue;
+
                 SlotStatus status = GetCyclicSlotStatus(grp, slot.offset, now);
                 if (!status.found) continue;
                 if (status.active && SubscriptionsHideActive) continue;
 
-                rows.push_back({ grp.name + " - " + slot.name, slot.chatCode, status.active, status.secs, true });
+                rows.push_back({ grp.name + " - " + slot.name, slot.chatCode, status.active, status.secs, true,
+                                  false, "", CyclicSubscriptionKey{ grp.name, slot.offset } });
             }
         }
     }
@@ -392,10 +436,12 @@ void RenderSubscriptionsWindow()
     else
     {
         for (const auto& row : rows)
-            DrawSubscriptionRow(row.name, row.chatCode, row.active, row.secs, row.isWeekly);
+            DrawSubscriptionRow(row.name, row.chatCode, row.active, row.secs, row.isWeekly,
+                                 row.isBasic, row.basicName, row.cyclicKey);
 
         ImGui::Separator();
         ImGui::TextDisabled("Click a row to copy its waypoint code.");
+        ImGui::TextDisabled("Right-click to mark done for today.");
     }
 
     ImGui::End();

@@ -56,6 +56,18 @@ bool LoadSubscriptionsData(const std::string& addonDir);
 // `send_in_progress` against overlapping calls.
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms);
 
+// Builds the actual text PasteToChat above sends for a watchlist row/
+// segment/toast click: "<name>: <chatCode>" (or just <name> if there's no
+// chat code), with the user's configured channel command
+// (Settings::ChatChannelPrefix, e.g. "/p ") stuck on the front so the
+// paste lands in that channel no matter which one currently has focus in
+// GW2's chat box. Prefix defaults to empty (no channel switch — pastes
+// into whatever's already selected, same behavior as before this
+// setting existed). Shared by subscriptions_window.cpp,
+// subscriptions_bar.cpp, and subscriptions_notification.cpp so the
+// prefixing logic lives in exactly one place.
+std::string BuildChatPasteMessage(const std::string& name, const std::string& chatCode);
+
 // A standalone ImGui window listing every subscribed Basic Event and
 // Cyclic Event slot, each with a live "Active" / "in Xm Ys" countdown.
 // Visibility is controlled by ShowSubscriptionsWindow (settings_table.h).

@@ -287,6 +287,18 @@ SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 // currently has no other caller.
 SETTING(System, delayMilliseconds, int, 50)
 
+// Slash-command prefix prepended to every PasteToChat message (see
+// BuildChatPasteMessage in subscriptions.cpp) so a watchlist row/segment/
+// toast click always lands in a specific chat channel, regardless of
+// whichever channel tab currently has keyboard focus in-game. Empty (the
+// default) pastes exactly as before — no prefix, whatever channel is
+// already selected. One value covers all three subscription views (same
+// "not Subscriptions-scoped" reasoning as delayMilliseconds just above),
+// stored as the literal command text itself (e.g. "/p ") rather than an
+// enum index, so the options-panel Combo (addon_options.cpp) is the only
+// place that needs to know the full label<->command mapping.
+SETTING(System, ChatChannelPrefix, std::string, std::string())
+
 // ---------------------------------------------------------------------------
 // [Notifications]
 // ---------------------------------------------------------------------------
