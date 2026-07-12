@@ -1167,6 +1167,27 @@ void AddonOptions()
         ImGui::Unindent();
     }
 
+    // Not gated by ShowSubscriptionsWindow/ShowSubscriptionsBar/
+    // NotificationsEnabled: this master switch drives whether ANY of the
+    // three subscription views auto-surfaces this week's Wizard's Vault
+    // targets on top of the user's own manual subscriptions, so it belongs
+    // to "Subscriptions" as a whole rather than to any one view's controls.
+    ImGui::Spacing();
+    ImGui::Checkbox("Auto-track weekly Wizard's Vault targets", &WeeklyAutoTrackEnabled);
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "When on (default), the subscriptions window, distribution\n"
+            "line, and notification popups all automatically surface any\n"
+            "Basic Event / Cyclic slot that's an active-and-incomplete\n"
+            "target of this week's Wizard's Vault rotation, even if you\n"
+            "never subscribed to it yourself, marked with a small red\n"
+            "dot/border. Turn this off to see only what you've actually\n"
+            "subscribed to by hand in all three views. Doesn't affect\n"
+            "the red marker on something you HAVE manually subscribed to\n"
+            "that also happens to be a weekly target — that stays either way.");
+
     // Not gated by either ShowSubscriptionsWindow or ShowSubscriptionsBar
     // (unlike the DisabledBlock sections above/below): this key drives
     // auto-hiding an already-completed Core Boss or map meta from BOTH

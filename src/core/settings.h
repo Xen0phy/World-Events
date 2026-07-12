@@ -15,6 +15,7 @@
 #define SETTING(S, Key, Type, Default) extern Type Key;
 #include "settings_table.h"
 #undef SETTING
+#undef SETTING_SECRET
 
 // ---------------------------------------------------------------------------
 // LoadSettings / SaveSettings

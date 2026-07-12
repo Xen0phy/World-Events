@@ -1,5 +1,6 @@
 backup/
 build/
+apikey.key
 .backup-excludes
 .clangd
 *.gz

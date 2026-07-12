@@ -99,6 +99,12 @@ void RenderSubscriptionsBar();
 // code exactly like a row in the watchlist window / a segment on the
 // distribution bar (see PasteToChat in subscriptions.cpp).
 //
+// Like the window and bar, this also surfaces active-and-incomplete weekly
+// Wizard's Vault targets (weekly_vault.h) that aren't manually subscribed,
+// each drawn with an extra thin red border — gated behind
+// WeeklyAutoTrackEnabled (settings_table.h), the shared master switch for
+// that auto-tracking overlay across all three views.
+//
 // Unlike the window/bar, this has no "show/hide" checkbox of its own beyond
 // NotificationsEnabled: a fired popup is transient by nature, so there's
 // nothing to toggle the *visibility* of independent from the feature being

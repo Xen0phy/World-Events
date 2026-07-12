@@ -25,6 +25,7 @@ add_library(gw2-world-events SHARED
     src/events/events_categories.cpp
     src/events/events_cyclic.cpp
     src/events/events_storage.cpp
+    src/integration/apikey_crypto.cpp
     src/integration/gw2_api.cpp
     src/integration/weekly_vault.cpp
     src/overlay/maprender.cpp
@@ -51,7 +52,7 @@ target_include_directories(gw2-world-events PRIVATE
     src/ui
 )
 
-target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp)
+target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp bcrypt)
 
 set_target_properties(gw2-world-events PROPERTIES
     OUTPUT_NAME "gw2-world-events"

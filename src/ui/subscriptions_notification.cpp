@@ -1,12 +1,19 @@
 // subscriptions_notification.cpp
 // Toast-style popup notifications for subscribed Basic Events / Cyclic
-// slots. A fourth view of the same subscription data as
-// subscriptions_window.cpp / subscriptions_bar.cpp — see subscriptions.h.
+// slots, PLUS auto-tracked active-and-incomplete weekly Wizard's Vault
+// targets (weekly_vault.h) not already manually subscribed. A fourth view
+// of the same subscription data as subscriptions_window.cpp /
+// subscriptions_bar.cpp — see subscriptions.h.
 //
-// Two independent popups per subscribed occurrence:
+// Two independent popups per notifiable occurrence:
 //   - "starting soon", NotificationLeadMinutes before it starts
 //   - "now active", the instant it actually starts
 // both gated behind the NotificationsEnabled master switch (settings_table.h).
+// The auto-tracked weekly pass is separately gated behind
+// WeeklyAutoTrackEnabled (settings_table.h), the same master switch the
+// window/bar's equivalent auto-track passes share; a popup for a weekly
+// target additionally gets a thin red border, matching the watchlist
+// window's red dot / distribution bar's red dot marker for the same thing.
 //
 // Popups stack in the lower-right corner, newest closest to the corner,
 // each auto-dismissing after NotificationDisplaySeconds (plus a short fade),
@@ -18,6 +25,7 @@
 #include "maprender.h"
 #include "settings.h"
 #include "gw2_api.h"
+#include "weekly_vault.h"
 #include "imgui.h"
 #include <windows.h>
 #include <ctime>
@@ -90,12 +98,16 @@ struct Popup
     std::string message;   // e.g. "Starting in 4m 32s" or "Now active!"
     unsigned int color;    // packed RRGGBBAA — SubscriptionsSoonColor for the lead popup, SubscriptionsActiveColor for the start popup
     unsigned long long spawnedAtMs;
+    bool isWeekly = false; // active-and-incomplete weekly Wizard's Vault target this week (weekly_vault.h) — draws an
+                           // additional thin red border, same "counts toward this week's Wizard's Vault objective"
+                           // marker the watchlist window's red dot / distribution bar's red dot convey elsewhere;
+                           // purely visual, doesn't affect click/dismiss behavior below.
 };
 
 static std::vector<Popup> s_popups;
 
 static void SpawnPopup(const std::string& key, const std::string& name, const std::string& chatCode,
-                        const std::string& message, unsigned int rgba)
+                        const std::string& message, unsigned int rgba, bool isWeekly)
 {
     Popup p;
     p.key          = key;
@@ -104,6 +116,7 @@ static void SpawnPopup(const std::string& key, const std::string& name, const st
     p.message      = message;
     p.color        = rgba;
     p.spawnedAtMs  = GetTickCount64();
+    p.isWeekly     = isWeekly;
     s_popups.push_back(std::move(p));
 
     // Drop the OLDEST rather than refusing the new one — the new arrival is
@@ -149,13 +162,21 @@ static std::unordered_map<std::string, NotifyState> s_notifyStates;
 // ---------------------------------------------------------------------------
 // Candidate
 // ---------------------------------------------------------------------------
-// One subscribed Basic Event or Cyclic slot's current timing, collected
-// fresh every frame — mirrors the row-building loops in
-// subscriptions_window.cpp/subscriptions_bar.cpp, but only over manually
-// subscribed entries (g_SubscribedBasicEvents/g_SubscribedCyclicSlots), NOT
-// the auto-tracked weekly Wizard's Vault targets those two also surface —
-// notifications are opt-in per the user's own watchlist, not the auto-
-// tracked overlay on top of it.
+// One notifiable Basic Event or Cyclic slot's current timing, collected
+// fresh every frame — mirrors the row/segment-building loops in
+// subscriptions_window.cpp/subscriptions_bar.cpp, and now over the same two
+// sources those two views cover:
+//   - manually subscribed entries (g_SubscribedBasicEvents/
+//     g_SubscribedCyclicSlots), always included, and
+//   - auto-tracked active-and-incomplete weekly Wizard's Vault targets
+//     (weekly_vault.h) NOT already manually subscribed, included only while
+//     WeeklyAutoTrackEnabled (settings_table.h) is true — the same master
+//     switch the window/bar auto-track passes are gated behind.
+// isWeekly is purely cosmetic here: it drives the thin red border
+// DrawAndExpirePopups paints around a popup for the same "counts toward
+// this week's Wizard's Vault objective" reason the window's red dot /
+// bar's red dot marker exist, and has no bearing on whether/when a popup
+// fires.
 // ---------------------------------------------------------------------------
 struct Candidate
 {
@@ -164,6 +185,7 @@ struct Candidate
     std::string chatCode;
     bool        active;
     int         secsUntilStart; // meaningful only when !active; 0 when active
+    bool        isWeekly;
 };
 
 static void CollectCandidates(std::vector<Candidate>& out, time_t now)
@@ -186,10 +208,89 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         int  secsUntilStart = active ? 0 : GetSecondsUntilEventStart(*it, now);
         if (!active && secsUntilStart < 0) continue; // no timer data yet
 
-        out.push_back({ "Basic:" + it->name, it->name, it->chatCode, active, secsUntilStart });
+        bool weeklyComplete = false;
+        bool isWeekly = IsBasicEventWeeklyTarget(it->name, weeklyComplete) && !weeklyComplete;
+
+        out.push_back({ "Basic:" + it->name, it->name, it->chatCode, active, secsUntilStart, isWeekly });
+    }
+
+    // ---- Auto-tracked Basic Events: NOT manually subscribed, but an
+    // active-and-incomplete weekly Wizard's Vault target this week — same
+    // rule and same WeeklyAutoTrackEnabled gate as the equivalent passes in
+    // subscriptions_window.cpp/subscriptions_bar.cpp. ----
+    if (WeeklyAutoTrackEnabled)
+    {
+        for (const auto& ev : g_Events)
+        {
+            bool alreadyManual = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), ev.name) != g_SubscribedBasicEvents.end();
+            if (alreadyManual) continue; // already handled above
+
+            bool weeklyComplete = false;
+            if (!IsBasicEventWeeklyTarget(ev.name, weeklyComplete)) continue;
+            if (weeklyComplete) continue;
+
+            if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
+                continue;
+
+            bool active = IsEventActive(ev, now);
+            int  secsUntilStart = active ? 0 : GetSecondsUntilEventStart(ev, now);
+            if (!active && secsUntilStart < 0) continue;
+
+            out.push_back({ "Basic:" + ev.name, ev.name, ev.chatCode, active, secsUntilStart, true });
+        }
     }
 
     // ---- Cyclic slots ----
+    // Factored out so the exact same candidate-building logic (phase math,
+    // key/label building, push_back) serves both the manual-subscription
+    // pass and the auto-tracked weekly pass below, differing only in the
+    // isWeekly flag passed in — same split subscriptions_bar.cpp's
+    // AddCyclicSegment already uses.
+    auto AddCyclicCandidate = [&](const CyclicGroup& grp, const CyclicGroup::Slot& slot, bool isWeekly)
+    {
+        // Same "soonest occurrence across every repeat" phase math as
+        // GetCyclicSlotStatus (subscriptions_window.cpp) / AddCyclicSegment
+        // (subscriptions_bar.cpp) — duplicated here rather than shared,
+        // matching how those two already each keep their own copy instead
+        // of factoring one out.
+        int secondsOfDay = (int)(now % grp.period);
+        int repeat  = slot.repeat > 0 ? slot.repeat : 1;
+        int subSpan = grp.period / repeat;
+
+        bool foundActive    = false;
+        int  activeSecsLeft = 0;
+        int  bestSecsUntil  = grp.period;
+
+        for (int r = 0; r < repeat; r++)
+        {
+            int baseOffset     = slot.offset + r * subSpan;
+            int phase          = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
+            bool slotActive    = (phase < slot.duration);
+            int secsUntilStart = slotActive ? 0 : (grp.period - phase);
+
+            if (slotActive)
+            {
+                foundActive    = true;
+                activeSecsLeft = slot.duration - phase;
+                break; // a slot can't be active in two repeats at once
+            }
+            else if (secsUntilStart < bestSecsUntil)
+            {
+                bestSecsUntil = secsUntilStart;
+            }
+        }
+
+        char offsetBuf[16];
+        snprintf(offsetBuf, sizeof(offsetBuf), "%d", slot.offset);
+        std::string key   = "Cyclic:" + grp.name + ":" + offsetBuf;
+        std::string label = grp.name + " - " + slot.name;
+
+        if (foundActive)
+            out.push_back({ key, label, slot.chatCode, true, 0, isWeekly });
+        else
+            out.push_back({ key, label, slot.chatCode, false, bestSecsUntil, isWeekly });
+    };
+
     for (const auto& subKey : g_SubscribedCyclicSlots)
     {
         auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
@@ -206,49 +307,38 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         {
             if (slot.offset != subKey.slotOffset) continue; // find the one slot this key refers to
 
-            // Same "soonest occurrence across every repeat" phase math as
-            // GetCyclicSlotStatus (subscriptions_window.cpp) / AddCyclicSegment
-            // (subscriptions_bar.cpp) — duplicated here rather than shared,
-            // matching how those two already each keep their own copy
-            // instead of factoring one out.
-            int secondsOfDay = (int)(now % grpIt->period);
-            int repeat  = slot.repeat > 0 ? slot.repeat : 1;
-            int subSpan = grpIt->period / repeat;
-
-            bool foundActive    = false;
-            int  activeSecsLeft = 0;
-            int  bestSecsUntil  = grpIt->period;
-
-            for (int r = 0; r < repeat; r++)
-            {
-                int baseOffset     = slot.offset + r * subSpan;
-                int phase          = ((secondsOfDay - baseOffset) % grpIt->period + grpIt->period) % grpIt->period;
-                bool slotActive    = (phase < slot.duration);
-                int secsUntilStart = slotActive ? 0 : (grpIt->period - phase);
-
-                if (slotActive)
-                {
-                    foundActive    = true;
-                    activeSecsLeft = slot.duration - phase;
-                    break; // a slot can't be active in two repeats at once
-                }
-                else if (secsUntilStart < bestSecsUntil)
-                {
-                    bestSecsUntil = secsUntilStart;
-                }
-            }
-
-            char offsetBuf[16];
-            snprintf(offsetBuf, sizeof(offsetBuf), "%d", slot.offset);
-            std::string key   = "Cyclic:" + grpIt->name + ":" + offsetBuf;
-            std::string label = grpIt->name + " - " + slot.name;
-
-            if (foundActive)
-                out.push_back({ key, label, slot.chatCode, true, 0 });
-            else
-                out.push_back({ key, label, slot.chatCode, false, bestSecsUntil });
+            bool weeklyComplete = false;
+            bool isWeekly = IsCyclicSlotWeeklyTarget(grpIt->name, slot.name, weeklyComplete) && !weeklyComplete;
+            AddCyclicCandidate(*grpIt, slot, isWeekly);
 
             break; // matching slot found, no need to keep scanning this group's other slots
+        }
+    }
+
+    // ---- Auto-tracked Cyclic slots: NOT manually subscribed, but an
+    // active-and-incomplete weekly Wizard's Vault target this week — same
+    // rule and same WeeklyAutoTrackEnabled gate as the equivalent passes in
+    // subscriptions_window.cpp/subscriptions_bar.cpp. ----
+    if (WeeklyAutoTrackEnabled)
+    {
+        for (const auto& grp : g_CyclicGroups)
+        {
+            if (!grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId))
+                continue;
+
+            for (const auto& slot : grp.slots)
+            {
+                bool alreadyManual = std::find_if(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(),
+                    [&](const CyclicSubscriptionKey& k) { return k.groupName == grp.name && k.slotOffset == slot.offset; })
+                    != g_SubscribedCyclicSlots.end();
+                if (alreadyManual) continue;
+
+                bool weeklyComplete = false;
+                if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
+                if (weeklyComplete) continue;
+
+                AddCyclicCandidate(grp, slot, true);
+            }
         }
     }
 }
@@ -277,7 +367,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
         {
             // Just went active this frame.
             if (NotificationOnStart)
-                SpawnPopup(c.key, c.name, c.chatCode, "Now active!", SubscriptionsActiveColor);
+                SpawnPopup(c.key, c.name, c.chatCode, "Now active!", SubscriptionsActiveColor, c.isWeekly);
 
             // An occurrence that's already live can no longer meaningfully
             // fire its "starting soon" warning — mark it fired so a lead
@@ -299,7 +389,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
             {
                 char buf[48];
                 snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
-                SpawnPopup(c.key, c.name, c.chatCode, buf, SubscriptionsSoonColor);
+                SpawnPopup(c.key, c.name, c.chatCode, buf, SubscriptionsSoonColor, c.isWeekly);
                 st.leadFired = true;
             }
         }
@@ -390,6 +480,12 @@ static void DrawAndExpirePopups()
             unsigned long long frameMs = (unsigned long long)std::max(0.0f, io.DeltaTime * 1000.0f);
             p.spawnedAtMs += frameMs;
             io.WantCaptureMouse = true;
+
+            // Same red-border explanation as the watchlist window's red dot
+            // tooltip, surfaced here too since the border alone is a subtler
+            // marker than an explicit dot.
+            if (p.isWeekly)
+                ImGui::SetTooltip("Counts toward this week's Wizard's Vault objectives.");
         }
 
         if (clicked)
@@ -440,6 +536,23 @@ static void DrawAndExpirePopups()
         // "the same thing, just surfaced differently" rather than
         // introducing a third color scheme.
         dl->AddRectFilled(rectMin, ImVec2(rectMin.x + kAccentWidth, rectMax.y), accentCol, 6.0f);
+
+        // Thin red outline marking this as an active-and-incomplete weekly
+        // Wizard's Vault target this week — the notification popup's
+        // equivalent of the watchlist window's red dot / distribution
+        // bar's red dot marker (see weekly_vault.h/.cpp for what sets
+        // isWeekly). Drawn last so it sits on top of the fill/stripe, and
+        // inset by half its own thickness so AddRect's stroke doesn't get
+        // clipped by the popup's own rounded corners.
+        if (p.isWeekly)
+        {
+            static constexpr float kWeeklyBorderThickness = 1.5f;
+            ImU32 weeklyBorderCol = IM_COL32(219, 40, 40, (int)(255 * alpha));
+            dl->AddRect(
+                ImVec2(rectMin.x + kWeeklyBorderThickness * 0.5f, rectMin.y + kWeeklyBorderThickness * 0.5f),
+                ImVec2(rectMax.x - kWeeklyBorderThickness * 0.5f, rectMax.y - kWeeklyBorderThickness * 0.5f),
+                weeklyBorderCol, 6.0f, 0, kWeeklyBorderThickness);
+        }
 
         ImVec2 namePos(x + kAccentWidth + 10.0f, y + 8.0f);
         ImVec2 msgPos (x + kAccentWidth + 10.0f, y + 8.0f + ImGui::GetTextLineHeight() + 4.0f);

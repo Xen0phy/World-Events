@@ -25,6 +25,22 @@
 #define SETTING(S, Key, Type, Default)
 #endif
 
+// Same idea as SETTING above, but for settings whose ON-DISK representation
+// needs to differ from their in-memory one — currently just Gw2ApiKey (see
+// below), which is encrypted in settings.ini but a plain std::string in
+// memory. Defaults to forwarding straight to SETTING (so include sites that
+// don't care about the distinction, like the storage-declaration site in
+// settings.cpp, just get a normal std::string field); settings.cpp's
+// SaveSettings/LoadSettings each define their own SETTING_SECRET instead,
+// to encrypt/decrypt at the point they'd otherwise write/parse the raw
+// value. Kept as a genuinely separate macro (not a runtime strcmp branch
+// inside SETTING) so each call site only ever compiles the branch that
+// actually matches std::string — a runtime branch would still require both
+// branches to type-check for every non-string SETTING too.
+#ifndef SETTING_SECRET
+#define SETTING_SECRET(S, Key, Default) SETTING(S, Key, std::string, Default)
+#endif
+
 // ---------------------------------------------------------------------------
 // [Cyclic]
 // ---------------------------------------------------------------------------
@@ -123,6 +139,21 @@ SETTING(Subscriptions, ShowSubscriptionsWindow, bool, false)
 // both, or neither view can be open at once.
 SETTING(Subscriptions, ShowSubscriptionsBar, bool, false)
 
+// Two display-mode toggles for the distribution bar (subscriptions_bar.cpp),
+// independent of each other:
+//
+// SubscriptionsBarMinimalMode strips the bar down to bare colored blocks —
+// no per-slot lane/curve-drop layout — trading detail for a slimmer strip.
+// When on, every subscribed event/slot gets its own dot sitting directly on
+// the baseline (CollectAllEventDots) instead of only lane>0 overlaps
+// getting a dot underneath the visible lane-0 line (CollectOverlapDots).
+//
+// SubscriptionsBarBottomAnchored pins the bar to the bottom screen edge and
+// flips every drop/pop-out direction to grow upward instead of down,
+// instead of the default top-pinned, drop-downward layout.
+SETTING(Subscriptions, SubscriptionsBarMinimalMode,     bool, false)
+SETTING(Subscriptions, SubscriptionsBarBottomAnchored,  bool, false)
+
 // How long the mouse must sit still over a distribution-line segment or
 // dot marker (subscriptions_bar.cpp) before its curve-drop hover
 // animation starts — avoids every segment along the strip popping in and
@@ -207,20 +238,54 @@ SETTING(Subscriptions, SubscriptionsBarHideActive, bool, false)
 SETTING(Subscriptions, SubscriptionsActiveColor, unsigned int, 0x66FF66FFu) // light green
 SETTING(Subscriptions, SubscriptionsSoonColor,   unsigned int, 0xFF8C00FFu) // orange, matches BasicEventColorSoon's RGB
 
+// Master switch for the "auto-tracked weekly Wizard's Vault target" overlay
+// shared by all three subscription views (subscriptions_window.cpp,
+// subscriptions_bar.cpp, subscriptions_notification.cpp): when true (the
+// default), any Basic Event / Cyclic slot that is an active-and-incomplete
+// target of THIS WEEK's Vault rotation (weekly_vault.h) is surfaced in all
+// three views even if the user never manually subscribed to it themselves.
+// When false, none of the three auto-add anything — each view falls back
+// to showing only what's actually in g_SubscribedBasicEvents/
+// g_SubscribedCyclicSlots, exactly as if weekly_vault.h didn't exist.
+//
+// Deliberately does NOT touch the small red "counts toward this week's
+// Wizard's Vault objective" marker/border drawn on a row/segment/popup that
+// IS manually subscribed — that's just an informational tag on something
+// the user already chose to track, not the addon auto-adding anything on
+// its own, so it keeps showing regardless of this setting.
+SETTING(Subscriptions, WeeklyAutoTrackEnabled, bool, false)
+
 // GW2 API key (needs at minimum the "progression" permission), used ONLY
 // to call GET /v2/account/worldbosses — see gw2_api.h/.cpp. Drives
 // automatically hiding a subscribed Core Boss from the Subscriptions
 // window/bar once the account has already killed it since the last UTC
 // daily reset. Empty = feature off; nothing is hidden, and no requests
-// are made (see PollGw2Api's early-out). Stored in plaintext in
-// settings.ini, same as every other setting in this file — this addon
-// has no secret-storage mechanism, so treat this file like any other
-// plaintext credential file on disk.
-SETTING(Subscriptions, Gw2ApiKey, std::string, std::string())
+// are made (see PollGw2Api's early-out).
+//
+// This global always holds the PLAINTEXT key at runtime (that's what
+// gw2_api.cpp sends over HTTPS). On disk it's a different story:
+// settings.ini stores it AES-256-GCM-encrypted, with the master key kept
+// in a separate "apikey.key" file next to settings.ini — see
+// apikey_crypto.h/.cpp for the scheme and its threat model, and
+// settings.cpp for where Gw2ApiKey is special-cased out of the generic
+// write/parse path every other setting here uses. Pre-encryption
+// settings.ini files (plaintext key) still load fine and get re-saved
+// encrypted automatically.
+SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
+// ---------------------------------------------------------------------------
+// [System]
+// ---------------------------------------------------------------------------
+// Delay, in milliseconds, PasteToChat (subscriptions.cpp) waits between each
+// step of its simulated Enter -> Ctrl+V -> Enter keystroke sequence when a
+// watchlist row, distribution-bar segment, or notification popup is clicked.
+// Shared by all three subscription views (subscriptions_window.cpp,
+// subscriptions_bar.cpp, subscriptions_notification.cpp), since they all
+// paste through this same PasteToChat helper — not "Subscriptions"-scoped
+// itself because chat-paste timing is a general input-simulation concern
+// rather than a subscriptions-specific display preference, though it
+// currently has no other caller.
 SETTING(System, delayMilliseconds, int, 50)
-SETTING(Subscriptions, SubscriptionsBarMinimalMode, bool, false)
-SETTING(Subscriptions, SubscriptionsBarBottomAnchored, bool, false)
 
 // ---------------------------------------------------------------------------
 // [Notifications]

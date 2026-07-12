@@ -246,17 +246,22 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
     // where to adjust which events count toward which objective. Drops
     // off again on its own the moment the objective completes, same as
     // any other weekly target; a manually-subscribed one (handled by the
-    // loop just above) stays regardless.
-    for (const auto& ev : g_Events)
+    // loop just above) stays regardless. Gated by WeeklyAutoTrackEnabled
+    // (settings_table.h) — the master on/off for this auto-add behavior,
+    // shared with subscriptions_window.cpp/subscriptions_notification.cpp.
+    if (WeeklyAutoTrackEnabled)
     {
-        bool alreadyManual = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), ev.name) != g_SubscribedBasicEvents.end();
-        if (alreadyManual) continue; // already handled above
+        for (const auto& ev : g_Events)
+        {
+            bool alreadyManual = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), ev.name) != g_SubscribedBasicEvents.end();
+            if (alreadyManual) continue; // already handled above
 
-        bool weeklyComplete = false;
-        if (!IsBasicEventWeeklyTarget(ev.name, weeklyComplete)) continue;
-        if (weeklyComplete) continue;
+            bool weeklyComplete = false;
+            if (!IsBasicEventWeeklyTarget(ev.name, weeklyComplete)) continue;
+            if (weeklyComplete) continue;
 
-        AddBasicSegment(ev, true);
+            AddBasicSegment(ev, true);
+        }
     }
 
     // ---- Cyclic Events ----
@@ -349,21 +354,25 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
     }
 
     // Auto-tracked weekly targets not already manually subscribed — same
-    // rule as the Basic Events pass above.
-    for (const auto& grp : g_CyclicGroups)
+    // rule as the Basic Events pass above, gated by the same
+    // WeeklyAutoTrackEnabled master switch.
+    if (WeeklyAutoTrackEnabled)
     {
-        for (const auto& slot : grp.slots)
+        for (const auto& grp : g_CyclicGroups)
         {
-            bool alreadyManual = std::find_if(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(),
-                [&](const CyclicSubscriptionKey& k) { return k.groupName == grp.name && k.slotOffset == slot.offset; })
-                != g_SubscribedCyclicSlots.end();
-            if (alreadyManual) continue;
+            for (const auto& slot : grp.slots)
+            {
+                bool alreadyManual = std::find_if(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(),
+                    [&](const CyclicSubscriptionKey& k) { return k.groupName == grp.name && k.slotOffset == slot.offset; })
+                    != g_SubscribedCyclicSlots.end();
+                if (alreadyManual) continue;
 
-            bool weeklyComplete = false;
-            if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
-            if (weeklyComplete) continue;
+                bool weeklyComplete = false;
+                if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
+                if (weeklyComplete) continue;
 
-            AddCyclicSegment(grp, slot, true);
+                AddCyclicSegment(grp, slot, true);
+            }
         }
     }
 

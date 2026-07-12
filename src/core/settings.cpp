@@ -12,6 +12,7 @@
 // pieces drifting out of sync with each other.
 
 #include "settings.h"
+#include "apikey_crypto.h"
 #include <fstream>
 #include <filesystem>
 #include <cstring>
@@ -24,6 +25,7 @@ namespace fs = std::filesystem;
 #define SETTING(S, Key, Type, Default) Type Key = Default;
 #include "settings_table.h"
 #undef SETTING
+#undef SETTING_SECRET
 
 // ---------------------------------------------------------------------------
 // SaveSettings
@@ -42,12 +44,21 @@ bool SaveSettings(const std::string& addonDir)
 
         auto write = [&](const char* k, auto v) { f << k << "=" << v << "\n"; };
 
+        // Gw2ApiKey (SETTING_SECRET in settings_table.h) is written
+        // encrypted (see apikey_crypto.h) instead of as its raw value like
+        // every other setting here — same ini key name and section, so the
+        // file layout looks unchanged to a human; only the VALUE is now a
+        // base64 AES-GCM blob rather than the plaintext GW2 API key.
         const char* lastSection = nullptr;
         #define SETTING(S, Key, Type, Default) \
             if (!lastSection || strcmp(lastSection, #S) != 0) { f << "\n[" #S "]\n"; lastSection = #S; } \
             write(#Key, Key);
+        #define SETTING_SECRET(S, Key, Default) \
+            if (!lastSection || strcmp(lastSection, #S) != 0) { f << "\n[" #S "]\n"; lastSection = #S; } \
+            write(#Key, ApiKeyCrypto::Encrypt(addonDir, Key));
         #include "settings_table.h"
         #undef SETTING
+        #undef SETTING_SECRET
 
         return true;
     }
@@ -107,8 +118,24 @@ bool LoadSettings(const std::string& addonDir)
                     try { Key = parse<Type>(val); } \
                     catch (...) { /* malformed value for this one key — leave it as-is, keep loading the rest of the file */ } \
                 }
+            // Gw2ApiKey (SETTING_SECRET in settings_table.h): try decrypting
+            // as our own AES-GCM blob first; if that fails (empty, or a
+            // plaintext key left over from a pre-encryption settings.ini),
+            // fall back to using val as-is. SaveSettings will write it back
+            // out encrypted next time, so this is a one-time, transparent
+            // migration for anyone upgrading from an older build.
+            #define SETTING_SECRET(S, Key, Default) \
+                else if (key == #Key) \
+                { \
+                    try { \
+                        std::string dec = ApiKeyCrypto::Decrypt(addonDir, val); \
+                        Key = !dec.empty() ? dec : val; \
+                    } \
+                    catch (...) { } \
+                }
             #include "settings_table.h"
             #undef SETTING
+            #undef SETTING_SECRET
         }
         return true;
     }
