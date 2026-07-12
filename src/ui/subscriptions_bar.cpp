@@ -42,6 +42,24 @@ static ImU32 BasicEventColorFor(const std::string& name)
     return IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), 255);
 }
 
+// Reads whatever Nexus/the user currently has the shared ImGui context
+// themed to (ImGuiCol_WindowBg/ImGuiCol_Text — same context AddonLoad
+// hands off via ImGui::SetCurrentContext, see addon.cpp), rather than a
+// color this addon picks itself. alphaMul (0..1) multiplies the style
+// color's OWN alpha rather than replacing it, so a user who's set a
+// translucent theme keeps that translucency, just faded further in/out
+// on top of it by our own animation. Used for the dropped block/pill's
+// background fill and its label text below — the per-segment color
+// (LineSegment::color) is reserved for the line/outline stroke only, so
+// the pop-out's background reads as "this addon's UI", consistent with
+// every other Nexus window, rather than a solid tint of the event's own
+// color.
+static ImU32 ThemeColorU32(ImGuiCol styleColor, float alphaMul)
+{
+    ImVec4 c = ImGui::GetStyleColorVec4(styleColor);
+    return ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * alphaMul));
+}
+
 // One drawable segment on the strip, in local pixel space (0..W).
 struct LineSegment
 {
@@ -755,7 +773,19 @@ static void PathRoundedRect(ImDrawList* dl, ImVec2 p0, ImVec2 p1, float rounding
     dl->PathArcTo(ImVec2(x0 + rounding, y1 - rounding), rounding, kPi * 0.5f, kPi,        segsPerQuarter); // bottom-left
     dl->PathArcTo(ImVec2(x0 + rounding, y0 + rounding), rounding, kPi,        kPi * 1.5f, segsPerQuarter); // top-left
     dl->PathArcTo(ImVec2(x1 - rounding, y0 + rounding), rounding, kPi * 1.5f, kPi * 2.0f, segsPerQuarter); // top-right
-    dl->PathArcTo(ImVec2(x1 - rounding, y1 - rounding), rounding, 0.0f,       kPi * 0.5f, segsPerQuarter); // bottom-right
+    // Bottom-right's start angle is mathematically the same point as
+    // top-right's end angle (both sit at the rightmost apex) — written as
+    // "kPi * 2.0f" here too, rather than the numerically-equivalent 0.0f,
+    // so cosf/sinf get the exact same bit pattern in both calls. 0.0f and
+    // kPi * 2.0f round to very slightly different floats (kPi itself is
+    // only an approximation of true pi), so cosf(0.0f)/sinf(0.0f) landed a
+    // few ULPs away from cosf(kPi*2.0f)/sinf(kPi*2.0f) — invisible at the
+    // arc's other corners (which all share a literal boundary angle, e.g.
+    // both bottom-left/top-left use plain "kPi"), but enough of a gap at
+    // this one seam to show up as a hairline split once the fill stopped
+    // matching the stroke's own color (see fillColor's ThemeColorU32
+    // switch above) and started contrasting against it instead.
+    dl->PathArcTo(ImVec2(x1 - rounding, y1 - rounding), rounding, kPi * 2.0f, kPi * 2.5f, segsPerQuarter); // bottom-right
 }
 
 void RenderSubscriptionsBar()
@@ -802,8 +832,7 @@ void RenderSubscriptionsBar()
     // colored line, so its dots sit directly on the baseline instead.
     const float kDotY = SubscriptionsBarMinimalMode ? kBaselineY : (kBaselineY + kDropDir * 8.0f);
     constexpr float kDotHitRadius = 5.0f;  // click/hover target radius around each dot
-    constexpr float kLabelPadX    = 6.0f;  // label plate padding
-    constexpr float kLabelPadY    = 3.0f;
+    constexpr float kLabelPadX    = 6.0f;  // horizontal label padding, used for minimum segment width below
 
     // Nudge co-occurring dots (same tick) apart horizontally so they render
     // as a small cluster of distinct dots rather than one blob.
@@ -1155,7 +1184,12 @@ void RenderSubscriptionsBar()
         if (segEnd <= x0) segEnd = x0 + 1.0f;
 
         ImU32 segColor = seg.color;
-        ImU32 fillColor = (segColor & 0x00FFFFFF) | ((ImU32)(255 * (0.25f + 0.75f * (seg.active ? 1.0f : 0.7f))) << 24);
+        // Background fill for the dropped block/pill — Nexus's own
+        // WindowBg (see ThemeColorU32 above), NOT segColor: the line/
+        // outline keeps the event's own color, but the pop-out's
+        // background now reads the same as every other Nexus window
+        // instead of a solid tint of that color underneath it.
+        ImU32 fillColor = ThemeColorU32(ImGuiCol_WindowBg, 0.25f + 0.75f * (seg.active ? 1.0f : 0.7f));
 
         if (seg.lane == 0 && !SubscriptionsBarMinimalMode)
         {
@@ -1288,14 +1322,14 @@ void RenderSubscriptionsBar()
                 float labelY      = blockTop + (blockBottom - blockTop - textBlockH) * 0.5f;
 
                 float alpha = (depth - 0.35f) / 0.65f;
-                ImU32 textCol = IM_COL32(255, 255, 255, (int)(230 * alpha));
+                ImU32 textCol = ThemeColorU32(ImGuiCol_Text, alpha * (230.0f / 255.0f));
 
-                // Dark backing plate behind the label so it reads against any game background.
-                float plateW = std::max(size1.x, size2.x) + kLabelPadX * 2.0f;
-                ImVec2 plateMin(cx - plateW * 0.5f, labelY - kLabelPadY);
-                ImVec2 plateMax(cx + plateW * 0.5f, labelY + textBlockH + kLabelPadY);
-                ImU32 plateCol = IM_COL32(30, 30, 30, (int)(150 * alpha));
-                dl->AddRectFilled(plateMin, plateMax, plateCol, 4.0f);
+                // No separate backing plate anymore — the block/pill
+                // fill drawn above is already Nexus's own WindowBg (see
+                // fillColor above), so it already reads as a background
+                // behind this text on its own; a second dark plate here
+                // would just be a redundant, differently-colored patch
+                // on top of it.
 
                 dl->AddText(ImVec2(cx - size1.x * 0.5f, labelY), textCol, line1.c_str());
                 dl->AddText(ImVec2(cx - size2.x * 0.5f, labelY + size1.y), textCol, line2.c_str());

@@ -1070,6 +1070,9 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 void AddonOptions()
 {
     ImGui::TextDisabled("Release: %s", DateAndTime.c_str());
+    ImGui::SameLine();
+    if constexpr (ShowDebug)
+        ImGui::TextDisabled("Render: %.3f ms avg (1s)", g_AvgRenderTimeMs);
     ImGui::TextUnformatted("World Events");
     ImGui::SameLine();
     DrawIconWhitenerButton();   // opens the Icon Whitener modal when clicked

@@ -82,6 +82,24 @@ static ImU32 StatusColorToImU32(unsigned int rgba, float alphaMul)
 }
 
 // ---------------------------------------------------------------------------
+// ThemeColorU32
+// ---------------------------------------------------------------------------
+// Reads whatever Nexus/the user currently has the shared ImGui context
+// themed to (ImGuiCol_WindowBg/ImGuiCol_Text — same context AddonLoad hands
+// off via ImGui::SetCurrentContext, see addon.cpp) instead of a color this
+// addon picks itself, so the toast's background/name text match every
+// other Nexus window rather than a hardcoded dark gray/white. alphaMul
+// (0..1) multiplies the style color's OWN alpha rather than replacing it,
+// so a translucent theme keeps its translucency, just faded further
+// in/out on top of it by this popup's own fade animation.
+// ---------------------------------------------------------------------------
+static ImU32 ThemeColorU32(ImGuiCol styleColor, float alphaMul)
+{
+    ImVec4 c = ImGui::GetStyleColorVec4(styleColor);
+    return ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * alphaMul));
+}
+
+// ---------------------------------------------------------------------------
 // Popup
 // ---------------------------------------------------------------------------
 // One spawned toast. `spawnedAtMs` is a GetTickCount64() timestamp — same
@@ -586,9 +604,9 @@ static void DrawAndExpirePopups()
         ImVec2 rectMin(x, y);
         ImVec2 rectMax(x + kPopupWidth, y + kPopupHeight);
 
-        ImU32 bgCol     = IM_COL32(30, 30, 30, (int)(220 * alpha));
+        ImU32 bgCol     = ThemeColorU32(ImGuiCol_WindowBg, alpha);
         ImU32 accentCol = StatusColorToImU32(p.color, alpha);
-        ImU32 textCol   = IM_COL32(255, 255, 255, (int)(255 * alpha));
+        ImU32 textCol   = ThemeColorU32(ImGuiCol_Text, alpha);
 
         dl->AddRectFilled(rectMin, rectMax, bgCol, 6.0f);
         // Colored left-edge accent stripe, tinted per popup's status color
