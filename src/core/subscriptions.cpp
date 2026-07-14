@@ -27,6 +27,9 @@ std::vector<CyclicSubscriptionKey>  g_SubscribedCyclicSlots;
 std::vector<std::string>            g_ToastEnabledBasicEvents;
 std::vector<CyclicSubscriptionKey>  g_ToastEnabledCyclicSlots;
 
+std::vector<std::string>            g_SoundEnabledBasicEvents;
+std::vector<CyclicSubscriptionKey>  g_SoundEnabledCyclicSlots;
+
 // See GetSubscriptionListGeneration's comment in subscriptions.h.
 static uint64_t s_subscriptionListGeneration = 0;
 uint64_t GetSubscriptionListGeneration() { return s_subscriptionListGeneration; }
@@ -60,10 +63,15 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
         // Deliberately no break: patch every occurrence, not just the
         // first, in case of a prior data inconsistency.
 
-    // Same patch, same reasoning, for the toast-enabled list — otherwise
-    // a rename would silently drop a "notify" setting the user already
-    // configured for this event, with nothing in the UI hinting why.
+    // Same patch, same reasoning, for the toast-enabled and sound-enabled
+    // lists — otherwise a rename would silently drop a "notify" setting
+    // the user already configured for this event, with nothing in the UI
+    // hinting why.
     for (auto& name : g_ToastEnabledBasicEvents)
+        if (name == oldName)
+            name = newName;
+
+    for (auto& name : g_SoundEnabledBasicEvents)
         if (name == oldName)
             name = newName;
 
@@ -104,78 +112,78 @@ bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key)
         != g_ToastEnabledCyclicSlots.end();
 }
 
+bool IsBasicEventSoundEnabled(const std::string& eventName)
+{
+    return std::find(g_SoundEnabledBasicEvents.begin(), g_SoundEnabledBasicEvents.end(), eventName)
+        != g_SoundEnabledBasicEvents.end();
+}
+
+bool IsCyclicSlotSoundEnabled(const CyclicSubscriptionKey& key)
+{
+    return std::find(g_SoundEnabledCyclicSlots.begin(), g_SoundEnabledCyclicSlots.end(), key)
+        != g_SoundEnabledCyclicSlots.end();
+}
+
+// Small helper shared by the two Set...NotifyLevel functions below:
+// membership in `list` is made to match `want`, added/erased as needed.
+// Local to this file — nothing outside needs a generic version of this.
+template <typename T>
+static void SetMembership(std::vector<T>& list, const T& value, bool want)
+{
+    auto it = std::find(list.begin(), list.end(), value);
+    bool has = it != list.end();
+    if (has == want) return;
+    if (want)
+        list.push_back(value);
+    else
+        list.erase(it);
+}
+
 int GetBasicEventNotifyLevel(const std::string& eventName)
 {
     if (!IsBasicEventSubscribed(eventName)) return 0;
-    return IsBasicEventToastEnabled(eventName) ? 2 : 1;
+    if (!IsBasicEventToastEnabled(eventName)) return 1;
+    return IsBasicEventSoundEnabled(eventName) ? 3 : 2;
 }
 
 void SetBasicEventNotifyLevel(const std::string& eventName, int level)
 {
-    level = level < 0 ? 0 : (level > 2 ? 2 : level);
+    level = level < 0 ? 0 : (level > 3 ? 3 : level);
     bool wantSubscribed = level >= 1;
     bool wantToast      = level >= 2;
+    bool wantSound      = level >= 3;
 
     if (IsBasicEventSubscribed(eventName) != wantSubscribed)
         ToggleBasicEventSubscription(eventName); // bumps s_subscriptionListGeneration
 
-    // Unsubscribing always clears toast too, regardless of what it was —
-    // no way to end up "toast-enabled but not subscribed" left over.
-    if (!wantSubscribed)
-    {
-        auto it = std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventName);
-        if (it != g_ToastEnabledBasicEvents.end())
-            g_ToastEnabledBasicEvents.erase(it);
-        return;
-    }
-
-    bool hasToast = IsBasicEventToastEnabled(eventName);
-    if (hasToast == wantToast) return;
-
-    if (wantToast)
-        g_ToastEnabledBasicEvents.push_back(eventName);
-    else
-    {
-        auto it = std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventName);
-        if (it != g_ToastEnabledBasicEvents.end())
-            g_ToastEnabledBasicEvents.erase(it);
-    }
+    // Unsubscribing always clears toast AND sound too, regardless of what
+    // they were — no way to end up "sound/toast-enabled but not
+    // subscribed" left over. Same reasoning one level up: dropping toast
+    // also drops sound, since there's no "sound but no toast" state in
+    // this ladder.
+    SetMembership(g_ToastEnabledBasicEvents, eventName, wantSubscribed && wantToast);
+    SetMembership(g_SoundEnabledBasicEvents, eventName, wantSubscribed && wantSound);
 }
 
 int GetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key)
 {
     if (!IsCyclicSlotSubscribed(key)) return 0;
-    return IsCyclicSlotToastEnabled(key) ? 2 : 1;
+    if (!IsCyclicSlotToastEnabled(key)) return 1;
+    return IsCyclicSlotSoundEnabled(key) ? 3 : 2;
 }
 
 void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
 {
-    level = level < 0 ? 0 : (level > 2 ? 2 : level);
+    level = level < 0 ? 0 : (level > 3 ? 3 : level);
     bool wantSubscribed = level >= 1;
     bool wantToast      = level >= 2;
+    bool wantSound      = level >= 3;
 
     if (IsCyclicSlotSubscribed(key) != wantSubscribed)
         ToggleCyclicSlotSubscription(key); // bumps s_subscriptionListGeneration
 
-    if (!wantSubscribed)
-    {
-        auto it = std::find(g_ToastEnabledCyclicSlots.begin(), g_ToastEnabledCyclicSlots.end(), key);
-        if (it != g_ToastEnabledCyclicSlots.end())
-            g_ToastEnabledCyclicSlots.erase(it);
-        return;
-    }
-
-    bool hasToast = IsCyclicSlotToastEnabled(key);
-    if (hasToast == wantToast) return;
-
-    if (wantToast)
-        g_ToastEnabledCyclicSlots.push_back(key);
-    else
-    {
-        auto it = std::find(g_ToastEnabledCyclicSlots.begin(), g_ToastEnabledCyclicSlots.end(), key);
-        if (it != g_ToastEnabledCyclicSlots.end())
-            g_ToastEnabledCyclicSlots.erase(it);
-    }
+    SetMembership(g_ToastEnabledCyclicSlots, key, wantSubscribed && wantToast);
+    SetMembership(g_SoundEnabledCyclicSlots, key, wantSubscribed && wantSound);
 }
 
 // ---------------------------------------------------------------------------
@@ -222,6 +230,7 @@ bool SaveSubscriptionsData(const std::string& addonDir)
 
         j["subscribedBasicEvents"] = g_SubscribedBasicEvents;
         j["toastEnabledBasicEvents"] = g_ToastEnabledBasicEvents;
+        j["soundEnabledBasicEvents"] = g_SoundEnabledBasicEvents;
 
         json cyclicArr = json::array();
         for (const auto& key : g_SubscribedCyclicSlots)
@@ -232,6 +241,11 @@ bool SaveSubscriptionsData(const std::string& addonDir)
         for (const auto& key : g_ToastEnabledCyclicSlots)
             toastCyclicArr.push_back(SerializeCyclicKey(key));
         j["toastEnabledCyclicSlots"] = toastCyclicArr;
+
+        json soundCyclicArr = json::array();
+        for (const auto& key : g_SoundEnabledCyclicSlots)
+            soundCyclicArr.push_back(SerializeCyclicKey(key));
+        j["soundEnabledCyclicSlots"] = soundCyclicArr;
 
         fs::create_directories(addonDir);
         std::ofstream out(filepath);
@@ -258,8 +272,9 @@ bool LoadSubscriptionsData(const std::string& addonDir)
         // .value(...) defaults to empty if the key is missing entirely —
         // true for any events.json saved before this feature existed, and
         // that's exactly the right behavior: nobody's prior subscriptions
-        // silently start out toast-enabled.
+        // silently start out toast- or sound-enabled.
         g_ToastEnabledBasicEvents = j.value("toastEnabledBasicEvents", std::vector<std::string>{});
+        g_SoundEnabledBasicEvents = j.value("soundEnabledBasicEvents", std::vector<std::string>{});
 
         g_SubscribedCyclicSlots.clear();
         if (j.contains("subscribedCyclicSlots") && j["subscribedCyclicSlots"].is_array())
@@ -270,6 +285,11 @@ bool LoadSubscriptionsData(const std::string& addonDir)
         if (j.contains("toastEnabledCyclicSlots") && j["toastEnabledCyclicSlots"].is_array())
             for (const auto& kj : j["toastEnabledCyclicSlots"])
                 g_ToastEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
+
+        g_SoundEnabledCyclicSlots.clear();
+        if (j.contains("soundEnabledCyclicSlots") && j["soundEnabledCyclicSlots"].is_array())
+            for (const auto& kj : j["soundEnabledCyclicSlots"])
+                g_SoundEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
 
         s_subscriptionListGeneration++;
         return true;

@@ -19,6 +19,7 @@ add_library(gw2-world-events SHARED
     src/addon/addon_options.cpp
     src/addon/addon.cpp
     src/core/background_threads.cpp
+    src/core/notify_sound.cpp
     src/core/settings.cpp
     src/core/subscriptions.cpp
     src/core/subscriptions_cache.cpp
@@ -54,7 +55,7 @@ target_include_directories(gw2-world-events PRIVATE
     src/ui
 )
 
-target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp bcrypt)
+target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp bcrypt winmm)
 
 set_target_properties(gw2-world-events PROPERTIES
     OUTPUT_NAME "gw2-world-events"

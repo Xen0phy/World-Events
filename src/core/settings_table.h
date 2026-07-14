@@ -328,3 +328,14 @@ SETTING(Notifications, NotificationOnStart, bool, true)
 // seconds. Purely cosmetic — has no bearing on whether/when a popup fires,
 // only how long it lingers on screen once it has.
 SETTING(Notifications, NotificationDisplaySeconds, int, 8)
+
+// Filename (no path) of a single user-supplied .wav under
+// "<addon dir>/sounds", picked via the Combo next to the "Test" button in
+// the options panel (addon_options.cpp) — see notify_sound.h for the
+// scan/playback plumbing. Empty (the default) means no sound file is
+// selected. Played by subscriptions_notification.cpp alongside a fired
+// "starting soon"/"now active" popup for any event/slot whose own notify
+// level has sound enabled (level 3 — see subscriptions.h); the "Test"
+// button plays it unconditionally regardless of any subscription's
+// notify level.
+SETTING(Notifications, NotificationSoundFile, std::string, std::string())

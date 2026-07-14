@@ -16,6 +16,15 @@
 // interrupt them. A candidate present purely via weekly auto-track
 // (not manually subscribed) is unaffected by that per-event flag and
 // keeps the master-switch-only behavior this always had.
+//
+// A manually subscribed item may ALSO opt into a notification sound
+// (level 3 of the same notify-level ladder — see
+// IsBasicEventSoundEnabled/IsCyclicSlotSoundEnabled in subscriptions.h),
+// played via PlayNotificationSound(NotificationSoundFile) (notify_sound.h)
+// alongside whichever popup just fired for it. Sound always implies toast
+// in that ladder, so anywhere toastEnabled gates a SpawnPopup call,
+// soundEnabled is checked right alongside it — a candidate can play the
+// sound only on a fire that actually happened, never on its own.
 // The auto-tracked weekly pass is separately gated behind
 // WeeklyAutoTrackEnabled (settings_table.h), the same master switch the
 // window/bar's equivalent auto-track passes share; a popup for a weekly
@@ -30,6 +39,7 @@
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
 #include "events_tracking.h"
+#include "notify_sound.h"
 #include "settings.h"
 #include "imgui.h"
 #include "addon.h" // SubsNotifyDataTimer/SubsNotifyDrawTimer — see their comment in addon.h
@@ -250,6 +260,15 @@ struct Candidate
     // meant to be checked against.
     bool        toastEnabled = true;
 
+    // Same idea, one level up the ladder: per-event opt-in for playing
+    // the configured notification sound alongside a fired popup. Only
+    // meaningful for manually subscribed items, same reasoning as
+    // toastEnabled above — a weekly-auto-track-only candidate defaults to
+    // false here (no sound), matching its long-standing toast-only
+    // unconditional behavior rather than gaining a new sound side effect
+    // it never opted into.
+    bool        soundEnabled = false;
+
     // Identity for the right-click "Mark done for today" menu — carried
     // through into the spawned Popup via SpawnPopup. See Popup's own copy
     // of this trio above.
@@ -277,15 +296,20 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         if (!as.active && as.secsUntilStart < 0) continue; // no timer data yet
 
         bool toastEnabled = true;
+        bool soundEnabled = false;
         if (sub.manuallySubscribed)
         {
+            CyclicSubscriptionKey key{ sub.cyclicGroupName, sub.cyclicSlotOffset };
             toastEnabled = sub.isBasic
                 ? IsBasicEventToastEnabled(sub.basicName)
-                : IsCyclicSlotToastEnabled(CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset });
+                : IsCyclicSlotToastEnabled(key);
+            soundEnabled = sub.isBasic
+                ? IsBasicEventSoundEnabled(sub.basicName)
+                : IsCyclicSlotSoundEnabled(key);
         }
 
         out.push_back({ sub.key, sub.label, sub.chatCode, as.active, as.secsUntilStart, sub.isWeeklyTarget,
-                         toastEnabled,
+                         toastEnabled, soundEnabled,
                          sub.isBasic, sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
     }
 }
@@ -313,8 +337,12 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
         {
             // Just went active this frame.
             if (NotificationOnStart && c.toastEnabled)
+            {
                 SpawnPopup(c.key, c.name, c.chatCode, "Now active!", SubscriptionsActiveColor, c.isWeekly,
                            c.isBasic, c.basicName, c.cyclicKey);
+                if (c.soundEnabled)
+                    PlayNotificationSound(NotificationSoundFile);
+            }
 
             // An occurrence that's already live can no longer meaningfully
             // fire its "starting soon" warning — mark it fired so a lead
@@ -342,6 +370,8 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
                     snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
                     SpawnPopup(c.key, c.name, c.chatCode, buf, SubscriptionsSoonColor, c.isWeekly,
                                c.isBasic, c.basicName, c.cyclicKey);
+                    if (c.soundEnabled)
+                        PlayNotificationSound(NotificationSoundFile);
                 }
                 // leadFired latches regardless of toastEnabled — otherwise
                 // toggling toast on mid-window (between the lead threshold

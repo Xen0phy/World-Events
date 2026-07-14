@@ -39,45 +39,59 @@ bool IsCyclicSlotSubscribed(const CyclicSubscriptionKey& key);
 void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key);
 
 // Patches a Basic Event subscription from oldName to newName. No-op if
-// oldName isn't currently subscribed. Also patches the toast-enabled list
-// below, so a rename doesn't silently drop a "notify" setting the user
-// already configured for that event.
+// oldName isn't currently subscribed. Also patches the toast-enabled and
+// sound-enabled lists below, so a rename doesn't silently drop a "notify"
+// setting the user already configured for that event.
 void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName);
 
 // ---------------------------------------------------------------------------
-// Per-event toast opt-in ("notify level")
+// Per-event toast/sound opt-in ("notify level")
 // ---------------------------------------------------------------------------
 // A subscribed Basic Event / Cyclic slot may ALSO opt into a "starting
-// soon"/"now active" toast popup (subscriptions_notification.cpp) rather
-// than just sitting quietly on the bar/window — most subscriptions are
-// the former by default (someone building a big watchlist doesn't want a
-// toast for every single one of them), so this is tracked as a second,
-// independent membership list layered on top of the subscribed-list
-// above, not a property of being subscribed at all.
+// soon"/"now active" toast popup (subscriptions_notification.cpp), and,
+// on top of that, a notification sound played alongside that same popup
+// (notify_sound.h) — rather than just sitting quietly on the bar/window.
+// Most subscriptions are silent by default (someone building a big
+// watchlist doesn't want a toast, let alone a sound, for every single one
+// of them), so both are tracked as independent membership lists layered
+// on top of the subscribed-list above, not a property of being subscribed
+// at all.
 //
-// Modeled as one 0/1/2 "notify level" rather than two independent bools,
+// Modeled as one 0..3 "notify level" rather than three independent bools,
 // since it's a strict ladder in the options tree's UI (see
-// DrawNotifyLevelIcon in addon_options.cpp): 0 = unsubscribed, 1 =
-// subscribed/silent, 2 = subscribed + toast. Level 2 always implies
-// subscribed; Set...NotifyLevel(..., 0) clears BOTH lists together so
-// there's no way to end up "toast-enabled but not subscribed" left over
-// from an earlier configuration. A sound level (3) is intentionally not
-// implemented yet — see the design discussion this shipped from.
+// DrawNotifyLevelIcon in addon_options.cpp):
+//   0 = unsubscribed
+//   1 = subscribed, silent (bar/window only)
+//   2 = subscribed + toast
+//   3 = subscribed + toast + sound
+// Each level always implies every level below it. Set...NotifyLevel(...,
+// N) brings all three lists into agreement with N in one call — e.g.
+// dropping to 0 clears toast AND sound together, and dropping from 3 to
+// 2 clears sound alone (toast/subscribed stay put) — so there's no way to
+// end up "sound-enabled but not toast-enabled" (or "toast-enabled but not
+// subscribed") left over from an earlier configuration.
 //
-// Get...NotifyLevel derives its answer from the subscribed/toast lists
-// live (not its own separate piece of state), so it can never disagree
-// with IsBasicEventSubscribed/IsBasicEventToastEnabled.
+// Get...NotifyLevel derives its answer from the subscribed/toast/sound
+// lists live (not its own separate piece of state), so it can never
+// disagree with IsBasicEventSubscribed/IsBasicEventToastEnabled/
+// IsBasicEventSoundEnabled.
 extern std::vector<std::string>            g_ToastEnabledBasicEvents;
 extern std::vector<CyclicSubscriptionKey>  g_ToastEnabledCyclicSlots;
+
+extern std::vector<std::string>            g_SoundEnabledBasicEvents;
+extern std::vector<CyclicSubscriptionKey>  g_SoundEnabledCyclicSlots;
 
 bool IsBasicEventToastEnabled(const std::string& eventName);
 bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key);
 
+bool IsBasicEventSoundEnabled(const std::string& eventName);
+bool IsCyclicSlotSoundEnabled(const CyclicSubscriptionKey& key);
+
 int  GetBasicEventNotifyLevel(const std::string& eventName);
-void SetBasicEventNotifyLevel(const std::string& eventName, int level); // clamped to 0..2
+void SetBasicEventNotifyLevel(const std::string& eventName, int level); // clamped to 0..3
 
 int  GetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key);
-void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level); // clamped to 0..2
+void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level); // clamped to 0..3
 
 // Bumped by exactly 1 on every change to g_SubscribedBasicEvents/
 // g_SubscribedCyclicSlots — ToggleBasicEventSubscription,
@@ -94,9 +108,11 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level); // c
 uint64_t GetSubscriptionListGeneration();
 
 // Persists/loads g_SubscribedBasicEvents, g_SubscribedCyclicSlots,
-// g_ToastEnabledBasicEvents, and g_ToastEnabledCyclicSlots as four
+// g_ToastEnabledBasicEvents, g_ToastEnabledCyclicSlots,
+// g_SoundEnabledBasicEvents, and g_SoundEnabledCyclicSlots as six
 // top-level keys ("subscribedBasicEvents", "subscribedCyclicSlots",
-// "toastEnabledBasicEvents", "toastEnabledCyclicSlots") in the same
+// "toastEnabledBasicEvents", "toastEnabledCyclicSlots",
+// "soundEnabledBasicEvents", "soundEnabledCyclicSlots") in the same
 // events.json file used by g_Events/g_CyclicGroups/categories. Call
 // SaveEventsData() before SaveSubscriptionsData(), since this reads the
 // file and writes it back. Both swallow exceptions and return false on

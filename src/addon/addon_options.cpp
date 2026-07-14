@@ -23,6 +23,7 @@
 #include "events_tracking.h"
 #include "maprender.h"
 #include "icon_whitener.h"
+#include "notify_sound.h"
 #include "gw2_api.h"
 #include "imgui.h"
 #include "imgui_internal.h" // ImGuiItemFlags_Disabled / PushItemFlag — not in the public header
@@ -380,23 +381,73 @@ static void DrawBellIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
 }
 
 // ---------------------------------------------------------------------------
+// DrawSpeakerIcon
+// ---------------------------------------------------------------------------
+// Same hand-drawn-glyph approach as DrawBellIcon right above (own comment
+// there explains why: no bell/speaker character in the base font, one
+// shared function rather than a baked texture or a per-caller copy),
+// authored in the same 24-unit box so it drops in cleanly wherever a
+// notify-level icon needs one. Used two places: as level 3's icon in
+// DrawNotifyLevelIcon's cycle below, and as a plain static label glyph
+// next to the sound-file picker in the options panel.
+//
+// Drawn as two separate filled pieces rather than one PathFillConvex
+// call: the driver housing (a plain rect) plus the flared cone together
+// form a concave hexagon (notches where the narrow housing meets the
+// wider flare), and PathFillConvex — same as DrawBellIcon's dome —
+// requires an actually convex outline. The two pieces are drawn slightly
+// overlapping along their shared edge to avoid a thin antialiasing seam
+// between them.
+//
+// The two sound-wave arcs are stroked, not filled, matching the +/-
+// glyphs' stroke convention in DrawNotifyLevelIcon below — a filled
+// crescent this small reads as a smudge rather than a wave.
+// ---------------------------------------------------------------------------
+static void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
+{
+    float s = size / 24.0f; // same 24-unit authoring box as DrawBellIcon
+    ImVec2 origin(center.x - 12.0f * s, center.y - 12.0f * s);
+    auto P = [&](float x, float y) { return ImVec2(origin.x + x * s, origin.y + y * s); };
+
+    // Driver housing — extends to x=11.5 rather than the cone's nominal
+    // x=11 start, purely to close the antialiasing seam mentioned above.
+    dl->AddRectFilled(P(5.0f, 9.0f), P(11.5f, 15.0f), color);
+
+    // Cone/flare — a trapezoid, convex on its own even though the
+    // combined housing+cone silhouette isn't.
+    dl->PathLineTo(P(11.0f, 9.0f));
+    dl->PathLineTo(P(16.0f, 4.0f));
+    dl->PathLineTo(P(16.0f, 20.0f));
+    dl->PathLineTo(P(11.0f, 15.0f));
+    dl->PathFillConvex(color);
+
+    // Sound waves — two concentric right-opening arcs, small enough to
+    // stay legible once this shrinks down to a tree-row-sized icon.
+    dl->PathArcTo(P(11.0f, 12.0f), 5.0f * s, -0.65f, 0.65f, 8);
+    dl->PathStroke(color, false, 1.4f * s);
+
+    dl->PathArcTo(P(11.0f, 12.0f), 8.5f * s, -0.55f, 0.55f, 8);
+    dl->PathStroke(color, false, 1.4f * s);
+}
+
+// ---------------------------------------------------------------------------
 // DrawNotifyLevelIcon
 // ---------------------------------------------------------------------------
-// Replaces the plain subscribe checkbox with a single 3-way control:
-//   level 0 — unsubscribed              — shown as "+"
-//   level 1 — subscribed, silent        — shown as a dim/outline-weight bell
-//   level 2 — subscribed + toast popup  — shown as a full-strength bell
+// Replaces the plain subscribe checkbox with a single 4-way control:
+//   level 0 — unsubscribed                    — shown as "+"
+//   level 1 — subscribed, silent              — shown as a bell
+//   level 2 — subscribed + toast popup        — shown as a "-"
+//   level 3 — subscribed + toast + sound      — shown as a speaker
 // (see GetBasicEventNotifyLevel/SetBasicEventNotifyLevel in
-// subscriptions.h for the underlying two-list state this reads/writes).
+// subscriptions.h for the underlying three-list state this reads/writes).
 //
-// Left-click always advances exactly ONE level, wrapping 2 -> 0 — the
+// Left-click always advances exactly ONE level, wrapping 3 -> 0 — the
 // clean, common-case gesture. Jumping DOWN a level, or straight to
 // unsubscribed without cycling through every step, lives in this row's
 // right-click context menu instead (see DrawNameAndContextMenu's
 // notifyLevel/setNotifyLevel parameters) rather than as a second gesture
 // here — that menu already exists for "Edit name", so this reuses it
-// rather than teaching a new interaction. A sound level (3) is
-// intentionally not implemented yet.
+// rather than teaching a new interaction.
 //
 // Manual hit-test + ImDrawList rather than a real widget, same reasoning
 // as subscriptions_window.cpp's DrawSubscriptionRow: a fixed square
@@ -432,7 +483,9 @@ static int DrawNotifyLevelIcon(const char* idSuffix, int level)
         dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
 
     ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
-    float pad = sq * 0.28f;
+    float pad = sq * 0.10f; // was 0.28f — kept the +/- lines shrunk well inside
+                            // the box; tightened so they now run edge-to-edge
+                            // like the bell/speaker do below
 
     switch (level)
     {
@@ -441,12 +494,14 @@ static int DrawNotifyLevelIcon(const char* idSuffix, int level)
             dl->AddLine(ImVec2(center.x, rmin.y + pad), ImVec2(center.x, rmax.y - pad), col, 1.6f);
             break;
         case 1: // subscribed, silent — bell
-            DrawBellIcon(dl, center, sq * 0.72f, col);
+            DrawBellIcon(dl, center, sq * 0.96f, col);
             break;
-        default: // 2: subscribed + toast — "-", the always-last icon
-                 // meaning "click to fully unsubscribe" (same convention
-                 // a future sound level would keep at ITS last step, not
-                 // something specific to level 2)
+        case 2: // subscribed + toast — speaker
+            DrawSpeakerIcon(dl, center, sq * 0.96f, col);
+            break;
+        default: // 3: subscribed + toast + sound — "-", the
+                 // always-last icon meaning "click to fully unsubscribe"
+                 // therefore last icon should always be "-"
             dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
             break;
     }
@@ -456,14 +511,15 @@ static int DrawNotifyLevelIcon(const char* idSuffix, int level)
 
     int newLevel = level;
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-        newLevel = (level + 1) % 3;
+        newLevel = (level + 1) % 4;
 
     if (hovered)
     {
         ImGui::SetTooltip(
             level == 0 ? "Click to subscribe" :
-            level == 1 ? "Subscribed — click to also show a toast notification\n(right-click for more options)"
-                       : "Subscribed + toast notification — click to unsubscribe\n(right-click for more options)");
+            level == 1 ? "Subscribed — click to also show a toast notification\n(right-click the name for more options)" :
+            level == 2 ? "Subscribed + toast notification — click to also play a sound\n(right-click the name for more options)"
+                       : "Subscribed + toast + sound — click to unsubscribe\n(right-click the name for more options)");
     }
 
     ImGui::PopID();
@@ -553,11 +609,14 @@ static void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 //
 // notifyLevel/setNotifyLevel: optional (default -1/nullptr, meaning "not
 // applicable to this row" — categories pass neither). When present, adds
-// "Set to: ..." entries for jumping straight down to any level BELOW the
-// current one (see DrawNotifyLevelIcon's comment for why this lives here
-// rather than as its own gesture) — e.g. from level 2 both "Subscribed
-// only" and "Unsubscribed" are offered, since the menu is already open
-// and there's no reason to force picking "one step down" twice.
+// "Set to: ..." entries for jumping straight to ANY level in the ladder
+// (see DrawNotifyLevelIcon's comment for why this lives here rather than
+// as its own gesture) — all four stages are always listed, not just the
+// ones below the current one, so this doubles as a full jump menu (up OR
+// down) rather than only a shortcut past the left-click cycle's forward-
+// only direction. The current stage shows a checkmark (MenuItem's
+// `selected` flag) rather than being hidden or disabled — clicking it
+// again is a harmless no-op.
 // ---------------------------------------------------------------------------
 struct NameRowResult { bool open; std::string newName; };
 
@@ -591,11 +650,15 @@ static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey,
                 toggleDone();
             ImGui::Separator();
         }
-        if (setNotifyLevel && notifyLevel > 0)
+        if (setNotifyLevel && notifyLevel >= 0)
         {
-            if (notifyLevel >= 2 && ImGui::MenuItem("Set to: Subscribed only"))
+            if (ImGui::MenuItem("Set to: Subscribed + Toast + Sound", nullptr, notifyLevel == 3))
+                setNotifyLevel(3);
+            if (ImGui::MenuItem("Set to: Subscribed + Toast", nullptr, notifyLevel == 2))
+                setNotifyLevel(2);
+            if (ImGui::MenuItem("Set to: Subscribed only", nullptr, notifyLevel == 1))
                 setNotifyLevel(1);
-            if (ImGui::MenuItem("Set to: Unsubscribed"))
+            if (ImGui::MenuItem("Set to: Unsubscribed", nullptr, notifyLevel == 0))
                 setNotifyLevel(0);
             ImGui::Separator();
         }
@@ -702,7 +765,8 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     // line ("[icon] > Name") — same slot DrawSubscribeCheckbox used to
     // occupy. Cycling past level 0 doesn't affect map rendering or
     // timing at all (see subscriptions.h); it only adds/removes ev.name
-    // from the watchlist window's list and, at level 2, the toast list.
+    // from the watchlist window's list and, at level 2+, the toast list,
+    // and, at level 3, the sound list too.
     int notifyLevel = GetBasicEventNotifyLevel(ev.name);
     int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
     if (newNotifyLevel != notifyLevel)
@@ -930,14 +994,14 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     // second place that mixed state needs representing.
     //
     // Deliberately left as a plain subscribe/unsubscribe checkbox rather
-    // than extended to the 3-level notify cycle below: a bulk "set every
+    // than extended to the 4-level notify cycle below: a bulk "set every
     // slot's notify level at once" control raises its own mixed-state
     // questions (what does it even mean if slots currently disagree on
-    // toast-enabled?) that are a separate design question from this
-    // feature. Unticking it still clears each slot's toast flag too
-    // (via SetCyclicSlotNotifyLevel(key, 0) below) — nothing is left in
-    // an inconsistent state, this just doesn't offer a bulk way to turn
-    // toast on for everything at once.
+    // toast/sound-enabled?) that are a separate design question from this
+    // feature. Unticking it still clears each slot's toast AND sound
+    // flags too (via SetCyclicSlotNotifyLevel(key, 0) below) — nothing is
+    // left in an inconsistent state, this just doesn't offer a bulk way
+    // to turn toast/sound on for everything at once.
     bool allSlotsSubscribed = !grp.slots.empty() &&
         std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
         {
@@ -1580,6 +1644,72 @@ void AddonOptions()
         ImGui::TextDisabled("(?)");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("How long a popup stays fully visible before it fades out. Hovering a popup pauses its timer.");
+
+        // Single notification sound file, picked from "<addon dir>/sounds".
+        // Same disk-scan-and-Combo shape as the icon pickers above (see
+        // DrawBulkIconPicker / GetEventIconFilenames), just for .wav files
+        // instead of images — see notify_sound.h.
+        //
+        // This is a single global file, not a per-event choice: which
+        // events actually play it is controlled by each event/slot's own
+        // notify level (level 3 — see DrawNotifyLevelIcon and
+        // subscriptions_notification.cpp's SpawnPopup call sites), same
+        // "one global setting, per-event opt-in" split as the toast popup
+        // itself. "Test" here just plays it immediately, independent of
+        // any subscription state.
+        {
+            const std::vector<std::string>& soundFiles = GetNotificationSoundFilenames();
+
+            // Plain label glyph — same DrawSpeakerIcon that's now level
+            // 3's icon in DrawNotifyLevelIcon's cycle, reused here as a
+            // visual marker for "this row is about the notification
+            // sound", same fixed-square-slot sizing as DrawNotifyLevelIcon
+            // uses.
+            {
+                float sq = ImGui::GetFrameHeight();
+                ImVec2 rmin = ImGui::GetCursorScreenPos();
+                ImVec2 center(rmin.x + sq * 0.5f, rmin.y + sq * 0.5f);
+                DrawSpeakerIcon(ImGui::GetWindowDrawList(), center, sq * 0.96f, ImGui::GetColorU32(ImGuiCol_Text));
+                ImGui::Dummy(ImVec2(sq, sq));
+            }
+            ImGui::SameLine();
+
+            std::vector<const char*> soundLabels;
+            soundLabels.push_back("(none)");
+            for (const auto& fn : soundFiles)
+                soundLabels.push_back(fn.c_str());
+
+            int soundIndex = 0; // "(none)"
+            if (!NotificationSoundFile.empty())
+                for (int k = 0; k < (int)soundFiles.size(); k++)
+                    if (soundFiles[k] == NotificationSoundFile) { soundIndex = k + 1; break; }
+
+            ImGui::SetNextItemWidth(180.0f);
+            if (ImGui::Combo("Sound", &soundIndex, soundLabels.data(), (int)soundLabels.size()))
+                NotificationSoundFile = (soundIndex == 0) ? std::string() : soundFiles[soundIndex - 1];
+
+            ImGui::SameLine();
+            if (ImGui::Button("Rescan"))
+                ScanNotificationSoundFiles();
+            ImGui::SameLine();
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Re-scans \"<addon dir>/sounds\" for .wav files you've dropped in since the dropdown was last built.");
+
+            DisabledBlock(NotificationSoundFile.empty())
+            {
+                if (ImGui::Button("Test"))
+                    PlayNotificationSound(NotificationSoundFile);
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(
+                    "Drop .wav files into \"<addon dir>/sounds\" and pick one\n"
+                    "here to preview it. Only .wav is supported (PlaySound has\n"
+                    "no built-in decoder for mp3/ogg/etc). This doesn't play\n"
+                    "automatically on a real notification yet — that's not\n"
+                    "wired up in this build.");
+        }
 
         ImGui::Unindent();
     }
