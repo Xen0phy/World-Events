@@ -24,6 +24,9 @@ namespace fs = std::filesystem;
 std::vector<std::string>            g_SubscribedBasicEvents;
 std::vector<CyclicSubscriptionKey>  g_SubscribedCyclicSlots;
 
+std::vector<std::string>            g_ToastEnabledBasicEvents;
+std::vector<CyclicSubscriptionKey>  g_ToastEnabledCyclicSlots;
+
 // See GetSubscriptionListGeneration's comment in subscriptions.h.
 static uint64_t s_subscriptionListGeneration = 0;
 uint64_t GetSubscriptionListGeneration() { return s_subscriptionListGeneration; }
@@ -56,6 +59,14 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
             name = newName;
         // Deliberately no break: patch every occurrence, not just the
         // first, in case of a prior data inconsistency.
+
+    // Same patch, same reasoning, for the toast-enabled list — otherwise
+    // a rename would silently drop a "notify" setting the user already
+    // configured for this event, with nothing in the UI hinting why.
+    for (auto& name : g_ToastEnabledBasicEvents)
+        if (name == oldName)
+            name = newName;
+
     s_subscriptionListGeneration++;
 }
 
@@ -76,6 +87,95 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key)
     else
         g_SubscribedCyclicSlots.push_back(key);
     s_subscriptionListGeneration++;
+}
+
+// ---------------------------------------------------------------------------
+// Per-event toast opt-in ("notify level") — see subscriptions.h
+// ---------------------------------------------------------------------------
+bool IsBasicEventToastEnabled(const std::string& eventName)
+{
+    return std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventName)
+        != g_ToastEnabledBasicEvents.end();
+}
+
+bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key)
+{
+    return std::find(g_ToastEnabledCyclicSlots.begin(), g_ToastEnabledCyclicSlots.end(), key)
+        != g_ToastEnabledCyclicSlots.end();
+}
+
+int GetBasicEventNotifyLevel(const std::string& eventName)
+{
+    if (!IsBasicEventSubscribed(eventName)) return 0;
+    return IsBasicEventToastEnabled(eventName) ? 2 : 1;
+}
+
+void SetBasicEventNotifyLevel(const std::string& eventName, int level)
+{
+    level = level < 0 ? 0 : (level > 2 ? 2 : level);
+    bool wantSubscribed = level >= 1;
+    bool wantToast      = level >= 2;
+
+    if (IsBasicEventSubscribed(eventName) != wantSubscribed)
+        ToggleBasicEventSubscription(eventName); // bumps s_subscriptionListGeneration
+
+    // Unsubscribing always clears toast too, regardless of what it was —
+    // no way to end up "toast-enabled but not subscribed" left over.
+    if (!wantSubscribed)
+    {
+        auto it = std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventName);
+        if (it != g_ToastEnabledBasicEvents.end())
+            g_ToastEnabledBasicEvents.erase(it);
+        return;
+    }
+
+    bool hasToast = IsBasicEventToastEnabled(eventName);
+    if (hasToast == wantToast) return;
+
+    if (wantToast)
+        g_ToastEnabledBasicEvents.push_back(eventName);
+    else
+    {
+        auto it = std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventName);
+        if (it != g_ToastEnabledBasicEvents.end())
+            g_ToastEnabledBasicEvents.erase(it);
+    }
+}
+
+int GetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key)
+{
+    if (!IsCyclicSlotSubscribed(key)) return 0;
+    return IsCyclicSlotToastEnabled(key) ? 2 : 1;
+}
+
+void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
+{
+    level = level < 0 ? 0 : (level > 2 ? 2 : level);
+    bool wantSubscribed = level >= 1;
+    bool wantToast      = level >= 2;
+
+    if (IsCyclicSlotSubscribed(key) != wantSubscribed)
+        ToggleCyclicSlotSubscription(key); // bumps s_subscriptionListGeneration
+
+    if (!wantSubscribed)
+    {
+        auto it = std::find(g_ToastEnabledCyclicSlots.begin(), g_ToastEnabledCyclicSlots.end(), key);
+        if (it != g_ToastEnabledCyclicSlots.end())
+            g_ToastEnabledCyclicSlots.erase(it);
+        return;
+    }
+
+    bool hasToast = IsCyclicSlotToastEnabled(key);
+    if (hasToast == wantToast) return;
+
+    if (wantToast)
+        g_ToastEnabledCyclicSlots.push_back(key);
+    else
+    {
+        auto it = std::find(g_ToastEnabledCyclicSlots.begin(), g_ToastEnabledCyclicSlots.end(), key);
+        if (it != g_ToastEnabledCyclicSlots.end())
+            g_ToastEnabledCyclicSlots.erase(it);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -121,11 +221,17 @@ bool SaveSubscriptionsData(const std::string& addonDir)
         }
 
         j["subscribedBasicEvents"] = g_SubscribedBasicEvents;
+        j["toastEnabledBasicEvents"] = g_ToastEnabledBasicEvents;
 
         json cyclicArr = json::array();
         for (const auto& key : g_SubscribedCyclicSlots)
             cyclicArr.push_back(SerializeCyclicKey(key));
         j["subscribedCyclicSlots"] = cyclicArr;
+
+        json toastCyclicArr = json::array();
+        for (const auto& key : g_ToastEnabledCyclicSlots)
+            toastCyclicArr.push_back(SerializeCyclicKey(key));
+        j["toastEnabledCyclicSlots"] = toastCyclicArr;
 
         fs::create_directories(addonDir);
         std::ofstream out(filepath);
@@ -149,10 +255,21 @@ bool LoadSubscriptionsData(const std::string& addonDir)
         if (j.contains("subscribedBasicEvents"))
             g_SubscribedBasicEvents = j.value("subscribedBasicEvents", std::vector<std::string>{});
 
+        // .value(...) defaults to empty if the key is missing entirely —
+        // true for any events.json saved before this feature existed, and
+        // that's exactly the right behavior: nobody's prior subscriptions
+        // silently start out toast-enabled.
+        g_ToastEnabledBasicEvents = j.value("toastEnabledBasicEvents", std::vector<std::string>{});
+
         g_SubscribedCyclicSlots.clear();
         if (j.contains("subscribedCyclicSlots") && j["subscribedCyclicSlots"].is_array())
             for (const auto& kj : j["subscribedCyclicSlots"])
                 g_SubscribedCyclicSlots.push_back(DeserializeCyclicKey(kj));
+
+        g_ToastEnabledCyclicSlots.clear();
+        if (j.contains("toastEnabledCyclicSlots") && j["toastEnabledCyclicSlots"].is_array())
+            for (const auto& kj : j["toastEnabledCyclicSlots"])
+                g_ToastEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
 
         s_subscriptionListGeneration++;
         return true;

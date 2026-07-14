@@ -8,7 +8,14 @@
 // Two independent popups per notifiable occurrence:
 //   - "starting soon", NotificationLeadMinutes before it starts
 //   - "now active", the instant it actually starts
-// both gated behind the NotificationsEnabled master switch (settings_table.h).
+// both gated behind the NotificationsEnabled master switch (settings_table.h)
+// AND, for manually subscribed items, a per-event opt-in (see
+// IsBasicEventToastEnabled/IsCyclicSlotToastEnabled in subscriptions.h) —
+// most subscriptions default to NOT showing a toast at all, since someone
+// with a big watchlist usually only wants a handful of it to actually
+// interrupt them. A candidate present purely via weekly auto-track
+// (not manually subscribed) is unaffected by that per-event flag and
+// keeps the master-switch-only behavior this always had.
 // The auto-tracked weekly pass is separately gated behind
 // WeeklyAutoTrackEnabled (settings_table.h), the same master switch the
 // window/bar's equivalent auto-track passes share; a popup for a weekly
@@ -233,6 +240,16 @@ struct Candidate
     int         secsUntilStart; // meaningful only when !active; 0 when active
     bool        isWeekly;
 
+    // Per-event opt-in for this candidate actually popping a toast at
+    // all — see subscriptions.h's "notify level" comment. Only meaningful
+    // for manually subscribed items; a candidate present purely via
+    // weekly auto-track (manuallySubscribed == false) isn't in either
+    // toast list at all, so it keeps its previous unconditional behavior
+    // (gated only by WeeklyAutoTrackEnabled elsewhere) rather than
+    // silently going quiet because it's absent from a list it was never
+    // meant to be checked against.
+    bool        toastEnabled = true;
+
     // Identity for the right-click "Mark done for today" menu — carried
     // through into the spawned Popup via SpawnPopup. See Popup's own copy
     // of this trio above.
@@ -259,7 +276,16 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         SubscriptionActiveState as = GetSubscriptionActiveState(sub, now);
         if (!as.active && as.secsUntilStart < 0) continue; // no timer data yet
 
+        bool toastEnabled = true;
+        if (sub.manuallySubscribed)
+        {
+            toastEnabled = sub.isBasic
+                ? IsBasicEventToastEnabled(sub.basicName)
+                : IsCyclicSlotToastEnabled(CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset });
+        }
+
         out.push_back({ sub.key, sub.label, sub.chatCode, as.active, as.secsUntilStart, sub.isWeeklyTarget,
+                         toastEnabled,
                          sub.isBasic, sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
     }
 }
@@ -286,14 +312,16 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
         if (c.active && !st.wasActive)
         {
             // Just went active this frame.
-            if (NotificationOnStart)
+            if (NotificationOnStart && c.toastEnabled)
                 SpawnPopup(c.key, c.name, c.chatCode, "Now active!", SubscriptionsActiveColor, c.isWeekly,
                            c.isBasic, c.basicName, c.cyclicKey);
 
             // An occurrence that's already live can no longer meaningfully
             // fire its "starting soon" warning — mark it fired so a lead
             // popup can't pop up retroactively for something already
-            // underway.
+            // underway. Marked regardless of toastEnabled, same reasoning
+            // as below: the state machine tracks reality; toastEnabled
+            // only gates whether a popup actually shows for it.
             st.leadFired = true;
         }
         else if (!c.active && st.wasActive)
@@ -308,10 +336,18 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
             int leadSecs = NotificationLeadMinutes * 60;
             if (c.secsUntilStart >= 0 && c.secsUntilStart <= leadSecs)
             {
-                char buf[48];
-                snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
-                SpawnPopup(c.key, c.name, c.chatCode, buf, SubscriptionsSoonColor, c.isWeekly,
-                           c.isBasic, c.basicName, c.cyclicKey);
+                if (c.toastEnabled)
+                {
+                    char buf[48];
+                    snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
+                    SpawnPopup(c.key, c.name, c.chatCode, buf, SubscriptionsSoonColor, c.isWeekly,
+                               c.isBasic, c.basicName, c.cyclicKey);
+                }
+                // leadFired latches regardless of toastEnabled — otherwise
+                // toggling toast on mid-window (between the lead threshold
+                // and actual start) would fire a "starting in Xm" popup
+                // retroactively, the instant it's enabled, for a window
+                // that's already most of the way elapsed.
                 st.leadFired = true;
             }
         }

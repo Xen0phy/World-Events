@@ -39,8 +39,45 @@ bool IsCyclicSlotSubscribed(const CyclicSubscriptionKey& key);
 void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key);
 
 // Patches a Basic Event subscription from oldName to newName. No-op if
-// oldName isn't currently subscribed.
+// oldName isn't currently subscribed. Also patches the toast-enabled list
+// below, so a rename doesn't silently drop a "notify" setting the user
+// already configured for that event.
 void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName);
+
+// ---------------------------------------------------------------------------
+// Per-event toast opt-in ("notify level")
+// ---------------------------------------------------------------------------
+// A subscribed Basic Event / Cyclic slot may ALSO opt into a "starting
+// soon"/"now active" toast popup (subscriptions_notification.cpp) rather
+// than just sitting quietly on the bar/window — most subscriptions are
+// the former by default (someone building a big watchlist doesn't want a
+// toast for every single one of them), so this is tracked as a second,
+// independent membership list layered on top of the subscribed-list
+// above, not a property of being subscribed at all.
+//
+// Modeled as one 0/1/2 "notify level" rather than two independent bools,
+// since it's a strict ladder in the options tree's UI (see
+// DrawNotifyLevelIcon in addon_options.cpp): 0 = unsubscribed, 1 =
+// subscribed/silent, 2 = subscribed + toast. Level 2 always implies
+// subscribed; Set...NotifyLevel(..., 0) clears BOTH lists together so
+// there's no way to end up "toast-enabled but not subscribed" left over
+// from an earlier configuration. A sound level (3) is intentionally not
+// implemented yet — see the design discussion this shipped from.
+//
+// Get...NotifyLevel derives its answer from the subscribed/toast lists
+// live (not its own separate piece of state), so it can never disagree
+// with IsBasicEventSubscribed/IsBasicEventToastEnabled.
+extern std::vector<std::string>            g_ToastEnabledBasicEvents;
+extern std::vector<CyclicSubscriptionKey>  g_ToastEnabledCyclicSlots;
+
+bool IsBasicEventToastEnabled(const std::string& eventName);
+bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key);
+
+int  GetBasicEventNotifyLevel(const std::string& eventName);
+void SetBasicEventNotifyLevel(const std::string& eventName, int level); // clamped to 0..2
+
+int  GetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key);
+void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level); // clamped to 0..2
 
 // Bumped by exactly 1 on every change to g_SubscribedBasicEvents/
 // g_SubscribedCyclicSlots — ToggleBasicEventSubscription,
@@ -48,14 +85,22 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
 // LoadSubscriptionsData. Lets subscriptions_cache.cpp cheaply detect "the
 // subscribed set itself changed" (as opposed to just its members' active/
 // completion state) without re-deriving anything to find out.
+//
+// NOT bumped by toast-enabled-list changes alone (Set...NotifyLevel when
+// only the toast half changes, i.e. 1<->2) — nothing in
+// subscriptions_cache.cpp reads the toast list, so there's nothing for a
+// cache rebuild to pick up; subscriptions_notification.cpp reads it
+// directly and unconditionally every frame instead (see CollectCandidates).
 uint64_t GetSubscriptionListGeneration();
 
-// Persists/loads g_SubscribedBasicEvents and g_SubscribedCyclicSlots as
-// two top-level keys ("subscribedBasicEvents", "subscribedCyclicSlots")
-// in the same events.json file used by g_Events/g_CyclicGroups/
-// categories. Call SaveEventsData() before SaveSubscriptionsData(), since
-// this reads the file and writes it back. Both swallow exceptions and
-// return false on failure.
+// Persists/loads g_SubscribedBasicEvents, g_SubscribedCyclicSlots,
+// g_ToastEnabledBasicEvents, and g_ToastEnabledCyclicSlots as four
+// top-level keys ("subscribedBasicEvents", "subscribedCyclicSlots",
+// "toastEnabledBasicEvents", "toastEnabledCyclicSlots") in the same
+// events.json file used by g_Events/g_CyclicGroups/categories. Call
+// SaveEventsData() before SaveSubscriptionsData(), since this reads the
+// file and writes it back. Both swallow exceptions and return false on
+// failure.
 bool SaveSubscriptionsData(const std::string& addonDir);
 bool LoadSubscriptionsData(const std::string& addonDir);
 
@@ -115,8 +160,13 @@ void RenderSubscriptionsBar();
 //   - an "it's live" popup the instant that occurrence actually starts,
 //     independently gated by NotificationOnStart (settings_table.h).
 //
-// Both are entirely gated behind NotificationsEnabled — the master switch
-// mentioned in both settings above. Clicking a popup pastes its waypoint
+// Both are gated behind NotificationsEnabled — the master switch mentioned
+// in both settings above — AND, for manually subscribed items, that
+// specific event/slot's own toast opt-in (IsBasicEventToastEnabled/
+// IsCyclicSlotToastEnabled below): most subscriptions default to silent,
+// so building a big watchlist doesn't mean a toast for every single one
+// of them. Auto-tracked weekly targets (not manually subscribed) aren't
+// affected by that per-event flag. Clicking a popup pastes its waypoint
 // code exactly like a row in the watchlist window / a segment on the
 // distribution bar (see PasteToChat in subscriptions.cpp).
 //

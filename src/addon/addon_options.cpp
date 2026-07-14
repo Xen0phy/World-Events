@@ -339,6 +339,138 @@ static bool DrawSubscribeCheckbox(const char* label, bool& value)
 }
 
 // ---------------------------------------------------------------------------
+// DrawBellIcon
+// ---------------------------------------------------------------------------
+// A minimal, hand-drawn bell glyph — built from ImDrawList primitives
+// rather than a font glyph, since the base font here only covers Basic
+// Latin plus a handful of general-purpose symbols (see
+// subscriptions_window.cpp's weekly-target dot, itself just a plain
+// Unicode circle); there's no bell character available without pulling
+// in a whole icon font for one row-glyph.
+//
+// ONE shared function, drawn fresh at whatever position/size/color each
+// caller needs — not a baked texture, and not a separate copy of this
+// geometry per event. `center` is the icon's visual center; `size` is
+// roughly its full height in screen pixels.
+//
+// Filled solid rather than stroked outline: at the ~13px this actually
+// renders at inside a tree row, a thin stroke gets fuzzy while a solid
+// silhouette stays crisp. The small hanging "clapper" circle is what
+// keeps the shape reading as a bell rather than just a dome once it's
+// down at that size.
+// ---------------------------------------------------------------------------
+static void DrawBellIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
+{
+    float s = size / 24.0f; // geometry below is authored in a 24-unit box
+    ImVec2 origin(center.x - 12.0f * s, center.y - 12.0f * s);
+    auto P = [&](float x, float y) { return ImVec2(origin.x + x * s, origin.y + y * s); };
+
+    // Dome + flare: a semicircle (the two shoulder points sit exactly on
+    // a diameter, so this is precisely 180 degrees, not an arbitrary
+    // arc) from the left shoulder over the top to the right shoulder,
+    // then straight lines flaring out to a wider bottom rim. Filling
+    // implicitly closes the path back to its first point, same as the
+    // implicit "Z" this was prototyped as in SVG.
+    dl->PathArcTo(P(12.0f, 14.0f), 6.0f * s, IM_PI, IM_PI * 2.0f, 12);
+    dl->PathLineTo(P(20.0f, 18.0f));
+    dl->PathLineTo(P(4.0f, 18.0f));
+    dl->PathFillConvex(color);
+
+    dl->AddCircleFilled(P(12.0f, 20.4f), 1.3f * s, color, 12);
+}
+
+// ---------------------------------------------------------------------------
+// DrawNotifyLevelIcon
+// ---------------------------------------------------------------------------
+// Replaces the plain subscribe checkbox with a single 3-way control:
+//   level 0 — unsubscribed              — shown as "+"
+//   level 1 — subscribed, silent        — shown as a dim/outline-weight bell
+//   level 2 — subscribed + toast popup  — shown as a full-strength bell
+// (see GetBasicEventNotifyLevel/SetBasicEventNotifyLevel in
+// subscriptions.h for the underlying two-list state this reads/writes).
+//
+// Left-click always advances exactly ONE level, wrapping 2 -> 0 — the
+// clean, common-case gesture. Jumping DOWN a level, or straight to
+// unsubscribed without cycling through every step, lives in this row's
+// right-click context menu instead (see DrawNameAndContextMenu's
+// notifyLevel/setNotifyLevel parameters) rather than as a second gesture
+// here — that menu already exists for "Edit name", so this reuses it
+// rather than teaching a new interaction. A sound level (3) is
+// intentionally not implemented yet.
+//
+// Manual hit-test + ImDrawList rather than a real widget, same reasoning
+// as subscriptions_window.cpp's DrawSubscriptionRow: a fixed square
+// slot, sized to GetFrameHeight() so it lines up with the tree arrow /
+// DrawSubscribeCheckbox's own tightened height on the same row.
+//
+// Returns the level to actually apply this frame: unchanged unless this
+// exact click just advanced it, so callers do:
+//   int level = DrawNotifyLevelIcon("##notify_x", GetBasicEventNotifyLevel(name));
+//   if (level != GetBasicEventNotifyLevel(name)) SetBasicEventNotifyLevel(name, level);
+// ---------------------------------------------------------------------------
+static int DrawNotifyLevelIcon(const char* idSuffix, int level)
+{
+    ImGui::PushID(idSuffix);
+
+    // Same reasoning as DrawSubscribeCheckbox right above: GetFrameHeight()
+    // pulls in the theme's full FramePadding, which is noticeably taller
+    // than the tree arrow this sits next to. Zeroing it here too — not
+    // just leaving it to whatever the last checkbox happened to push —
+    // is what actually keeps this icon's box the same size/baseline as
+    // "show on map" right next to it on the same line.
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+
+    float sq = ImGui::GetFrameHeight();
+    ImVec2 rmin = ImGui::GetCursorScreenPos();
+    ImVec2 rmax(rmin.x + sq, rmin.y + sq);
+    ImVec2 center((rmin.x + rmax.x) * 0.5f, (rmin.y + rmax.y) * 0.5f);
+
+    bool hovered = ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(rmin, rmax);
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    if (hovered)
+        dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+
+    ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
+    float pad = sq * 0.28f;
+
+    switch (level)
+    {
+        case 0: // unsubscribed — plain "+"
+            dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
+            dl->AddLine(ImVec2(center.x, rmin.y + pad), ImVec2(center.x, rmax.y - pad), col, 1.6f);
+            break;
+        case 1: // subscribed, silent — bell
+            DrawBellIcon(dl, center, sq * 0.72f, col);
+            break;
+        default: // 2: subscribed + toast — "-", the always-last icon
+                 // meaning "click to fully unsubscribe" (same convention
+                 // a future sound level would keep at ITS last step, not
+                 // something specific to level 2)
+            dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
+            break;
+    }
+
+    ImGui::Dummy(ImVec2(sq, sq));
+    ImGui::PopStyleVar();
+
+    int newLevel = level;
+    if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        newLevel = (level + 1) % 3;
+
+    if (hovered)
+    {
+        ImGui::SetTooltip(
+            level == 0 ? "Click to subscribe" :
+            level == 1 ? "Subscribed — click to also show a toast notification\n(right-click for more options)"
+                       : "Subscribed + toast notification — click to unsubscribe\n(right-click for more options)");
+    }
+
+    ImGui::PopID();
+    return newLevel;
+}
+
+// ---------------------------------------------------------------------------
 // DrawDragButton
 // ---------------------------------------------------------------------------
 // Small button placed next to the Location field that arms/disarms
@@ -418,10 +550,19 @@ static void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 // (WorldEvent::apiWorldBossId or CyclicGroup::apiMapChestId). Purely
 // cosmetic — never folded into newName, so it has no effect on saving,
 // renaming, drag payloads, or search/category matching.
+//
+// notifyLevel/setNotifyLevel: optional (default -1/nullptr, meaning "not
+// applicable to this row" — categories pass neither). When present, adds
+// "Set to: ..." entries for jumping straight down to any level BELOW the
+// current one (see DrawNotifyLevelIcon's comment for why this lives here
+// rather than as its own gesture) — e.g. from level 2 both "Subscribed
+// only" and "Unsubscribed" are offered, since the menu is already open
+// and there's no reason to force picking "one step down" twice.
 // ---------------------------------------------------------------------------
 struct NameRowResult { bool open; std::string newName; };
 
-static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType = nullptr, const char* autoTag = nullptr, std::function<void()> toggleDone = nullptr)
+static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType = nullptr, const char* autoTag = nullptr, std::function<void()> toggleDone = nullptr,
+    int notifyLevel = -1, std::function<void(int)> setNotifyLevel = nullptr)
 {
     std::string label = currentName.empty() ? "(unnamed)" : currentName;
     if (autoTag)
@@ -448,6 +589,14 @@ static NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey,
         {
             if (ImGui::MenuItem("Mark done for today"))
                 toggleDone();
+            ImGui::Separator();
+        }
+        if (setNotifyLevel && notifyLevel > 0)
+        {
+            if (notifyLevel >= 2 && ImGui::MenuItem("Set to: Subscribed only"))
+                setNotifyLevel(1);
+            if (ImGui::MenuItem("Set to: Unsubscribed"))
+                setNotifyLevel(0);
             ImGui::Separator();
         }
         if (ImGui::MenuItem("Edit name"))
@@ -549,13 +698,15 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
     WorldEvent& ev = g_Events[i];
 
-    // Subscribe checkbox drawn BEFORE the name/tree-arrow, on the same
-    // line ("[x] > Name"), same as DrawSubscribeCheckbox. Toggling this
-    // doesn't affect rendering or timing at all (see subscriptions.h); it
-    // only adds/removes ev.name from the watchlist window's list.
-    bool subscribed = IsBasicEventSubscribed(ev.name);
-    if (DrawSubscribeCheckbox("##subscribe", subscribed))
-        ToggleBasicEventSubscription(ev.name);
+    // Notify-level icon drawn BEFORE the name/tree-arrow, on the same
+    // line ("[icon] > Name") — same slot DrawSubscribeCheckbox used to
+    // occupy. Cycling past level 0 doesn't affect map rendering or
+    // timing at all (see subscriptions.h); it only adds/removes ev.name
+    // from the watchlist window's list and, at level 2, the toast list.
+    int notifyLevel = GetBasicEventNotifyLevel(ev.name);
+    int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
+    if (newNotifyLevel != notifyLevel)
+        SetBasicEventNotifyLevel(ev.name, newNotifyLevel);
     ImGui::SameLine();
 
     // Map-only show/hide toggle, same tightened-checkbox treatment as the
@@ -574,7 +725,8 @@ static void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     std::string oldName = ev.name;
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
-        [&ev]() { ToggleBasicEventDoneToday(ev.name); });
+        [&ev]() { ToggleBasicEventDoneToday(ev.name); },
+        notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.name, lvl); });
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
@@ -773,9 +925,19 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     //     every slot
     // Deliberately NOT tri-state: a "some but not all" mix just reads as
     // unchecked here, same as an all-unsubscribed group. The per-slot
-    // checkboxes below are still the source of truth for exactly which
+    // controls below are still the source of truth for exactly which
     // occurrences are watched; this is a bulk convenience action, not a
     // second place that mixed state needs representing.
+    //
+    // Deliberately left as a plain subscribe/unsubscribe checkbox rather
+    // than extended to the 3-level notify cycle below: a bulk "set every
+    // slot's notify level at once" control raises its own mixed-state
+    // questions (what does it even mean if slots currently disagree on
+    // toast-enabled?) that are a separate design question from this
+    // feature. Unticking it still clears each slot's toast flag too
+    // (via SetCyclicSlotNotifyLevel(key, 0) below) — nothing is left in
+    // an inconsistent state, this just doesn't offer a bulk way to turn
+    // toast on for everything at once.
     bool allSlotsSubscribed = !grp.slots.empty() &&
         std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
         {
@@ -786,8 +948,27 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         for (const auto& slot : grp.slots)
         {
             CyclicSubscriptionKey key{ grp.name, slot.offset };
-            if (IsCyclicSlotSubscribed(key) != allSlotsSubscribed)
-                ToggleCyclicSlotSubscription(key);
+            // Checkbox() writes the NEW post-click state into
+            // allSlotsSubscribed itself before returning true here, so by
+            // this point it means "user just ticked (true) / unticked
+            // (false) the box" — not the pre-click value.
+            //
+            // Bulk-unsubscribing (just unticked) drops straight to level
+            // 0 for every slot — that's what actually clears each slot's
+            // toast flag too, not just a subscription toggle on its own.
+            // Bulk-subscribing (just ticked) only raises a slot from 0 to
+            // 1 (silent); it never demotes a slot already sitting at 2
+            // (toast) back down to 1, since this box is a "make sure
+            // everything's at LEAST subscribed" convenience, not a reset
+            // of levels someone already configured individually.
+            if (!allSlotsSubscribed)
+            {
+                SetCyclicSlotNotifyLevel(key, 0);
+            }
+            else if (GetCyclicSlotNotifyLevel(key) == 0)
+            {
+                SetCyclicSlotNotifyLevel(key, 1);
+            }
         }
     }
     if (ImGui::IsItemHovered())
@@ -906,16 +1087,18 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             CyclicGroup::Slot& slot = grp.slots[s];
             ImGui::PushID(s);
 
-            // Subscribe checkbox drawn BEFORE the name/tree-arrow, same as
-            // DrawSubscribeCheckbox. Per SLOT (an individual occurrence),
-            // not per group — this is still the source of truth for
-            // exactly which occurrences are watched. The group-level
-            // checkbox above is a bulk convenience over these same
-            // per-slot subscriptions, not a separate flag.
+            // Notify-level icon drawn BEFORE the name/tree-arrow, same
+            // slot DrawSubscribeCheckbox used to occupy. Per SLOT (an
+            // individual occurrence), not per group — this is still the
+            // source of truth for exactly which occurrences are watched
+            // and at what notify level. The group-level checkbox above is
+            // a bulk convenience over these same per-slot subscriptions,
+            // not a separate flag.
             CyclicSubscriptionKey subKey{ grp.name, slot.offset };
-            bool subscribed = IsCyclicSlotSubscribed(subKey);
-            if (DrawSubscribeCheckbox("##subscribe", subscribed))
-                ToggleCyclicSlotSubscription(subKey);
+            int notifyLevel = GetCyclicSlotNotifyLevel(subKey);
+            int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
+            if (newNotifyLevel != notifyLevel)
+                SetCyclicSlotNotifyLevel(subKey, newNotifyLevel);
             ImGui::SameLine();
 
             // Map-only show/hide toggle for just THIS occurrence — the
@@ -928,7 +1111,8 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
             int slotEditKey = i * 100000 + s;
             NameRowResult nameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, slot.name, editingSlotNames, pendingRemoveSlotIndex,
-                nullptr, nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); });
+                nullptr, nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
+                notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); });
             bool slotOpen = nameResult.open;
             if (nameResult.newName != slot.name)
                 slot.name = nameResult.newName; // no RenameCategoryMember call — slots aren't categorized, only the two top-level lists are
