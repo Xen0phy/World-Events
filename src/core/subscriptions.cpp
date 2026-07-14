@@ -24,6 +24,10 @@ namespace fs = std::filesystem;
 std::vector<std::string>            g_SubscribedBasicEvents;
 std::vector<CyclicSubscriptionKey>  g_SubscribedCyclicSlots;
 
+// See GetSubscriptionListGeneration's comment in subscriptions.h.
+static uint64_t s_subscriptionListGeneration = 0;
+uint64_t GetSubscriptionListGeneration() { return s_subscriptionListGeneration; }
+
 // ---------------------------------------------------------------------------
 // Basic Event subscriptions
 // ---------------------------------------------------------------------------
@@ -40,6 +44,7 @@ void ToggleBasicEventSubscription(const std::string& eventName)
         g_SubscribedBasicEvents.erase(it);
     else
         g_SubscribedBasicEvents.push_back(eventName);
+    s_subscriptionListGeneration++;
 }
 
 void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName)
@@ -51,6 +56,7 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
             name = newName;
         // Deliberately no break: patch every occurrence, not just the
         // first, in case of a prior data inconsistency.
+    s_subscriptionListGeneration++;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +75,7 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key)
         g_SubscribedCyclicSlots.erase(it);
     else
         g_SubscribedCyclicSlots.push_back(key);
+    s_subscriptionListGeneration++;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +154,7 @@ bool LoadSubscriptionsData(const std::string& addonDir)
             for (const auto& kj : j["subscribedCyclicSlots"])
                 g_SubscribedCyclicSlots.push_back(DeserializeCyclicKey(kj));
 
+        s_subscriptionListGeneration++;
         return true;
     }
     catch (...) { return false; }

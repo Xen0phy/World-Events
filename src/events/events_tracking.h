@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cstdint>
 #include "subscriptions.h" // CyclicSubscriptionKey — same (groupName, slotOffset) key shape
 
 // ---------------------------------------------------------------------------
@@ -37,6 +38,15 @@ void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key);
 // touch API-derived completion state (that's gw2_api.cpp's own cache and
 // isn't manual data).
 void ClearAllDoneMarkers();
+
+// Bumped by exactly 1 on every actual change to the done-today marks —
+// ToggleBasicEventDoneToday, ToggleCyclicSlotDoneToday, ClearAllDoneMarkers,
+// LoadDailyTrackingData (when it actually loads marks for today), and the
+// UTC-day rollover inside RollOverIfNewUtcDay (when it actually clears
+// yesterday's marks). Lets subscriptions_cache.cpp cheaply detect "a
+// doneToday flag may have changed" without re-deriving anything to find
+// out.
+uint64_t GetDoneMarkersGeneration();
 
 // Persisted in events.json alongside subscriptions, as two more sibling
 // top-level keys ("doneTodayBasicEvents", "doneTodayCyclicSlots") plus the

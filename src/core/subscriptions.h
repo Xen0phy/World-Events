@@ -2,6 +2,7 @@
 #include <chrono>
 #include <vector>
 #include <string>
+#include <cstdint>
 
 // A user-picked watchlist of events, surfaced in a standalone window (see
 // subscriptions_window.h). References existing data by name/key rather
@@ -40,6 +41,14 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key);
 // Patches a Basic Event subscription from oldName to newName. No-op if
 // oldName isn't currently subscribed.
 void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName);
+
+// Bumped by exactly 1 on every change to g_SubscribedBasicEvents/
+// g_SubscribedCyclicSlots — ToggleBasicEventSubscription,
+// ToggleCyclicSlotSubscription, RenameSubscribedBasicEvent, and
+// LoadSubscriptionsData. Lets subscriptions_cache.cpp cheaply detect "the
+// subscribed set itself changed" (as opposed to just its members' active/
+// completion state) without re-deriving anything to find out.
+uint64_t GetSubscriptionListGeneration();
 
 // Persists/loads g_SubscribedBasicEvents and g_SubscribedCyclicSlots as
 // two top-level keys ("subscribedBasicEvents", "subscribedCyclicSlots")

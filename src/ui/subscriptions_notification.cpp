@@ -21,16 +21,15 @@
 // as a row in the watchlist window / a segment on the distribution bar.
 
 #include "subscriptions.h"
+#include "subscriptions_cache.h"
 #include "events_tracking.h"
-#include "events.h"
-#include "maprender.h"
 #include "settings.h"
-#include "gw2_api.h"
-#include "weekly_vault.h"
 #include "imgui.h"
+#include "addon.h" // SubsNotifyDataTimer/SubsNotifyDrawTimer — see their comment in addon.h
 #include <windows.h>
 #include <ctime>
 #include <cstdio>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -186,9 +185,25 @@ struct NotifyState
 {
     bool wasActive = false;
     bool leadFired = false;
+
+    // Bumped to s_notifyGeneration every frame this key appears in
+    // CollectCandidates' output. Anything left at a stale (older)
+    // generation after a pass is exactly the set that's no longer
+    // subscribed/tracked and gets pruned — see UpdateNotifyStates below.
+    // Replaces an earlier approach that rebuilt a std::vector<std::string>
+    // of every seen key each frame and did a linear std::find through it
+    // per s_notifyStates entry to prune — an O(n^2) string-comparison scan
+    // that ran in full every frame regardless of whether anything was
+    // actually being drawn, since s_notifyStates only grows over a play
+    // session (every distinct event/slot ever subscribed or auto-tracked).
+    // A single pass bumping this counter, then a single pass comparing
+    // integers, is O(n) with no string comparisons involved in the prune
+    // at all.
+    uint64_t lastSeenGeneration = 0;
 };
 
 static std::unordered_map<std::string, NotifyState> s_notifyStates;
+static uint64_t s_notifyGeneration = 0;
 
 // ---------------------------------------------------------------------------
 // Candidate
@@ -226,175 +241,26 @@ struct Candidate
     CyclicSubscriptionKey cyclicKey;
 };
 
+// Builds one Candidate per resolved subscription (see subscriptions_cache.h)
+// with usable timing data. All the "what's subscribed / auto-tracked, is it
+// done today, is it a weekly target" derivation now lives in
+// subscriptions_cache.cpp, shared with subscriptions_window.cpp/
+// subscriptions_bar.cpp — this just adapts the shared, resolved list into
+// this file's own Candidate shape.
 static void CollectCandidates(std::vector<Candidate>& out, time_t now)
 {
-    // ---- Basic Events ----
-    for (const auto& evName : g_SubscribedBasicEvents)
+    const auto& resolved = GetResolvedSubscriptions(); // shared cache — RefreshSubscriptionsCache already called from RenderSubscriptionsNotifications below
+    out.reserve(resolved.size());
+
+    for (const auto& sub : resolved)
     {
-        auto it = std::find_if(g_Events.begin(), g_Events.end(),
-            [&](const WorldEvent& ev) { return ev.name == evName; });
-        if (it == g_Events.end()) continue; // deleted since subscribing — same as the window/bar, leave the subscription alone
+        if (sub.doneToday) continue; // same "already done today" skip as the watchlist window/bar
 
-        // Same "already done today" skip as the watchlist window/bar — no
-        // point popping a notification for a Core Boss already killed
-        // since the last daily reset. No-op for every event other than
-        // the 13 Core Bosses (see events.h's apiWorldBossId).
-        if (!it->apiWorldBossId.empty() && IsWorldBossCompletedToday(it->apiWorldBossId))
-            continue;
+        SubscriptionActiveState as = GetSubscriptionActiveState(sub, now);
+        if (!as.active && as.secsUntilStart < 0) continue; // no timer data yet
 
-        // Manual counterpart to the API check above — seeevents_tracking.h.
-        if (IsBasicEventMarkedDoneToday(it->name))
-            continue;
-
-        bool active = IsEventActive(*it, now);
-        int  secsUntilStart = active ? 0 : GetSecondsUntilEventStart(*it, now);
-        if (!active && secsUntilStart < 0) continue; // no timer data yet
-
-        bool weeklyComplete = false;
-        bool isWeekly = IsBasicEventWeeklyTarget(it->name, weeklyComplete) && !weeklyComplete;
-
-        out.push_back({ "Basic:" + it->name, it->name, it->chatCode, active, secsUntilStart, isWeekly,
-                         true, it->name, {} });
-    }
-
-    // ---- Auto-tracked Basic Events: NOT manually subscribed, but an
-    // active-and-incomplete weekly Wizard's Vault target this week — same
-    // rule and same WeeklyAutoTrackEnabled gate as the equivalent passes in
-    // subscriptions_window.cpp/subscriptions_bar.cpp. ----
-    if (WeeklyAutoTrackEnabled)
-    {
-        for (const auto& ev : g_Events)
-        {
-            bool alreadyManual = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), ev.name) != g_SubscribedBasicEvents.end();
-            if (alreadyManual) continue; // already handled above
-
-            bool weeklyComplete = false;
-            if (!IsBasicEventWeeklyTarget(ev.name, weeklyComplete)) continue;
-            if (weeklyComplete) continue;
-
-            if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
-                continue;
-            if (IsBasicEventMarkedDoneToday(ev.name))
-                continue;
-
-            bool active = IsEventActive(ev, now);
-            int  secsUntilStart = active ? 0 : GetSecondsUntilEventStart(ev, now);
-            if (!active && secsUntilStart < 0) continue;
-
-            out.push_back({ "Basic:" + ev.name, ev.name, ev.chatCode, active, secsUntilStart, true,
-                             true, ev.name, {} });
-        }
-    }
-
-    // ---- Cyclic slots ----
-    // Factored out so the exact same candidate-building logic (phase math,
-    // key/label building, push_back) serves both the manual-subscription
-    // pass and the auto-tracked weekly pass below, differing only in the
-    // isWeekly flag passed in — same split subscriptions_bar.cpp's
-    // AddCyclicSegment already uses.
-    auto AddCyclicCandidate = [&](const CyclicGroup& grp, const CyclicGroup::Slot& slot, bool isWeekly)
-    {
-        // Same "soonest occurrence across every repeat" phase math as
-        // GetCyclicSlotStatus (subscriptions_window.cpp) / AddCyclicSegment
-        // (subscriptions_bar.cpp) — duplicated here rather than shared,
-        // matching how those two already each keep their own copy instead
-        // of factoring one out.
-        int secondsOfDay = (int)(now % grp.period);
-        int repeat  = slot.repeat > 0 ? slot.repeat : 1;
-        int subSpan = grp.period / repeat;
-
-        bool foundActive    = false;
-        int  activeSecsLeft = 0;
-        int  bestSecsUntil  = grp.period;
-
-        for (int r = 0; r < repeat; r++)
-        {
-            int baseOffset     = slot.offset + r * subSpan;
-            int phase          = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
-            bool slotActive    = (phase < slot.duration);
-            int secsUntilStart = slotActive ? 0 : (grp.period - phase);
-
-            if (slotActive)
-            {
-                foundActive    = true;
-                activeSecsLeft = slot.duration - phase;
-                break; // a slot can't be active in two repeats at once
-            }
-            else if (secsUntilStart < bestSecsUntil)
-            {
-                bestSecsUntil = secsUntilStart;
-            }
-        }
-
-        char offsetBuf[16];
-        snprintf(offsetBuf, sizeof(offsetBuf), "%d", slot.offset);
-        std::string key   = "Cyclic:" + grp.name + ":" + offsetBuf;
-        std::string label = grp.name + " - " + slot.name;
-
-        CyclicSubscriptionKey ck{ grp.name, slot.offset };
-        if (foundActive)
-            out.push_back({ key, label, slot.chatCode, true, 0, isWeekly, false, "", ck });
-        else
-            out.push_back({ key, label, slot.chatCode, false, bestSecsUntil, isWeekly, false, "", ck });
-    };
-
-    for (const auto& subKey : g_SubscribedCyclicSlots)
-    {
-        auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-            [&](const CyclicGroup& grp) { return grp.name == subKey.groupName; });
-        if (grpIt == g_CyclicGroups.end()) continue; // group deleted since subscribing
-
-        // Group-level "already done today" skip, same as the window/bar —
-        // no-op for every group except the 8 HoT/PoF maps
-        // /v2/account/mapchests covers.
-        if (!grpIt->apiMapChestId.empty() && IsMapChestClaimedToday(grpIt->apiMapChestId))
-            continue;
-
-        // Manual counterpart, per-slot rather than group-level — see
-        //events_tracking.h and the identical check in
-        // subscriptions_window.cpp/subscriptions_bar.cpp.
-        if (IsCyclicSlotMarkedDoneToday(subKey))
-            continue;
-
-        for (const auto& slot : grpIt->slots)
-        {
-            if (slot.offset != subKey.slotOffset) continue; // find the one slot this key refers to
-
-            bool weeklyComplete = false;
-            bool isWeekly = IsCyclicSlotWeeklyTarget(grpIt->name, slot.name, weeklyComplete) && !weeklyComplete;
-            AddCyclicCandidate(*grpIt, slot, isWeekly);
-
-            break; // matching slot found, no need to keep scanning this group's other slots
-        }
-    }
-
-    // ---- Auto-tracked Cyclic slots: NOT manually subscribed, but an
-    // active-and-incomplete weekly Wizard's Vault target this week — same
-    // rule and same WeeklyAutoTrackEnabled gate as the equivalent passes in
-    // subscriptions_window.cpp/subscriptions_bar.cpp. ----
-    if (WeeklyAutoTrackEnabled)
-    {
-        for (const auto& grp : g_CyclicGroups)
-        {
-            if (!grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId))
-                continue;
-
-            for (const auto& slot : grp.slots)
-            {
-                bool alreadyManual = std::find_if(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(),
-                    [&](const CyclicSubscriptionKey& k) { return k.groupName == grp.name && k.slotOffset == slot.offset; })
-                    != g_SubscribedCyclicSlots.end();
-                if (alreadyManual) continue;
-
-                bool weeklyComplete = false;
-                if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
-                if (weeklyComplete) continue;
-
-                if (IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset })) continue;
-
-                AddCyclicCandidate(grp, slot, true);
-            }
-        }
+        out.push_back({ sub.key, sub.label, sub.chatCode, as.active, as.secsUntilStart, sub.isWeeklyTarget,
+                         sub.isBasic, sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
     }
 }
 
@@ -410,13 +276,12 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
 // ---------------------------------------------------------------------------
 static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
 {
-    std::vector<std::string> seenKeys;
-    seenKeys.reserve(candidates.size());
+    s_notifyGeneration++; // this frame's "still seen" marker — see NotifyState::lastSeenGeneration
 
     for (const auto& c : candidates)
     {
-        seenKeys.push_back(c.key);
-        NotifyState& st = s_notifyStates[c.key]; // default-constructed (false/false) on first sight
+        NotifyState& st = s_notifyStates[c.key]; // default-constructed (false/false/0) on first sight
+        st.lastSeenGeneration = s_notifyGeneration;
 
         if (c.active && !st.wasActive)
         {
@@ -454,10 +319,12 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
         st.wasActive = c.active;
     }
 
-    // Prune anything not subscribed/found this frame.
+    // Prune anything not subscribed/found this frame — O(n) integer
+    // comparisons, no string work at all (contrast the old seenKeys +
+    // std::find approach this replaced, see NotifyState's comment above).
     for (auto it = s_notifyStates.begin(); it != s_notifyStates.end(); )
     {
-        if (std::find(seenKeys.begin(), seenKeys.end(), it->first) == seenKeys.end())
+        if (it->second.lastSeenGeneration != s_notifyGeneration)
             it = s_notifyStates.erase(it);
         else
             ++it;
@@ -665,10 +532,19 @@ void RenderSubscriptionsNotifications()
     }
 
     time_t now = time(nullptr);
+    {
+        // Scoped to just data gathering/resolution — see SubsBarDataTimer's
+        // equivalent comment in subscriptions_bar.cpp for why this is split
+        // from SubsNotifyDrawTimer below.
+        SubsNotifyDataTimer dataTimer; // no-op unless ShowDebug — see addon.h
+        RefreshSubscriptionsCache(now); // no-op most frames — see subscriptions_cache.h
 
-    std::vector<Candidate> candidates;
-    CollectCandidates(candidates, now);
-    UpdateNotifyStates(candidates);
+        std::vector<Candidate> candidates;
+        CollectCandidates(candidates, now);
+        UpdateNotifyStates(candidates);
+    }
 
+    // Popup draw/fade/expire — see g_AvgSubsNotifyDrawMs's comment in addon.h.
+    SubsNotifyDrawTimer drawTimer; // no-op unless ShowDebug — see addon.h
     DrawAndExpirePopups();
 }

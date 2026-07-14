@@ -2,80 +2,16 @@
 // Draws the standalone "Subscriptions" watchlist window.
 
 #include "subscriptions.h"
+#include "subscriptions_cache.h"
 #include "events_tracking.h"
-#include "events.h"
-#include "maprender.h"
 #include "settings.h"
-#include "gw2_api.h"
-#include "weekly_vault.h"
 #include "imgui.h"
+#include "addon.h" // SubsWindowDataTimer/SubsWindowDrawTimer — see their comment in addon.h
 #include <windows.h>
 #include <ctime>
 #include <string>
 #include <vector>
 #include <algorithm>
-
-// ---------------------------------------------------------------------------
-// GetCyclicSlotStatus
-// ---------------------------------------------------------------------------
-// Returns whether the given slot (identified by its offset within grp) is
-// currently active, and either the seconds left (if active) or the
-// seconds until its next occurrence starts (if not) — same phase math as
-// the per-slot tooltip loop in cyclicrender.cpp's RenderCyclicGroups,
-// factored out here since the watchlist window needs the identical
-// "soonest occurrence across every repeat" reduction but has no arc to
-// draw alongside it.
-//
-// Returns false via the `found` out-parameter if grp.slots no longer
-// contains a slot at this offset (e.g. the user deleted it from the
-// options panel since subscribing) — the caller skips drawing that row
-// but leaves the dangling subscription in place rather than silently
-// deleting it, matching how a deleted Basic Event's subscription is
-// likewise left alone (see the row loop below for the same treatment).
-// ---------------------------------------------------------------------------
-struct SlotStatus { bool found; bool active; int secs; ImU32 color; };
-
-static SlotStatus GetCyclicSlotStatus(const CyclicGroup& grp, int slotOffset, time_t now)
-{
-    for (const auto& slot : grp.slots)
-    {
-        if (slot.offset != slotOffset) continue;
-
-        int secondsOfDay = (int)(now % grp.period);
-        int repeat  = slot.repeat > 0 ? slot.repeat : 1;
-        int subSpan = grp.period / repeat;
-
-        bool foundActive    = false;
-        int  activeSecsLeft = 0;
-        int  bestSecsUntil  = grp.period;
-
-        for (int r = 0; r < repeat; r++)
-        {
-            int baseOffset     = slot.offset + r * subSpan;
-            int phase          = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
-            bool active        = (phase < slot.duration);
-            int secsUntilStart = active ? 0 : (grp.period - phase);
-
-            if (active)
-            {
-                foundActive    = true;
-                activeSecsLeft = slot.duration - phase;
-                break; // a slot can't be active in two repeats at once
-            }
-            else if (secsUntilStart < bestSecsUntil)
-            {
-                bestSecsUntil = secsUntilStart;
-            }
-        }
-
-        ImU32 color = grp.SlotColor(slot);
-        return foundActive
-            ? SlotStatus{ true, true,  activeSecsLeft, color }
-            : SlotStatus{ true, false, bestSecsUntil,  color };
-    }
-
-    return SlotStatus{ false, false, 0, 0 };
-}
 
 // ---------------------------------------------------------------------------
 // SubscriptionColorToImVec4
@@ -119,20 +55,53 @@ static unsigned long long s_flashUntil = 0;
 static constexpr unsigned long long kFlashDurationMs = 350;
 
 // ---------------------------------------------------------------------------
+// s_leftPressedKey
+// ---------------------------------------------------------------------------
+// A manual IsMouseClicked() check fires the instant a button goes down
+// while hovering an item -- Selectable's default gesture is press-AND-
+// release on the SAME item (ImGuiButtonFlags_PressedOnClickRelease), so a
+// press that then drags off the row before releasing does nothing. This
+// tracks which row's name a left-button press started on, so
+// DrawSubscriptionRow can require the release to land back on that same
+// row before actually acting -- matching Selectable's own return-value
+// behavior instead of firing on mouse-down.
+//
+// Right-click has no equivalent tracker: the original code used
+// IsItemClicked(Right), which fires on mouse-down while hovering (it's
+// literally IsMouseClicked() && IsItemHovered(), not release-gated), so
+// the rewritten right-click check mirrors that directly with no press/
+// release state needed.
+// ---------------------------------------------------------------------------
+static std::string s_leftPressedKey;
+
+// ---------------------------------------------------------------------------
 // DrawSubscriptionRow
 // ---------------------------------------------------------------------------
-// Draws one watchlist row as a clickable Selectable rather than plain
-// Text, so the whole line acts like a button: click copies
-// "<name>: <chatCode>" to the clipboard (or just "<name>" if no chat code
-// is set yet, rather than leaving a dangling "Name: " with an empty tail).
+// Draws one watchlist row: click copies "<n>: <chatCode>" to the clipboard
+// (or just "<n>" if no chat code is set yet, rather than leaving a dangling
+// "Name: " with an empty tail).
 //
-// Selectable (not a manual InvisibleButton+Text pair) gives free hover
-// highlighting and handles "whole line is one widget" sizing without the
-// FramePadding fights DrawSubscribeCheckbox has to work around.
+// This used to be a single ImGui::Selectable per row -- simple, but a
+// Selectable is a full interactive item (ID hash off the label, hover/
+// active bookkeeping, click state machine) paid for on EVERY row EVERY
+// frame regardless of whether the mouse is anywhere near it. That's why
+// this window cost roughly 2x the subscription bar per frame despite
+// being the visually simpler of the two: the bar already draws its
+// resting state with plain ImDrawList calls (see subscriptions_bar.cpp)
+// and only creates a real interactive item for whichever segment is
+// actually under the mouse.
+//
+// Same idea here: the row rect is computed manually, hover is a plain
+// IsMouseHoveringRect() bounding-box test (no widget), and the text/
+// highlight are drawn directly via the window's draw list. Layout/scroll
+// space is still reserved with a plain Dummy() (ItemAdd only, no ID, no
+// interaction) so the window's content size and scrollbar behave exactly
+// as before. Click/right-click are then just plain mouse-state checks
+// gated on that same hover test -- no per-row widget ever gets created.
 //
 // Text color follows the Active/Soon/default rule; a just-clicked row
 // additionally flashes a bright highlight for kFlashDurationMs as click
-// confirmation (see s_flashKey/s_flashUntil above) — chosen instead of a
+// confirmation (see s_flashKey/s_flashUntil above) -- chosen instead of a
 // tooltip so the confirmation doesn't cover the text just clicked, and
 // instead of a persistent "Copied!" label so the window doesn't visually
 // shift/grow when clicked.
@@ -143,10 +112,11 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
     if (isWeekly)
     {
         // Small red dot marking this row as an active-and-incomplete
-        // weekly Wizard's Vault target this week — see weekly_vault.h/
+        // weekly Wizard's Vault target this week -- see weekly_vault.h/
         // .cpp for what sets isWeekly and the event/slot -> objective
         // mapping table. Purely visual; doesn't affect the row's click
-        // behavior below.
+        // behavior below. Plain TextColored: an item, but not an
+        // interactive one, so its cost is negligible next to a Selectable.
         ImGui::TextColored(ImVec4(0.86f, 0.16f, 0.16f, 1.0f), "\xE2\x97\x8F"); // U+25CF BLACK CIRCLE
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Counts toward this week's Wizard's Vault objectives.");
@@ -160,14 +130,14 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
     if (active)
     {
         char buf[32];
-        snprintf(buf, sizeof(buf), " — Active (ends in %dm %02ds)", secs / 60, secs % 60);
+        snprintf(buf, sizeof(buf), " -- Active (ends in %dm %02ds)", secs / 60, secs % 60);
         statusSuffix = buf;
         color = SubscriptionColorToImVec4(SubscriptionsActiveColor);
     }
     else if (secs < kSoonThresholdSecs)
     {
         char buf[32];
-        snprintf(buf, sizeof(buf), " — in %dm %02ds", secs / 60, secs % 60);
+        snprintf(buf, sizeof(buf), " -- in %dm %02ds", secs / 60, secs % 60);
         statusSuffix = buf;
         color = SubscriptionColorToImVec4(SubscriptionsSoonColor);
     }
@@ -175,38 +145,66 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
     {
         char buf[32];
         if (secs >= 3600)
-            snprintf(buf, sizeof(buf), " — in %dh %02dm", secs / 3600, (secs % 3600) / 60);
+            snprintf(buf, sizeof(buf), " -- in %dh %02dm", secs / 3600, (secs % 3600) / 60);
         else
-            snprintf(buf, sizeof(buf), " — in %dm %02ds", secs / 60, secs % 60);
+            snprintf(buf, sizeof(buf), " -- in %dm %02ds", secs / 60, secs % 60);
         statusSuffix = buf;
         useColor = false;
     }
 
     std::string label = name + statusSuffix;
 
+    // ---- Row rect + hover test, computed BEFORE drawing anything, same
+    // as subscriptions_bar.cpp works out hoveredIndices before drawing ----
+    ImVec2 rowMin       = ImGui::GetCursorScreenPos();
+    float  rowWidth     = ImGui::GetContentRegionAvail().x;
+    // Selectable(label, ..., size=(0,0)) sizes itself to CalcTextSize(label).y
+    // -- i.e. just the text line height, with none of a Button's/Frame's
+    // FramePadding.y*2 added on top. GetFrameHeight() would be taller than
+    // what Selectable actually used, so rows must match that exactly here
+    // or every row (and the window's whole content height) grows.
+    float  rowHeight    = ImGui::GetTextLineHeight();
+    ImVec2 rowMax(rowMin.x + rowWidth, rowMin.y + rowHeight);
+
+    // IsMouseHoveringRect already clips against the window's own clip rect
+    // (scrolling-safe); IsWindowHovered gates it so this window doesn't
+    // register a hover while something else (including one of this
+    // window's own popups) sits on top of it -- same protection
+    // Selectable gave for free, restored here explicitly since the manual
+    // rect test has no built-in awareness of popups blocking it.
+    bool hovered = ImGui::IsWindowHovered()
+        && ImGui::IsMouseHoveringRect(rowMin, rowMax);
+
     bool flashing = (s_flashKey == name) && (GetTickCount64() < s_flashUntil);
 
-    int pushedColors = 0;
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+
+    // Background highlight: bright white flash takes priority (see the
+    // click-confirmation note above) over the plain hover highlight a
+    // Selectable would have given for free.
     if (flashing)
-    {
-        // Bright, attention-grabbing flash — deliberately NOT reusing
-        // SubscriptionsActiveColor/SoonColor, so a click on an active/soon
-        // row still visibly confirms even though those rows are already
-        // colored; a fixed white flash reads as "just happened" regardless
-        // of the row's own status color underneath.
-        ImGui::PushStyleColor(ImGuiCol_Header,        ImVec4(1.0f, 1.0f, 1.0f, 0.35f));
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered,  ImVec4(1.0f, 1.0f, 1.0f, 0.45f));
-        ImGui::PushStyleColor(ImGuiCol_HeaderActive,   ImVec4(1.0f, 1.0f, 1.0f, 0.45f));
-        pushedColors = 3;
-    }
+        dl->AddRectFilled(rowMin, rowMax, IM_COL32(255, 255, 255, 90));
+    else if (hovered)
+        dl->AddRectFilled(rowMin, rowMax, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
 
-    if (useColor) ImGui::PushStyleColor(ImGuiCol_Text, color);
-    bool clicked = ImGui::Selectable(label.c_str());
-    if (useColor) ImGui::PopStyleColor();
+    ImU32 textColor = useColor ? ImGui::GetColorU32(color) : ImGui::GetColorU32(ImGuiCol_Text);
+    ImVec2 textPos(rowMin.x, rowMin.y + (rowHeight - ImGui::GetTextLineHeight()) * 0.5f);
+    dl->AddText(textPos, textColor, label.c_str());
 
-    if (pushedColors) ImGui::PopStyleColor(pushedColors);
+    // Reserve the row's layout/scroll space. Dummy only does ItemSize +
+    // a no-ID ItemAdd -- none of Selectable's ID hashing or click/hover
+    // state machine -- so the window's content height/scrollbar still
+    // come out exactly right without paying for a widget nothing needs.
+    ImGui::Dummy(ImVec2(rowWidth, rowHeight));
 
-    if (clicked)
+    // Press-and-release-on-the-SAME-row, matching Selectable's default
+    // ImGuiButtonFlags_PressedOnClickRelease gesture: record which row a
+    // press started on, only act if the release also lands back on that
+    // row. A press that drags off before releasing does nothing, same as
+    // before this rewrite.
+    if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        s_leftPressedKey = name;
+    if (hovered && s_leftPressedKey == name && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
     {
         std::string toCopy = BuildChatPasteMessage(name, chatCode);
         PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
@@ -217,14 +215,27 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
 
     // Right-click: mark this event/slot done for today. Hides it from
     // this window (and the bar/toast) until the next UTC daily reset, or
-    // until "Clear all manual done markers" is used in the options panel —
-    // seeevents_tracking.h. Popup ID is keyed off `name`, same as
+    // until "Clear all manual done markers" is used in the options panel --
+    // see events_tracking.h. Popup ID is keyed off `name`, same as
     // s_flashKey above, so it's unique per row without needing a
     // separately-tracked numeric ID.
+    //
+    // Unlike the left-click paste above, this fires on mouse-DOWN while
+    // hovering, not on release: the original code used IsItemClicked(),
+    // which is defined as IsMouseClicked() && IsItemHovered() -- a press-
+    // based check, NOT release-gated like Selectable's own return value.
+    // Making this release-gated too (as an earlier version of this rewrite
+    // did) would have been a real behavior change, not just a faithful
+    // port.
     std::string popupId = "##we_done_popup_" + name;
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         ImGui::OpenPopup(popupId.c_str());
 
+    // Called every frame regardless of hover -- an already-open popup has
+    // to keep rendering even after the mouse moves off this row, exactly
+    // as BeginPopup did before this change. The lookup itself is just an
+    // ID hash/compare against the popup stack, cheap even when it's not
+    // this row's popup that's open.
     if (ImGui::BeginPopup(popupId.c_str()))
     {
         if (ImGui::Selectable("Mark done for today"))
@@ -239,163 +250,56 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
 // ---------------------------------------------------------------------------
 // RenderSubscriptionsWindow
 // ---------------------------------------------------------------------------
+// Sortable, unified list of rows across both Basic Events and Cyclic slots
+// so "what's coming up soonest" reads as one list rather than two separate
+// sections the user has to visually merge themselves — active entries
+// first, then soonest-upcoming, matching the sort already used for the
+// per-group tooltip in cyclicrender.cpp. isBasic/basicName/cyclicKey:
+// whichever pair is relevant identifies this row for
+// ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday — see the right-click
+// "Mark done for today" menu in DrawSubscriptionRow.
+struct Row { std::string name; std::string chatCode; bool active; int secs; bool isWeekly;
+             bool isBasic = true; std::string basicName; CyclicSubscriptionKey cyclicKey; };
+
 void RenderSubscriptionsWindow()
 {
     if (!ShowSubscriptionsWindow) return;
 
     time_t now = time(nullptr);
-
-    // Sortable, unified list of rows across both Basic Events and Cyclic
-    // slots so "what's coming up soonest" reads as one list rather than
-    // two separate sections the user has to visually merge themselves —
-    // active entries first, then soonest-upcoming, matching the sort
-    // already used for the per-group tooltip in cyclicrender.cpp.
-    // isBasic/basicName/cyclicKey: whichever pair is relevant identifies
-    // this row for ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday —
-    // see the right-click "Mark done for today" menu in DrawSubscriptionRow.
-    struct Row { std::string name; std::string chatCode; bool active; int secs; bool isWeekly;
-                 bool isBasic = true; std::string basicName; CyclicSubscriptionKey cyclicKey; };
     std::vector<Row> rows;
-    rows.reserve(g_SubscribedBasicEvents.size() + g_SubscribedCyclicSlots.size());
-
-    for (const auto& evName : g_SubscribedBasicEvents)
     {
-        auto it = std::find_if(g_Events.begin(), g_Events.end(),
-            [&](const WorldEvent& ev) { return ev.name == evName; });
-        if (it == g_Events.end()) continue; // deleted since subscribing — skip, leave the subscription alone
+        // Scoped to just data gathering/resolution — see SubsBarDataTimer's
+        // equivalent comment in subscriptions_bar.cpp for why this is split
+        // from SubsWindowDrawTimer below.
+        SubsWindowDataTimer dataTimer; // no-op unless ShowDebug — see addon.h
+        RefreshSubscriptionsCache(now); // no-op most frames — see subscriptions_cache.h
 
-        // Only meaningful for the 13 Core Bosses (see events.h's
-        // apiWorldBossId) — empty for everything else, so this is a
-        // no-op for the rest of the list regardless of API key/status.
-        // Independent of the weekly Wizard's Vault check below — see
-        // weekly_vault.h.
-        if (!it->apiWorldBossId.empty() && IsWorldBossCompletedToday(it->apiWorldBossId))
-            continue;
+        const auto& resolved = GetResolvedSubscriptions(); // shared cache, built once and reused by the bar/notifications too
+        rows.reserve(resolved.size());
 
-        // Manual counterpart to the API check above — seeevents_tracking.h.
-        // Independent of apiWorldBossId; applies regardless of whether this
-        // event has any API-backed completion signal at all.
-        if (IsBasicEventMarkedDoneToday(it->name))
-            continue;
-
-        bool active = IsEventActive(*it, now);
-        int  secs   = active ? GetSecondsUntilEventEnd(*it, now) : GetSecondsUntilEventStart(*it, now);
-        if (secs < 0) continue; // no timer data yet
-        if (active && SubscriptionsHideActive) continue; // "only show what's not already happening"
-
-        bool weeklyComplete = false;
-        bool isWeekly = IsBasicEventWeeklyTarget(it->name, weeklyComplete) && !weeklyComplete;
-        rows.push_back({ it->name, it->chatCode, active, secs, isWeekly, true, it->name, {} });
-    }
-
-    // Auto-tracked: NOT manually subscribed, but an active-and-incomplete
-    // weekly Wizard's Vault target this week — see weekly_vault.cpp for
-    // where to adjust which events count. Disappears again on its own
-    // the moment the objective completes; a manually-subscribed one
-    // (handled by the loop just above) stays regardless. Gated by
-    // WeeklyAutoTrackEnabled (settings_table.h) — the master on/off for
-    // this auto-add behavior, shared with subscriptions_bar.cpp/
-    // subscriptions_notification.cpp.
-    if (WeeklyAutoTrackEnabled)
-    {
-        for (const auto& ev : g_Events)
+        for (const auto& sub : resolved)
         {
-            bool alreadyManual = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), ev.name) != g_SubscribedBasicEvents.end();
-            if (alreadyManual) continue;
+            if (sub.doneToday) continue; // API-confirmed OR manually marked — see ResolvedSubscription::doneToday
 
-            bool weeklyComplete = false;
-            if (!IsBasicEventWeeklyTarget(ev.name, weeklyComplete)) continue;
-            if (weeklyComplete) continue;
+            SubscriptionActiveState as = GetSubscriptionActiveState(sub, now);
+            int secs = as.active ? as.secsUntilEnd : as.secsUntilStart;
+            if (secs < 0) continue; // no timer data yet
+            if (as.active && SubscriptionsHideActive) continue; // "only show what's not already happening"
 
-            if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
-                continue;
-            if (IsBasicEventMarkedDoneToday(ev.name))
-                continue;
-
-            bool active = IsEventActive(ev, now);
-            int  secs   = active ? GetSecondsUntilEventEnd(ev, now) : GetSecondsUntilEventStart(ev, now);
-            if (secs < 0) continue;
-            if (active && SubscriptionsHideActive) continue;
-
-            rows.push_back({ ev.name, ev.chatCode, active, secs, true, true, ev.name, {} });
+            rows.push_back({ sub.label, sub.chatCode, as.active, secs, sub.isWeeklyTarget,
+                              sub.isBasic, sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
         }
-    }
 
-    for (const auto& key : g_SubscribedCyclicSlots)
-    {
-        auto it = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-            [&](const CyclicGroup& grp) { return grp.name == key.groupName; });
-        if (it == g_CyclicGroups.end()) continue; // group deleted since subscribing
-
-        // Group-level equivalent of the apiWorldBossId check, applying to
-        // the WHOLE group rather than just this one slot. No-op for
-        // every group except the 8 HoT/PoF maps /v2/account/mapchests
-        // covers.
-        if (!it->apiMapChestId.empty() && IsMapChestClaimedToday(it->apiMapChestId))
-            continue;
-
-        // Manual counterpart to the API check above — per-slot, unlike the
-        // group-level apiMapChestId check, since a manual mark only ever
-        // covers the one occurrence it was set on. Seeevents_tracking.h.
-        if (IsCyclicSlotMarkedDoneToday(key))
-            continue;
-
-        SlotStatus status = GetCyclicSlotStatus(*it, key.slotOffset, now);
-        if (!status.found) continue; // slot deleted/re-offset since subscribing
-        if (status.active && SubscriptionsHideActive) continue;
-
-        // Prefix with the group name so two groups' same-named slots
-        // (e.g. Dry Top's two "Crash Site" occurrences) stay
-        // distinguishable in the flat watchlist.
-        for (const auto& slot : it->slots)
+        std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b)
         {
-            if (slot.offset != key.slotOffset) continue;
-            bool weeklyComplete = false;
-            bool isWeekly = IsCyclicSlotWeeklyTarget(it->name, slot.name, weeklyComplete) && !weeklyComplete;
-            rows.push_back({ it->name + " - " + slot.name, slot.chatCode, status.active, status.secs, isWeekly,
-                              false, "", CyclicSubscriptionKey{ it->name, slot.offset } });
-            break;
-        }
+            if (a.active != b.active) return a.active; // active first
+            return a.secs < b.secs;                    // then soonest first
+        });
     }
 
-    // Auto-tracked weekly targets not already manually subscribed — same
-    // rule as the Basic Events pass above, gated by the same
-    // WeeklyAutoTrackEnabled master switch.
-    if (WeeklyAutoTrackEnabled)
-    {
-        for (const auto& grp : g_CyclicGroups)
-        {
-            if (!grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId))
-                continue;
-
-            for (const auto& slot : grp.slots)
-            {
-                bool alreadyManual = std::find_if(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(),
-                    [&](const CyclicSubscriptionKey& k) { return k.groupName == grp.name && k.slotOffset == slot.offset; })
-                    != g_SubscribedCyclicSlots.end();
-                if (alreadyManual) continue;
-
-                bool weeklyComplete = false;
-                if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
-                if (weeklyComplete) continue;
-
-                if (IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset })) continue;
-
-                SlotStatus status = GetCyclicSlotStatus(grp, slot.offset, now);
-                if (!status.found) continue;
-                if (status.active && SubscriptionsHideActive) continue;
-
-                rows.push_back({ grp.name + " - " + slot.name, slot.chatCode, status.active, status.secs, true,
-                                  false, "", CyclicSubscriptionKey{ grp.name, slot.offset } });
-            }
-        }
-    }
-
-    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b)
-    {
-        if (a.active != b.active) return a.active; // active first
-        return a.secs < b.secs;                    // then soonest first
-    });
+    // Everything from here on is the actual ImGui window/row rendering —
+    // see g_AvgSubsWindowDrawMs's comment in addon.h.
+    SubsWindowDrawTimer drawTimer; // no-op unless ShowDebug — see addon.h
 
     ImGui::SetNextWindowSize(ImVec2(320, 240), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("World Events — Subscriptions", &ShowSubscriptionsWindow))
@@ -443,6 +347,13 @@ void RenderSubscriptionsWindow()
         ImGui::TextDisabled("Click a row to copy its waypoint code.");
         ImGui::TextDisabled("Right-click to mark done for today.");
     }
+
+    // A press that started on a row but got released somewhere that isn't
+    // any row (a gap, off the window entirely, etc.) never matched inside
+    // DrawSubscriptionRow's own check above -- clear it here once so a
+    // stale key can't wrongly match a future row that happens to share the
+    // same name.
+    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) s_leftPressedKey.clear();
 
     ImGui::End();
 }

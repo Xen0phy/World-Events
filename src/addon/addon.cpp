@@ -11,7 +11,6 @@
 #include "gw2_api.h"
 #include "imgui.h"
 #include "version.h"
-#include <chrono>
 
 AddonAPI_t*      APIDefs    = nullptr;
 Mumble::Data*    MumbleLink = nullptr;
@@ -19,61 +18,20 @@ NexusLinkData_t* NexusLink  = nullptr;
 
 std::string g_AddonDir;
 
-float g_AvgRenderTimeMs = 0.0f;
+float g_AvgRenderTimeMs        = 0.0f;
+float g_AvgOptionsRenderTimeMs = 0.0f;
 
-// ---------------------------------------------------------------------------
-// RenderTimer (debug only — see ShowDebug in addon.h)
-// ---------------------------------------------------------------------------
-// RAII scope timer wrapping AddonRender's entire body, including its
-// several early-return paths (not-in-gameplay / map-closed early-outs
-// below) — a destructor-based timer catches every one of those on its
-// own, rather than needing a matching "stop the clock" line duplicated at
-// each return statement. Rolls up into a running ~1-second average
-// (g_AvgRenderTimeMs) instead of surfacing a raw per-frame number, since
-// any single frame's time is noisy/spiky and not very representative on
-// its own — see addon_options.cpp for where the average gets displayed.
-//
-// if constexpr on ShowDebug means this compiles down to an empty
-// constructor/destructor (not even a steady_clock::now() call) when
-// ShowDebug is false, so leaving this in place has no runtime cost in a
-// normal build.
-// ---------------------------------------------------------------------------
-struct RenderTimer
-{
-    std::chrono::steady_clock::time_point start;
+float g_AvgSubsBarDataMs      = 0.0f, g_AvgSubsBarDrawMs      = 0.0f;
+float g_AvgSubsWindowDataMs   = 0.0f, g_AvgSubsWindowDrawMs   = 0.0f;
+float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 
-    RenderTimer()
-    {
-        if constexpr (ShowDebug) start = std::chrono::steady_clock::now();
-    }
-
-    ~RenderTimer()
-    {
-        if constexpr (!ShowDebug) return;
-
-        auto now = std::chrono::steady_clock::now();
-        double ms = std::chrono::duration<double, std::milli>(now - start).count();
-
-        // Accumulated across every AddonRender call since the window
-        // last flushed, then averaged and reset once a full second has
-        // elapsed — function-static, so this persists frame to frame
-        // without needing any storage outside this destructor.
-        static double                          s_accumMs    = 0.0;
-        static int                             s_accumCount = 0;
-        static std::chrono::steady_clock::time_point s_windowStart = now;
-
-        s_accumMs += ms;
-        s_accumCount++;
-
-        if (std::chrono::duration<double>(now - s_windowStart).count() >= 1.0)
-        {
-            g_AvgRenderTimeMs = (float)(s_accumMs / s_accumCount);
-            s_accumMs    = 0.0;
-            s_accumCount = 0;
-            s_windowStart = now;
-        }
-    }
-};
+// RenderTimer / OptionsRenderTimer (debug only — see ShowDebug in addon.h)
+// wrap AddonRender's and AddonOptions's entire bodies respectively,
+// including AddonRender's several early-return paths (not-in-gameplay /
+// map-closed early-outs below) — a destructor-based timer catches every
+// one of those on its own, rather than needing a matching "stop the
+// clock" line duplicated at each return statement. See ScopedRenderTimer
+// in addon.h for the shared implementation and why the two don't mix.
 
 void AddonLoad(AddonAPI_t* aAPI)
 {

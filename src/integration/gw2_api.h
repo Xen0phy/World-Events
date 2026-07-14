@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cstdint>
 
 // ---------------------------------------------------------------------------
 // gw2_api.h
@@ -96,3 +97,13 @@ enum class WeeklyObjectiveState
 // of words, this function compares against the real API string directly
 // and has no fuzzy-matching logic of its own.
 WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title);
+
+// Bumped by exactly 1 each time a poll SUCCESSFULLY commits fresh
+// worldbosses/mapchests data (the point in PollGw2Api where s_cachedForDay
+// is stamped and s_status is set to Ok — see gw2_api.cpp). The weekly
+// objectives call can soft-fail independently without preventing this from
+// bumping; a caller that only wants to know "is it worth re-checking
+// anything" (e.g. subscriptions_weekly_cache.cpp) can cheaply compare this
+// against a value it saved last time instead of re-deriving/re-checking
+// state on every single frame regardless of whether a new fetch landed.
+uint64_t GetGw2ApiFetchGeneration();

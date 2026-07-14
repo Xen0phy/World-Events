@@ -43,6 +43,11 @@ static std::unordered_map<std::string, bool> s_weeklyObjectiveComplete;
 static std::atomic<Gw2ApiStatus> s_status{Gw2ApiStatus::NoKey};
 static std::atomic<bool>         s_fetchInProgress{false};
 
+// Bumped once, at the very end of a successful poll (see the commit block
+// near the end of PollGw2Api below) — see GetGw2ApiFetchGeneration's
+// comment in gw2_api.h for why this exists.
+static std::atomic<uint64_t> s_fetchGeneration{0};
+
 // UTC day number (days since Unix epoch) the cached set above is valid
 // for. -1 = never successfully fetched. Compared against CurrentUtcDay()
 // so a daily-reset rollover forces a fresh fetch even if the periodic
@@ -391,6 +396,11 @@ void PollGw2Api()
         }
         s_cachedForDay.store(today);
         s_status.store(Gw2ApiStatus::Ok);
+        // Signal "fresh data landed" to anyone caching derived state off of
+        // it (e.g. subscriptions_weekly_cache.cpp) — relaxed is fine, this
+        // is only ever compared for equality against a previously-read
+        // value, never used to order/synchronize access to anything else.
+        s_fetchGeneration.fetch_add(1, std::memory_order_relaxed);
 
         s_fetchInProgress.store(false);
     })
@@ -430,4 +440,9 @@ WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title)
     auto it = s_weeklyObjectiveComplete.find(key);
     if (it == s_weeklyObjectiveComplete.end()) return WeeklyObjectiveState::NotThisWeek; // not in the live rotation this week (or the soft-fail third fetch hasn't succeeded yet) — either way, not a match
     return it->second ? WeeklyObjectiveState::Complete : WeeklyObjectiveState::Incomplete;
+}
+
+uint64_t GetGw2ApiFetchGeneration()
+{
+    return s_fetchGeneration.load(std::memory_order_relaxed);
 }

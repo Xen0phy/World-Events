@@ -21,6 +21,7 @@ add_library(gw2-world-events SHARED
     src/core/background_threads.cpp
     src/core/settings.cpp
     src/core/subscriptions.cpp
+    src/core/subscriptions_cache.cpp
     src/events/events_basic.cpp
     src/events/events_categories.cpp
     src/events/events_cyclic.cpp

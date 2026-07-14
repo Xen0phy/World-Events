@@ -21,6 +21,10 @@ namespace fs = std::filesystem;
 static std::vector<std::string>           s_DoneTodayBasicEvents;
 static std::vector<CyclicSubscriptionKey>  s_DoneTodayCyclicSlots;
 
+// See GetDoneMarkersGeneration's comment in events_tracking.h.
+static uint64_t s_doneMarkersGeneration = 0;
+uint64_t GetDoneMarkersGeneration() { return s_doneMarkersGeneration; }
+
 // Same one-line UTC-day derivation as gw2_api.cpp's CurrentUtcDay() —
 // duplicated locally rather than shared across modules for a single
 // division, same as that file's own comment on why floor-division of
@@ -49,6 +53,7 @@ static void RollOverIfNewUtcDay()
     s_DoneTodayUtcDay = today;
     s_DoneTodayBasicEvents.clear();
     s_DoneTodayCyclicSlots.clear();
+    s_doneMarkersGeneration++;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +74,7 @@ void ToggleBasicEventDoneToday(const std::string& eventName)
         s_DoneTodayBasicEvents.erase(it);
     else
         s_DoneTodayBasicEvents.push_back(eventName);
+    s_doneMarkersGeneration++;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +95,7 @@ void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key)
         s_DoneTodayCyclicSlots.erase(it);
     else
         s_DoneTodayCyclicSlots.push_back(key);
+    s_doneMarkersGeneration++;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +109,7 @@ void ClearAllDoneMarkers()
     // rather than being reset to "never happened yet".
     s_DoneTodayBasicEvents.clear();
     s_DoneTodayCyclicSlots.clear();
+    s_doneMarkersGeneration++;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +203,7 @@ bool LoadDailyTrackingData(const std::string& addonDir)
             for (const auto& kj : j["doneTodayCyclicSlots"])
                 s_DoneTodayCyclicSlots.push_back(DeserializeCyclicKey(kj));
 
+        s_doneMarkersGeneration++;
         return true;
     }
     catch (...) { return false; }

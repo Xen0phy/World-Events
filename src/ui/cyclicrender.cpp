@@ -32,6 +32,40 @@ static ImVec2 ArcPoint(ImVec2 center, float radius, float angle_deg)
 }
 
 // ---------------------------------------------------------------------------
+// ArcSegmentCount
+// ---------------------------------------------------------------------------
+// Picks a tessellation density from the arc's on-screen size instead of a
+// fixed 1-segment-per-degree stride. These rings are typically 15-40px on
+// screen, where 1°/segment (up to 360 segments for a full circle) is far
+// finer than the eye can resolve — it was spending most of DrawArc's cost
+// on sub-pixel geometry.
+//
+// Same formula ImGui's own AddCircle/PathArcTo use to auto-pick a segment
+// count from a max allowed pixel error (style.CircleTessellationMaxError,
+// default 0.30px): segments-for-a-full-circle = pi / acos(1 - error/radius).
+// Scaling that by (span / 360) gives the segment count for just this arc,
+// so a 270° background track and a 5° sliver get proportionally different
+// counts, both sized to the same visual error bound rather than to degrees.
+// ---------------------------------------------------------------------------
+static int ArcSegmentCount(float radius, float span_deg)
+{
+    // Same 0.30px default Dear ImGui itself uses for AddCircle/PathArcTo
+    // (style.CircleTessellationMaxError). Hardcoded rather than read from
+    // ImGuiStyle because this project's vendored ImGui predates that field.
+    constexpr float maxError = 0.30f;
+
+    float r = fmaxf(radius, 1.0f);
+    float segmentsPerCircle = ceilf((float)M_PI / acosf(1.0f - fminf(maxError, r) / r));
+
+    // Floor of 12/circle keeps very small rings (heavily zoomed-out map)
+    // from faceting visibly; this is still far below the old 360/circle.
+    segmentsPerCircle = fmaxf(segmentsPerCircle, 12.0f);
+
+    int steps = (int)ceilf(segmentsPerCircle * (span_deg / 360.0f));
+    return steps < 1 ? 1 : steps;
+}
+
+// ---------------------------------------------------------------------------
 // DrawArc
 // ---------------------------------------------------------------------------
 // Draws a thick arc segment counter-clockwise from from_deg to to_deg.
@@ -47,7 +81,10 @@ static void DrawArc(ImDrawList* dl, ImVec2 center, float radius,
     if (span <= 0) span += 360.0f;
     if (span <= 0) return;
 
-    int   steps = (int)ceilf(span);
+    // Use the outer edge (radius + half-thickness) for the error estimate —
+    // that's the vertex furthest from true circular, so sizing off it keeps
+    // the whole stroke within the error bound, not just its inner edge.
+    int   steps = ArcSegmentCount(radius + thickness * 0.5f, span);
     float step  = span / (float)steps;
     float half  = thickness * 0.5f;
     ImU32 rgb   = color & 0x00FFFFFF;

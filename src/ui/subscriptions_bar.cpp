@@ -5,13 +5,13 @@
 // filled colored block under the mouse.
 
 #include "subscriptions.h"
+#include "subscriptions_cache.h"
 #include "events_tracking.h"
 #include "events.h"
 #include "maprender.h"
 #include "settings.h"
-#include "gw2_api.h"
-#include "weekly_vault.h"
 #include "imgui.h"
+#include "addon.h" // SubsBarDataTimer/SubsBarDrawTimer — see their comment in addon.h
 #include <ctime>
 #include <cmath>
 #include <cfloat>
@@ -199,220 +199,85 @@ static bool SegmentOverlapsUnsafeZone(const LineSegment& seg, float screenW)
     return inLeftZone || inRightZone;
 }
 
-// Walks g_SubscribedBasicEvents / g_SubscribedCyclicSlots and produces one
-// LineSegment per occurrence that overlaps the next kWindowSeconds, mapped
-// into local pixel space across the given strip width.
+// Builds one LineSegment per resolved subscription (see
+// subscriptions_cache.h) that overlaps the next kWindowSeconds, mapped into
+// local pixel space across the given strip width. All the "what's
+// subscribed / auto-tracked, is it done today, is it a weekly target"
+// derivation now lives in subscriptions_cache.cpp, shared with
+// subscriptions_window.cpp/subscriptions_notification.cpp — this only adds
+// the bar-specific parts: the kWindowSeconds clip and pixel mapping, and
+// per-item color (BasicEventColorFor / CyclicGroup::SlotColor — a purely
+// visual concern of this view alone, so it isn't part of the shared cache).
 static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWidth)
 {
     std::vector<LineSegment> segs;
-    segs.reserve(g_SubscribedBasicEvents.size() + g_SubscribedCyclicSlots.size());
+    const auto& resolved = GetResolvedSubscriptions(); // shared cache — RefreshSubscriptionsCache already called once at the top of RenderSubscriptionsBar
+    segs.reserve(resolved.size());
 
     auto secToX = [&](int sec) { return (sec / (float)kWindowSeconds) * stripWidth; };
 
-    // ---- Basic Events ----
-    // Factored out of the loop below so the exact same segment-building
-    // logic (timing math, daily apiWorldBossId check, push_back) serves
-    // both the manual-subscription pass and the weekly-auto-track pass
-    // further down, differing only in the isWeekly flag they pass in.
-    auto AddBasicSegment = [&](const WorldEvent& ev, bool isWeekly)
+    for (const auto& sub : resolved)
     {
-        // Same "already done today" check as the watchlist window — see
-        // events.h's apiWorldBossId and gw2_api.h. No-op for every event
-        // other than the 13 Core Bosses. Entirely independent of the
-        // isWeekly/weekly Wizard's Vault check below — different reward
-        // track, different reset schedule (see weekly_vault.h).
-        if (!ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId))
-            return;
+        // Same "already done today" skip as before (API-confirmed OR
+        // manually marked) — see ResolvedSubscription::doneToday.
+        if (sub.doneToday) continue;
 
-        // Manual counterpart to the API check above — seeevents_tracking.h.
-        if (IsBasicEventMarkedDoneToday(ev.name))
-            return;
-
-        bool active = IsEventActive(ev, now);
-        int  startSec, endSec, statusSecs;
-
-        if (active)
-        {
-            int secsLeft = GetSecondsUntilEventEnd(ev, now);
-            if (secsLeft < 0) return; // no timer data
-            startSec   = 0; // already underway
-            endSec     = std::min(secsLeft, kWindowSeconds);
-            statusSecs = secsLeft;
-        }
-        else
-        {
-            int secsUntilStart = GetSecondsUntilEventStart(ev, now);
-            if (secsUntilStart < 0 || secsUntilStart >= kWindowSeconds) return;
-            startSec   = secsUntilStart;
-            endSec     = std::min(secsUntilStart + ev.duration, kWindowSeconds);
-            statusSecs = secsUntilStart;
-        }
-
-        if (endSec <= startSec) return;
-        if (active && SubscriptionsBarHideActive) return;
-
-        LineSegment seg{
-            "Basic:" + ev.name, ev.name, ev.chatCode,
-            secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
-            BasicEventColorFor(ev.name)
-        };
-        seg.isWeekly  = isWeekly;
-        seg.isBasic   = true;
-        seg.basicName = ev.name;
-        segs.push_back(seg);
-    };
-
-    for (const auto& evName : g_SubscribedBasicEvents)
-    {
-        auto it = std::find_if(g_Events.begin(), g_Events.end(),
-            [&](const WorldEvent& ev) { return ev.name == evName; });
-        if (it == g_Events.end()) continue; // deleted since subscribing
-
-        bool weeklyComplete = false;
-        bool isWeekly = IsBasicEventWeeklyTarget(it->name, weeklyComplete) && !weeklyComplete;
-        AddBasicSegment(*it, isWeekly);
-    }
-
-    // Auto-tracked: NOT manually subscribed, but an active-and-incomplete
-    // weekly Wizard's Vault target this week — see weekly_vault.cpp for
-    // where to adjust which events count toward which objective. Drops
-    // off again on its own the moment the objective completes, same as
-    // any other weekly target; a manually-subscribed one (handled by the
-    // loop just above) stays regardless. Gated by WeeklyAutoTrackEnabled
-    // (settings_table.h) — the master on/off for this auto-add behavior,
-    // shared with subscriptions_window.cpp/subscriptions_notification.cpp.
-    if (WeeklyAutoTrackEnabled)
-    {
-        for (const auto& ev : g_Events)
-        {
-            bool alreadyManual = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), ev.name) != g_SubscribedBasicEvents.end();
-            if (alreadyManual) continue; // already handled above
-
-            bool weeklyComplete = false;
-            if (!IsBasicEventWeeklyTarget(ev.name, weeklyComplete)) continue;
-            if (weeklyComplete) continue;
-
-            AddBasicSegment(ev, true);
-        }
-    }
-
-    // ---- Cyclic Events ----
-    auto AddCyclicSegment = [&](const CyclicGroup& grp, const CyclicGroup::Slot& slot, bool isWeekly)
-    {
-        // Group-level equivalent of the Basic Event apiWorldBossId check
-        // above, applying to the WHOLE group rather than just this one
-        // slot. No-op for every group except the 8 HoT/PoF maps
-        // /v2/account/mapchests covers. Independent of the per-SLOT
-        // isWeekly check this function takes in — different reward
-        // track, different reset schedule.
-        if (!grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId))
-            return;
-
-        // Manual counterpart, per-slot rather than group-level — see
-        //events_tracking.h and the identical check in subscriptions_window.cpp.
-        if (IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset }))
-            return;
-
-        int secondsOfDay = (int)(now % grp.period);
-        int repeat  = slot.repeat > 0 ? slot.repeat : 1;
-        int subSpan = grp.period / repeat;
-
-        bool foundActive    = false;
-        int  activeSecsLeft = 0;
-        int  bestSecsUntil  = grp.period;
-
-        // Find whichever repeat of this slot is active, else the soonest upcoming one.
-        for (int r = 0; r < repeat; r++)
-        {
-            int baseOffset     = slot.offset + r * subSpan;
-            int phase          = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
-            bool slotActive    = (phase < slot.duration);
-            int secsUntilStart = slotActive ? 0 : (grp.period - phase);
-
-            if (slotActive)
-            {
-                foundActive    = true;
-                activeSecsLeft = slot.duration - phase;
-                break;
-            }
-            else if (secsUntilStart < bestSecsUntil)
-            {
-                bestSecsUntil = secsUntilStart;
-            }
-        }
+        SubscriptionActiveState as = GetSubscriptionActiveState(sub, now);
 
         int startSec, endSec, statusSecs;
-        bool active;
-        if (foundActive)
+        if (as.active)
         {
-            active     = true;
-            startSec   = 0;
-            endSec     = std::min(activeSecsLeft, kWindowSeconds);
-            statusSecs = activeSecsLeft;
+            if (as.secsUntilEnd < 0) continue; // no timer data
+            startSec   = 0; // already underway
+            endSec     = std::min(as.secsUntilEnd, kWindowSeconds);
+            statusSecs = as.secsUntilEnd;
         }
         else
         {
-            if (bestSecsUntil >= kWindowSeconds) return; // not upcoming within the window
-            active     = false;
-            startSec   = bestSecsUntil;
-            endSec     = std::min(bestSecsUntil + slot.duration, kWindowSeconds);
-            statusSecs = bestSecsUntil;
+            if (as.secsUntilStart < 0 || as.secsUntilStart >= kWindowSeconds) continue;
+            startSec   = as.secsUntilStart;
+            endSec     = std::min(as.secsUntilStart + sub.duration, kWindowSeconds);
+            statusSecs = as.secsUntilStart;
         }
 
-        if (endSec <= startSec) return;
-        if (active && SubscriptionsBarHideActive) return;
+        if (endSec <= startSec) continue;
+        if (as.active && SubscriptionsBarHideActive) continue;
 
-        char offsetBuf[16];
-        snprintf(offsetBuf, sizeof(offsetBuf), "%d", slot.offset);
-        std::string label = grp.name + " - " + slot.name;
-        LineSegment seg{
-            "Cyclic:" + grp.name + ":" + offsetBuf, label, slot.chatCode,
-            secToX(startSec), secToX(endSec), active, statusSecs, endSec - startSec,
-            grp.SlotColor(slot)
-        };
-        seg.isWeekly  = isWeekly;
-        seg.isBasic   = false;
-        seg.cyclicKey = CyclicSubscriptionKey{ grp.name, slot.offset };
-        segs.push_back(seg);
-    };
-
-    for (const auto& key : g_SubscribedCyclicSlots)
-    {
-        auto it = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-            [&](const CyclicGroup& grp) { return grp.name == key.groupName; });
-        if (it == g_CyclicGroups.end()) continue; // group deleted since subscribing
-
-        for (const auto& slot : it->slots)
+        ImU32 color;
+        if (sub.isBasic)
         {
-            if (slot.offset != key.slotOffset) continue;
-            bool weeklyComplete = false;
-            bool isWeekly = IsCyclicSlotWeeklyTarget(it->name, slot.name, weeklyComplete) && !weeklyComplete;
-            AddCyclicSegment(*it, slot, isWeekly);
-            break;
+            color = BasicEventColorFor(sub.basicName);
         }
-    }
-
-    // Auto-tracked weekly targets not already manually subscribed — same
-    // rule as the Basic Events pass above, gated by the same
-    // WeeklyAutoTrackEnabled master switch.
-    if (WeeklyAutoTrackEnabled)
-    {
-        for (const auto& grp : g_CyclicGroups)
+        else
         {
-            for (const auto& slot : grp.slots)
+            // Color depends on the group's palette/tier/customColor, none
+            // of which is (or should be) copied into the shared cache —
+            // it's a purely visual concern of this one view. The resolved
+            // list is already filtered down to just subscribed/auto-
+            // tracked items, so this lookup is over a handful of entries,
+            // not the full g_CyclicGroups roster.
+            color = IM_COL32(255, 255, 255, 255);
+            auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
+                [&](const CyclicGroup& g) { return g.name == sub.cyclicGroupName; });
+            if (grpIt != g_CyclicGroups.end())
             {
-                bool alreadyManual = std::find_if(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(),
-                    [&](const CyclicSubscriptionKey& k) { return k.groupName == grp.name && k.slotOffset == slot.offset; })
-                    != g_SubscribedCyclicSlots.end();
-                if (alreadyManual) continue;
-
-                bool weeklyComplete = false;
-                if (!IsCyclicSlotWeeklyTarget(grp.name, slot.name, weeklyComplete)) continue;
-                if (weeklyComplete) continue;
-
-                AddCyclicSegment(grp, slot, true);
+                auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
+                    [&](const CyclicGroup::Slot& s) { return s.offset == sub.cyclicSlotOffset; });
+                if (slotIt != grpIt->slots.end())
+                    color = grpIt->SlotColor(*slotIt);
             }
         }
+
+        LineSegment seg{
+            sub.key, sub.label, sub.chatCode,
+            secToX(startSec), secToX(endSec), as.active, statusSecs, endSec - startSec,
+            color
+        };
+        seg.isWeekly  = sub.isWeeklyTarget;
+        seg.isBasic   = sub.isBasic;
+        seg.basicName = sub.basicName;
+        seg.cyclicKey = CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset };
+        segs.push_back(seg);
     }
 
     std::sort(segs.begin(), segs.end(), [](const LineSegment& a, const LineSegment& b)
@@ -803,12 +668,27 @@ void RenderSubscriptionsBar()
     if (screenW <= 0.0f) return;
 
     time_t now = time(nullptr);
-    std::vector<LineSegment> segs = CollectVisibleSegments(now, screenW);
+    std::vector<LineSegment> segs;
+    {
+        // Scoped to just data gathering/resolution — RefreshSubscriptionsCache
+        // is a no-op most frames (see subscriptions_cache.h), and
+        // CollectVisibleSegments now just adapts the shared resolved list
+        // into LineSegments. Split from SubsBarDrawTimer below so it's
+        // possible to tell "is the remaining per-frame cost in re-deriving
+        // data or in rendering it" from the debug line in the options panel.
+        SubsBarDataTimer dataTimer; // no-op unless ShowDebug — see addon.h
+        RefreshSubscriptionsCache(now);
+        segs = CollectVisibleSegments(now, screenW);
+    }
     if (segs.empty())
     {
         s_dropStates.clear();
         return;
     }
+    // Everything from here to the end of this function: dot layout, hover
+    // detection, and the actual ImGui draw-list calls — see
+    // g_AvgSubsBarDrawMs's comment in addon.h.
+    SubsBarDrawTimer drawTimer; // no-op unless ShowDebug — see addon.h
     // Minimal mode hides the per-segment colored baseline, so every event
     // needs its own dot rather than just the hidden lane>0 ones.
     std::vector<DotMark> dots = SubscriptionsBarMinimalMode

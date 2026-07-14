@@ -1069,10 +1069,38 @@ static void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 // ---------------------------------------------------------------------------
 void AddonOptions()
 {
+    OptionsRenderTimer optionsRenderTimer; // no-op unless ShowDebug is true — see ScopedRenderTimer in addon.h
+
     ImGui::TextDisabled("Release: %s", DateAndTime.c_str());
     ImGui::SameLine();
     if constexpr (ShowDebug)
+    {
+        // Two separate numbers on purpose: "Render" is AddonRender alone
+        // (map rings + subscriptions bar/window/notifications) — the cost
+        // that actually matters during normal play. "Options UI" is this
+        // panel's own per-frame rebuild cost (tree, search filter, color
+        // pickers, icon previews for every group/slot) and only applies
+        // while this panel is open — it was previously invisible and
+        // easy to mistake for render cost when eyeballing total frame
+        // time with the panel open.
         ImGui::TextDisabled("Render: %.3f ms avg (1s)", g_AvgRenderTimeMs);
+        ImGui::SameLine();
+        ImGui::TextDisabled("| Options UI: %.3f ms avg (1s)", g_AvgOptionsRenderTimeMs);
+
+        // Per-view breakdown: "Data" is RefreshSubscriptionsCache plus each
+        // view's own light adaptation of the shared resolved list (see
+        // subscriptions_cache.h); "Draw" is everything from there to actual
+        // pixels — dot/hover layout and ImGui calls for the bar, the
+        // ImGui window/rows for the watchlist, popup draw/fade/expire for
+        // notifications. Lets a specific "why is view X still costing Y"
+        // question be answered by which of the two numbers is high,
+        // instead of only having Render above as one combined total for
+        // all three views together.
+        ImGui::TextDisabled("Bar: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsBarDataMs, g_AvgSubsBarDrawMs);
+        ImGui::SameLine();
+        ImGui::TextDisabled("| Window: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsWindowDataMs, g_AvgSubsWindowDrawMs);
+        ImGui::TextDisabled("Notify: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsNotifyDataMs, g_AvgSubsNotifyDrawMs);
+    }
     ImGui::TextUnformatted("World Events");
     ImGui::SameLine();
     DrawIconWhitenerButton();   // opens the Icon Whitener modal when clicked
