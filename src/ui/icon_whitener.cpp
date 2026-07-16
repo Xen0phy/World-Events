@@ -252,7 +252,7 @@ static void DoConvert(const std::string& filename)
 
 void DrawIconWhitenerButton()
 {
-    if (ImGui::Button("Icon Whitener..."))
+    if (ImGui::Button("Icon Whitener"))
     {
         s_open          = true;
         s_statusMessage = "";

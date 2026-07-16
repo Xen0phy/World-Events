@@ -22,7 +22,7 @@ extern std::string g_AddonDir;
 // timing measurement below (see ScopedRenderTimer in this file) and the debug
 // line addon_options.cpp shows underneath the release date/time.
 // ---------------------------------------------------------------------------
-inline constexpr bool ShowDebug = true;
+inline constexpr bool ShowDebug = false;
 
 // Rolling average, in milliseconds, of how long AddonRender's own body
 // took to run — updated about once a second (see ScopedRenderTimer

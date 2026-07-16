@@ -285,7 +285,7 @@ SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 // itself because chat-paste timing is a general input-simulation concern
 // rather than a subscriptions-specific display preference, though it
 // currently has no other caller.
-SETTING(System, delayMilliseconds, int, 50)
+SETTING(System, delayMilliseconds, int, 20)
 
 // Slash-command prefix prepended to every PasteToChat message (see
 // BuildChatPasteMessage in subscriptions.cpp) so a watchlist row/segment/
