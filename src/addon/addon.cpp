@@ -235,7 +235,7 @@ void AddonRender()
 extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef()
 {
     static AddonDefinition_t def;
-    def.Signature   = 0x57455645; // "WEVE", fits uint32_t — change before release
+    def.Signature   = 0x57455645; // "WEVE"
     def.APIVersion  = NEXUS_API_VERSION;
     def.Name        = "World Events";
     def.Version     = {Maj, Min, Bld, Rev};
