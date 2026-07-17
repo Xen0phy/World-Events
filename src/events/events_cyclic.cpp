@@ -327,7 +327,7 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
         {"Bava Nisos"},
     }},
     {"Visions of Eternity", {
-        {"Shipwreck Strand", true},
+        {"Shipwreck Strand"},
         {"Starlit Weald"},
         {"Eternity's Garden"},
     }},
