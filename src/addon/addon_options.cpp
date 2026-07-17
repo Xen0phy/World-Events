@@ -146,8 +146,8 @@ void AddonOptions()
         // of a persistent list/strip. Not gated by ShowSubscriptionsWindow/Bar:
         // a user may want popups without either persistent view open at all.
         ImGui::Checkbox("Enable notification popups", &NotificationsEnabled);
-        Tooltip("Pops up a small toast in the lower-right corner for anything\n"
-                "on your subscription watchlist above, whether or not the\n"
+        Tooltip("Pops up a small toast in the lower-right corner for events\n"
+                "you have notifications enabled for, whether or not the\n"
                 "window or distribution line are open. Click a popup to paste\n"
                 "its waypoint code, same as clicking a row/segment there.");
 
@@ -223,6 +223,8 @@ void AddonOptions()
                 if (ImGui::Combo("Sound", &soundIndex, soundLabels.data(), (int)soundLabels.size()))
                     NotificationSoundFile = (soundIndex == 0) ? std::string() : soundFiles[soundIndex - 1];
 
+                ImGui::SameLine();
+                ImGui::TextDisabled("(.wav)");
                 ImGui::SameLine();
                 if (ImGui::Button("Rescan"))
                     ScanNotificationSoundFiles();
@@ -459,6 +461,8 @@ void AddonOptions()
             // belongs to "Subscriptions" as a whole rather than to either
             // individual view's own controls.
             ImGui::TextUnformatted("GW2 API key");
+            ImGui::SameLine();
+            ImGui::TextDisabled("Can take up to 5min to take effect.");
 
             {
                 static char apiKeyBuf[128] = "";
