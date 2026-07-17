@@ -990,7 +990,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     // Checkbox frame.
     DrawSubscribeCheckbox("##show_group_on_map", grp.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show this entire ring on the map overlay\n(no circle drawn at all while unchecked)");
+        ImGui::SetTooltip("Show/hide this entire ring on the map overlay\n(no circle drawn at all while unchecked)");
     ImGui::SameLine();
 
     std::string oldGroupName = grp.name;
@@ -1029,13 +1029,11 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             DrawDragButton(EditTarget::CyclicGroup, i, idSuffix);
         }
 
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(70.0f);
+        ImGui::SetNextItemWidth(50.0f);
         DrawPeriodHoursDragInt(&grp.period);
 
         // Base color (colors.base) — RRGGBBAA, needs RGBABaseToFloat4's
         // explicit conversion rather than ColorConvertU32ToFloat4.
-        ImGui::SameLine();
         ImVec4 baseColor = RGBABaseToFloat4(grp.colors.base);
         if (ImGui::ColorEdit4("Color", &baseColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
             grp.colors.base = Float4ToRGBABase(baseColor);
@@ -1049,7 +1047,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         // fed straight into DrawArc calls), not an RRGGBBAA value.
         ImGui::SameLine();
         bool hasCustomIdle = grp.idleColor.has_value();
-        if (ImGui::Checkbox("Custom Idle", &hasCustomIdle))
+        if (ImGui::Checkbox("##customcolorcyclicgroup", &hasCustomIdle))
         {
             if (hasCustomIdle)
                 grp.idleColor = grp.colors.ter(); // seed with the current default, not an arbitrary color
@@ -1062,7 +1060,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         {
             ImU32 idleU32 = grp.idleColor.has_value() ? *grp.idleColor : grp.colors.ter();
             ImVec4 idleColorVec = ImGui::ColorConvertU32ToFloat4(idleU32);
-            if (ImGui::ColorEdit4("Idle Color", &idleColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
+            if (ImGui::ColorEdit4("Custom Color##group", &idleColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
                 grp.idleColor = ImGui::ColorConvertFloat4ToU32(idleColorVec);
         }
 
@@ -1114,7 +1112,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             // draws normally. See CyclicGroup::Slot::shown in events.h.
             DrawSubscribeCheckbox("##show_slot_on_map", slot.shown);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Show just this occurrence on the map overlay");
+                ImGui::SetTooltip("Show/hide this occurrence on the map overlay");
             ImGui::SameLine();
 
             int slotEditKey = i * 100000 + s;
@@ -1134,18 +1132,18 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
             if (slotOpen)
             {
-                ImGui::SetNextItemWidth(80.0f);
+                ImGui::SetNextItemWidth(50.0f);
                 int offsetMinutes = slot.offset / 60;
-                if (ImGui::InputInt("Offset (min)", &offsetMinutes))
+                if (ImGui::DragInt("Offset", &offsetMinutes, 0, 0, 0, "%dmin"))
                 {
                     if (offsetMinutes < 0) offsetMinutes = 0;
                     slot.offset = offsetMinutes * 60;
                 }
 
                 ImGui::SameLine();
-                ImGui::SetNextItemWidth(80.0f);
+                ImGui::SetNextItemWidth(50.0f);
                 int durationMinutes = slot.duration / 60;
-                if (ImGui::InputInt("Duration (min)", &durationMinutes))
+                if (ImGui::DragInt("Duration (min)", &durationMinutes, 0, 0, 0, "%dmin"))
                 {
                     if (durationMinutes < 1) durationMinutes = 1;
                     slot.duration = durationMinutes * 60;
@@ -1160,9 +1158,9 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 // itself change via the Period dropdown above, so this is
                 // re-validated fresh every frame, not just at entry time).
                 ImGui::SameLine();
-                ImGui::SetNextItemWidth(60.0f);
+                ImGui::SetNextItemWidth(50.0f);
                 int repeatInput = slot.repeat;
-                if (ImGui::InputInt("Repetition", &repeatInput))
+                if (ImGui::InputInt("Repetition", &repeatInput, 0, 0))
                 {
                     if (repeatInput < 1) repeatInput = 1;
                     if (repeatInput > grp.period) repeatInput = grp.period;
@@ -1182,8 +1180,11 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                         fixed--;
                     slot.repeat = fixed;
                 }
+                Tooltip("How often the event repeats in the set period.\n"
+                        "Has to fit perfectly, if not possible make a second entry instead.\n"
+                        "Example: Event repeats exactly every hour. So 2 repeats in a 2h period.");
 
-                ImGui::SetNextItemWidth(90.0f);
+                ImGui::SetNextItemWidth(100.0f);
                 static const char* const kTierLabels[] = { "Primary", "Secondary", "Tertiary" };
                 int tierIndex = (int)slot.tier;
                 if (ImGui::Combo("Tier", &tierIndex, kTierLabels, 3))
@@ -1198,7 +1199,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 // different color.
                 ImGui::SameLine();
                 bool hasCustomColor = slot.customColor.has_value();
-                if (ImGui::Checkbox("Custom Color", &hasCustomColor))
+                if (ImGui::Checkbox("##customcolorcyclicslot", &hasCustomColor))
                 {
                     if (hasCustomColor)
                         slot.customColor = grp.SlotColor(slot);
@@ -1211,7 +1212,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 {
                     ImU32 slotU32 = slot.customColor.has_value() ? *slot.customColor : grp.SlotColor(slot);
                     ImVec4 slotColorVec = ImGui::ColorConvertU32ToFloat4(slotU32);
-                    if (ImGui::ColorEdit4("Custom Color Value", &slotColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
+                    if (ImGui::ColorEdit4("Custom Color##slot", &slotColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
                         slot.customColor = ImGui::ColorConvertFloat4ToU32(slotColorVec);
                 }
 

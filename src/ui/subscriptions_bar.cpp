@@ -8,7 +8,6 @@
 #include "subscriptions_cache.h"
 #include "events_tracking.h"
 #include "events.h"
-#include "maprender.h"
 #include "settings.h"
 #include "imgui.h"
 #include "addon.h" // SubsBarDataTimer/SubsBarDrawTimer — see their comment in addon.h

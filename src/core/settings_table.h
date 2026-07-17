@@ -46,7 +46,7 @@
 // ---------------------------------------------------------------------------
 SETTING(Cyclic, ShowCyclicOverlay,   bool,  true)
 SETTING(Cyclic, CyclicRadius,        float, 20.0f)
-SETTING(Cyclic, CyclicThickness,     float, 40.0f)
+SETTING(Cyclic, CyclicThickness,     float, 20.0f)
 
 // Stored as DEGREES, not seconds. Degrees are period-independent — 270°
 // means "75% of however long this particular group's cycle is", whether
@@ -62,6 +62,7 @@ SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
 // ---------------------------------------------------------------------------
 // [BasicEvents]
 // ---------------------------------------------------------------------------
+
 // Status colors for the plain-dot AND icon-tint rendering in
 // maprender.cpp — one shared color per status, applied to every Basic
 // Event (not per-event; see DrawBulkIconPicker's "All icons" picker for
@@ -74,7 +75,6 @@ SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
 // channel of the packed RRGGBBAA value below) — whatever alpha the user
 // picks via the color swatch IS the actual opacity used, nothing layered
 // on top of it.
-// ---------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232B4u) // red
 SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00B4u) // orange
 SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray
@@ -96,8 +96,8 @@ SETTING(BasicEvents, BasicEventIconSize,  float, 12.0f)
 // render time from the current map's own min/max Compass.Scale — see
 // GetZoomPercent() in maprender.cpp for that mapping.
 SETTING(BasicEvents, BasicEventZoomScalingEnabled, bool,  true)
-SETTING(BasicEvents, BasicEventZoomStartPct,       float, 50.0f) // % zoom at which growth begins
-SETTING(BasicEvents, BasicEventZoomMaxMultiplier,  float, 2.0f)  // size multiplier at 100% zoom
+SETTING(BasicEvents, BasicEventZoomStartPct,       float, 0.0f) // % zoom at which growth begins
+SETTING(BasicEvents, BasicEventZoomMaxMultiplier,  float, 3.0f)  // size multiplier at 100% zoom
 
 // Calibration data for the self-learning zoom range described above —
 // persisted so the very first frame after restarting the game/addon
@@ -126,12 +126,12 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 // ---------------------------------------------------------------------------
 // [Subscriptions]
 // ---------------------------------------------------------------------------
+
 // Open/closed state of the standalone watchlist window (subscriptions.h /
 // subscriptions_window.h). WHICH events are subscribed lives in
 // events.json instead (see subscriptions.cpp) — same split as everything
 // else in this file: settings.ini holds UI/display preferences, events.json
 // holds the actual event/grouping/membership data.
-// ---------------------------------------------------------------------------
 SETTING(Subscriptions, ShowSubscriptionsWindow, bool, false)
 
 // Open/closed state of the alternate "distribution bar" watchlist view
@@ -182,8 +182,8 @@ SETTING(Subscriptions, SubscriptionsBarHoverDelayMs, int, 500)
 // minimap/compass on the right — see subscriptions_bar.cpp's
 // SegmentOverlapsUnsafeZone). 0 disables the left or right zone
 // individually, dropping straight down everywhere on that side.
-SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,  int, 300)
-SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx, int, 300)
+SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,  int, 0)
+SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx, int, 0)
 
 // How far down a dropped block starts (instead of the line itself) when
 // its segment falls inside either unsafe zone above — i.e. how tall the
@@ -201,7 +201,7 @@ SETTING(Subscriptions, SubscriptionsBarUnsafeHeightPx, int, 90)
 // exactly; there is no separate pill-height constant). Sized by default
 // to comfortably fit two centered lines of label text; raise it if your
 // font/DPI settings need more room, lower it for a more compact pop-out.
-SETTING(Subscriptions, SubscriptionsBarMaxDropPx, int, 54)
+SETTING(Subscriptions, SubscriptionsBarMaxDropPx, int, 50)
 
 // When true, active rows are simply left out of the watchlist window's
 // list entirely (not just dimmed/recolored) — a "only show me what's NOT
@@ -278,6 +278,7 @@ SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 // ---------------------------------------------------------------------------
 // [System]
 // ---------------------------------------------------------------------------
+
 // Delay, in milliseconds, PasteToChat (subscriptions.cpp) waits between each
 // step of its simulated Enter -> Ctrl+V -> Enter keystroke sequence when a
 // watchlist row, distribution-bar segment, or notification popup is clicked.
@@ -287,7 +288,6 @@ SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 // itself because chat-paste timing is a general input-simulation concern
 // rather than a subscriptions-specific display preference, though it
 // currently has no other caller.
-// ---------------------------------------------------------------------------
 SETTING(System, delayMilliseconds, int, 20)
 
 // Slash-command prefix prepended to every PasteToChat message (see
@@ -305,13 +305,13 @@ SETTING(System, ChatChannelPrefix, std::string, std::string())
 // ---------------------------------------------------------------------------
 // [Notifications]
 // ---------------------------------------------------------------------------
+
 // A fourth view of the same subscription data as the window/bar above (see
 // subscriptions_notification.h/.cpp): small "toast" popups in the
 // lower-right corner instead of a persistent list/strip. Master on/off
 // switch — when false, RenderSubscriptionsNotifications() is a complete
 // no-op (no state tracked, no popups fired, nothing drawn), same early-out
 // pattern as ShowSubscriptionsWindow/ShowSubscriptionsBar above.
-// ---------------------------------------------------------------------------
 SETTING(Notifications, NotificationsEnabled, bool, false)
 
 // How many minutes before a subscribed Basic Event or Cyclic slot's next
@@ -326,12 +326,12 @@ SETTING(Notifications, NotificationLeadMinutes, int, 5)
 // Cyclic slot actually goes active, regardless of whether the lead-time
 // popup above already fired for it. Its own on/off, since a user may want
 // only the advance warning, only the "it's live" ping, or both.
-SETTING(Notifications, NotificationOnStart, bool, true)
+SETTING(Notifications, NotificationOnStart, bool, false)
 
 // How long a popup stays fully visible before it starts fading out, in
 // seconds. Purely cosmetic — has no bearing on whether/when a popup fires,
 // only how long it lingers on screen once it has.
-SETTING(Notifications, NotificationDisplaySeconds, int, 8)
+SETTING(Notifications, NotificationDisplaySeconds, int, 10)
 
 // Filename (no path) of a single user-supplied .wav under
 // "<addon dir>/sounds", picked via the Combo next to the "Test" button in
