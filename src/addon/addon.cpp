@@ -239,12 +239,12 @@ extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef()
     def.APIVersion  = NEXUS_API_VERSION;
     def.Name        = "World Events";
     def.Version     = {Maj, Min, Bld, Rev};
-    def.Author      = "xenophy";
-    def.Description = "Meta event timers on the world map";
+    def.Author      = "Xenophy.2716";
+    def.Description = "An event timer that's not just a plain stack of bars. Shows meta-events on the world map.";
     def.Load        = AddonLoad;
     def.Unload      = AddonUnload;
     def.Flags       = AF_None;
-    def.Provider    = UP_None;
-    def.UpdateLink  = nullptr;
+    def.Provider    = UP_GitHub;
+    def.UpdateLink  = "https://github.com/Xen0phy/World-Events";
     return &def;
 }
