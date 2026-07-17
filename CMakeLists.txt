@@ -68,7 +68,7 @@ target_include_directories(gw2-world-events PRIVATE
 target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp bcrypt winmm)
 
 set_target_properties(gw2-world-events PROPERTIES
-    OUTPUT_NAME "gw2-world-events"
+    OUTPUT_NAME "WorldEvents"
     PREFIX ""
     SUFFIX ".dll"
 )
