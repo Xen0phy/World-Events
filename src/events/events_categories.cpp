@@ -109,6 +109,7 @@ static std::vector<Category> DeserializeCategoryList(const json& arr)
 // events_categories.h) — this converts one down to a runtime Category so it can
 // be dropped straight into g_BasicCategories/g_CyclicCategories when no
 // JSON version exists yet to win instead.
+// ---------------------------------------------------------------------------
 static Category CategoryDefaultToCategory(const CategoryDefault& def)
 {
     Category cat;
@@ -182,6 +183,7 @@ static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDef
 // Only ever called when the caller has already confirmed the file predates
 // EVENTS_DATA_VERSION — see LoadCategoriesData below and
 // CategoryDefaultMember::forced in events_categories.h.
+// ---------------------------------------------------------------------------
 static void ForceCategoryMembership(std::vector<Category>& categories, const std::string& categoryName, const std::string& memberName)
 {
     for (auto& cat : categories)

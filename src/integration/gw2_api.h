@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // gw2_api.h
@@ -93,17 +94,39 @@ enum class WeeklyObjectiveState
 // `title` is matched case-insensitively (ASCII lowercasing only — every
 // objective title observed so far is plain ASCII) against each live
 // objective's own "title" field. Exact match, not substring — unlike
-// weekly_vault.cpp's mapping table, which is free to only cover a subset
-// of words, this function compares against the real API string directly
-// and has no fuzzy-matching logic of its own.
+// weekly_vault.cpp's Cyclic mapping table, which only needs a couple of
+// short keywords out of the title, this function compares against the
+// real API string directly and has no fuzzy-matching logic of its own.
 WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title);
+
+// One live Wizard's Vault weekly objective from the most recent successful
+// fetch, with no matching applied yet — for callers that need to search
+// across every live objective at once (substring/keyword matching) rather
+// than checking one exact, already-known title (see
+// GetWeeklyObjectiveState above for that case). `titleLower` is already
+// ASCII-lowercased (see gw2_api.cpp's AsciiLower) since every matcher needs
+// case-insensitive comparison anyway — lowercase your own search terms to
+// match against it.
+struct LiveWeeklyObjective
+{
+    std::string titleLower;
+    bool        complete; // progress_complete reached, or already claimed, as of the most recent successful fetch
+};
+
+// Snapshot of every currently-live weekly objective. Empty if no fetch has
+// completed yet, no key is set, or the cached data is from a previous UTC
+// day — same "stale/no-data degrades to nothing found" rule as everywhere
+// else in this file, never silently treated as a match. See
+// weekly_vault.cpp's IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget for
+// the two matching strategies built on top of this.
+std::vector<LiveWeeklyObjective> GetLiveWeeklyObjectives();
 
 // Bumped by exactly 1 each time a poll SUCCESSFULLY commits fresh
 // worldbosses/mapchests data (the point in PollGw2Api where s_cachedForDay
 // is stamped and s_status is set to Ok — see gw2_api.cpp). The weekly
 // objectives call can soft-fail independently without preventing this from
 // bumping; a caller that only wants to know "is it worth re-checking
-// anything" (e.g. subscriptions_weekly_cache.cpp) can cheaply compare this
+// anything" (e.g. subscriptions_cache.cpp) can cheaply compare this
 // against a value it saved last time instead of re-deriving/re-checking
 // state on every single frame regardless of whether a new fetch landed.
 uint64_t GetGw2ApiFetchGeneration();

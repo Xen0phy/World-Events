@@ -103,6 +103,7 @@ static constexpr int kMinPollSeconds = 120;
 // the same lock, so a handle is never closed twice from two threads at
 // once — whichever one gets the lock first "wins" and the other sees the
 // slot already nulled and skips it.
+// ---------------------------------------------------------------------------
 static std::mutex s_activeHandlesMutex;
 static HINTERNET  s_activeSession = nullptr;
 static HINTERNET  s_activeConnect = nullptr;
@@ -397,7 +398,7 @@ void PollGw2Api()
         s_cachedForDay.store(today);
         s_status.store(Gw2ApiStatus::Ok);
         // Signal "fresh data landed" to anyone caching derived state off of
-        // it (e.g. subscriptions_weekly_cache.cpp) — relaxed is fine, this
+        // it (e.g. subscriptions_cache.cpp) — relaxed is fine, this
         // is only ever compared for equality against a previously-read
         // value, never used to order/synchronize access to anything else.
         s_fetchGeneration.fetch_add(1, std::memory_order_relaxed);
@@ -440,6 +441,18 @@ WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title)
     auto it = s_weeklyObjectiveComplete.find(key);
     if (it == s_weeklyObjectiveComplete.end()) return WeeklyObjectiveState::NotThisWeek; // not in the live rotation this week (or the soft-fail third fetch hasn't succeeded yet) — either way, not a match
     return it->second ? WeeklyObjectiveState::Complete : WeeklyObjectiveState::Incomplete;
+}
+
+std::vector<LiveWeeklyObjective> GetLiveWeeklyObjectives()
+{
+    if (s_cachedForDay.load() != CurrentUtcDay()) return {}; // same "no data yet / stale" degradation as everywhere else in this file
+
+    std::lock_guard<std::mutex> lock(s_mutex);
+    std::vector<LiveWeeklyObjective> out;
+    out.reserve(s_weeklyObjectiveComplete.size());
+    for (const auto& [titleLower, complete] : s_weeklyObjectiveComplete)
+        out.push_back({titleLower, complete});
+    return out;
 }
 
 uint64_t GetGw2ApiFetchGeneration()

@@ -450,9 +450,8 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
         case 2: // subscribed + toast — speaker
             DrawSpeakerIcon(dl, center, sq * 0.96f, col);
             break;
-        default: // 3: subscribed + toast + sound — "-", the
-                 // always-last icon meaning "click to fully unsubscribe"
-                 // therefore last icon should always be "-"
+        default: // 3: subscribed + toast + sound — "-"; clicking
+                 // this wraps back to level 0 (fully unsubscribed)
             dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
             break;
     }
@@ -835,7 +834,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
                 ev.varyingTimes.push_back(0); // midnight UTC; user adjusts from there
 
             // Re-sort after any edit/add/remove, every frame — defensive
-            // rather than conditional, since SecondsUntilNext() in
+            // rather than conditional, since GetSecondsUntilEventStart() in
             // maprender.cpp assumes this list stays in ascending order
             // to correctly find the next upcoming time. Even a single
             // same-frame HH:MM edit can put an entry out of order

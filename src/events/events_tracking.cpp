@@ -1,6 +1,6 @@
-//events_tracking.cpp
+// events_tracking.cpp
 // Storage and JSON persistence for manually-marked "done for today" flags.
-// Seeevents_tracking.h for the overall rationale.
+// See events_tracking.h for the overall rationale.
 //
 // Structurally this mirrors subscriptions.cpp closely (same two-vector,
 // same key shape, same events.json read-modify-write pattern) — the

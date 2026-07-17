@@ -4,7 +4,7 @@
 #include "subscriptions.h" // CyclicSubscriptionKey — same (groupName, slotOffset) key shape
 
 // ---------------------------------------------------------------------------
-//events_tracking.h
+// events_tracking.h
 // ---------------------------------------------------------------------------
 // User-set "done for today" flags — a manual, local-only supplement to
 // IsWorldBossCompletedToday/IsMapChestClaimedToday (gw2_api.h).

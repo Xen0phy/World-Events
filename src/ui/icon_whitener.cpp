@@ -1,5 +1,4 @@
 // icon_whitener.cpp
-// ---------------------------------------------------------------------------
 // Popup window that converts a user-picked icon to a "white/gray + alpha"
 // form suitable for use as a map-overlay icon in maprender.cpp.
 //
@@ -14,7 +13,6 @@
 //      preserving relative shading between light and dark areas.
 //
 // The result is saved as "<textures dir>/<stem>_white.png".
-// ---------------------------------------------------------------------------
 
 #include "icon_whitener.h"
 #include "maprender.h"   // GetEventIconFilenames, ScanEventIconFiles

@@ -98,7 +98,7 @@ struct SubscriptionActiveState
 };
 
 // Call once per frame from each of RenderSubscriptionsBar/Window/
-// Notifications — safe and cheap to call from all three every frame — 
+// Notifications — safe and cheap to call from all three every frame —
 // before consulting GetResolvedSubscriptions/GetSubscriptionActiveState
 // below. See the file header above for exactly when a real rebuild
 // happens; every other frame this is a handful of comparisons and nothing

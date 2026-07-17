@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 
+// ---------------------------------------------------------------------------
 // background_threads.h
 // ---------------------------------------------------------------------------
 // Coordination for detached background threads (WinHTTP polling in

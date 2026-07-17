@@ -82,40 +82,43 @@ static time_t GetCurrentWeeklyResetEpoch(time_t now)
 // ---------------------------------------------------------------------------
 // RebuildWeeklyCache
 // ---------------------------------------------------------------------------
-// Walks g_WeeklyObjectives and resolves each target's (group name, slot
-// NAME) into (group name, slot OFFSET) against g_CyclicGroups — the stable
-// identity everything else here keys by — populating s_weeklyCache. Only
+// Populates s_weeklyCache by asking weekly_vault.h's own matching functions
+// which Basic Events / Cyclic slots are live weekly targets right now,
+// rather than re-implementing that matching here — IsBasicEventWeeklyTarget/
+// IsCyclicSlotWeeklyTarget (weekly_vault.cpp) are the one place that logic
+// lives. Basic Events: every Core Boss (non-empty apiWorldBossId) is
+// checked, since that's the whole candidate set (see weekly_vault.h) — no
+// separate list to walk. Cyclic: only slots actually referenced by
+// g_CyclicWeeklyObjectives can ever match, so those targets are walked
+// directly instead of every slot in every group. Resolves each Cyclic
+// target's (group name, slot NAME) into (group name, slot OFFSET) against
+// g_CyclicGroups — the stable identity everything else here keys by. Only
 // called from a full rebuild, never per-frame.
 // ---------------------------------------------------------------------------
 static void RebuildWeeklyCache()
 {
     s_weeklyCache.clear();
 
-    for (const auto& mapping : g_WeeklyObjectives)
+    for (const auto& ev : g_Events)
     {
-        WeeklyObjectiveState state = GetWeeklyObjectiveState(mapping.title);
-        if (state == WeeklyObjectiveState::NotThisWeek)
-            continue; // not part of the live rotation right now — none of its targets belong in the cache this week
+        if (ev.apiWorldBossId.empty()) continue; // not a Core Boss — can never be a weekly target, see weekly_vault.h
 
         WeeklyTargetInfo info;
-        info.mappingTitle = mapping.title;
-        info.complete     = (state == WeeklyObjectiveState::Complete);
+        if (!IsBasicEventWeeklyTarget(ev.name, info.complete)) continue;
 
+        info.mappingTitle = ev.name; // no separate mapping object to name this after — see weekly_vault.h
+        s_weeklyCache["Basic:" + ev.name] = info;
+    }
+
+    for (const auto& mapping : g_CyclicWeeklyObjectives)
+    {
         for (const auto& target : mapping.targets)
         {
-            if (target.slotName.empty())
-            {
-                // Basic Event target — the name IS the stable identity, no resolution needed.
-                s_weeklyCache["Basic:" + target.groupOrEventName] = info;
-                continue;
-            }
+            WeeklyTargetInfo info;
+            if (!IsCyclicSlotWeeklyTarget(target.groupName, target.slotName, info.complete)) continue;
 
-            // Cyclic target — resolve (group name, slot NAME) to (group
-            // name, slot OFFSET): offset, not name, is what
-            // ResolvedSubscription::key/LineSegment::key/etc. use, since
-            // slot names aren't unique within a group the way offsets are.
             auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-                [&](const CyclicGroup& g) { return g.name == target.groupOrEventName; });
+                [&](const CyclicGroup& g) { return g.name == target.groupName; });
             if (grpIt == g_CyclicGroups.end()) continue; // group renamed/deleted since weekly_vault.cpp's table was written
 
             auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
@@ -124,6 +127,8 @@ static void RebuildWeeklyCache()
 
             char offsetBuf[16];
             snprintf(offsetBuf, sizeof(offsetBuf), "%d", slotIt->offset);
+
+            info.mappingTitle = target.groupName + " - " + target.slotName; // best-effort internal label — not currently surfaced in the UI
             s_weeklyCache["Cyclic:" + grpIt->name + ":" + offsetBuf] = info;
         }
     }

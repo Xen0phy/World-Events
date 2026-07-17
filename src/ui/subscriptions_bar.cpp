@@ -25,8 +25,12 @@
 // Local x-coordinate 0..W along the strip maps linearly to 0..kWindowSeconds.
 static constexpr int kWindowSeconds = 2 * 60 * 60; // 2 hours
 
+// ---------------------------------------------------------------------------
+// BasicEventColorFor
+// ---------------------------------------------------------------------------
 // Deterministic color for a Basic Event, derived from its name (FNV-1a hash
 // -> hue), since Basic Events don't carry a color of their own.
+// ---------------------------------------------------------------------------
 static ImU32 BasicEventColorFor(const std::string& name)
 {
     unsigned int hash = 2166136261u; // FNV-1a 32-bit offset basis
@@ -42,6 +46,9 @@ static ImU32 BasicEventColorFor(const std::string& name)
     return IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), 255);
 }
 
+// ---------------------------------------------------------------------------
+// ThemeColorU32
+// ---------------------------------------------------------------------------
 // Reads whatever Nexus/the user currently has the shared ImGui context
 // themed to (ImGuiCol_WindowBg/ImGuiCol_Text — same context AddonLoad
 // hands off via ImGui::SetCurrentContext, see addon.cpp), rather than a
@@ -54,13 +61,18 @@ static ImU32 BasicEventColorFor(const std::string& name)
 // the pop-out's background reads as "this addon's UI", consistent with
 // every other Nexus window, rather than a solid tint of the event's own
 // color.
+// ---------------------------------------------------------------------------
 static ImU32 ThemeColorU32(ImGuiCol styleColor, float alphaMul)
 {
     ImVec4 c = ImGui::GetStyleColorVec4(styleColor);
     return ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * alphaMul));
 }
 
+// ---------------------------------------------------------------------------
+// LineSegment
+// ---------------------------------------------------------------------------
 // One drawable segment on the strip, in local pixel space (0..W).
+// ---------------------------------------------------------------------------
 struct LineSegment
 {
     std::string key;          // stable identity, e.g. "Basic:Name" or "Cyclic:Group:Offset"
@@ -83,7 +95,11 @@ struct LineSegment
     CyclicSubscriptionKey cyclicKey;
 };
 
+// ---------------------------------------------------------------------------
+// SegmentStatusLine
+// ---------------------------------------------------------------------------
 // Builds the second label line: "Active - ends in Xm YYs" or "in Xm YYs".
+// ---------------------------------------------------------------------------
 static std::string SegmentStatusLine(const LineSegment& seg)
 {
     char buf[48];
@@ -94,11 +110,15 @@ static std::string SegmentStatusLine(const LineSegment& seg)
     return std::string(buf);
 }
 
+// ---------------------------------------------------------------------------
+// AssignLanes
+// ---------------------------------------------------------------------------
 // Greedy interval-graph coloring: walks segments left-to-right (already
 // sorted by startX) and assigns each the lowest-numbered lane whose last
 // occupant has already ended, so only one segment per point in time draws
 // on the resting baseline (lane 0); everything else (lane > 0) is only
 // surfaced via a dot marker + hover.
+// ---------------------------------------------------------------------------
 static void AssignLanes(std::vector<LineSegment>& segs)
 {
     constexpr float kLaneMargin = 1.0f; // px of overlap tolerance
@@ -121,13 +141,20 @@ static void AssignLanes(std::vector<LineSegment>& segs)
     }
 }
 
+// ---------------------------------------------------------------------------
+// DotMark
+// ---------------------------------------------------------------------------
 // One marker on the baseline for a hidden (lane>0) event's start tick.
+// ---------------------------------------------------------------------------
 struct DotMark
 {
     float x;        // baseline x position (before draw-time nudging for ties)
     int   segIndex; // index into the segs vector this dot represents
 };
 
+// ---------------------------------------------------------------------------
+// CollectOverlapDots
+// ---------------------------------------------------------------------------
 // Builds one dot per lane>0 (hidden) segment whose start tick falls inside
 // the range of whatever lane-0 segment currently occupies the baseline at
 // that x. A hidden segment starting in a pure gap gets no dot.
@@ -136,6 +163,7 @@ struct DotMark
 // baseline line alone with no dot, but a weekly segment needs a dot
 // regardless of lane so its red marker (see the recoloring at the actual
 // draw site below) has somewhere to render.
+// ---------------------------------------------------------------------------
 static std::vector<DotMark> CollectOverlapDots(const std::vector<LineSegment>& segs, float stripWidth)
 {
     std::vector<DotMark> dots;
@@ -170,9 +198,13 @@ static std::vector<DotMark> CollectOverlapDots(const std::vector<LineSegment>& s
     return dots;
 }
 
+// ---------------------------------------------------------------------------
+// CollectAllEventDots
+// ---------------------------------------------------------------------------
 // Minimal-mode counterpart to CollectOverlapDots: every segment (lane 0
 // included) gets one dot at its own start tick, since minimal mode has no
 // colored baseline line to represent lane-0 segments instead.
+// ---------------------------------------------------------------------------
 static std::vector<DotMark> CollectAllEventDots(const std::vector<LineSegment>& segs)
 {
     std::vector<DotMark> dots;
@@ -185,9 +217,13 @@ static std::vector<DotMark> CollectAllEventDots(const std::vector<LineSegment>& 
     return dots;
 }
 
+// ---------------------------------------------------------------------------
+// SegmentOverlapsUnsafeZone
+// ---------------------------------------------------------------------------
 // Whether a segment's x-range overlaps either configured "unsafe" margin
 // (GW2's own corner UI), so its drop can start further down instead of
 // covering that UI. A margin of 0 disables that side's zone.
+// ---------------------------------------------------------------------------
 static bool SegmentOverlapsUnsafeZone(const LineSegment& seg, float screenW)
 {
     float leftZoneEnd    = (float)std::max(0, SubscriptionsBarUnsafeLeftPx);
@@ -199,6 +235,9 @@ static bool SegmentOverlapsUnsafeZone(const LineSegment& seg, float screenW)
     return inLeftZone || inRightZone;
 }
 
+// ---------------------------------------------------------------------------
+// CollectVisibleSegments
+// ---------------------------------------------------------------------------
 // Builds one LineSegment per resolved subscription (see
 // subscriptions_cache.h) that overlaps the next kWindowSeconds, mapped into
 // local pixel space across the given strip width. All the "what's
@@ -208,6 +247,7 @@ static bool SegmentOverlapsUnsafeZone(const LineSegment& seg, float screenW)
 // the bar-specific parts: the kWindowSeconds clip and pixel mapping, and
 // per-item color (BasicEventColorFor / CyclicGroup::SlotColor — a purely
 // visual concern of this view alone, so it isn't part of the shared cache).
+// ---------------------------------------------------------------------------
 static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWidth)
 {
     std::vector<LineSegment> segs;
@@ -290,18 +330,26 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
     return segs;
 }
 
+// ---------------------------------------------------------------------------
+// SmoothStep
+// ---------------------------------------------------------------------------
 // Ken Perlin's smoothstep easing.
+// ---------------------------------------------------------------------------
 static float SmoothStep(float t)
 {
     t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
     return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
 }
 
+// ---------------------------------------------------------------------------
+// FlatBlockDepthAt
+// ---------------------------------------------------------------------------
 // Depth profile (0..1) at local-x for a flat-top block with curved
 // shoulders of width tw, confined within [start, end]: flat 0 outside the
 // range, eases up across [start, start+tw], flat 1 across the middle,
 // eases back down across [end-tw, end]. For segments narrower than 2*tw,
 // tw is capped to half the segment's width.
+// ---------------------------------------------------------------------------
 static float FlatBlockDepthAt(float x, float start, float end, float tw)
 {
     float effectiveTw = std::min(tw, (end - start) * 0.5f);
@@ -314,25 +362,37 @@ static float FlatBlockDepthAt(float x, float start, float end, float tw)
     return 0.0f;
 }
 
+// ---------------------------------------------------------------------------
+// DropState
+// ---------------------------------------------------------------------------
 // Per-segment eased drop animation state, keyed by LineSegment::key.
 // amount: current eased drop depth (0..1), toward a target driven by hover.
 // hoverSeconds: continuous real-hover duration; resets to 0 on losing hover.
 // clickHoldSeconds: counts down while a click-triggered pop-out is held
 // open; while > 0 the segment is treated as hovered by the easing loop.
+// ---------------------------------------------------------------------------
 struct DropState { float amount = 0.0f; float hoverSeconds = 0.0f; float clickHoldSeconds = 0.0f; };
 static std::unordered_map<std::string, DropState> s_dropStates;
 
+// ---------------------------------------------------------------------------
+// StackRowInfo
+// ---------------------------------------------------------------------------
+struct StackRowInfo
+{
+    int   row = 0;
+    float rowMaxDepth = 0.0f; // currently unused by the row-to-Y conversion (see stackTopY)
+};
+
+// ---------------------------------------------------------------------------
+// PackStackRows
+// ---------------------------------------------------------------------------
 // Assigns each currently-hovered/dropping segment a row (0, 1, 2, ...) for
 // the vertical stack, so segments whose x-ranges don't overlap can share a
 // row. Processes longest-duration-first (durationSecs descending,
 // soonest-first as tiebreak), so a longer-running segment wins the lowest
 // available row over a shorter one it overlaps. Uses simple greedy
 // interval-graph coloring, same approach as AssignLanes.
-struct StackRowInfo
-{
-    int   row = 0;
-    float rowMaxDepth = 0.0f; // currently unused by the row-to-Y conversion (see stackTopY)
-};
+// ---------------------------------------------------------------------------
 static std::unordered_map<std::string, StackRowInfo> PackStackRows(
     const std::vector<LineSegment>& segs,
     const std::vector<int>& order, // indices into segs, soonest-first
@@ -418,10 +478,14 @@ static constexpr float kPinchStart = 0.60f;
 static constexpr float kPinchEnd   = 0.78f;
 static constexpr float kDetachEnd  = 0.92f;
 
+// ---------------------------------------------------------------------------
+// EdgeSafeDropBounds
+// ---------------------------------------------------------------------------
 // Widens a segment's dropped-block x-range to at least minWidth (its own
 // label's required width), growing to the right first, then spilling any
 // remainder left, clamped so it never crosses the opposite screen edge.
 // Only ever widens — an already-wide segment is returned unchanged.
+// ---------------------------------------------------------------------------
 static void EdgeSafeDropBounds(float startX, float endX, float screenW, float minWidth, float& outX0, float& outX1)
 {
     float naturalW = endX - startX;
@@ -441,11 +505,15 @@ static void EdgeSafeDropBounds(float startX, float endX, float screenW, float mi
     outX1 = endX + growRight;
 }
 
+// ---------------------------------------------------------------------------
+// PillPinchFactor
+// ---------------------------------------------------------------------------
 // 0..1 amount of inward "waist" pinch at x, for the neck-in sub-phase
 // (neckT 0..1). Reuses FlatBlockDepthAt's shoulder logic centered on the
 // segment's middle. Peaks mid-phase and returns to 0 at both ends of the
 // sub-phase, so the shape is a plain rectangle exactly at neckT==1, ready
 // for the detached-pill branch to take over.
+// ---------------------------------------------------------------------------
 static float PillPinchFactor(float x, float start, float end, float neckT)
 {
     if (neckT <= 0.0f || neckT >= 1.0f) return 0.0f;
@@ -457,12 +525,16 @@ static float PillPinchFactor(float x, float start, float end, float neckT)
     return std::max(0.0f, waistShape * envelope);
 }
 
+// ---------------------------------------------------------------------------
+// PathFlatBlockShoulders
+// ---------------------------------------------------------------------------
 // Builds the flat-top/curved-shoulder silhouette as real geometry: two
 // cubic Bezier splines for the rising/falling shoulders (control points
 // digitized from the reference SVG's half-Gaussian curve) plus straight
 // runs for the flat top and baseline. depth scales how far the flat top
 // reaches from baselineY; dropDir flips the direction for bottom-anchored
 // mode (+1 grows down, -1 grows up).
+// ---------------------------------------------------------------------------
 static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth, float dropDir = 1.0f)
 {
     float effectiveTw = std::min(tw, (end - start) * 0.5f);
@@ -524,11 +596,15 @@ static void PathFlatBlockShoulders(ImDrawList* dl, float start, float end, float
     }
 }
 
+// ---------------------------------------------------------------------------
+// FillFlatBlockShoulders
+// ---------------------------------------------------------------------------
 // Fills the exact silhouette PathFlatBlockShoulders() strokes, as a single
 // triangulated mesh (center rect + two shoulder-cap fans, sharing vertex
 // indices at both seams) so there is no crack between separately-drawn
 // pieces. Tessellates the rise/fall curves via the same calls
 // PathFlatBlockShoulders uses, so the fill matches the stroke point-for-point.
+// ---------------------------------------------------------------------------
 static void FillFlatBlockShoulders(ImDrawList* dl, float start, float end, float baselineY, float blockH, float tw, float depth, ImU32 fillColor, float dropDir = 1.0f)
 {
     float effectiveTw = std::min(tw, (end - start) * 0.5f);
@@ -613,11 +689,15 @@ static void FillFlatBlockShoulders(ImDrawList* dl, float start, float end, float
     tri(idxInnerTopLeft, idxFallInner, idxRiseInner);
 }
 
+// ---------------------------------------------------------------------------
+// PathRoundedRect
+// ---------------------------------------------------------------------------
 // Rounded-rect path via direct PathArcTo calls, with a radius-scaled
 // segment count, so a full stadium cap (rx = height/2) renders smoothly
 // instead of AddRect's fixed 3-segments-per-corner faceting. Same
 // winding/geometry as AddRect (left side bottom-left->top-left arcs, right
 // side top-right->bottom-right arcs), so it's a drop-in replacement.
+// ---------------------------------------------------------------------------
 static void PathRoundedRect(ImDrawList* dl, ImVec2 p0, ImVec2 p1, float rounding)
 {
     constexpr float kPi = 3.14159265358979323846f;
@@ -653,6 +733,17 @@ static void PathRoundedRect(ImDrawList* dl, ImVec2 p0, ImVec2 p1, float rounding
     dl->PathArcTo(ImVec2(x1 - rounding, y1 - rounding), rounding, kPi * 2.0f, kPi * 2.5f, segsPerQuarter); // bottom-right
 }
 
+// ---------------------------------------------------------------------------
+// RenderSubscriptionsBar
+// ---------------------------------------------------------------------------
+// Entry point, called once per frame from AddonRender (addon.cpp) whenever
+// IsGameplay is true. Resolves the current subscription list into on-screen
+// LineSegments via CollectVisibleSegments, then handles hover/click
+// detection and the actual background-draw-list rendering of the baseline,
+// dot markers, and per-segment dropped block/pill — everything below this
+// point is the drawing side of the file; the geometry/animation helpers
+// above it are shared building blocks this function calls into.
+// ---------------------------------------------------------------------------
 void RenderSubscriptionsBar()
 {
     if (!ShowSubscriptionsBar) return;

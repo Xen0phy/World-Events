@@ -423,7 +423,10 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
                 return;
             }
             
-            //SendMessage(tool_handle, WM_PASTE, 0, 0); not working
+            // WM_PASTE was tried here directly but doesn't reliably reach the
+            // third-party target app — hence simulating Ctrl+V as raw key
+            // events below instead (see the mixed SendMessage/SendInput note
+            // above this function).
             SendMessage(tool_handle, WM_KEYDOWN, 'V', get_l_param('V', true));
             SendMessage(tool_handle, WM_KEYUP, 'V', get_l_param('V', false));
             std::this_thread::sleep_for(delay_ms);

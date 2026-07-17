@@ -262,7 +262,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "Shipwreck Strand",
         10515.0f, 59212.0f, m120, COL_VOE,
         {
-            { "Hammerheart Rumble", m40, m20, ColorTier::Primary, "[&BJEPAAA=]" },
+            { "Hammerhart Rumble", m40, m20, ColorTier::Primary, "[&BJEPAAA=]" },
         }
     },
     { "Starlit Weald",
@@ -327,7 +327,7 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
         {"Bava Nisos"},
     }},
     {"Visions of Eternity", {
-        {"Shipwreck Strand"},
+        {"Shipwreck Strand", true},
         {"Starlit Weald"},
         {"Eternity's Garden"},
     }},

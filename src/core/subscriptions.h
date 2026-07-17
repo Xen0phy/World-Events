@@ -75,6 +75,7 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
 // lists live (not its own separate piece of state), so it can never
 // disagree with IsBasicEventSubscribed/IsBasicEventToastEnabled/
 // IsBasicEventSoundEnabled.
+// ---------------------------------------------------------------------------
 extern std::vector<std::string>            g_ToastEnabledBasicEvents;
 extern std::vector<CyclicSubscriptionKey>  g_ToastEnabledCyclicSlots;
 

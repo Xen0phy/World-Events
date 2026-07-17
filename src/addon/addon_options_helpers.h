@@ -172,10 +172,10 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex);
 void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex);
 
 // ---------------------------------------------------------------------------
-// Tooltip  (inline helper)
+// Tooltip (inline helper)
 // ---------------------------------------------------------------------------
 // Displays a plain-text tooltip for the last ImGui item, but only after the
-// cursor has been hovering for delaySeconds (default 0.5 s).  The delay
+// cursor has been hovering for delaySeconds (default 0.5 s). The delay
 // prevents tooltips from flickering up while the player is just moving the
 // mouse across the window.
 //

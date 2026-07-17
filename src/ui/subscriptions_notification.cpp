@@ -464,7 +464,7 @@ static void DrawAndExpirePopups()
 
         // Right-click: mark this event/slot done for today — same
         // Toggle*DoneToday calls as the watchlist window/bar's own
-        // right-click menus (seeevents_tracking.h). Doesn't dismiss the
+        // right-click menus (see events_tracking.h). Doesn't dismiss the
         // toast itself; the occurrence disappearing from the other views
         // is confirmation enough, and dismissing here too would make a
         // misclick harder to undo before reaching for the options panel's

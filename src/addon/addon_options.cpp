@@ -85,26 +85,22 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // =========================================================================
-    // Table 1 — Subscriptions (Row 0)
-    // -------------------------------------------------------------------------
-    // Always visible, above the collapsing header below. Two columns:
-    // left = Subscriptions window + Notification popups, right =
-    // Subscriptions bar. Kept in its own table rather than folded into
-    // Table 2 further down — a CollapsingHeader can't span table columns
-    // (its hit-rect/draw are clipped to whichever single column it's
-    // called from), so the full-width header has to be drawn *between*
-    // two separate BeginTable/EndTable pairs, not inside one continuous
-    // table.
+    // ---------------------------------------------------------------------
+    // Table 1 — Subscriptions (Row 0). Always visible, above the collapsing
+    // header below. Two columns: left = Subscriptions window + Notification
+    // popups, right = Subscriptions bar. Kept in its own table rather than
+    // folded into Table 2 further down — a CollapsingHeader can't span
+    // table columns (its hit-rect/draw are clipped to whichever single
+    // column it's called from), so the full-width header has to be drawn
+    // *between* two separate BeginTable/EndTable pairs, not inside one
+    // continuous table.
     //
-    // NOTE: the DisabledBlock(!ShowSubscriptionsWindow) / (!ShowSubscriptionsBar)
-    // / (!NotificationsEnabled) dim-and-disable wrappers that used to gate
-    // each group's sub-controls have been deliberately removed as part of
-    // this reorganization — every field below is now always interactive
-    // regardless of its section's master checkbox. This is intentional for
-    // now; re-add DisabledBlock(...) around each group below once the new
-    // layout is settled.
-    // =========================================================================
+    // NOTE: each of the three groups below is wrapped in its own
+    // DisabledBlock(!ShowSubscriptionsWindow) / (!NotificationsEnabled) /
+    // (!ShowSubscriptionsBar) — dimmed and non-interactive whenever that
+    // group's own section checkbox is off, independently of the other two
+    // groups sharing this table.
+    // ---------------------------------------------------------------------
     if (ImGui::BeginTable("##subs_table", 2, ImGuiTableFlags_SizingStretchSame))
     {
         ImGui::TableNextRow();
@@ -241,9 +237,11 @@ void AddonOptions()
                 }
                 Tooltip("Drop .wav files into \"<addon dir>/sounds\" and pick one\n"
                         "here to preview it. Only .wav is supported (PlaySound has\n"
-                        "no built-in decoder for mp3/ogg/etc). This doesn't play\n"
-                        "automatically on a real notification yet — that's not\n"
-                        "wired up in this build.");
+                        "no built-in decoder for mp3/ogg/etc). \"Test\" just plays it\n"
+                        "immediately — it also plays automatically alongside a real\n"
+                        "notification popup, but only for events/slots whose own\n"
+                        "notify level has sound enabled (see the speaker icon on\n"
+                        "each row below).");
             }
         }
 
@@ -351,7 +349,7 @@ void AddonOptions()
         ImGui::EndTable();
     }
 
-    // =========================================================================
+    // ---------------------------------------------------------------------
     // Full-width collapsing header — drawn OUTSIDE any table's column
     // context (between Table 1 and Table 2), since CollapsingHeader is
     // clipped to whichever single column it's called from and can't span
@@ -360,15 +358,17 @@ void AddonOptions()
     //
     // Defaults open so the Basic/Cyclic events editor is visible on first
     // load, same as before this header existed.
-    // =========================================================================
+    // ---------------------------------------------------------------------
 
     if (ImGui::CollapsingHeader("World Events (Basic + Cyclic)", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        // =====================================================================
-        // Table 2 — Search/API key (Row 1), section controls (Row 2), and the
-        // Basic/Cyclic trees themselves (Row 3). Same 2-column shape as
-        // Table 1 above; only exists while the header above is expanded.
-        // =====================================================================
+        // ---------------------------------------------------------------
+        // Table 2 — Search/API key (Row 1) and section controls (Row 2).
+        // Same 2-column shape as Table 1 above; only exists while the
+        // header above is expanded. Ends before the search box below —
+        // see Table 3's own header comment for why the Basic/Cyclic trees
+        // (Row 3) are a separate table rather than a third row in this one.
+        // ---------------------------------------------------------------
         if (ImGui::BeginTable("##world_events_table", 2, ImGuiTableFlags_SizingStretchSame))
         {
             // -----------------------------------------------------------
@@ -383,7 +383,7 @@ void AddonOptions()
             ImGui::Checkbox("##lock_delay", &unlockDelay);
             Tooltip("Best to only change this if you have any issues.\n"
                     "Defines the internal delay set to properly paste text to chatbox.\n"
-                    "Deault = 20ms");
+                    "Default = 20ms");
             ImGui::SameLine();
             DisabledBlock(!unlockDelay)
             {
@@ -657,6 +657,16 @@ void AddonOptions()
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
+
+        // ---------------------------------------------------------------
+        // Table 3 — Basic Events tree (Row 3, col 0), Cyclic Events tree
+        // (Row 3, col 1). Split out into its own BeginTable/EndTable pair,
+        // separate from Table 2 above, so the search box right below
+        // (added later) can sit outside any table's column context and
+        // filter both trees at once — same reasoning as the CollapsingHeader
+        // needing to sit between Table 1 and Table 2 rather than inside
+        // either one.
+        // ---------------------------------------------------------------
 
         // Static, not a setting: pure transient UI state, not worth
         // persisting across sessions. One box filters BOTH Basic Events and

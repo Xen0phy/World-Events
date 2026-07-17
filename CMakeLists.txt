@@ -1,12 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
-project(gw2-world-events)
 
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
 set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+
+project(gw2-world-events)
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+add_custom_target(check_weekly_vault
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/check_weekly_vault.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Validating weekly_vault.cpp against events_cyclic.cpp..."
+    VERBATIM
+)
 
 add_custom_target(bump_rev
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/bump_rev.py
@@ -14,6 +22,7 @@ add_custom_target(bump_rev
     COMMENT "Bumping revision..."
     VERBATIM
 )
+add_dependencies(bump_rev check_weekly_vault)
 
 add_library(gw2-world-events SHARED
     src/addon/addon_options_helpers.cpp

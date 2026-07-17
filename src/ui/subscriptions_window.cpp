@@ -58,12 +58,12 @@ static constexpr unsigned long long kFlashDurationMs = 350;
 // s_leftPressedKey
 // ---------------------------------------------------------------------------
 // A manual IsMouseClicked() check fires the instant a button goes down
-// while hovering an item -- Selectable's default gesture is press-AND-
+// while hovering an item — Selectable's default gesture is press-AND-
 // release on the SAME item (ImGuiButtonFlags_PressedOnClickRelease), so a
 // press that then drags off the row before releasing does nothing. This
 // tracks which row's name a left-button press started on, so
 // DrawSubscriptionRow can require the release to land back on that same
-// row before actually acting -- matching Selectable's own return-value
+// row before actually acting — matching Selectable's own return-value
 // behavior instead of firing on mouse-down.
 //
 // Right-click has no equivalent tracker: the original code used
@@ -81,7 +81,7 @@ static std::string s_leftPressedKey;
 // (or just "<n>" if no chat code is set yet, rather than leaving a dangling
 // "Name: " with an empty tail).
 //
-// This used to be a single ImGui::Selectable per row -- simple, but a
+// This used to be a single ImGui::Selectable per row — simple, but a
 // Selectable is a full interactive item (ID hash off the label, hover/
 // active bookkeeping, click state machine) paid for on EVERY row EVERY
 // frame regardless of whether the mouse is anywhere near it. That's why
@@ -97,11 +97,11 @@ static std::string s_leftPressedKey;
 // space is still reserved with a plain Dummy() (ItemAdd only, no ID, no
 // interaction) so the window's content size and scrollbar behave exactly
 // as before. Click/right-click are then just plain mouse-state checks
-// gated on that same hover test -- no per-row widget ever gets created.
+// gated on that same hover test — no per-row widget ever gets created.
 //
 // Text color follows the Active/Soon/default rule; a just-clicked row
 // additionally flashes a bright highlight for kFlashDurationMs as click
-// confirmation (see s_flashKey/s_flashUntil above) -- chosen instead of a
+// confirmation (see s_flashKey/s_flashUntil above) — chosen instead of a
 // tooltip so the confirmation doesn't cover the text just clicked, and
 // instead of a persistent "Copied!" label so the window doesn't visually
 // shift/grow when clicked.
@@ -112,7 +112,7 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
     if (isWeekly)
     {
         // Small red dot marking this row as an active-and-incomplete
-        // weekly Wizard's Vault target this week -- see weekly_vault.h/
+        // weekly Wizard's Vault target this week — see weekly_vault.h/
         // .cpp for what sets isWeekly and the event/slot -> objective
         // mapping table. Purely visual; doesn't affect the row's click
         // behavior below. Plain TextColored: an item, but not an
@@ -154,12 +154,14 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
 
     std::string label = name + statusSuffix;
 
-    // ---- Row rect + hover test, computed BEFORE drawing anything, same
-    // as subscriptions_bar.cpp works out hoveredIndices before drawing ----
+    // ---------------------------------------------------------------------
+    // Row rect + hover test, computed BEFORE drawing anything, same as
+    // subscriptions_bar.cpp works out hoveredIndices before drawing.
+    // ---------------------------------------------------------------------
     ImVec2 rowMin       = ImGui::GetCursorScreenPos();
     float  rowWidth     = ImGui::GetContentRegionAvail().x;
     // Selectable(label, ..., size=(0,0)) sizes itself to CalcTextSize(label).y
-    // -- i.e. just the text line height, with none of a Button's/Frame's
+    // — i.e. just the text line height, with none of a Button's/Frame's
     // FramePadding.y*2 added on top. GetFrameHeight() would be taller than
     // what Selectable actually used, so rows must match that exactly here
     // or every row (and the window's whole content height) grows.
@@ -169,7 +171,7 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
     // IsMouseHoveringRect already clips against the window's own clip rect
     // (scrolling-safe); IsWindowHovered gates it so this window doesn't
     // register a hover while something else (including one of this
-    // window's own popups) sits on top of it -- same protection
+    // window's own popups) sits on top of it — same protection
     // Selectable gave for free, restored here explicitly since the manual
     // rect test has no built-in awareness of popups blocking it.
     bool hovered = ImGui::IsWindowHovered()
@@ -192,8 +194,8 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
     dl->AddText(textPos, textColor, label.c_str());
 
     // Reserve the row's layout/scroll space. Dummy only does ItemSize +
-    // a no-ID ItemAdd -- none of Selectable's ID hashing or click/hover
-    // state machine -- so the window's content height/scrollbar still
+    // a no-ID ItemAdd — none of Selectable's ID hashing or click/hover
+    // state machine — so the window's content height/scrollbar still
     // come out exactly right without paying for a widget nothing needs.
     ImGui::Dummy(ImVec2(rowWidth, rowHeight));
 
@@ -215,14 +217,14 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
 
     // Right-click: mark this event/slot done for today. Hides it from
     // this window (and the bar/toast) until the next UTC daily reset, or
-    // until "Clear all manual done markers" is used in the options panel --
+    // until "Clear all manual done markers" is used in the options panel —
     // see events_tracking.h. Popup ID is keyed off `name`, same as
     // s_flashKey above, so it's unique per row without needing a
     // separately-tracked numeric ID.
     //
     // Unlike the left-click paste above, this fires on mouse-DOWN while
     // hovering, not on release: the original code used IsItemClicked(),
-    // which is defined as IsMouseClicked() && IsItemHovered() -- a press-
+    // which is defined as IsMouseClicked() && IsItemHovered() — a press-
     // based check, NOT release-gated like Selectable's own return value.
     // Making this release-gated too (as an earlier version of this rewrite
     // did) would have been a real behavior change, not just a faithful
@@ -231,7 +233,7 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         ImGui::OpenPopup(popupId.c_str());
 
-    // Called every frame regardless of hover -- an already-open popup has
+    // Called every frame regardless of hover — an already-open popup has
     // to keep rendering even after the mouse moves off this row, exactly
     // as BeginPopup did before this change. The lookup itself is just an
     // ID hash/compare against the popup stack, cheap even when it's not
@@ -258,6 +260,7 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
 // whichever pair is relevant identifies this row for
 // ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday — see the right-click
 // "Mark done for today" menu in DrawSubscriptionRow.
+// ---------------------------------------------------------------------------
 struct Row { std::string name; std::string chatCode; bool active; int secs; bool isWeekly;
              bool isBasic = true; std::string basicName; CyclicSubscriptionKey cyclicKey; };
 
@@ -350,7 +353,7 @@ void RenderSubscriptionsWindow()
 
     // A press that started on a row but got released somewhere that isn't
     // any row (a gap, off the window entirely, etc.) never matched inside
-    // DrawSubscriptionRow's own check above -- clear it here once so a
+    // DrawSubscriptionRow's own check above — clear it here once so a
     // stale key can't wrongly match a future row that happens to share the
     // same name.
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) s_leftPressedKey.clear();

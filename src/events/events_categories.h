@@ -49,6 +49,7 @@ extern std::vector<Category> g_CyclicCategories;
 // where JSON membership normally wins — `forced` is the one exception to
 // that, so it needs to survive past the point where everything else gets
 // collapsed down to plain names.
+// ---------------------------------------------------------------------------
 struct CategoryDefaultMember
 {
     std::string name;

@@ -1,3 +1,11 @@
+// addon.cpp
+// Nexus addon entry point: AddonLoad/AddonUnload (registered via
+// GetAddonDef below) and AddonRender, the per-frame render callback that
+// drives everything else (subscriptions views, map overlays).
+//
+// See SaveAllData below for the on-disk save-ordering rule shared by
+// AddonLoad and AddonUnload.
+
 #include "addon.h"
 #include "events.h"
 #include "maprender.h"
@@ -32,6 +40,35 @@ float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 // one of those on its own, rather than needing a matching "stop the
 // clock" line duplicated at each return statement. See ScopedRenderTimer
 // in addon.h for the shared implementation and why the two don't mix.
+
+// ---------------------------------------------------------------------------
+// SaveAllData
+// ---------------------------------------------------------------------------
+// Writes every on-disk JSON/ini-adjacent data file this addon owns, in the
+// one order that's actually safe: events first, then categories/
+// subscriptions/tracking. Those three all reference g_Events/g_CyclicGroups
+// by name (see events_categories.h, subscriptions.h, events_tracking.h), so
+// events.json's own "events"/"cyclicGroups" keys have to already reflect
+// the final, merged in-memory state before any of the others are written —
+// otherwise a name lookup on the NEXT load could fail to resolve against
+// whatever's sitting in the file right now.
+//
+// Called from both AddonLoad (to persist the merged defaults+disk state on
+// first write) and AddonUnload. Kept as a single function rather than left
+// as a repeated four-line block at each call site specifically so this
+// ordering rule has exactly one place to read, and can't drift out of sync
+// between the two callers if a line ever gets reordered at only one of
+// them. settings.ini is deliberately NOT included here — SaveSettings is
+// unrelated to this ordering (no cross-referencing by name) and is only
+// ever called from AddonUnload, not AddonLoad.
+// ---------------------------------------------------------------------------
+static void SaveAllData(const std::string& addonDir)
+{
+    SaveEventsData(addonDir);
+    SaveCategoriesData(addonDir);     // must run AFTER SaveEventsData — see events_categories.h
+    SaveSubscriptionsData(addonDir);  // must run AFTER SaveEventsData — see subscriptions.h
+    SaveDailyTrackingData(addonDir);  // must run AFTER SaveEventsData — see events_tracking.h
+}
 
 void AddonLoad(AddonAPI_t* aAPI)
 {
@@ -77,15 +114,12 @@ void AddonLoad(AddonAPI_t* aAPI)
     // only the SAVE order below does.
     LoadSubscriptionsData(g_AddonDir);
 
-    // Same file/order story as subscriptions above — seeevents_tracking.h.
+    // Same file/order story as subscriptions above — see events_tracking.h.
     // Reads its own stored UTC day and self-discards if it's from a prior
     // day, so no explicit rollover check is needed here.
     LoadDailyTrackingData(g_AddonDir);
 
-    SaveEventsData(g_AddonDir);
-    SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see events_categories.h
-    SaveSubscriptionsData(g_AddonDir);  // must run AFTER SaveEventsData — see subscriptions.h
-    SaveDailyTrackingData(g_AddonDir);  // must run AFTER SaveEventsData — seeevents_tracking.h
+    SaveAllData(g_AddonDir); // writes back merged defaults+disk state — see SaveAllData above
 
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
@@ -128,10 +162,7 @@ void AddonUnload()
     WaitForBackgroundThreads(2000);
 
     SaveSettings(g_AddonDir);
-    SaveEventsData(g_AddonDir);
-    SaveCategoriesData(g_AddonDir);     // must run AFTER SaveEventsData — see events_categories.h
-    SaveSubscriptionsData(g_AddonDir);  // must run AFTER SaveEventsData — see subscriptions.h
-    SaveDailyTrackingData(g_AddonDir);  // must run AFTER SaveEventsData — seeevents_tracking.h
+    SaveAllData(g_AddonDir);
 
     // Force heap frees now while the CRT is still intact,
     // rather than leaving it to the static destructor at DLL unload.

@@ -74,6 +74,7 @@ SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
 // channel of the packed RRGGBBAA value below) — whatever alpha the user
 // picks via the color swatch IS the actual opacity used, nothing layered
 // on top of it.
+// ---------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232B4u) // red
 SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00B4u) // orange
 SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray
@@ -130,6 +131,7 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 // events.json instead (see subscriptions.cpp) — same split as everything
 // else in this file: settings.ini holds UI/display preferences, events.json
 // holds the actual event/grouping/membership data.
+// ---------------------------------------------------------------------------
 SETTING(Subscriptions, ShowSubscriptionsWindow, bool, false)
 
 // Open/closed state of the alternate "distribution bar" watchlist view
@@ -253,7 +255,7 @@ SETTING(Subscriptions, SubscriptionsSoonColor,   unsigned int, 0xFF8C00FFu) // o
 // IS manually subscribed — that's just an informational tag on something
 // the user already chose to track, not the addon auto-adding anything on
 // its own, so it keeps showing regardless of this setting.
-SETTING(Subscriptions, WeeklyAutoTrackEnabled, bool, false)
+SETTING(Subscriptions, WeeklyAutoTrackEnabled, bool, true)
 
 // GW2 API key (needs at minimum the "progression" permission), used ONLY
 // to call GET /v2/account/worldbosses — see gw2_api.h/.cpp. Drives
@@ -285,6 +287,7 @@ SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 // itself because chat-paste timing is a general input-simulation concern
 // rather than a subscriptions-specific display preference, though it
 // currently has no other caller.
+// ---------------------------------------------------------------------------
 SETTING(System, delayMilliseconds, int, 20)
 
 // Slash-command prefix prepended to every PasteToChat message (see
@@ -308,6 +311,7 @@ SETTING(System, ChatChannelPrefix, std::string, std::string())
 // switch — when false, RenderSubscriptionsNotifications() is a complete
 // no-op (no state tracked, no popups fired, nothing drawn), same early-out
 // pattern as ShowSubscriptionsWindow/ShowSubscriptionsBar above.
+// ---------------------------------------------------------------------------
 SETTING(Notifications, NotificationsEnabled, bool, false)
 
 // How many minutes before a subscribed Basic Event or Cyclic slot's next

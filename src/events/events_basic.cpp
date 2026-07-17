@@ -45,7 +45,7 @@ std::vector<WorldEvent> g_Events =
                                                                                                                                                               17 * m60,
                                                                                                                                                               20 * m60}, 0, 0, "triple_trouble_wurm"},
 
-    // LEy Line Anomaly
+    // Ley Line Anomaly
     {"Ley Line Anomaly (Iron Marches)",  60822.0f, 28530.0f,  false, m20, "[&BOcBAAA=]",  true, "EventBoss.png",   {}, 6 * m60,           m20},
     {"Ley Line Anomaly (Gendarran)",     48365.0f, 29970.0f,  false, m20, "[&BOQAAAA=]",  true, "EventBoss.png",   {}, 6 * m60,    m120 + m20},
     {"Ley Line Anomaly (Timberline)",    52914.0f, 35729.0f,  false, m20, "[&BEwCAAA=]",  true, "EventBoss.png",   {}, 6 * m60, 4 * m60 + m20},

@@ -258,8 +258,7 @@ void RenderCyclicGroups()
             continue;
 
 
-        // --- Background track, idle-colored (group's idleColor, defaulting
-        // to colors.ter() — see CyclicGroup::IdleColor() in events.h) ---
+        // ---- Background track, idle-colored (group's idleColor, defaulting to colors.ter() — see CyclicGroup::IdleColor() in events.h) ----
         // RGB comes from the idle color; alpha comes from COL_TRACK, so the
         // idle background stays visually translucent/recessed compared to
         // an active slot's full-opacity arc, regardless of which color
@@ -273,7 +272,7 @@ void RenderCyclicGroups()
         DrawArc(dl, pos, RADIUS, HAND_DEG, ARC_TO,   colTrack, THICKNESS,
                 1.0f, 0.0f);
 
-        // --- Draw each slot ---
+        // ---- Draw each slot ----
         int secondsOfDay = (int)(now % grp.period);
 
         for (const auto& slot : grp.slots)
@@ -291,7 +290,8 @@ void RenderCyclicGroups()
             {
                 int baseOffset = slot.offset + r * subSpan;
 
-                // --- Exit side: split wrapping occurrences into two passes so the
+                // ---- Exit side ----
+                // Split wrapping occurrences into two passes so the
                 // active/fade-out segment renders correctly across the 0s/period
                 // boundary. (Tail of this cycle + head of next.)
                 //
@@ -337,8 +337,9 @@ void RenderCyclicGroups()
                     }
                 }
 
-                // --- Entry side: lead-in of THIS occurrence's next recurrence.
-                // Computed ONCE per occurrence (not per wrap-pass) from the
+                // ---- Entry side ----
+                // Lead-in of THIS occurrence's next recurrence. Computed ONCE
+                // per occurrence (not per wrap-pass) from the
                 // occurrence's true offset/duration — a wrapping occurrence is
                 // one logical event, so it must only produce one entry arc for
                 // its next recurrence, not one per pass.
@@ -361,7 +362,7 @@ void RenderCyclicGroups()
             }
         }
 
-        // --- Fixed hand at top (0°) ---
+        // ---- Fixed hand at top (0°) ----
         ImVec2 handTip  = ArcPoint(pos, RADIUS + THICKNESS * 0.5f, HAND_DEG);
         ImVec2 handBase = ArcPoint(pos, RADIUS - THICKNESS * 0.5f, HAND_DEG);
         dl->AddLine(handBase, handTip, COL_HAND, 2.0f);
@@ -430,7 +431,7 @@ void RenderCyclicGroups()
             ImGui::End();
         }
 
-        // --- Tooltip on hover --- (suppressed while dragging this ring)
+        // ---- Tooltip on hover (suppressed while dragging this ring) ----
         if (hovered && !isBeingEdited)
         {
             ImGui::BeginTooltip();

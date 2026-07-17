@@ -5,9 +5,9 @@
 #include <cstdint>
 #include "imgui.h"
 
-// ===========================================================================
+// ---------------------------------------------------------------------------
 // Data version
-// ===========================================================================
+// ---------------------------------------------------------------------------
 // A date, as an int (YYYYMMDD or YYYYMMDDHHmm), bumped whenever EITHER of
 // these change:
 //   - the on-disk SHAPE changes in a way old files can't just fall through
@@ -26,11 +26,12 @@
 //
 // int64_t, not int: YYYYMMDD fits in 32 bits, but YYYYMMDDHHmm (e.g.
 // 202607051350) exceeds INT32_MAX and would silently wrap.
-constexpr int64_t EVENTS_DATA_VERSION = 202607060140; // YYYYMMDDHHmm
+// ---------------------------------------------------------------------------
+constexpr int64_t EVENTS_DATA_VERSION = 202607172105; // YYYYMMDDHHmm
 
-// ===========================================================================
+// ---------------------------------------------------------------------------
 // Basic Events
-// ===========================================================================
+// ---------------------------------------------------------------------------
 
 struct WorldEvent
 {
@@ -101,9 +102,9 @@ struct WorldEvent
 // All events. Populated in events_basic.cpp, used by maprender.cpp.
 extern std::vector<WorldEvent> g_Events;
 
-// ===========================================================================
+// ---------------------------------------------------------------------------
 // Cyclic Events
-// ===========================================================================
+// ---------------------------------------------------------------------------
 
 constexpr ImU32 HEX(unsigned int rrggbbaa, float factor = 1.0f)
 {
@@ -233,9 +234,9 @@ struct CyclicGroup
 // All cyclic groups. Populated in events_cyclic.cpp, used by cyclicrender.cpp.
 extern std::vector<CyclicGroup> g_CyclicGroups;
 
-// ===========================================================================
+// ---------------------------------------------------------------------------
 // Time
-// ===========================================================================
+// ---------------------------------------------------------------------------
 
 constexpr int MIN(int minutes) { return minutes * 60; }
 
