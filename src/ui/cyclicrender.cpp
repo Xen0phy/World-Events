@@ -462,7 +462,7 @@ void RenderCyclicGroups()
 
             for (const auto& slot : grp.slots)
             {
-                ImU32 color = grp.SlotColor(slot);
+                ImU32 color = IM_COL32(255, 255, 255, 255); // revisit grp.SlotColor(slot);
                 int repeat  = slot.repeat > 0 ? slot.repeat : 1;
                 int subSpan = grp.period / repeat;
 
