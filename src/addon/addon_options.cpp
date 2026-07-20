@@ -855,8 +855,8 @@ void AddonOptions()
             {
                 WorldEvent newEvent{};
                 newEvent.name       = "New Event";
-                newEvent.continentX = 0.0f;
-                newEvent.continentY = 0.0f;
+                newEvent.continentX = 49332.0f;
+                newEvent.continentY = 31457.0f;
                 newEvent.isVarying  = false;
                 newEvent.duration   = 900;  // 15 min, a reasonable default
                 newEvent.period     = 7200; // 2h, the most common period in existing data
@@ -980,8 +980,8 @@ void AddonOptions()
             {
                 CyclicGroup newGroup{};
                 newGroup.name       = "New Cycle";
-                newGroup.continentX = 0.0f;
-                newGroup.continentY = 0.0f;
+                newGroup.continentX = 49332.0f;
+                newGroup.continentY = 31457.0f;
                 newGroup.period     = 7200; // 2h, the most common period in existing data
                 newGroup.colors     = ColorSet{ 0x808080FF }; // neutral gray; user picks a real color next
                 g_CyclicGroups.push_back(newGroup);
