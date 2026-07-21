@@ -5,6 +5,7 @@
 #include "subscriptions_cache.h"
 #include "events_tracking.h"
 #include "settings.h"
+#include "color_utils.h"
 #include "imgui.h"
 #include "addon.h" // SubsWindowDataTimer/SubsWindowDrawTimer — see their comment in addon.h
 #include <windows.h>
@@ -13,25 +14,10 @@
 #include <vector>
 #include <algorithm>
 
-// ---------------------------------------------------------------------------
-// SubscriptionColorToImVec4
-// ---------------------------------------------------------------------------
-// SubscriptionsActiveColor/SoonColor are stored as packed RRGGBBAA (R in
-// the top byte — same convention as ColorSet::base in events.h and the
-// map's BasicEventColor* settings), which is NOT the same byte order as
-// ImGui's own ImU32 (ABGR). The low byte (alpha) is deliberately ignored
-// here: these feed straight into ImGui::TextColored, which is plain text
-// with a fixed opacity of 1.0, not a translucency-capable draw.
-// ---------------------------------------------------------------------------
-static ImVec4 SubscriptionColorToImVec4(unsigned int rgba)
-{
-    return ImVec4(
-        ((rgba >> 24) & 0xFF) / 255.0f, // R
-        ((rgba >> 16) & 0xFF) / 255.0f, // G
-        ((rgba >>  8) & 0xFF) / 255.0f, // B
-        1.0f                             // alpha channel of `rgba` unused
-    );
-}
+// SubscriptionsActiveColor/SoonColor/WeeklyAutoTrackColor's alpha component
+// is deliberately ignored below via ToImVec4Opaque (color_utils.h): these
+// feed straight into ImGui::TextColored, which is plain text with a fixed
+// opacity of 1.0, not a translucency-capable draw.
 
 // 15 minutes — matches the "soon" threshold already hardcoded for
 // BasicEventColorSoon on the map (maprender.cpp's `secs < 900` check),
@@ -118,7 +104,7 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
         // behavior below. Plain TextColored: an item, but not an
         // interactive one, so its cost is negligible next to a Selectable.
         // Color swatch for the weekly Wizard's Vault trcked dot
-        ImVec4 weeklyDotColor = SubscriptionColorToImVec4(WeeklyAutoTrackColor);
+        ImVec4 weeklyDotColor = ToImVec4Opaque(WeeklyAutoTrackColor);
         ImGui::TextColored(weeklyDotColor, "*");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Counts toward this week's Wizard's Vault objectives.");
@@ -134,14 +120,14 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
         char buf[32];
         snprintf(buf, sizeof(buf), " -- Active (ends in %dm %02ds)", secs / 60, secs % 60);
         statusSuffix = buf;
-        color = SubscriptionColorToImVec4(SubscriptionsActiveColor);
+        color = ToImVec4Opaque(SubscriptionsActiveColor);
     }
     else if (secs < kSoonThresholdSecs)
     {
         char buf[32];
         snprintf(buf, sizeof(buf), " -- in %dm %02ds", secs / 60, secs % 60);
         statusSuffix = buf;
-        color = SubscriptionColorToImVec4(SubscriptionsSoonColor);
+        color = ToImVec4Opaque(SubscriptionsSoonColor);
     }
     else
     {

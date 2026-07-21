@@ -129,14 +129,12 @@ void AddonOptions()
             // unlike the map's BasicEventColor* pickers, which DO need
             // ColorEdit4/an alpha bar since they tint an actual drawn dot/icon.
             // See SubscriptionsActiveColor's comment in settings_table.h.
-            ImVec4 subActiveColor = RGBABaseToFloat4(SubscriptionsActiveColor);
-            if (ImGui::ColorEdit3("Active##sub_color_active", &subActiveColor.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
-                SubscriptionsActiveColor = Float4ToRGBABase(subActiveColor);
+            // Both settings are float[4] globals — ColorEdit3 writes
+            // straight into the first 3 components, no wrapper needed.
+            ImGui::ColorEdit3("Active##sub_color_active", SubscriptionsActiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
             ImGui::SameLine();
-            ImVec4 subSoonColor = RGBABaseToFloat4(SubscriptionsSoonColor);
-            if (ImGui::ColorEdit3("Soon##sub_color_soon", &subSoonColor.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
-                SubscriptionsSoonColor = Float4ToRGBABase(subSoonColor);
+            ImGui::ColorEdit3("Soon##sub_color_soon", SubscriptionsSoonColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
         }
 
         ImGui::Dummy(dummySquare);
@@ -273,11 +271,9 @@ void AddonOptions()
             ImGui::SameLine();
             ImGui::Checkbox("Bottom Line", &SubscriptionsBarBottomAnchored);
             
-            ImVec4 barDotColor = RGBABaseToFloat4(SubscriptionsBarDotColor);
             ImGui::Dummy(dummySquare);
             ImGui::SameLine();
-            if (ImGui::ColorEdit4("Dot Color##bar_dot_color", &barDotColor.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
-                SubscriptionsBarDotColor = Float4ToRGBABase(barDotColor);
+            ImGui::ColorEdit4("Dot Color##bar_dot_color", SubscriptionsBarDotColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
             
             ImGui::Dummy(dummySquare);
             ImGui::SameLine();
@@ -570,9 +566,7 @@ void AddonOptions()
             // Color swatch for the weekly Wizard's Vault trcked dot
             DisabledBlock(!WeeklyAutoTrackEnabled)
             {
-                ImVec4 weeklyDotColor = RGBABaseToFloat4(WeeklyAutoTrackColor);
-                if (ImGui::ColorEdit4("Weekly Color##weekly_tracking_color", &weeklyDotColor.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
-                    WeeklyAutoTrackColor = Float4ToRGBABase(weeklyDotColor);
+                ImGui::ColorEdit4("Weekly Color##weekly_tracking_color", WeeklyAutoTrackColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
             }
             
             ImGui::Dummy(dummySquare);
@@ -643,19 +637,13 @@ void AddonOptions()
             // control beyond whatever alpha the picker itself lets the user
             // choose for each color.
             {
-                ImVec4 activeColor = RGBABaseToFloat4(BasicEventColorActive);
-                if (ImGui::ColorEdit4("Active##basic_color_active", &activeColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
-                    BasicEventColorActive = Float4ToRGBABase(activeColor);
+                ImGui::ColorEdit4("Active##basic_color_active", BasicEventColorActive, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
                 ImGui::SameLine();
-                ImVec4 soonColor = RGBABaseToFloat4(BasicEventColorSoon);
-                if (ImGui::ColorEdit4("Soon##basic_color_soon", &soonColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
-                    BasicEventColorSoon = Float4ToRGBABase(soonColor);
+                ImGui::ColorEdit4("Soon##basic_color_soon", BasicEventColorSoon, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
                 ImGui::SameLine();
-                ImVec4 waitingColor = RGBABaseToFloat4(BasicEventColorWaiting);
-                if (ImGui::ColorEdit4("Waiting##basic_color_waiting", &waitingColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
-                    BasicEventColorWaiting = Float4ToRGBABase(waitingColor);
+                ImGui::ColorEdit4("Waiting##basic_color_waiting", BasicEventColorWaiting, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
             }
 
             // Size — independent settings, not derived from one another, so an
@@ -1032,7 +1020,7 @@ void AddonOptions()
                 newGroup.continentX = 49332.0f;
                 newGroup.continentY = 31457.0f;
                 newGroup.period     = 7200; // 2h, the most common period in existing data
-                newGroup.colors     = ColorSet{ 0x808080FF }; // neutral gray; user picks a real color next
+                newGroup.colors     = ColorSet{ ImVec4(0.502f, 0.502f, 0.502f, 1.0f) }; // neutral gray (0x808080FF); user picks a real color next
                 g_CyclicGroups.push_back(newGroup);
             }
 

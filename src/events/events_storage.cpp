@@ -124,6 +124,12 @@ static ColorTier ColorTierFromString(const std::string& s)
 
 // Colors are stored as "#RRGGBBAA" hex strings in the JSON — readable when
 // hand-edited — but stay plain ImU32/unsigned int everywhere in C++.
+//
+// Still used for idleColor/customColor below (CyclicGroup::idleColor,
+// CyclicGroup::Slot::customColor) — those are already native ImGui ImU32
+// values, not the packed-RRGGBBAA format ColorSet::base used to be, so they
+// were never part of the float-array migration just below and keep this
+// representation unchanged.
 static std::string ColorToHexString(unsigned int rgba)
 {
     char buf[10];
@@ -136,6 +142,43 @@ static unsigned int HexStringToColor(const std::string& s, unsigned int fallback
     if (s.size() != 9 || s[0] != '#') return fallback;
     try { return (unsigned int)std::stoul(s.substr(1), nullptr, 16); }
     catch (...) { return fallback; }
+}
+
+// ---------------------------------------------------------------------------
+// ColorSet::base (de)serialization
+// ---------------------------------------------------------------------------
+// Written as a plain JSON array of 4 floats — [r, g, b, a] in [0,1] — the
+// same layout ImGui::ColorEdit4 already reads/writes, needing no
+// packing/unpacking at all (see events.h's ColorSet and color_utils.h).
+//
+// DeserializeColorArray also accepts the OLD "#RRGGBBAA" hex-string shape
+// (ColorSet::base used to be a packed unsigned int, hex-encoded the same
+// way idleColor/customColor still are above) as a one-time read fallback.
+// There's no separate "needs resave" flag for this one, unlike
+// settings.ini's equivalent migration in settings.cpp: SaveAllData()
+// already runs unconditionally right after LoadEventsData() on every
+// AddonLoad (see addon.cpp), so the very next write already re-serializes
+// every group through SerializeColorArray below and lands on the new
+// format automatically — nothing extra to trigger here.
+// ---------------------------------------------------------------------------
+static json SerializeColorArray(const ImVec4& c)
+{
+    return json::array({ c.x, c.y, c.z, c.w });
+}
+
+static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
+{
+    if (j.is_array() && j.size() == 4)
+        return ImVec4(j[0].get<float>(), j[1].get<float>(), j[2].get<float>(), j[3].get<float>());
+
+    if (j.is_string())
+    {
+        unsigned int rgba = HexStringToColor(j.get<std::string>(), 0x808080FFu);
+        return ImVec4(((rgba >> 24) & 0xFF) / 255.0f, ((rgba >> 16) & 0xFF) / 255.0f,
+                      ((rgba >>  8) & 0xFF) / 255.0f, ( rgba        & 0xFF) / 255.0f);
+    }
+
+    return fallback;
 }
 
 static json SerializeSlot(const CyclicGroup::Slot& slot)
@@ -188,7 +231,7 @@ static json SerializeGroup(const CyclicGroup& grp)
     j["continentX"] = grp.continentX;
     j["continentY"] = grp.continentY;
     j["period"]     = grp.period;
-    j["colors"]     = ColorToHexString(grp.colors.base);
+    j["colors"]     = SerializeColorArray(grp.colors.base);
 
     if (grp.idleColor.has_value())
         j["idleColor"] = ColorToHexString(*grp.idleColor);
@@ -211,7 +254,7 @@ static CyclicGroup DeserializeGroup(const json& j)
     grp.continentX = j.value("continentX", 0.0f);
     grp.continentY = j.value("continentY", 0.0f);
     grp.period     = j.value("period", 7200);
-    grp.colors     = ColorSet{ HexStringToColor(j.value("colors", std::string("#808080FF")), 0x808080FFu) };
+    grp.colors     = ColorSet{ DeserializeColorArray(j.value("colors", json()), ImVec4(0.502f, 0.502f, 0.502f, 1.0f)) }; // matches the old "#808080FF" default
 
     if (j.contains("idleColor"))
         grp.idleColor = HexStringToColor(j.value("idleColor", std::string()), 0xFFFFFFFFu);

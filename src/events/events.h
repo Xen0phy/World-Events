@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdint>
 #include "imgui.h"
+#include "color_utils.h"
 
 // ---------------------------------------------------------------------------
 // Data version
@@ -106,22 +107,13 @@ extern std::vector<WorldEvent> g_Events;
 // Cyclic Events
 // ---------------------------------------------------------------------------
 
-constexpr ImU32 HEX(unsigned int rrggbbaa, float factor = 1.0f)
-{
-    return IM_COL32(
-        (ImU32)(((rrggbbaa >> 24) & 0xFF) * factor),  // R
-        (ImU32)(((rrggbbaa >> 16) & 0xFF) * factor),  // G
-        (ImU32)(((rrggbbaa >>  8) & 0xFF) * factor),  // B
-          (rrggbbaa        & 0xFF)                     // A unchanged
-    );
-}
-
 struct ColorSet
 {
-    unsigned int base;   // RRGGBBAA — source of truth, editable
-    ImU32 pri() const { return HEX(base); }
-    ImU32 sec() const { return HEX(base, 0.80f); }
-    ImU32 ter() const { return HEX(base, 0.60f); }
+    ImVec4 base;   // RGBA in [0,1] — source of truth, editable directly via
+                    // ImGui::ColorEdit4("Color", &base.x, ...), no wrapper needed
+    ImU32 pri() const { return ColorU32(base); }
+    ImU32 sec() const { return ShadeU32(base, 0.80f); }
+    ImU32 ter() const { return ShadeU32(base, 0.60f); }
 };
 
 enum class ColorTier { Primary, Secondary, Tertiary };

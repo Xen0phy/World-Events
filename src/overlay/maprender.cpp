@@ -2,6 +2,7 @@
 #include "addon.h"
 #include "events.h"
 #include "settings.h"
+#include "color_utils.h"
 #include "imgui.h"
 #include <cmath>
 #include <cstdint>
@@ -450,26 +451,15 @@ void RenderMapEvents()
             continue;
 
         // BasicEventColorActive/Soon/Waiting are user settings, stored as
-        // packed RRGGBBAA (R in the top byte — same convention as
-        // ColorSet::base in events.h), NOT ImGui's native ABGR ImU32
-        // packing, so they need the same explicit channel extraction
-        // HEX()/ColorSet uses rather than being passed to IM_COL32-style
-        // calls directly. There's no separate hardcoded alpha layered on
-        // top any more — whatever alpha the user picked via the color
-        // swatch (the LSB of the packed value) IS the actual opacity
-        // used, for both the plain dot and the icon tint alike.
-        auto toImU32 = [](unsigned int rrggbbaa) {
-            return IM_COL32(
-                (rrggbbaa >> 24) & 0xFF,  // R
-                (rrggbbaa >> 16) & 0xFF,  // G
-                (rrggbbaa >>  8) & 0xFF,  // B
-                  rrggbbaa        & 0xFF  // A
-            );
-        };
-
-        ImU32 colFill = active                    ? toImU32(BasicEventColorActive)
-                      : (secs >= 0 && secs < 900) ? toImU32(BasicEventColorSoon)
-                      :                              toImU32(BasicEventColorWaiting);
+        // plain RGBA floats (see settings_table.h / color_utils.h) — the
+        // same representation ImGui::ColorConvertFloat4ToU32 already
+        // expects, so no custom conversion is needed here. There's no
+        // separate hardcoded alpha layered on top: whatever alpha the
+        // user picked via the color swatch (the 4th float) IS the actual
+        // opacity used, for both the plain dot and the icon tint alike.
+        ImU32 colFill = active                    ? ColorU32(BasicEventColorActive)
+                      : (secs >= 0 && secs < 900) ? ColorU32(BasicEventColorSoon)
+                      :                              ColorU32(BasicEventColorWaiting);
 
         Texture_t* icon = ev.iconTexture.empty() ? nullptr : GetOrRequestEventIcon(ev.iconTexture);
 

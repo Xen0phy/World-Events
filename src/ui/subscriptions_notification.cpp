@@ -36,7 +36,7 @@
 // and pasting the same "<name>: <chatCode>" text via PasteToChat on click
 // as a row in the watchlist window / a segment on the distribution bar.
 
-#include "addon_options_helpers.h"
+#include "color_utils.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
 #include "events_tracking.h"
@@ -77,44 +77,13 @@ static constexpr unsigned long long kFadeInMs = 150;
 // the same group crossing their lead threshold in the same frame).
 static constexpr int kMaxVisiblePopups = 4;
 
-// ---------------------------------------------------------------------------
-// StatusColorToImU32
-// ---------------------------------------------------------------------------
-// Converts a packed RRGGBBAA value (SubscriptionsActiveColor/SoonColor's
-// storage convention — see settings_table.h) into an ImU32 (ABGR) with the
-// given alpha multiplier baked in. Deliberately a local, self-contained
-// copy rather than a shared helper: subscriptions_window.cpp and
-// subscriptions_bar.cpp each already keep their own equivalent conversion
-// rather than factoring one out, since the three files' color needs (plain
-// ImVec4 for TextColored, a drawlist ImU32, and this alpha-baked ImU32) all
-// differ slightly.
-// ---------------------------------------------------------------------------
-static ImU32 StatusColorToImU32(unsigned int rgba, float alphaMul)
-{
-    unsigned char r = (unsigned char)((rgba >> 24) & 0xFF);
-    unsigned char g = (unsigned char)((rgba >> 16) & 0xFF);
-    unsigned char b = (unsigned char)((rgba >>  8) & 0xFF);
-    unsigned char a = (unsigned char)(255.0f * (alphaMul < 0.0f ? 0.0f : (alphaMul > 1.0f ? 1.0f : alphaMul)));
-    return IM_COL32(r, g, b, a);
-}
-
-// ---------------------------------------------------------------------------
-// ThemeColorU32
-// ---------------------------------------------------------------------------
-// Reads whatever Nexus/the user currently has the shared ImGui context
-// themed to (ImGuiCol_WindowBg/ImGuiCol_Text — same context AddonLoad hands
-// off via ImGui::SetCurrentContext, see addon.cpp) instead of a color this
-// addon picks itself, so the toast's background/name text match every
-// other Nexus window rather than a hardcoded dark gray/white. alphaMul
-// (0..1) multiplies the style color's OWN alpha rather than replacing it,
-// so a translucent theme keeps its translucency, just faded further
-// in/out on top of it by this popup's own fade animation.
-// ---------------------------------------------------------------------------
-static ImU32 ThemeColorU32(ImGuiCol styleColor, float alphaMul)
-{
-    ImVec4 c = ImGui::GetStyleColorVec4(styleColor);
-    return ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * alphaMul));
-}
+// ThemeColorU32 (reads the live Nexus/ImGui theme rather than a color this
+// addon picks itself) now lives in color_utils.h, shared with
+// subscriptions_bar.cpp. StatusColorToImU32 — the old RRGGBBAA-unpack-plus-
+// alpha-override helper this file used to keep its own copy of — is gone
+// entirely: Popup::color is a plain ImVec4 now (see below), so applying the
+// fade is just `c.w *= alpha` at the one call site that needs it, no
+// conversion function required.
 
 // ---------------------------------------------------------------------------
 // Popup
@@ -132,7 +101,7 @@ struct Popup
     std::string name;      // display name, e.g. "Tequatl the Sunless" or "Domain of Vabbi - Forged Assault"
     std::string chatCode;
     std::string message;   // e.g. "Starting in 4m 32s" or "Now active!"
-    unsigned int color;    // packed RRGGBBAA — SubscriptionsSoonColor for the lead popup, SubscriptionsActiveColor for the start popup
+    ImVec4 color;    // RGBA floats — SubscriptionsSoonColor for the lead popup, SubscriptionsActiveColor for the start popup
     unsigned long long spawnedAtMs;
     bool isWeekly = false; // active-and-incomplete weekly Wizard's Vault target this week (weekly_vault.h) — draws an
                            // additional thin red border, same "counts toward this week's Wizard's Vault objective"
@@ -151,7 +120,7 @@ struct Popup
 static std::vector<Popup> s_popups;
 
 static void SpawnPopup(const std::string& key, const std::string& name, const std::string& chatCode,
-                        const std::string& message, unsigned int rgba, bool isWeekly,
+                        const std::string& message, const ImVec4& color, bool isWeekly,
                         bool isBasic, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey)
 {
     Popup p;
@@ -159,7 +128,7 @@ static void SpawnPopup(const std::string& key, const std::string& name, const st
     p.name         = name;
     p.chatCode     = chatCode;
     p.message      = message;
-    p.color        = rgba;
+    p.color        = color;
     p.spawnedAtMs  = GetTickCount64();
     p.isWeekly     = isWeekly;
     p.isBasic      = isBasic;
@@ -339,7 +308,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
             // Just went active this frame.
             if (NotificationOnStart && c.toastEnabled)
             {
-                SpawnPopup(c.key, c.name, c.chatCode, "Now active!", SubscriptionsActiveColor, c.isWeekly,
+                SpawnPopup(c.key, c.name, c.chatCode, "Now active!", ToImVec4(SubscriptionsActiveColor), c.isWeekly,
                            c.isBasic, c.basicName, c.cyclicKey);
                 if (c.soundEnabled)
                     PlayNotificationSound(NotificationSoundFile);
@@ -369,7 +338,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
                 {
                     char buf[48];
                     snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
-                    SpawnPopup(c.key, c.name, c.chatCode, buf, SubscriptionsSoonColor, c.isWeekly,
+                    SpawnPopup(c.key, c.name, c.chatCode, buf, ToImVec4(SubscriptionsSoonColor), c.isWeekly,
                                c.isBasic, c.basicName, c.cyclicKey);
                     if (c.soundEnabled)
                         PlayNotificationSound(NotificationSoundFile);
@@ -539,7 +508,7 @@ static void DrawAndExpirePopups()
         ImVec2 rectMax(x + kPopupWidth, y + kPopupHeight);
 
         ImU32 bgCol     = ThemeColorU32(ImGuiCol_WindowBg, alpha);
-        ImU32 accentCol = StatusColorToImU32(p.color, alpha);
+        ImU32 accentCol = FadeU32(p.color, alpha);
         ImU32 textCol   = ThemeColorU32(ImGuiCol_Text, alpha);
 
         dl->AddRectFilled(rectMin, rectMax, bgCol, 6.0f);
@@ -561,9 +530,7 @@ static void DrawAndExpirePopups()
         if (p.isWeekly)
         {
             static constexpr float kWeeklyBorderThickness = 1.5f;
-            ImVec4 c = RGBABaseToFloat4(WeeklyAutoTrackColor);
-            c.w *= alpha;
-            ImU32 weeklyBorderCol = ImGui::ColorConvertFloat4ToU32(c);
+            ImU32 weeklyBorderCol = FadeU32(ToImVec4(WeeklyAutoTrackColor), alpha);
             dl->AddRect(
                 ImVec2(rectMin.x + kWeeklyBorderThickness * 0.5f, rectMin.y + kWeeklyBorderThickness * 0.5f),
                 ImVec2(rectMax.x - kWeeklyBorderThickness * 0.5f, rectMax.y - kWeeklyBorderThickness * 0.5f),

@@ -8,6 +8,7 @@
 // the actual Nexus options UI.
 
 #include "addon_options_helpers.h"
+#include "color_utils.h"
 
 #include "subscriptions.h"
 #include "events_tracking.h"
@@ -121,28 +122,6 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
         for (int idx : targetIndices)
             g_Events[idx].iconTexture = newIcon;
     }
-}
-
-// ---------------------------------------------------------------------------
-// Color conversion
-// ---------------------------------------------------------------------------
-ImVec4 RGBABaseToFloat4(unsigned int rgba)
-{
-    return ImVec4(
-        ((rgba >> 24) & 0xFF) / 255.0f, // R
-        ((rgba >> 16) & 0xFF) / 255.0f, // G
-        ((rgba >>  8) & 0xFF) / 255.0f, // B
-        ( rgba        & 0xFF) / 255.0f  // A
-    );
-}
-
-unsigned int Float4ToRGBABase(const ImVec4& c)
-{
-    auto byteOf = [](float f) -> unsigned int {
-        int v = (int)(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
-        return (unsigned int)v;
-    };
-    return (byteOf(c.x) << 24) | (byteOf(c.y) << 16) | (byteOf(c.z) << 8) | byteOf(c.w);
 }
 
 // ---------------------------------------------------------------------------
@@ -1032,19 +1011,18 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         ImGui::SetNextItemWidth(50.0f);
         DrawPeriodHoursDragInt(&grp.period);
 
-        // Base color (colors.base) — RRGGBBAA, needs RGBABaseToFloat4's
-        // explicit conversion rather than ColorConvertU32ToFloat4.
-        ImVec4 baseColor = RGBABaseToFloat4(grp.colors.base);
-        if (ImGui::ColorEdit4("Color", &baseColor.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
-            grp.colors.base = Float4ToRGBABase(baseColor);
+        // Base color — colors.base is a plain ImVec4, so ColorEdit4 binds
+        // to it directly; no read/convert/write-back round trip needed.
+        ImGui::ColorEdit4("Color", &grp.colors.base.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
         // Idle color override — optional. Unchecked: idle track uses
         // colors.ter() automatically (see CyclicGroup::IdleColor() in
         // events.h); checked: the swatch becomes live and its value is
-        // stored as an explicit override. This DOES use
-        // ColorConvertU32ToFloat4/Float4ToU32 directly, unlike the base
-        // color above — idleColor is already a real ImGui ImU32 (it's
-        // fed straight into DrawArc calls), not an RRGGBBAA value.
+        // stored as an explicit override. Goes through ColorFloat4/
+        // ColorU32 (color_utils.h) rather than ToImVec4/ShadeU32/FadeU32
+        // like the base color above — idleColor is already a real ImGui
+        // ImU32 (it's fed straight into DrawArc calls), not an RGBA-float
+        // setting, so there's no float[4] on the other end to convert.
         ImGui::SameLine();
         bool hasCustomIdle = grp.idleColor.has_value();
         if (ImGui::Checkbox("##customcolorcyclicgroup", &hasCustomIdle))
@@ -1059,9 +1037,9 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         DisabledBlock(!hasCustomIdle)
         {
             ImU32 idleU32 = grp.idleColor.has_value() ? *grp.idleColor : grp.colors.ter();
-            ImVec4 idleColorVec = ImGui::ColorConvertU32ToFloat4(idleU32);
+            ImVec4 idleColorVec = ColorFloat4(idleU32);
             if (ImGui::ColorEdit4("Custom Color##group", &idleColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
-                grp.idleColor = ImGui::ColorConvertFloat4ToU32(idleColorVec);
+                grp.idleColor = ColorU32(idleColorVec);
         }
 
         // -----------------------------------------------------------
@@ -1211,9 +1189,9 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 DisabledBlock(!hasCustomColor)
                 {
                     ImU32 slotU32 = slot.customColor.has_value() ? *slot.customColor : grp.SlotColor(slot);
-                    ImVec4 slotColorVec = ImGui::ColorConvertU32ToFloat4(slotU32);
+                    ImVec4 slotColorVec = ColorFloat4(slotU32);
                     if (ImGui::ColorEdit4("Custom Color##slot", &slotColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
-                        slot.customColor = ImGui::ColorConvertFloat4ToU32(slotColorVec);
+                        slot.customColor = ColorU32(slotColorVec);
                 }
 
                 // Chat/map code for this specific slot/occurrence, same

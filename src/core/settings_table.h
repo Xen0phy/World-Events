@@ -41,6 +41,22 @@
 #define SETTING_SECRET(S, Key, Default) SETTING(S, Key, std::string, Default)
 #endif
 
+// Same idea as SETTING above, but for a fixed-size array of floats instead
+// of one scalar — currently used only for colors (N=4: R,G,B,A in [0,1],
+// the exact layout ImGui::ColorEdit3/4 read/write directly). Kept generic
+// on N rather than hardcoding "color" into the macro name in case a future
+// setting needs some other small float tuple.
+//
+// ARR(...) is just `{ ... }` under a name that reads better at the call
+// site than a bare brace-init would (SETTING_ARRAY(..., 4, { 0.2f, ... })
+// looks like a stray brace; ARR(0.2f, ...) reads as "this is the array").
+#ifndef SETTING_ARRAY
+#define SETTING_ARRAY(S, Key, N, Default)
+#endif
+#ifndef ARR
+#define ARR(...) { __VA_ARGS__ }
+#endif
+
 // ---------------------------------------------------------------------------
 // [Cyclic]
 // ---------------------------------------------------------------------------
@@ -67,17 +83,17 @@ SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
 // maprender.cpp — one shared color per status, applied to every Basic
 // Event (not per-event; see DrawBulkIconPicker's "All icons" picker for
 // the equivalent all-at-once pattern already used for icon choice).
-// Stored as packed RRGGBBAA unsigned ints, matching CyclicGroup::colors'
-// existing convention in events.h, rather than introducing a new
-// SETTING_ARRAY macro variant just for this.
+// Stored as RGBA floats in [0,1] — ImGui::ColorEdit4 reads/writes these
+// arrays directly (see addon_options.cpp), and drawing converts to an
+// ImU32 via the plain ImGui::ColorConvertFloat4ToU32 (see color_utils.h)
+// — no custom packing/unpacking anywhere.
 //
 // No separate alpha setting: alpha lives in the color itself (the 4th
-// channel of the packed RRGGBBAA value below) — whatever alpha the user
-// picks via the color swatch IS the actual opacity used, nothing layered
-// on top of it.
-SETTING(BasicEvents, BasicEventColorActive,  unsigned int, 0xFF3232B4u) // red
-SETTING(BasicEvents, BasicEventColorSoon,    unsigned int, 0xFF8C00B4u) // orange
-SETTING(BasicEvents, BasicEventColorWaiting, unsigned int, 0xA0A0A0B4u) // gray
+// float below) — whatever alpha the user picks via the color swatch IS
+// the actual opacity used, nothing layered on top of it.
+SETTING_ARRAY(BasicEvents, BasicEventColorActive,  4, ARR(1.000f, 0.196f, 0.196f, 0.706f)) // red    (was 0xFF3232B4u)
+SETTING_ARRAY(BasicEvents, BasicEventColorSoon,    4, ARR(1.000f, 0.549f, 0.000f, 0.706f)) // orange (was 0xFF8C00B4u)
+SETTING_ARRAY(BasicEvents, BasicEventColorWaiting, 4, ARR(0.627f, 0.627f, 0.627f, 0.706f)) // gray   (was 0xA0A0A0B4u)
 
 // Size, in pixels. Independent of each other — changing one does NOT
 // affect the other. BasicEventIconSize is the icon's HALF-width (matching
@@ -158,7 +174,7 @@ SETTING(Subscriptions, SubscriptionsBarBottomAnchored,  bool, false)
 
 // Default color for the subscription bar's dots. Alpha will be suppressed in
 // settings for visibility reasons. Defaulted to plain white.
-SETTING(Subscriptions, SubscriptionsBarDotColor, unsigned int, 0xFEFFFEFFu)
+SETTING_ARRAY(Subscriptions, SubscriptionsBarDotColor, 4, ARR(0.996f, 1.000f, 0.996f, 1.000f)) // was 0xFEFFFEFFu
 
 // How long the mouse must sit still over a distribution-line segment or
 // dot marker (subscriptions_bar.cpp) before its curve-drop hover
@@ -235,14 +251,18 @@ SETTING(Subscriptions, SubscriptionsBarHideActive, bool, false)
 // one — the list only needs to draw attention to the two states that are
 // actually time-sensitive.
 //
-// Stored as packed RRGGBBAA like the map's BasicEventColor* settings, but
-// note the LOW BYTE (alpha) is unused/ignored here: this feeds straight
-// into ImGui::TextColored, which is plain text with no separate opacity
-// control worth exposing, so the options-panel picker for these is a
-// ColorEdit3 (RGB only, see addon_options.cpp) rather than ColorEdit4 —
+// Stored as RGBA floats, same as the map's BasicEventColor* settings, but
+// note the 4th component (alpha) is unused/ignored here: this feeds
+// straight into ImGui::TextColored, which is plain text with no separate
+// opacity control worth exposing, so the options-panel picker for these is
+// a ColorEdit3 (RGB only, see addon_options.cpp) rather than ColorEdit4 —
 // unlike BasicEventColor*, which DOES use every channel including alpha.
-SETTING(Subscriptions, SubscriptionsActiveColor, unsigned int, 0x66FF66FFu) // light green
-SETTING(Subscriptions, SubscriptionsSoonColor,   unsigned int, 0xFF8C00FFu) // orange, matches BasicEventColorSoon's RGB
+// The unused 4th slot is still stored (rather than shrinking these to
+// SETTING_ARRAY(..., 3, ...)) purely so ToImVec4/ToImVec4Opaque in
+// color_utils.h can stay one shared helper for every color setting,
+// instead of a separate 3-float variant just for these two.
+SETTING_ARRAY(Subscriptions, SubscriptionsActiveColor, 4, ARR(0.400f, 1.000f, 0.400f, 1.000f)) // light green (was 0x66FF66FFu)
+SETTING_ARRAY(Subscriptions, SubscriptionsSoonColor,   4, ARR(1.000f, 0.549f, 0.000f, 1.000f)) // orange, matches BasicEventColorSoon's RGB (was 0xFF8C00FFu)
 
 // Master switch for the "auto-tracked weekly Wizard's Vault target" overlay
 // shared by all three subscription views (subscriptions_window.cpp,
@@ -264,7 +284,7 @@ SETTING(Subscriptions, WeeklyAutoTrackEnabled, bool, true)
 // Default color for the weekly markers on the subscription bar, window and
 // notification toast border. Alpha will be suppressed in settings for
 // visibility reasons. Defaulted to red.
-SETTING(Subscriptions, WeeklyAutoTrackColor, unsigned int, 0xFF2828FFu)
+SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f, 1.000f)) // was 0xFF2828FFu
 
 // GW2 API key (needs at minimum the "progression" permission), used ONLY
 // to call GET /v2/account/worldbosses — see gw2_api.h/.cpp. Drives

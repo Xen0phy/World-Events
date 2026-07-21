@@ -16,6 +16,7 @@
 #include <fstream>
 #include <filesystem>
 #include <cstring>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -23,8 +24,10 @@ namespace fs = std::filesystem;
 // Global storage
 // ---------------------------------------------------------------------------
 #define SETTING(S, Key, Type, Default) Type Key = Default;
+#define SETTING_ARRAY(S, Key, N, Default) float Key[N] = Default;
 #include "settings_table.h"
 #undef SETTING
+#undef SETTING_ARRAY
 #undef SETTING_SECRET
 
 // ---------------------------------------------------------------------------
@@ -56,9 +59,21 @@ bool SaveSettings(const std::string& addonDir)
         #define SETTING_SECRET(S, Key, Default) \
             if (!lastSection || strcmp(lastSection, #S) != 0) { f << "\n[" #S "]\n"; lastSection = #S; } \
             write(#Key, ApiKeyCrypto::Encrypt(addonDir, Key));
+        // Comma-joined ("r,g,b,a"), same section-header logic as SETTING
+        // above. This is the ONLY place a SETTING_ARRAY value's on-disk
+        // shape is written — see ParseColorArray below for the matching
+        // read side, including its one-time legacy-format fallback.
+        #define SETTING_ARRAY(S, Key, N, Default) \
+            if (!lastSection || strcmp(lastSection, #S) != 0) { f << "\n[" #S "]\n"; lastSection = #S; } \
+            { \
+                f << #Key << "="; \
+                for (int _i = 0; _i < N; _i++) f << (_i ? "," : "") << Key[_i]; \
+                f << "\n"; \
+            }
         #include "settings_table.h"
         #undef SETTING
         #undef SETTING_SECRET
+        #undef SETTING_ARRAY
 
         return true;
     }
@@ -86,6 +101,56 @@ template<> float        parse<float>       (const std::string& v) { return std::
 template<> unsigned int parse<unsigned int>(const std::string& v) { return (unsigned int)std::stoul(v); }
 template<> std::string  parse<std::string> (const std::string& v) { return v; }
 
+// ---------------------------------------------------------------------------
+// ParseColorArray
+// ---------------------------------------------------------------------------
+// Reads a SETTING_ARRAY(..., 4, ...) color value out of its on-disk form.
+// Two shapes are accepted:
+//
+//   - CURRENT: "r,g,b,a" — comma-joined floats in [0,1], written by
+//     SaveSettings above. The normal case for every load once a user has
+//     saved at least once since this migration.
+//
+//   - LEGACY: a single decimal integer — the packed RRGGBBAA value these
+//     same keys held back when they were `SETTING(..., unsigned int, ...)`.
+//     Only ever seen on the FIRST load of a settings.ini written by an
+//     older build; unpacked into the same [0,1] float layout here so the
+//     rest of the addon never needs to know the packed format existed.
+//
+// Sets *wasLegacy = true only for the second case, so LoadSettings can
+// trigger exactly one SaveSettings() rewrite after a load that actually
+// touched the old format — settings.ini otherwise is NOT rewritten on
+// every load (unlike events.json — see events_storage.cpp), so without
+// this a legacy file would silently keep re-migrating in memory every
+// single run without ever actually updating on disk.
+// ---------------------------------------------------------------------------
+static void ParseColorArray(const std::string& val, float* out, int n, bool* wasLegacy)
+{
+    if (val.find(',') != std::string::npos)
+    {
+        std::stringstream ss(val);
+        std::string tok;
+        int i = 0;
+        while (i < n && std::getline(ss, tok, ','))
+            out[i++] = std::stof(tok);
+        if (i != n) throw std::runtime_error("wrong component count for color array");
+        *wasLegacy = false;
+        return;
+    }
+
+    // Legacy path assumes the RRGGBBAA packing every color setting used
+    // before this migration, so it only makes sense for n==4 — every
+    // current SETTING_ARRAY color is exactly that, so this isn't a real
+    // restriction in practice, just documenting the assumption.
+    if (n != 4) throw std::runtime_error("legacy color format requires n==4");
+    unsigned int rgba = (unsigned int)std::stoul(val);
+    out[0] = ((rgba >> 24) & 0xFF) / 255.0f;
+    out[1] = ((rgba >> 16) & 0xFF) / 255.0f;
+    out[2] = ((rgba >>  8) & 0xFF) / 255.0f;
+    out[3] = ( rgba        & 0xFF) / 255.0f;
+    *wasLegacy = true;
+}
+
 bool LoadSettings(const std::string& addonDir)
 {
     try
@@ -93,6 +158,13 @@ bool LoadSettings(const std::string& addonDir)
         std::string filepath = addonDir + "\\settings.ini";
         std::ifstream f(filepath);
         if (!f.is_open()) return false; // no file yet — keep compiled-in defaults
+
+        // Set true by ParseColorArray whenever a SETTING_ARRAY color is
+        // read in its pre-migration packed-RRGGBBAA form — see
+        // ParseColorArray's comment above for why this then triggers one
+        // SaveSettings() rewrite below, rather than leaving the file
+        // holding a mix of old- and new-format keys indefinitely.
+        bool migratedLegacyColor = false;
 
         std::string line;
         while (std::getline(f, line))
@@ -133,10 +205,31 @@ bool LoadSettings(const std::string& addonDir)
                     } \
                     catch (...) { } \
                 }
+            #define SETTING_ARRAY(S, Key, N, Default) \
+                else if (key == #Key) \
+                { \
+                    try { \
+                        bool wasLegacy = false; \
+                        ParseColorArray(val, Key, N, &wasLegacy); \
+                        if (wasLegacy) migratedLegacyColor = true; \
+                    } \
+                    catch (...) { /* malformed value for this one key — leave it as-is, keep loading the rest of the file */ } \
+                }
             #include "settings_table.h"
             #undef SETTING
             #undef SETTING_SECRET
+            #undef SETTING_ARRAY
         }
+
+        // One immediate rewrite if this load touched any pre-migration
+        // packed-color value, so settings.ini is on the new format from
+        // here on — see ParseColorArray's comment for why this can't just
+        // rely on the normal AddonUnload-time save instead (a crash or
+        // force-kill before then would otherwise leave the legacy value
+        // on disk forever, silently re-migrating in memory every load).
+        if (migratedLegacyColor)
+            SaveSettings(addonDir);
+
         return true;
     }
     catch (...) { return false; }

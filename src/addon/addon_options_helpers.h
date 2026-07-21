@@ -7,10 +7,10 @@
 //
 // addon_options.cpp (AddonOptions() itself) includes this and calls into
 // it directly for several things beyond just the row drawers (bulk icon
-// picker, color conversion, category name/context-menu rows, search
-// predicates, the drag-drop "uncategorized" targets, and the
-// DisabledBlock macro) — so these are declared here with external
-// linkage rather than kept `static` in one .cpp.
+// picker, category name/context-menu rows, search predicates, the
+// drag-drop "uncategorized" targets, and the DisabledBlock macro) — so
+// these are declared here with external linkage rather than kept
+// `static` in one .cpp.
 //
 // addon_options_helpers.cpp holds every implementation; nothing here
 // should need editing just to change behavior, only to change a
@@ -66,17 +66,6 @@ void DrawPeriodHoursDragInt(int* periodSeconds);
 // "All icons" picker, but written generically over any index list.
 // ---------------------------------------------------------------------------
 void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices);
-
-// ---------------------------------------------------------------------------
-// Color conversion: ColorSet::base is RRGGBBAA (see HEX() in events.h),
-// which is NOT ImGui's own ABGR packing, so it can't go through
-// ColorConvertU32ToFloat4/Float4ToU32 directly — these two do the
-// explicit channel mapping instead. idleColor, notably, IS a real ImGui
-// ImU32 already and does NOT use these; see cyclicrender.cpp / the group
-// row's idle-color swatch.
-// ---------------------------------------------------------------------------
-ImVec4       RGBABaseToFloat4(unsigned int rgba);
-unsigned int Float4ToRGBABase(const ImVec4& c);
 
 // ---------------------------------------------------------------------------
 // Duplicate-name warnings. These match the actual merge keys used in

@@ -4,12 +4,12 @@
 // subscribed event/slot across a fixed 2h window, that curves into a
 // filled colored block under the mouse.
 
-#include "addon_options_helpers.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
 #include "events_tracking.h"
 #include "events.h"
 #include "settings.h"
+#include "color_utils.h"
 #include "imgui.h"
 #include "addon.h" // SubsBarDataTimer/SubsBarDrawTimer — see their comment in addon.h
 #include <ctime>
@@ -46,27 +46,11 @@ static ImU32 BasicEventColorFor(const std::string& name)
     return IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), 255);
 }
 
-// ---------------------------------------------------------------------------
-// ThemeColorU32
-// ---------------------------------------------------------------------------
-// Reads whatever Nexus/the user currently has the shared ImGui context
-// themed to (ImGuiCol_WindowBg/ImGuiCol_Text — same context AddonLoad
-// hands off via ImGui::SetCurrentContext, see addon.cpp), rather than a
-// color this addon picks itself. alphaMul (0..1) multiplies the style
-// color's OWN alpha rather than replacing it, so a user who's set a
-// translucent theme keeps that translucency, just faded further in/out
-// on top of it by our own animation. Used for the dropped block/pill's
-// background fill and its label text below — the per-segment color
-// (LineSegment::color) is reserved for the line/outline stroke only, so
-// the pop-out's background reads as "this addon's UI", consistent with
-// every other Nexus window, rather than a solid tint of the event's own
-// color.
-// ---------------------------------------------------------------------------
-static ImU32 ThemeColorU32(ImGuiCol styleColor, float alphaMul)
-{
-    ImVec4 c = ImGui::GetStyleColorVec4(styleColor);
-    return ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * alphaMul));
-}
+// ThemeColorU32 (used for the dropped block/pill's background fill and its
+// label text below — the per-segment color, LineSegment::color, is
+// reserved for the line/outline stroke only, so the pop-out's background
+// reads as "this addon's UI" rather than a solid tint of the event's own
+// color) now lives in color_utils.h, shared with subscriptions_notification.cpp.
 
 // ---------------------------------------------------------------------------
 // LineSegment
@@ -1001,9 +985,8 @@ void RenderSubscriptionsBar()
         float alpha = 1.0f - depth;
         if (alpha <= 0.02f) continue;
 
-        ImVec4 c = RGBABaseToFloat4(dotSeg.isWeekly ? WeeklyAutoTrackColor : SubscriptionsBarDotColor);
-        c.w *= (235.0f / 255.0f) * alpha; // keep your 235 cap, scaled by fade
-        ImU32 dotColor = ImGui::ColorConvertFloat4ToU32(c);
+        ImVec4 c = ToImVec4(dotSeg.isWeekly ? WeeklyAutoTrackColor : SubscriptionsBarDotColor);
+        ImU32 dotColor = FadeU32(c, (235.0f / 255.0f) * alpha); // keep your 235 cap, scaled by fade
 
         dl->AddCircleFilled(ImVec2(dotDrawX[d], kDotY), kDotRadius, dotColor, 12);
     }

@@ -4,19 +4,25 @@
 // ---------------------------------------------------------------------------
 // Color helpers
 // ---------------------------------------------------------------------------
-// DarkenColor scales the R, G, B channels by `factor` while keeping alpha.
-// Use it to derive secondary/tertiary shades from a single seed color.
+// Each group is seeded with one base color, written directly as the RGBA
+// floats ColorSet::base actually stores (see events.h) — no hex literal or
+// conversion function of any kind, at compile time or otherwise. The
+// comment after each line is only the hex value these were originally
+// picked from, kept purely so a future edit can still reason in hex if
+// that's easier, e.g. pasting a value from an external color picker.
+// ColorSet::sec()/ter() then derive the secondary/tertiary shades a slot's
+// `tier` picks between by scaling R/G/B down, alpha unchanged.
 // ---------------------------------------------------------------------------
-constexpr ColorSet COL_LWS2 { 0x715F18FF };
-constexpr ColorSet COL_HOT  { 0x667118FF };
-constexpr ColorSet COL_LWS3 { 0x52763BFF };
-constexpr ColorSet COL_POF  { 0x976320FF };
-constexpr ColorSet COL_LWS4 { 0x7E3494FF };
-constexpr ColorSet COL_IBS  { 0x206697FF };
-constexpr ColorSet COL_EOD  { 0x208B97FF };
-constexpr ColorSet COL_SOTO { 0xD19C3CFF };
-constexpr ColorSet COL_JW   { 0x18347EFF };
-constexpr ColorSet COL_VOE  { 0xAB401AFF };
+const ColorSet COL_LWS2 { ImVec4(0.443f, 0.373f, 0.094f, 1.000f) }; // 0x715F18FF
+const ColorSet COL_HOT  { ImVec4(0.400f, 0.443f, 0.094f, 1.000f) }; // 0x667118FF
+const ColorSet COL_LWS3 { ImVec4(0.322f, 0.463f, 0.231f, 1.000f) }; // 0x52763BFF
+const ColorSet COL_POF  { ImVec4(0.592f, 0.388f, 0.125f, 1.000f) }; // 0x976320FF
+const ColorSet COL_LWS4 { ImVec4(0.494f, 0.204f, 0.580f, 1.000f) }; // 0x7E3494FF
+const ColorSet COL_IBS  { ImVec4(0.125f, 0.400f, 0.592f, 1.000f) }; // 0x206697FF
+const ColorSet COL_EOD  { ImVec4(0.125f, 0.545f, 0.592f, 1.000f) }; // 0x208B97FF
+const ColorSet COL_SOTO { ImVec4(0.820f, 0.612f, 0.235f, 1.000f) }; // 0xD19C3CFF
+const ColorSet COL_JW   { ImVec4(0.094f, 0.204f, 0.494f, 1.000f) }; // 0x18347EFF
+const ColorSet COL_VOE  { ImVec4(0.671f, 0.251f, 0.102f, 1.000f) }; // 0xAB401AFF
 
 std::vector<CyclicGroup> g_CyclicGroups =
 {
