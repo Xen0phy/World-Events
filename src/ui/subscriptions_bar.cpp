@@ -4,6 +4,7 @@
 // subscribed event/slot across a fixed 2h window, that curves into a
 // filled colored block under the mouse.
 
+#include "addon_options_helpers.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
 #include "events_tracking.h"
@@ -999,9 +1000,11 @@ void RenderSubscriptionsBar()
         float depth = s_dropStates[dotSeg.key].amount;
         float alpha = 1.0f - depth;
         if (alpha <= 0.02f) continue;
-        ImU32 dotColor = dotSeg.isWeekly
-            ? IM_COL32(220, 40, 40, (int)(235 * alpha))
-            : IM_COL32(255, 255, 255, (int)(235 * alpha));
+
+        ImVec4 c = RGBABaseToFloat4(dotSeg.isWeekly ? WeeklyAutoTrackColor : SubscriptionsBarDotColor);
+        c.w *= (235.0f / 255.0f) * alpha; // keep your 235 cap, scaled by fade
+        ImU32 dotColor = ImGui::ColorConvertFloat4ToU32(c);
+
         dl->AddCircleFilled(ImVec2(dotDrawX[d], kDotY), kDotRadius, dotColor, 12);
     }
 

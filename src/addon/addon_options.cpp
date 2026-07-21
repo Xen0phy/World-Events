@@ -273,6 +273,12 @@ void AddonOptions()
             ImGui::SameLine();
             ImGui::Checkbox("Bottom Line", &SubscriptionsBarBottomAnchored);
             
+            ImVec4 barDotColor = RGBABaseToFloat4(SubscriptionsBarDotColor);
+            ImGui::Dummy(dummySquare);
+            ImGui::SameLine();
+            if (ImGui::ColorEdit4("Dot Color##bar_dot_color", &barDotColor.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
+                SubscriptionsBarDotColor = Float4ToRGBABase(barDotColor);
+            
             ImGui::Dummy(dummySquare);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(50);
@@ -304,7 +310,10 @@ void AddonOptions()
             }
             Tooltip("How long the mouse has to sit still over a segment or dot\n"
                     "before it pops out. 0 = instant.");
-                
+
+            float screenWidth = ImGui::GetIO().DisplaySize.x;
+            float screenHeight = ImGui::GetIO().DisplaySize.y;
+
             ImGui::Dummy(dummySquare);
             ImGui::SameLine();
             ImGui::Text("Unsafe zone");
@@ -312,40 +321,72 @@ void AddonOptions()
             ImGui::Dummy(dummySquare);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(50);
-            if (ImGui::InputInt("Left##leftuz", &SubscriptionsBarUnsafeLeftPx, 0, 0))
+            if (ImGui::DragInt("Left##leftuz", &SubscriptionsBarUnsafeLeftPx, 1, 0,0, "%dpx"))
             {
-                if (SubscriptionsBarUnsafeLeftPx < 0)    SubscriptionsBarUnsafeLeftPx = 0;
-                if (SubscriptionsBarUnsafeLeftPx > 1000) SubscriptionsBarUnsafeLeftPx = 1000;
+                if (SubscriptionsBarUnsafeLeftPx < 0)           SubscriptionsBarUnsafeLeftPx = 0;
+                if (SubscriptionsBarUnsafeLeftPx > screenWidth)  SubscriptionsBarUnsafeLeftPx = (int)screenWidth;
+                if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
+                    SubscriptionsBarUnsafeRightPx = (int)screenWidth - SubscriptionsBarUnsafeLeftPx;
             }
+            bool leftActive = ImGui::IsItemActive();
             Tooltip("Width from the LEFT screen edge, in px, treated as\n"
                     "covered by your own GW2 UI (e.g. party/buffs). Segments\n"
                     "in this zone drop lower instead of covering it.\n"
                     "0 disables the left zone.");
-                
+            
             ImGui::SameLine();
             ImGui::SetNextItemWidth(50);
-            if (ImGui::InputInt("Right##rightuz", &SubscriptionsBarUnsafeRightPx, 0, 0))
+            if (ImGui::DragInt("Right##rightuz", &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
             {
-                if (SubscriptionsBarUnsafeRightPx < 0)    SubscriptionsBarUnsafeRightPx = 0;
-                if (SubscriptionsBarUnsafeRightPx > 1000) SubscriptionsBarUnsafeRightPx = 1000;
+                if (SubscriptionsBarUnsafeRightPx < 0)           SubscriptionsBarUnsafeRightPx = 0;
+                if (SubscriptionsBarUnsafeRightPx > screenWidth)  SubscriptionsBarUnsafeRightPx = (int)screenWidth;
+                if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
+                    SubscriptionsBarUnsafeLeftPx = (int)screenWidth - SubscriptionsBarUnsafeRightPx;
             }
+            bool rightActive = ImGui::IsItemActive();
             Tooltip("Width from the RIGHT screen edge, in px, treated as\n"
                     "covered by your own GW2 UI (e.g. minimap/compass).\n"
                     "Segments in this zone drop lower instead of covering it.\n"
                     "0 disables the right zone.");
-                
+            
             ImGui::Dummy(dummySquare);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(50);
-            if (ImGui::InputInt("Height##heightuz", &SubscriptionsBarUnsafeHeightPx, 0, 0))
+            if (ImGui::DragInt("Height##heightuz", &SubscriptionsBarUnsafeHeightPx, 1, 0, 0, "%dpx"))
             {
                 if (SubscriptionsBarUnsafeHeightPx < 0)    SubscriptionsBarUnsafeHeightPx = 0;
-                if (SubscriptionsBarUnsafeHeightPx > 1000) SubscriptionsBarUnsafeHeightPx = 1000;
+                if (SubscriptionsBarUnsafeHeightPx > screenHeight) SubscriptionsBarUnsafeHeightPx = screenHeight;
             }
+            bool heightActive = ImGui::IsItemActive();
             Tooltip("How tall your corner UI is, in px. Segments inside\n"
                     "either unsafe zone start their drop this far down\n"
                     "instead of from the line itself, so the popped-out\n"
                     "block clears your UI.");
+            
+            // Live preview, only while one of the three fields above is focused.
+            // Mirrors subscriptions_bar.cpp's own top/bottom-anchor math so the
+            // preview lines up with where the real unsafe zone will actually sit.
+            if (leftActive || rightActive || heightActive)
+            {
+                ImDrawList* dl = ImGui::GetForegroundDrawList();
+                const ImU32 kYellow = IM_COL32(255, 220, 0, 255);
+                const float kDropDir  = SubscriptionsBarBottomAnchored ? -1.0f : 1.0f;
+                const float kBaselineY = SubscriptionsBarBottomAnchored
+                    ? (ImGui::GetIO().DisplaySize.y - 1.0f)
+                    : 1.0f;
+                const float h = kBaselineY + kDropDir * (float)SubscriptionsBarUnsafeHeightPx;
+            
+                // Left zone: vertical edge + horizontal top from the screen edge to it
+                dl->AddLine(ImVec2((float)SubscriptionsBarUnsafeLeftPx, kBaselineY),
+                            ImVec2((float)SubscriptionsBarUnsafeLeftPx, h), kYellow, 2.0f);
+                dl->AddLine(ImVec2(0.0f, h),
+                            ImVec2((float)SubscriptionsBarUnsafeLeftPx, h), kYellow, 2.0f);
+            
+                // Right zone: mirrored
+                float xRight = screenWidth - (float)SubscriptionsBarUnsafeRightPx;
+                dl->AddLine(ImVec2(xRight, kBaselineY), ImVec2(xRight, h), kYellow, 2.0f);
+                dl->AddLine(ImVec2(xRight, h), ImVec2(screenWidth, h), kYellow, 2.0f);
+            }
         }
 
         ImGui::EndTable();
@@ -525,6 +566,14 @@ void AddonOptions()
                     "subscribed to by hand in all three views. Doesn't affect\n"
                     "the red marker on something you HAVE manually subscribed to\n"
                     "that also happens to be a weekly target — that stays either way.");
+            
+            // Color swatch for the weekly Wizard's Vault trcked dot
+            DisabledBlock(!WeeklyAutoTrackEnabled)
+            {
+                ImVec4 weeklyDotColor = RGBABaseToFloat4(WeeklyAutoTrackColor);
+                if (ImGui::ColorEdit4("Weekly Color##weekly_tracking_color", &weeklyDotColor.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel))
+                    WeeklyAutoTrackColor = Float4ToRGBABase(weeklyDotColor);
+            }
             
             ImGui::Dummy(dummySquare);
 

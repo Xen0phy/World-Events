@@ -156,6 +156,10 @@ SETTING(Subscriptions, ShowSubscriptionsBar, bool, false)
 SETTING(Subscriptions, SubscriptionsBarMinimalMode,     bool, false)
 SETTING(Subscriptions, SubscriptionsBarBottomAnchored,  bool, false)
 
+// Default color for the subscription bar's dots. Alpha will be suppressed in
+// settings for visibility reasons. Defaulted to plain white.
+SETTING(Subscriptions, SubscriptionsBarDotColor, unsigned int, 0xFEFFFEFFu)
+
 // How long the mouse must sit still over a distribution-line segment or
 // dot marker (subscriptions_bar.cpp) before its curve-drop hover
 // animation starts — avoids every segment along the strip popping in and
@@ -256,6 +260,11 @@ SETTING(Subscriptions, SubscriptionsSoonColor,   unsigned int, 0xFF8C00FFu) // o
 // the user already chose to track, not the addon auto-adding anything on
 // its own, so it keeps showing regardless of this setting.
 SETTING(Subscriptions, WeeklyAutoTrackEnabled, bool, true)
+
+// Default color for the weekly markers on the subscription bar, window and
+// notification toast border. Alpha will be suppressed in settings for
+// visibility reasons. Defaulted to red.
+SETTING(Subscriptions, WeeklyAutoTrackColor, unsigned int, 0xFF2828FFu)
 
 // GW2 API key (needs at minimum the "progression" permission), used ONLY
 // to call GET /v2/account/worldbosses — see gw2_api.h/.cpp. Drives

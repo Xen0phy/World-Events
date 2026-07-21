@@ -117,7 +117,9 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
         // mapping table. Purely visual; doesn't affect the row's click
         // behavior below. Plain TextColored: an item, but not an
         // interactive one, so its cost is negligible next to a Selectable.
-        ImGui::TextColored(ImVec4(0.86f, 0.16f, 0.16f, 1.0f), "*");
+        // Color swatch for the weekly Wizard's Vault trcked dot
+        ImVec4 weeklyDotColor = SubscriptionColorToImVec4(WeeklyAutoTrackColor);
+        ImGui::TextColored(weeklyDotColor, "*");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Counts toward this week's Wizard's Vault objectives.");
         ImGui::SameLine(0.0f, 4.0f);

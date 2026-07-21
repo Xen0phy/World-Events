@@ -36,6 +36,7 @@
 // and pasting the same "<name>: <chatCode>" text via PasteToChat on click
 // as a row in the watchlist window / a segment on the distribution bar.
 
+#include "addon_options_helpers.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
 #include "events_tracking.h"
@@ -560,7 +561,9 @@ static void DrawAndExpirePopups()
         if (p.isWeekly)
         {
             static constexpr float kWeeklyBorderThickness = 1.5f;
-            ImU32 weeklyBorderCol = IM_COL32(219, 40, 40, (int)(255 * alpha));
+            ImVec4 c = RGBABaseToFloat4(WeeklyAutoTrackColor);
+            c.w *= alpha;
+            ImU32 weeklyBorderCol = ImGui::ColorConvertFloat4ToU32(c);
             dl->AddRect(
                 ImVec2(rectMin.x + kWeeklyBorderThickness * 0.5f, rectMin.y + kWeeklyBorderThickness * 0.5f),
                 ImVec2(rectMax.x - kWeeklyBorderThickness * 0.5f, rectMax.y - kWeeklyBorderThickness * 0.5f),
