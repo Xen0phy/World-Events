@@ -434,6 +434,10 @@ void RenderCyclicGroups()
         // ---- Tooltip on hover (suppressed while dragging this ring) ----
         if (hovered && !isBeingEdited)
         {
+            ImVec2 mouse = ImGui::GetMousePos();
+            ImGui::SetNextWindowPos(
+                {mouse.x - 1.0f, mouse.y - 20.0f},
+                ImGuiCond_Always, {0.0f, 1.0f});
             ImGui::BeginTooltip();
             ImGui::TextUnformatted(grp.name.c_str());
             ImGui::Separator();

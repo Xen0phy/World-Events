@@ -21,6 +21,7 @@
 // addon_options_helpers.h/.cpp — this file is just AddonOptions() itself,
 // assembling those pieces into the panel layout.
 
+#include "addon_options_helpers.h"
 #include "addon.h"
 #include "events_tracking.h"
 #include "settings.h"
@@ -31,7 +32,6 @@
 #include "notify_sound.h"
 #include "gw2_api.h"
 #include "imgui.h"
-#include "addon_options_helpers.h"
 #include <algorithm>
 #include <cstring>
 #include <map>

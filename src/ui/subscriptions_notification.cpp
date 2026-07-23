@@ -388,7 +388,19 @@ static void DrawAndExpirePopups()
     unsigned long long nowMs = GetTickCount64();
     unsigned long long displayMs = (unsigned long long)std::max(0, NotificationDisplaySeconds) * 1000ull;
 
-    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    // Background draw list, not foreground — same reasoning as
+    // RenderCyclicGroups' identical choice in cyclicrender.cpp. The
+    // foreground list is composited LAST among all ImGui content, which
+    // includes the right-click "Mark done for today" popup below (a popup
+    // is just another ImGui window under the hood) — so a toast drawn on
+    // the foreground list always painted over that menu, regardless of
+    // draw call order within this function. The background list draws
+    // FIRST, before every regular window/popup, so the menu (and the
+    // isWeekly hover tooltip) now correctly composite on top of the toast
+    // instead of under it. This only affects ordering relative to other
+    // ImGui content — the toast still sits above GW2's own game-world
+    // rendering either way, same as the cyclic rings.
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
     std::vector<int> toRemove;
 

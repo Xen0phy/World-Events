@@ -558,7 +558,9 @@ NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int re
     }
     bool open = ImGui::TreeNode(treeNodeId, "%s", label.c_str());
     if (autoTag && ImGui::IsItemHovered())
-        ImGui::SetTooltip("Automatically tracked via the GW2 API.\nDrops off the Subscriptions bar/window on its own\nonce claimed today (no need to check it off by hand).");
+        ImGui::SetTooltip("Automatically tracked via the GW2 API.\n"
+                          "Drops off the Subscriptions bar/window on its own\n"
+                          "once claimed today (no need to check it off by hand).");
 
     // Drag source attaches to the TreeNode itself, right after it's
     // drawn — NOT after BeginPopupContextItem/the edit fields below,

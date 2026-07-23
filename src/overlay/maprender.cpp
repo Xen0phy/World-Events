@@ -577,7 +577,11 @@ void RenderMapEvents()
         {
             int secs = GetSecondsUntilEventStart(ev, now);
             if (secs < 0) continue; // skip events with no timer data yet
-
+            
+            ImVec2 mouse = ImGui::GetMousePos();
+            ImGui::SetNextWindowPos(
+                {mouse.x - 1.0f, mouse.y - 20.0f},
+                ImGuiCond_Always, {0.0f, 1.0f});
             ImGui::BeginTooltip();
             if (active)
             {
