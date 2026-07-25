@@ -83,8 +83,15 @@ namespace
         while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
         if (s.empty() || s.size() % 4 != 0) return false;
 
+        //_ '=' is only legal in the final group's last one or two slots -
+        // reject it anywhere else so a malformed middle-of-string '=' can't
+        // silently decode instead of being caught here.
+        for (size_t i = 0; i + 2 < s.size(); i++)
+            if (s[i] == '=') return false;
+        if (s.size() >= 2 && s[s.size() - 2] == '=' && s[s.size() - 1] != '=') return false;
+
         size_t padding = 0;
-        if (s.size() >= 2 && s[s.size() - 1] == '=') padding++;
+        if (s.back() == '=') padding++;
         if (s.size() >= 2 && s[s.size() - 2] == '=') padding++;
 
         out.clear();
@@ -120,18 +127,22 @@ namespace
             fs::create_directories(addonDir);
             std::string keyPath = addonDir + "\\apikey.key";
 
-            std::ifstream in(keyPath, std::ios::binary);
-            if (in.is_open())
+            //_ Scoped so `in` closes here - a regenerate below reopens the
+            // same path for write, which must not race a still-open read handle.
             {
-                std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(in)),
-                                            std::istreambuf_iterator<char>());
-                if (bytes.size() == kKeyBytes)
+                std::ifstream in(keyPath, std::ios::binary);
+                if (in.is_open())
                 {
-                    outKey = std::move(bytes);
-                    return true;
+                    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(in)),
+                                                std::istreambuf_iterator<char>());
+                    if (bytes.size() == kKeyBytes)
+                    {
+                        outKey = std::move(bytes);
+                        return true;
+                    }
+                    //_ Wrong size (corrupted/hand-edited) - regenerate;
+                    // anything encrypted under the old key becomes undecryptable.
                 }
-                //_ Wrong size (corrupted/hand-edited) - regenerate;
-                // anything encrypted under the old key becomes undecryptable.
             }
 
             outKey.resize(kKeyBytes);

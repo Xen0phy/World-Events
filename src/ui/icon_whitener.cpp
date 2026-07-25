@@ -287,7 +287,17 @@ void DrawIconWhitenerPopup()
     ImGui::Separator();
     ImGui::Spacing();
 
-    const std::vector<std::string>& iconFiles = GetEventIconFilenames();
+    //_ GetEventIconFilenames() also lists bundled default icons that only
+    // exist as in-memory data (see maprender.cpp); DoConvert can only WIC-
+    // decode a real file, so those must be filtered out here.
+    std::string texDir = g_AddonDir + "\\textures";
+    std::vector<std::string> iconFiles;
+    for (const auto& fn : GetEventIconFilenames())
+    {
+        std::error_code ec;
+        if (std::filesystem::exists(texDir + "\\" + fn, ec))
+            iconFiles.push_back(fn);
+    }
 
     std::vector<const char*> labels;
     labels.push_back("(select an icon)");
