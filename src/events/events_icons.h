@@ -1,7 +1,30 @@
+//################################################################################
+// events_icons.h
+//--------------------------------------------------------------------------------
+// g_ConvergenceIconData / g_ConvergenceIconData_size   Convergence icon (PNG)
+// g_EventBossIconData / g_EventBossIconData_size       event-boss icon (PNG)
+// g_EventMapIconData / g_EventMapIconData_size         event-map icon (PNG)
+// g_WorldBossIconData / g_WorldBossIconData_size       world-boss icon (PNG)
+//--------------------------------------------------------------------------------
+// The addon's bundled default map-overlay icons, compiled directly into the
+// dll as raw PNG byte arrays rather than shipped as loose files, so a
+// working icon set exists with nothing needing to be on disk - see
+// maprender.cpp's s_defaultIcons / Textures_LoadFromMemory, which is the
+// only consumer. Each array is immediately followed by a matching _size
+// constant giving its byte length; the two are always used as a pair (see
+// DefaultIconEntry in maprender.cpp).
+//
+// Source images must already be neutral-gray RGB + alpha, per
+// maprender.cpp's authoring requirement for tintable icons - this file only
+// stores the already-converted bytes, it doesn't perform or verify that
+// conversion itself.
+//--------------------------------------------------------------------------------
+
 #pragma once
+
 #include <cstdint>
 
-// 6236 bytes
+//_ Convergence icon, 6236 bytes.
 static const uint8_t g_ConvergenceIconData[] = {
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x40, 0x08, 0x06, 0x00, 0x00, 0x00, 0xaa, 0x69, 0x71,
@@ -396,7 +419,7 @@ static const uint8_t g_ConvergenceIconData[] = {
 };
 static const uint64_t g_ConvergenceIconData_size = 6236;
 
-// 3438 bytes
+//_ EventBoss icon, 3438 bytes.
 static const uint8_t g_EventBossIconData[] = {
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x40, 0x08, 0x06, 0x00, 0x00, 0x00, 0xaa, 0x69, 0x71,
@@ -616,7 +639,7 @@ static const uint8_t g_EventBossIconData[] = {
 };
 static const uint64_t g_EventBossIconData_size = 3438;
 
-// 5653 bytes
+//_ EventMap icon, 5653 bytes.
 static const uint8_t g_EventMapIconData[] = {
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x40, 0x08, 0x06, 0x00, 0x00, 0x00, 0xaa, 0x69, 0x71,
@@ -975,7 +998,7 @@ static const uint8_t g_EventMapIconData[] = {
 };
 static const uint64_t g_EventMapIconData_size = 5653;
 
-// 3989 bytes
+//_ WorldBoss icon, 3989 bytes.
 static const uint8_t g_WorldBossIconData[] = {
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x40, 0x08, 0x06, 0x00, 0x00, 0x00, 0xaa, 0x69, 0x71,

@@ -1,71 +1,65 @@
+//################################################################################
+// addon.h
+//--------------------------------------------------------------------------------
+// APIDefs/MumbleLink/NexusLink   Nexus API pointers, valid after AddonLoad
+// g_AddonDir                     addon's own data directory
+// ShowDebug                      build-time debug/timing switch
+// ScopedRenderTimer<T>           RAII per-frame timer, debug-only
+// AddonLoad/AddonUnload/AddonRender   Nexus-required exports (see addon.cpp)
+// AddonOptions                   options panel callback (addon_options.cpp)
+//--------------------------------------------------------------------------------
+
 #pragma once
 
-#include "Nexus.h"
 #include "Mumble.h"
-#include <string>
-#include <chrono>
+#include "Nexus.h"
 
-// Global API pointers — set in AddonLoad, valid until AddonUnload
+#include <chrono>
+#include <string>
+
+//_ Set in AddonLoad, valid until AddonUnload.
 extern AddonAPI_t*      APIDefs;
 extern Mumble::Data*    MumbleLink;
 extern NexusLinkData_t* NexusLink;
 
-// Addon's own data directory (e.g. "<GW2>/addons/WorldEvents"), set once in
-// AddonLoad via APIDefs->Paths_GetAddonDirectory. Used for settings.ini and
-// any future JSON data files.
+//_ Set once in AddonLoad via APIDefs->Paths_GetAddonDirectory. Used for
+// settings.ini and any future JSON data files.
 extern std::string g_AddonDir;
 
-// ---------------------------------------------------------------------------
-// Debug switch — build-time only, deliberately NOT a settings_table.h
-// SETTING. Flip this constant and rebuild rather than exposing it as a
-// real user-facing option; it isn't persisted anywhere. Gates the render-
-// timing measurement below (see ScopedRenderTimer in this file) and the debug
-// line addon_options.cpp shows underneath the release date/time.
-// ---------------------------------------------------------------------------
+//_ Build-time only, deliberately not a settings_table.h SETTING - flip
+// and rebuild rather than exposing as a real user-facing option.
 inline constexpr bool ShowDebug = false;
 
-// Rolling average, in milliseconds, of how long AddonRender's own body
-// took to run — updated about once a second (see ScopedRenderTimer
-// below), rather than showing a single frame's noisy raw time. Only
-// ever written while ShowDebug is true; left at 0 otherwise.
+//_ Rolling ~1s average, ms, of AddonRender's own body (see
+// ScopedRenderTimer below). 0 unless ShowDebug is true.
 extern float g_AvgRenderTimeMs;
 
-// Same idea as g_AvgRenderTimeMs, but split further, per view, into the
-// two phases each of RenderSubscriptionsBar/Window/Notifications actually
-// has: "Data" is gathering/resolving what to show (now mostly
-// RefreshSubscriptionsCache + a light per-view adaptation — see
-// subscriptions_cache.h) and "Draw" is the actual ImGui calls that turn
-// that into pixels. Split out specifically to answer "is the remaining
-// per-frame cost in re-deriving data or in rendering it" — before this,
-// g_AvgRenderTimeMs only gave one combined number for all three views
-// together, which couldn't distinguish the two.
+//_ Same idea as g_AvgRenderTimeMs, but split per view (Bar/Window/Notify)
+// and phase: "Data" is gathering what to show, "Draw" is the ImGui calls.
 extern float g_AvgSubsBarDataMs,      g_AvgSubsBarDrawMs;
 extern float g_AvgSubsWindowDataMs,   g_AvgSubsWindowDrawMs;
 extern float g_AvgSubsNotifyDataMs,   g_AvgSubsNotifyDrawMs;
 
-// Same idea as g_AvgRenderTimeMs, but for AddonOptions's own body instead
-// of AddonRender's — the options panel rebuilds its whole group/slot tree,
-// search filter, and color pickers every frame it's open, which is a
-// separate (and often larger) cost from the actual map/subscriptions
-// render. Kept as its own accumulator so the two never get lumped
-// together — see ScopedRenderTimer in addon.cpp.
+//_ Same idea as g_AvgRenderTimeMs, but for AddonOptions's own body - kept
+// separate since rebuilding the options panel is a distinct render cost.
 extern float g_AvgOptionsRenderTimeMs;
 
-// ---------------------------------------------------------------------------
+//********************************************************************************
 // ScopedRenderTimer<TargetAvg>
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
+// start   time point captured on construction (ShowDebug only)
+//--------------------------------------------------------------------------------
 // RAII scope timer, templated on WHICH global accumulator it feeds. Every
 // distinct template argument is a distinct type, so RenderTimer and
 // OptionsRenderTimer below each get their own destructor and therefore
-// their own function-local static accumulator state — instantiating both
-// in the same process never mixes their totals, unlike a single shared
-// non-template timer would if used at two call sites.
+// their own function-local static accumulator state - instantiating both
+// never mixes their totals, unlike a single shared non-template timer
+// would if used at two call sites.
 //
 // if constexpr on ShowDebug means this compiles down to an empty
-// constructor/destructor (not even a steady_clock::now() call) when
-// ShowDebug is false, so leaving these in place has no runtime cost in a
-// normal build.
-// ---------------------------------------------------------------------------
+// constructor/destructor when ShowDebug is false, so leaving these in
+// place has no runtime cost in a normal build.
+//--------------------------------------------------------------------------------
 template <float& TargetAvg>
 struct ScopedRenderTimer
 {
@@ -83,11 +77,9 @@ struct ScopedRenderTimer
         auto now = std::chrono::steady_clock::now();
         double ms = std::chrono::duration<double, std::milli>(now - start).count();
 
-        // Accumulated since this timer's window last flushed, then
-        // averaged and reset once a full second has elapsed —
-        // function-static, so this persists frame to frame without
-        // needing any storage outside this destructor. Distinct per
-        // TargetAvg (see class comment above).
+        //_ Accumulated since this timer's window last flushed, averaged
+        // and reset once a second has elapsed; function-static so this
+        // persists frame to frame. Distinct per TargetAvg (see above).
         static double                                 s_accumMs     = 0.0;
         static int                                    s_accumCount  = 0;
         static std::chrono::steady_clock::time_point  s_windowStart = now;
@@ -115,10 +107,20 @@ using SubsWindowDrawTimer   = ScopedRenderTimer<g_AvgSubsWindowDrawMs>;
 using SubsNotifyDataTimer   = ScopedRenderTimer<g_AvgSubsNotifyDataMs>;
 using SubsNotifyDrawTimer   = ScopedRenderTimer<g_AvgSubsNotifyDrawMs>;
 
-// Nexus-required exports
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// AddonLoad / AddonUnload / AddonRender
+//--------------------------------------------------------------------------------
+// Nexus-required exports (see GetAddonDef in addon.cpp) - called on
+// load/unload and once per frame respectively.
+//--------------------------------------------------------------------------------
 void AddonLoad  (AddonAPI_t* aAPI);
 void AddonUnload();
 void AddonRender();
 
-// Options panel callback (RT_OptionsRender) — defined in addon_options.cpp
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// AddonOptions
+//--------------------------------------------------------------------------------
+// Options panel callback (RT_OptionsRender) - implemented in
+// addon_options.cpp, not addon.cpp.
+//--------------------------------------------------------------------------------
 void AddonOptions();

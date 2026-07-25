@@ -1,132 +1,158 @@
+//################################################################################
+// gw2_api.h
+//--------------------------------------------------------------------------------
+// PollGw2Api()                    call once per frame; polls all 3 endpoints
+// GetGw2ApiStatus()               NoKey/Pending/Ok/InvalidKey/NetworkError
+// IsWorldBossCompletedToday(id)   true if boss killed since last UTC reset
+// IsMapChestClaimedToday(id)      true if chest claimed since last UTC reset
+// GetWeeklyObjectiveState(title)  Wizard's Vault weekly objective progress
+// GetLiveWeeklyObjectives()       snapshot of every live weekly objective
+// GetGw2ApiFetchGeneration()      bumped on each successful daily-data fetch
+//--------------------------------------------------------------------------------
+// Thin, narrowly-scoped client for three endpoints of the real, public GW2
+// API (api.guildwars2.com):
+//   - GET /v2/account/worldbosses  - classic Tyria world bosses the
+//     account has killed since the last daily reset (UTC midnight).
+//   - GET /v2/account/mapchests    - Hero's Choice Chests the account has
+//     claimed since the last daily reset. Only the 8 HoT/PoF maps whose
+//     CyclicGroup has a non-empty apiMapChestId (see events.h) are ever
+//     looked up; every other id this endpoint returns is ignored.
+//   - GET /v2/account/wizardsvault/weekly - this week's live Wizard's
+//     Vault objectives. Unlike the two above, objective ids aren't stable
+//     across ArenaNet's seasonal rotation, so objectives are matched by
+//     display TITLE instead (case-insensitive ASCII, exact match - see
+//     GetWeeklyObjectiveState below). weekly_vault.cpp maps these titles
+//     to actual WorldEvent/CyclicGroup::Slot entries; this file only
+//     exposes the raw API state.
+//
+// Not a general GW2 API wrapper: everything else in this addon has no
+// equivalent "already done today" signal in the public API. A WorldEvent
+// with an empty apiWorldBossId, or a CyclicGroup with an empty
+// apiMapChestId, is simply never affected by this file.
+//
+// Requires a user-supplied API key (Gw2ApiKey in settings_table.h) with at
+// least the "progression" permission. No key -> PollGw2Api is a permanent
+// no-op and every query function below always reports "not done"/"not
+// found" - i.e. the feature degrades to "off", never to "everything
+// hidden".
+//
+// Degradation rule used throughout this file: unknown, stale (cached for
+// a previous UTC day), or not-yet-fetched data is always treated the same
+// as "not completed"/"not found", never as "completed" - a broken key or
+// a network hiccup must never make a subscription silently disappear.
+//--------------------------------------------------------------------------------
+
 #pragma once
-#include <string>
+
 #include <cstdint>
+#include <string>
 #include <vector>
 
-// ---------------------------------------------------------------------------
-// gw2_api.h
-// ---------------------------------------------------------------------------
-// Thin, narrowly-scoped client for TWO endpoints of the real, public
-// GW2 API (api.guildwars2.com):
-//   - GET /v2/account/worldbosses — the classic Tyria world bosses the
-//     account has already killed since the last daily reset (UTC midnight).
-//   - GET /v2/account/mapchests — the Hero's Choice Chests the account has
-//     already claimed since the last daily reset. Only the 8 HoT/PoF maps
-//     whose CyclicGroup has a non-empty apiMapChestId (see events.h) are
-//     ever looked up here; every other id this endpoint returns is ignored.
-//
-// Not a general GW2 API wrapper: everything else in this addon has NO
-// equivalent "already done today" signal anywhere in the public API. A
-// WorldEvent with an empty apiWorldBossId, or a CyclicGroup with an empty
-// apiMapChestId (see events.h), is simply never affected by this file.
-//
-// Requires a user-supplied API key (Gw2ApiKey in settings_table.h) with
-// at least the "progression" permission. No key -> PollGw2Api is a
-// permanent no-op and both IsWorldBossCompletedToday/
-// IsMapChestClaimedToday always return false — i.e. the feature degrades
-// to "off", never to "everything hidden".
-// ---------------------------------------------------------------------------
-
-// Call once per frame (e.g. from AddonRender) — cheap: internally
-// rate-limited and only actually starts a background HTTP request when
-// either the poll interval has elapsed or the UTC day has rolled over
-// since the last successful fetch. Never blocks the calling thread; the
-// actual HTTP GET runs on a short-lived detached background thread, same
-// pattern as PasteToChat in subscriptions.cpp.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// PollGw2Api
+//--------------------------------------------------------------------------------
+// Call once per frame (e.g. from AddonRender) - cheap: internally
+// rate-limited, only actually starts a background HTTP request when the
+// poll interval has elapsed or the UTC day has rolled over. Never blocks
+// the calling thread - runs on a short-lived detached background thread,
+// same pattern as PasteToChat in subscriptions.cpp.
+//--------------------------------------------------------------------------------
 void PollGw2Api();
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Gw2ApiStatus
+//--------------------------------------------------------------------------------
 // Surfaced for a one-line status indicator in the options panel next to
 // the API key field.
+//--------------------------------------------------------------------------------
 enum class Gw2ApiStatus
 {
-    NoKey,         // Gw2ApiKey is empty — feature is off
-    Pending,       // key is set, first fetch hasn't completed yet
-    Ok,            // last fetch succeeded; data below is current for today
-    InvalidKey,    // last fetch got HTTP 401/403 — key is missing the
-                   // "progression" permission, or is wrong/revoked
-    NetworkError,  // last fetch failed for any other reason (offline,
-                   // API down, malformed response, etc.)
+    NoKey,         //. Gw2ApiKey empty - feature off
+    Pending,       //. key set - fetch pending
+    Ok,            //. fetch ok - data is current
+    InvalidKey,    //. last fetch got HTTP 401/403
+    NetworkError,  //. last fetch failed for any other reason
 };
 Gw2ApiStatus GetGw2ApiStatus();
 
-// True if `worldBossApiId` (a WorldEvent::apiWorldBossId value, e.g.
-// "tequatl_the_sunless") is in the set of bosses this account has killed
-// since the last UTC daily reset, according to the most recent
-// successful fetch.
-//
-// Always false if: the id is empty, no key is set, no fetch has
-// completed yet, or the cached data is from a previous UTC day (should
-// self-correct within kMinPollSeconds of the rollover via PollGw2Api,
-// but this guards the gap). Unknown/stale always degrades to "not
-// completed" (i.e. "not hidden") rather than "completed" — a broken key
-// or a network hiccup should never cause a subscription to silently
-// disappear.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsWorldBossCompletedToday / IsMapChestClaimedToday
+//--------------------------------------------------------------------------------
+// True if `worldBossApiId`/`mapChestApiId` (a WorldEvent::apiWorldBossId
+// or CyclicGroup::apiMapChestId value, e.g. "tequatl_the_sunless" or
+// "auric_basin_heros_choice_chest") is in the set of bosses killed /
+// chests claimed since the last UTC daily reset, per the most recent
+// successful fetch. Both are fetched in the same background pass (see
+// gw2_api.cpp), so both become current on the same ~2-minute cadence.
+// False for an empty id, or wherever the degradation rule above applies.
+//--------------------------------------------------------------------------------
 bool IsWorldBossCompletedToday(const std::string& worldBossApiId);
-
-// True if `mapChestApiId` (a CyclicGroup::apiMapChestId value, e.g.
-// "auric_basin_heros_choice_chest") is in the set of Hero's Choice
-// Chests this account has claimed since the last UTC daily reset,
-// according to the most recent successful fetch.
-//
-// Same "always false if unknown/stale/no-key" degradation as
-// IsWorldBossCompletedToday above — a broken key or a network hiccup
-// should never cause a subscription to silently disappear. Fetched in
-// the same background pass as worldbosses (see gw2_api.cpp), so this
-// becomes current on the same ~2-minute cadence.
 bool IsMapChestClaimedToday(const std::string& mapChestApiId);
 
-// A THIRD endpoint, fetched in the same background pass and on the same
-// kMinPollSeconds cadence as worldbosses/mapchests above, but reporting
-// something different in kind: rather than an id list this addon can
-// directly recognize, each objective comes back with only its own display
-// TITLE — Wizard's Vault objective ids aren't documented/stable across
-// ArenaNet's seasonal rotation the way worldbosses'/mapchests' ids are, so
-// title is the only thing to match against. See weekly_vault.h/.cpp for
-// the addon-side table that maps these titles to actual WorldEvent/
-// CyclicGroup::Slot entries — this file only exposes the raw API state.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// WeeklyObjectiveState
+//--------------------------------------------------------------------------------
+// The third endpoint (see file header): fetched on the same cadence as
+// worldbosses/mapchests, but reporting by display TITLE rather than a
+// stable id, since Wizard's Vault objective ids aren't stable across
+// ArenaNet's seasonal rotation. See weekly_vault.h/.cpp for the
+// addon-side table mapping titles to actual WorldEvent/
+// CyclicGroup::Slot entries - this file only exposes the raw API state.
+//--------------------------------------------------------------------------------
 enum class WeeklyObjectiveState
 {
-    NotThisWeek, // not found in the live objective list at all — covers "genuinely not part of this week's rotation," "no successful fetch yet," and "stale/network/key problem" all the same way, same degrade-safe rule as IsWorldBossCompletedToday/IsMapChestClaimedToday above: never silently treated as complete
+    NotThisWeek, //. not in the live objective list
     Incomplete,
-    Complete,    // progress_complete reached, or already claimed, as of the most recent successful fetch
+    Complete,    //. progress_complete reached, or already claimed
 };
 
-// `title` is matched case-insensitively (ASCII lowercasing only — every
-// objective title observed so far is plain ASCII) against each live
-// objective's own "title" field. Exact match, not substring — unlike
-// weekly_vault.cpp's Cyclic mapping table, which only needs a couple of
-// short keywords out of the title, this function compares against the
-// real API string directly and has no fuzzy-matching logic of its own.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetWeeklyObjectiveState
+//--------------------------------------------------------------------------------
+// `title` is matched case-insensitively (ASCII lowercasing only - every
+// observed title is plain ASCII) against each live objective's own
+// "title" field. Exact match, not substring - unlike weekly_vault.cpp's
+// Cyclic mapping table, which only needs a couple of keywords out of the
+// title.
+//--------------------------------------------------------------------------------
 WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title);
 
-// One live Wizard's Vault weekly objective from the most recent successful
-// fetch, with no matching applied yet — for callers that need to search
-// across every live objective at once (substring/keyword matching) rather
-// than checking one exact, already-known title (see
-// GetWeeklyObjectiveState above for that case). `titleLower` is already
-// ASCII-lowercased (see gw2_api.cpp's AsciiLower) since every matcher needs
-// case-insensitive comparison anyway — lowercase your own search terms to
-// match against it.
+//********************************************************************************
+// LiveWeeklyObjective
+//--------------------------------------------------------------------------------
+// titleLower   ASCII-lowercased title (see gw2_api.cpp's AsciiLower) -
+//              lowercase your own search terms to match against it
+// complete     progress_complete reached, or already claimed
+//--------------------------------------------------------------------------------
+// One live Wizard's Vault objective, with no title matching applied yet -
+// for callers that need to search across every live objective at once
+// (substring/keyword matching) rather than check one exact, already-known
+// title (see GetWeeklyObjectiveState above for that case).
+//--------------------------------------------------------------------------------
 struct LiveWeeklyObjective
 {
     std::string titleLower;
-    bool        complete; // progress_complete reached, or already claimed, as of the most recent successful fetch
+    bool        complete;
 };
 
-// Snapshot of every currently-live weekly objective. Empty if no fetch has
-// completed yet, no key is set, or the cached data is from a previous UTC
-// day — same "stale/no-data degrades to nothing found" rule as everywhere
-// else in this file, never silently treated as a match. See
-// weekly_vault.cpp's IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget for
-// the two matching strategies built on top of this.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetLiveWeeklyObjectives
+//--------------------------------------------------------------------------------
+// Snapshot of every currently-live weekly objective, or empty wherever the
+// degradation rule (see file header) applies. See weekly_vault.cpp's
+// IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget for the two matching
+// strategies built on top of this.
+//--------------------------------------------------------------------------------
 std::vector<LiveWeeklyObjective> GetLiveWeeklyObjectives();
 
-// Bumped by exactly 1 each time a poll SUCCESSFULLY commits fresh
-// worldbosses/mapchests data (the point in PollGw2Api where s_cachedForDay
-// is stamped and s_status is set to Ok — see gw2_api.cpp). The weekly
-// objectives call can soft-fail independently without preventing this from
-// bumping; a caller that only wants to know "is it worth re-checking
-// anything" (e.g. subscriptions_cache.cpp) can cheaply compare this
-// against a value it saved last time instead of re-deriving/re-checking
-// state on every single frame regardless of whether a new fetch landed.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetGw2ApiFetchGeneration
+//--------------------------------------------------------------------------------
+// Bumped by exactly 1 each time a poll successfully commits fresh
+// worldbosses/mapchests data (see gw2_api.cpp). The weekly-objectives
+// call can soft-fail independently without preventing this from bumping.
+// A caller that only wants to know "is it worth re-checking anything"
+// (e.g. subscriptions_cache.cpp) can cheaply compare this against a value
+// it saved last time, instead of re-deriving state every frame.
+//--------------------------------------------------------------------------------
 uint64_t GetGw2ApiFetchGeneration();

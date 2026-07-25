@@ -1,50 +1,59 @@
+//################################################################################
 // events_tracking.cpp
-// Storage and JSON persistence for manually-marked "done for today" flags.
-// See events_tracking.h for the overall rationale.
+//--------------------------------------------------------------------------------
+// See events_tracking.h for scope/rationale. Storage and JSON persistence
+// for the manually-marked "done for today" flags.
 //
-// Structurally this mirrors subscriptions.cpp closely (same two-vector,
-// same key shape, same events.json read-modify-write pattern) — the
-// difference is the stored UTC-day stamp and the lazy rollover check on
-// every read, which subscriptions.cpp has no equivalent of since a
-// subscription doesn't expire on its own.
+// Structurally mirrors subscriptions.cpp closely (same two-vector, same
+// key shape, same events.json read-modify-write pattern); the difference
+// is the stored UTC-day stamp and the lazy rollover check on every read,
+// which subscriptions.cpp has no equivalent of since a subscription
+// doesn't expire on its own.
+//--------------------------------------------------------------------------------
 
 #include "events_tracking.h"
 #include "nlohmann_json.hpp"
-#include <fstream>
-#include <filesystem>
+
 #include <algorithm>
 #include <ctime>
+#include <filesystem>
+#include <fstream>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
+//_ Local storage backing Is/Toggle*DoneToday (events_tracking.h).
 static std::vector<std::string>           s_DoneTodayBasicEvents;
 static std::vector<CyclicSubscriptionKey>  s_DoneTodayCyclicSlots;
 
-// See GetDoneMarkersGeneration's comment in events_tracking.h.
+//_ See GetDoneMarkersGeneration's comment in events_tracking.h.
 static uint64_t s_doneMarkersGeneration = 0;
 uint64_t GetDoneMarkersGeneration() { return s_doneMarkersGeneration; }
 
-// Same one-line UTC-day derivation as gw2_api.cpp's CurrentUtcDay() —
-// duplicated locally rather than shared across modules for a single
-// division, same as that file's own comment on why floor-division of
-// Unix time lines up with UTC daily reset with no timezone handling
-// needed.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// CurrentUtcDay
+//--------------------------------------------------------------------------------
+// Same one-line derivation as gw2_api.cpp's CurrentUtcDay() - duplicated
+// locally rather than shared for a single division; see that file's
+// comment for why floor-dividing Unix time needs no timezone handling.
+//--------------------------------------------------------------------------------
 static long long CurrentUtcDay()
 {
     return (long long)(time(nullptr) / 86400);
 }
 
-// -1 = never loaded/saved yet, so the very first check of the day treats
-// that as "stale" and clears (a no-op, since both vectors start empty)
-// rather than needing a separate "initialized" flag.
+//_ -1 = never loaded/saved; the first check of the day then treats that
+// as stale and clears (a no-op - vectors start empty), no separate flag.
 static long long s_DoneTodayUtcDay = -1;
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RollOverIfNewUtcDay
+//--------------------------------------------------------------------------------
 // Called at the top of every read/write entry point below. Cheap: just an
-// integer compare in the overwhelmingly common case where the day hasn't
-// rolled over. No timer, no per-frame poll — checking lazily on access
-// means there's no window where a missed frame could leave yesterday's
-// marks visible past reset.
+// integer compare in the common case where the day hasn't rolled over. No
+// timer, no per-frame poll - checking lazily on access means no missed
+// frame can leave yesterday's marks visible past reset.
+//--------------------------------------------------------------------------------
 static void RollOverIfNewUtcDay()
 {
     long long today = CurrentUtcDay();
@@ -56,9 +65,6 @@ static void RollOverIfNewUtcDay()
     s_doneMarkersGeneration++;
 }
 
-// ---------------------------------------------------------------------------
-// Basic Events
-// ---------------------------------------------------------------------------
 bool IsBasicEventMarkedDoneToday(const std::string& eventName)
 {
     RollOverIfNewUtcDay();
@@ -77,9 +83,6 @@ void ToggleBasicEventDoneToday(const std::string& eventName)
     s_doneMarkersGeneration++;
 }
 
-// ---------------------------------------------------------------------------
-// Cyclic slots
-// ---------------------------------------------------------------------------
 bool IsCyclicSlotMarkedDoneToday(const CyclicSubscriptionKey& key)
 {
     RollOverIfNewUtcDay();
@@ -98,23 +101,21 @@ void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key)
     s_doneMarkersGeneration++;
 }
 
-// ---------------------------------------------------------------------------
-// Manual reset button (options panel)
-// ---------------------------------------------------------------------------
 void ClearAllDoneMarkers()
 {
-    // Deliberately does NOT touch s_DoneTodayUtcDay — this is a manual
-    // "I want a clean slate right now" action, not a day rollover, so the
-    // next natural rollover still happens on its own schedule afterward
-    // rather than being reset to "never happened yet".
+    //_ Deliberately leaves s_DoneTodayUtcDay untouched - a manual reset,
+    // not a day rollover, so the next natural rollover still happens on
+    // schedule.
     s_DoneTodayBasicEvents.clear();
     s_DoneTodayCyclicSlots.clear();
     s_doneMarkersGeneration++;
 }
 
-// ---------------------------------------------------------------------------
-// (De)serialization — same key shape as subscriptions.cpp
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SerializeCyclicKey / DeserializeCyclicKey
+//--------------------------------------------------------------------------------
+// Same (groupName, slotOffset) key shape as subscriptions.cpp.
+//--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
     json j;
@@ -131,20 +132,19 @@ static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
     return key;
 }
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveDailyTrackingData / LoadDailyTrackingData
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 bool SaveDailyTrackingData(const std::string& addonDir)
 {
-    RollOverIfNewUtcDay(); // never persist a stale day's marks
+    RollOverIfNewUtcDay(); //. don't persist a stale day
 
     try
     {
         std::string filepath = addonDir + "\\events.json";
 
-        // Read-modify-write, same reason as SaveSubscriptionsData: don't
-        // clobber events/cyclicGroups/categories/subscriptions already in
-        // the file.
+        //_ Read-modify-write, same reason as SaveSubscriptionsData - avoids
+        // clobbering the file's other keys (events/categories/subscriptions).
         json j;
         {
             std::ifstream in(filepath);
@@ -178,18 +178,14 @@ bool LoadDailyTrackingData(const std::string& addonDir)
     {
         std::string filepath = addonDir + "\\events.json";
         std::ifstream file(filepath);
-        if (!file.is_open()) return false; // no file yet — stays empty
+        if (!file.is_open()) return false; //. no file yet, stays empty
 
         json j = json::parse(file);
 
         long long storedDay = j.value("doneTodayUtcDay", (long long)-1);
 
-        // If the stored marks are from a previous UTC day (addon was
-        // closed across a daily reset), don't load them at all — leave
-        // s_DoneTodayUtcDay at -1 so the next access rolls over into a
-        // clean, correctly-dated empty state on its own via
-        // RollOverIfNewUtcDay(), rather than loading stale entries just
-        // to immediately clear them.
+        //_ Stale marks (addon closed across a reset) are skipped entirely -
+        // s_DoneTodayUtcDay stays -1, so RollOverIfNewUtcDay() finds a clean day.
         if (storedDay != CurrentUtcDay())
             return true;
 

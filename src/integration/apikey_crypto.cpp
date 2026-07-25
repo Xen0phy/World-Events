@@ -1,30 +1,39 @@
+//################################################################################
 // apikey_crypto.cpp
+//--------------------------------------------------------------------------------
 // See apikey_crypto.h for the overall approach and threat model.
+//--------------------------------------------------------------------------------
 
 #include "apikey_crypto.h"
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <bcrypt.h>
+#include <bcrypt.h> //. has to come after windows.h
+
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <vector>
-#include <cstdint>
 
 namespace fs = std::filesystem;
 
 namespace
 {
-    constexpr size_t kKeyBytes   = 32; // AES-256
-    constexpr size_t kNonceBytes = 12; // standard GCM nonce size
-    constexpr size_t kTagBytes   = 16; // full GCM tag
+    constexpr size_t kKeyBytes   = 32; //. AES-256
+    constexpr size_t kNonceBytes = 12; //. standard GCM nonce size
+    constexpr size_t kTagBytes   = 16; //. full GCM tag
 
-    // ---------------------------------------------------------------------
-    // Minimal base64 — avoids pulling in crypt32 just for
-    // CryptBinaryToString/CryptStringToBinary.
-    // ---------------------------------------------------------------------
     const char kB64Alphabet[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Base64Encode / Base64Decode
+    //--------------------------------------------------------------------------------
+    // Minimal base64 codec - avoids pulling in crypt32 just for
+    // CryptBinaryToString/CryptStringToBinary. Decode returns false on any
+    // malformed input (bad length, invalid character, etc.) - callers
+    // treat that as "not one of our blobs".
+    //--------------------------------------------------------------------------------
     std::string Base64Encode(const std::vector<uint8_t>& data)
     {
         std::string out;
@@ -58,8 +67,6 @@ namespace
         return out;
     }
 
-    // Returns false on any malformed input (bad length, invalid character,
-    // etc.) — callers treat that as "not one of our blobs".
     bool Base64Decode(const std::string& in, std::vector<uint8_t>& out)
     {
         auto val = [](char c) -> int
@@ -99,11 +106,13 @@ namespace
         return true;
     }
 
-    // ---------------------------------------------------------------------
-    // Master key file: "<addonDir>\apikey.key" — 32 raw bytes, generated
-    // once via BCryptGenRandom. Kept separate from settings.ini on purpose
-    // (see apikey_crypto.h).
-    // ---------------------------------------------------------------------
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // LoadOrCreateMasterKey
+    //--------------------------------------------------------------------------------
+    // Loads "<addonDir>\apikey.key" (32 raw bytes) if present and the
+    // right size, otherwise generates one via BCryptGenRandom. Kept
+    // separate from settings.ini on purpose (see apikey_crypto.h).
+    //--------------------------------------------------------------------------------
     bool LoadOrCreateMasterKey(const std::string& addonDir, std::vector<uint8_t>& outKey)
     {
         try
@@ -121,9 +130,8 @@ namespace
                     outKey = std::move(bytes);
                     return true;
                 }
-                // Wrong size (corrupted / hand-edited) — fall through and
-                // regenerate. Any blob encrypted under the old key becomes
-                // undecryptable, same as if the file were simply deleted.
+                //_ Wrong size (corrupted/hand-edited) - regenerate;
+                // anything encrypted under the old key becomes undecryptable.
             }
 
             outKey.resize(kKeyBytes);
@@ -137,19 +145,23 @@ namespace
             out.write(reinterpret_cast<const char*>(outKey.data()), outKey.size());
             if (!out.good()) return false;
 
-            // Best-effort: hide the key file from casual directory
-            // browsing. Not a real access-control mechanism, just reduces
-            // the odds of it getting zipped up and shared alongside
-            // settings.ini by accident.
+            //_ Best-effort: hides the key file from casual browsing, not
+            // real access control - just reduces the odds it gets zipped up.
             SetFileAttributesA(keyPath.c_str(), FILE_ATTRIBUTE_HIDDEN);
             return true;
         }
         catch (...) { return false; }
     }
 
-    // ---------------------------------------------------------------------
+    //********************************************************************************
+    // AesGcm
+    //--------------------------------------------------------------------------------
+    // hAlg   BCrypt algorithm provider handle
+    // hKey   BCrypt symmetric key handle
+    //--------------------------------------------------------------------------------
     // AES-256-GCM via BCrypt. Blob layout: nonce(12) || tag(16) || ciphertext.
-    // ---------------------------------------------------------------------
+    // Open() sets up the provider/key pair; the destructor tears both down.
+    //--------------------------------------------------------------------------------
     struct AesGcm
     {
         BCRYPT_ALG_HANDLE hAlg = nullptr;
@@ -179,6 +191,11 @@ namespace
 
 namespace ApiKeyCrypto
 {
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Encrypt / Decrypt
+    //--------------------------------------------------------------------------------
+    // See apikey_crypto.h for behavior/return-value conventions.
+    //--------------------------------------------------------------------------------
     std::string Encrypt(const std::string& addonDir, const std::string& plaintext)
     {
         try
@@ -262,8 +279,8 @@ namespace ApiKeyCrypto
                 &info, nullptr, 0,
                 plaintext.empty() ? nullptr : plaintext.data(), (ULONG)plaintext.size(),
                 &resultLen, 0);
-            // Non-zero status includes STATUS_AUTH_TAG_MISMATCH (wrong key
-            // or tampered/corrupted blob) — either way, not decryptable.
+            //_ Non-zero status includes STATUS_AUTH_TAG_MISMATCH (wrong key
+            // or tampered/corrupted blob) - either way, not decryptable.
             if (status != 0) return "";
 
             return std::string(reinterpret_cast<char*>(plaintext.data()), resultLen);

@@ -1,21 +1,28 @@
+//################################################################################
+// events_basic.cpp
+//--------------------------------------------------------------------------------
+// g_Events                  compiled-in Basic Event roster (see WorldEvent,
+//                           events.h)
+// g_DefaultBasicCategories  compiled-in category defaults for the roster
+//                           above (see CategoryDefault, events_categories.h)
+//--------------------------------------------------------------------------------
+// Hand-written data only - no logic. Rows are grouped by comment banner
+// (Instanced / Core bosses / LLA / Invasions / Fractal Incursions), matching
+// g_DefaultBasicCategories one-for-one below.
+//--------------------------------------------------------------------------------
+
 #include "events.h"
 #include "events_categories.h"
 
-// Continent coordinates taken directly from Sognus's fallback data.
-// These are in GW2 continent 1 (Tyria) coordinates.
+//_ Coords, most of which waere taken directly from Sognus's World Bosses data.
 std::vector<WorldEvent> g_Events =
 {
-    // Instanced
+    //_ Instanced
     {"Outer Nayos",                      24046.0f, 22754.0f, false, m20, "[&BB8OAAA=]",  true, "Convergence.png", {}, 3 * m60,           m90},
     {"Mount Balrior",                    43095.0f, 22672.0f, false, m20, "[&BK4OAAA=]",  true, "Convergence.png", {}, 3 * m60,             0},
 
-    // Core bosses
-    // Trailing string on each of these 13 rows is the GW2 API's
-    // /v2/worldbosses id for this boss (verified against the wiki's
-    // documented list) — see WorldEvent::apiWorldBossId in events.h and
-    // gw2_api.h for what it's used for. No other section in this file
-    // gets one: these 13 are the ONLY events the public API can confirm
-    // "already done today" for.
+    //_ Core bosses - trailing string on each row is that boss's
+    // /v2/worldbosses id (see WorldEvent::apiWorldBossId, events.h).
     {"Admiral Taidha Covington",         48872.0f, 33548.0f, false, m15, "[&BKgBAAA=]",  true, "WorldBoss.png",   {}, 3 * m60,             0, "admiral_taidha_covington"},
     {"Claw of Jormag",                   56032.0f, 25417.0f, false, m15, "[&BHoCAAA=]",  true, "WorldBoss.png",   {}, 3 * m60, 2 * m60 + m30, "claw_of_jormag"},
     {"Fire Elemental",                   40346.0f, 33755.0f, false, m15, "[&BEcAAAA=]",  true, "WorldBoss.png",   {},    m120,           m45, "fire_elemental"},
@@ -45,12 +52,12 @@ std::vector<WorldEvent> g_Events =
                                                                                                                                                               17 * m60,
                                                                                                                                                               20 * m60}, 0, 0, "triple_trouble_wurm"},
 
-    // Ley Line Anomaly
+    //_ Ley Line Anomaly
     {"Ley Line Anomaly (Iron Marches)",  60822.0f, 28530.0f,  false, m20, "[&BOcBAAA=]",  true, "EventBoss.png",   {}, 6 * m60,           m20},
     {"Ley Line Anomaly (Gendarran)",     48365.0f, 29970.0f,  false, m20, "[&BOQAAAA=]",  true, "EventBoss.png",   {}, 6 * m60,    m120 + m20},
     {"Ley Line Anomaly (Timberline)",    52914.0f, 35729.0f,  false, m20, "[&BEwCAAA=]",  true, "EventBoss.png",   {}, 6 * m60, 4 * m60 + m20},
 
-    // Invasions
+    //_ Invasions
     {"Scarlet's Portal Invasion",        47338.0f, 29795.0f,  false, m15, "[&BOQAAAA=]", false, "EventMap.png",    {},    m120,           m60},
     {"Awakened Invasion (Caledon)",      43417.0f, 34490.0f,  false, m15, "[&BD0BAAA=]", false, "EventMap.png",    {}, 7 * m60,           m30},
     {"Awakened Invasion (Queensdale)",   44275.0f, 29574.0f,  false, m15, "[&BPcAAAA=]", false, "EventMap.png",    {}, 7 * m60,           m90},
@@ -60,19 +67,15 @@ std::vector<WorldEvent> g_Events =
     {"Awakened Invasion (Southsun)",     45472.0f, 36279.0f,  false, m15, "[&BNUGAAA=]", false, "EventMap.png",    {}, 7 * m60, 5 * m60 + m30},
     {"Awakened Invasion (Metrica)",      41010.0f, 35462.0f,  false, m15, "[&BEgAAAA=]", false, "EventMap.png",    {}, 7 * m60, 6 * m60 + m30},
 
-    // Fractal Incursions
+    //_ Fractal Incursions
     {"Fractal Incursion (Kessex)",       45568.0f, 32025.0f,  false, m15, "[&BBIAAAA=]", false, "EventBoss.png",   {}, 4 * m60,             0},
     {"Fractal Incursion (Snowden)",      51347.0f, 29164.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, 4 * m60,           m60},
     {"Fractal Incursion (Brisban)",      40826.0f, 33123.0f,  false, m15, "[&BHUAAAA=]", false, "EventBoss.png",   {}, 4 * m60,          m120},
     {"Fractal Incursion (Diessa)",       58085.0f, 29462.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, 4 * m60,       3 * m60},
 };
 
-// Compiled-in default categories for the options-panel list, one per
-// comment-grouping above — see CategoryDefault in events_categories.h. Built on
-// first load (or whenever EVENTS_DATA_VERSION advances past what a user's
-// saved file has), then fully user-editable from there: renaming, deleting,
-// or moving members around all stick, since LoadCategoriesData only
-// re-applies these when the file is genuinely behind this build's content.
+//_ Compiled-in category defaults, one per group above; see CategoryDefault
+// in events_categories.h for the merge/edit behavior.
 std::vector<CategoryDefault> g_DefaultBasicCategories =
 {
     {"Instanced", {

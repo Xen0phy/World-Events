@@ -1,26 +1,32 @@
+//################################################################################
 // subscriptions_cache.cpp
+//--------------------------------------------------------------------------------
 // See subscriptions_cache.h for the overall design/rationale.
+//--------------------------------------------------------------------------------
 
-#include "subscriptions_cache.h"
-#include "subscriptions.h"
+#include "events.h"
 #include "events_tracking.h"
-#include "weekly_vault.h"
 #include "gw2_api.h"
 #include "settings.h"
-#include "events.h"
+#include "subscriptions.h"
+#include "subscriptions_cache.h"
+#include "weekly_vault.h"
+
 #include <algorithm>
 #include <cstdio>
 #include <unordered_map>
 
-// ---------------------------------------------------------------------------
-// Internal: weekly-target lookup, private to this file
-// ---------------------------------------------------------------------------
-// Which mapping (if any) a Basic Event / Cyclic slot counts toward this
-// week, and whether that mapping is already complete. Only used while
-// building s_resolved below — not exposed, since every caller outside this
-// file only ever wanted "is this key a live weekly target" as one field of
-// a ResolvedSubscription, never the raw mapping data itself.
-// ---------------------------------------------------------------------------
+//********************************************************************************
+// WeeklyTargetInfo
+//--------------------------------------------------------------------------------
+// mappingTitle   best-effort label for the matched weekly objective
+// complete       whether that objective is already done this week
+//--------------------------------------------------------------------------------
+// Private to this file: which mapping (if any) a Basic Event/Cyclic slot
+// counts toward this week, and whether it's complete. Only used while
+// building s_resolved - callers outside this file only ever need
+// ResolvedSubscription::isWeeklyTarget, never the raw mapping data.
+//--------------------------------------------------------------------------------
 namespace
 {
     struct WeeklyTargetInfo
@@ -30,9 +36,11 @@ namespace
     };
 }
 
-static std::unordered_map<std::string, WeeklyTargetInfo> s_weeklyCache; // key: "Basic:<name>" / "Cyclic:<group>:<offset>"
+static std::unordered_map<std::string, WeeklyTargetInfo> s_weeklyCache;   //. key: "Basic:<name>" / "Cyclic:<group>:<offset>"
 static std::vector<ResolvedSubscription>                 s_resolved;
 
+//_ Recorded after each rebuild; compared against current values in
+// RefreshSubscriptionsCache's needRebuild check below.
 static bool     s_cacheEverBuilt = false;
 static time_t   s_cacheBuiltForResetEpoch   = 0;
 static uint64_t s_lastAppliedFetchGeneration = 0;
@@ -40,29 +48,27 @@ static uint64_t s_lastSubscriptionGeneration = 0;
 static uint64_t s_lastDoneMarkerGeneration   = 0;
 static long long s_lastUtcDay = -1;
 
-// Bounds staleness for the one class of change this cache has no dedicated
-// invalidation hook for — see the "safety-net interval" note in
-// subscriptions_cache.h's file header. Long enough that it never meaningfully
-// adds to the steady-state per-frame cost this cache exists to eliminate;
-// short enough that an edit made while actively testing it shows up well
-// within the same play session.
+//_ Bounds staleness for the one invalidation gap this cache has no
+// dedicated hook for - see the file header's safety-net note.
 static constexpr double kSafetyNetRebuildSeconds = 10.0;
 static time_t s_lastRebuildWallClock = 0;
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetCurrentWeeklyResetEpoch
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 // Weekly Wizard's Vault objectives reset every Monday at 07:30 UTC. Returns
-// the epoch time of the most recent such reset at or before `now` — i.e.
+// the epoch time of the most recent such reset at or before `now` - i.e.
 // the start of the CURRENT weekly period, so two `now` values in the same
 // weekly period always compare equal.
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 static time_t GetCurrentWeeklyResetEpoch(time_t now)
 {
     tm utc{};
-    gmtime_s(&utc, &now); // MSVC-style (buffer first, time second) — MinGW-w64 provides this signature by default
+    //_ MSVC-style signature (buffer first, time second); MinGW-w64
+    // provides this by default.
+    gmtime_s(&utc, &now);
 
-    // tm_wday: Sunday = 0 .. Saturday = 6. Remap so Monday = 0 .. Sunday = 6,
+    //_ tm_wday: Sunday = 0..Saturday = 6. Remap so Monday = 0..Sunday = 6,
     // i.e. "how many days since this week's Monday".
     int daysSinceMonday = (utc.tm_wday + 6) % 7;
 
@@ -71,42 +77,41 @@ static time_t GetCurrentWeeklyResetEpoch(time_t now)
     reset.tm_hour = 7;
     reset.tm_min  = 30;
     reset.tm_sec  = 0;
-    time_t resetTime = _mkgmtime(&reset); // MSVC/MinGW UTC equivalent of mktime; normalizes tm_mday going negative/out-of-range correctly
+    //_ MSVC/MinGW UTC equivalent of mktime; normalizes an out-of-range
+    // tm_mday correctly.
+    time_t resetTime = _mkgmtime(&reset);
 
+    //_ This week's Monday 07:30 hasn't happened yet - the current period
+    // started last week instead.
     if (resetTime > now)
-        resetTime -= 7 * 24 * 3600; // this week's Monday 07:30 hasn't happened yet — the CURRENT period started last week instead
+        resetTime -= 7 * 24 * 3600;
 
     return resetTime;
 }
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RebuildWeeklyCache
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 // Populates s_weeklyCache by asking weekly_vault.h's own matching functions
-// which Basic Events / Cyclic slots are live weekly targets right now,
-// rather than re-implementing that matching here — IsBasicEventWeeklyTarget/
-// IsCyclicSlotWeeklyTarget (weekly_vault.cpp) are the one place that logic
-// lives. Basic Events: every Core Boss (non-empty apiWorldBossId) is
-// checked, since that's the whole candidate set (see weekly_vault.h) — no
-// separate list to walk. Cyclic: only slots actually referenced by
-// g_CyclicWeeklyObjectives can ever match, so those targets are walked
-// directly instead of every slot in every group. Resolves each Cyclic
-// target's (group name, slot NAME) into (group name, slot OFFSET) against
-// g_CyclicGroups — the stable identity everything else here keys by. Only
-// called from a full rebuild, never per-frame.
-// ---------------------------------------------------------------------------
+// (IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget) which Basic Events/
+// Cyclic slots are live weekly targets, rather than duplicating that logic
+// here. Basic: every Core Boss is checked, the whole candidate set. Cyclic:
+// only slots referenced by g_CyclicWeeklyObjectives are walked, resolving
+// each target's slot NAME to the stable slot OFFSET against g_CyclicGroups.
+// Only called from a full rebuild, never per-frame.
+//--------------------------------------------------------------------------------
 static void RebuildWeeklyCache()
 {
     s_weeklyCache.clear();
 
     for (const auto& ev : g_Events)
     {
-        if (ev.apiWorldBossId.empty()) continue; // not a Core Boss — can never be a weekly target, see weekly_vault.h
+        if (ev.apiWorldBossId.empty()) continue;   //. not a Core Boss
 
         WeeklyTargetInfo info;
         if (!IsBasicEventWeeklyTarget(ev.name, info.complete)) continue;
 
-        info.mappingTitle = ev.name; // no separate mapping object to name this after — see weekly_vault.h
+        info.mappingTitle = ev.name;   //. no separate mapping object
         s_weeklyCache["Basic:" + ev.name] = info;
     }
 
@@ -119,30 +124,30 @@ static void RebuildWeeklyCache()
 
             auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
                 [&](const CyclicGroup& g) { return g.name == target.groupName; });
-            if (grpIt == g_CyclicGroups.end()) continue; // group renamed/deleted since weekly_vault.cpp's table was written
+            if (grpIt == g_CyclicGroups.end()) continue;   //. group renamed or deleted
 
             auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
                 [&](const CyclicGroup::Slot& s) { return s.name == target.slotName; });
-            if (slotIt == grpIt->slots.end()) continue; // slot renamed/deleted since weekly_vault.cpp's table was written
+            if (slotIt == grpIt->slots.end()) continue;   //. slot renamed or deleted
 
             char offsetBuf[16];
             snprintf(offsetBuf, sizeof(offsetBuf), "%d", slotIt->offset);
 
-            info.mappingTitle = target.groupName + " - " + target.slotName; // best-effort internal label — not currently surfaced in the UI
+            info.mappingTitle = target.groupName + " - " + target.slotName;   //. internal-only label
             s_weeklyCache["Cyclic:" + grpIt->name + ":" + offsetBuf] = info;
         }
     }
 }
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ResolveBasic / ResolveCyclic
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 // Build one ResolvedSubscription from a WorldEvent / (CyclicGroup, Slot)
-// pair — the one place doneToday/isWeeklyTarget/schedule-field-copying
-// logic lives, shared by both the manual-subscription pass and the
-// auto-tracked weekly pass below (mirrors how subscriptions_bar.cpp's
-// AddBasicSegment/AddCyclicSegment already split their own equivalent).
-// ---------------------------------------------------------------------------
+// pair - the one place doneToday/isWeeklyTarget/schedule-field-copying
+// logic lives, shared by the manual-subscription pass and the auto-tracked
+// weekly pass below (mirrors how subscriptions_bar.cpp's AddBasicSegment/
+// AddCyclicSegment split their own equivalent).
+//--------------------------------------------------------------------------------
 static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubscribed)
 {
     ResolvedSubscription r;
@@ -191,7 +196,7 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
     bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset });
     r.doneToday = apiDone || manualDone;
 
-    r.isVarying = false; // Cyclic slots have no varying-schedule concept
+    r.isVarying = false;   //. no varying-schedule concept
     r.period    = grp.period;
     r.duration  = slot.duration;
     r.offset    = slot.offset;
@@ -200,81 +205,83 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
     return r;
 }
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RebuildResolvedSubscriptions
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 // The one place that walks g_SubscribedBasicEvents/g_SubscribedCyclicSlots
 // and (when WeeklyAutoTrackEnabled) s_weeklyCache to build the full
-// resolved list — called once per rebuild, shared by all three UI files,
+// resolved list - called once per rebuild, shared by all three UI files,
 // instead of three independent copies of this same walk every frame.
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 static void RebuildResolvedSubscriptions()
 {
     s_resolved.clear();
 
-    // ---- Manually subscribed Basic Events ----
+    //_ Manually subscribed Basic Events.
     for (const auto& evName : g_SubscribedBasicEvents)
     {
         auto it = std::find_if(g_Events.begin(), g_Events.end(),
             [&](const WorldEvent& ev) { return ev.name == evName; });
-        if (it == g_Events.end()) continue; // deleted since subscribing — leave the subscription alone, same as before
+        if (it == g_Events.end()) continue;   //. deleted since subscribing
 
         s_resolved.push_back(ResolveBasic(*it, true));
     }
 
-    // ---- Manually subscribed Cyclic slots ----
+    //_ Manually subscribed Cyclic slots.
     for (const auto& subKey : g_SubscribedCyclicSlots)
     {
         auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
             [&](const CyclicGroup& grp) { return grp.name == subKey.groupName; });
-        if (grpIt == g_CyclicGroups.end()) continue; // group deleted since subscribing
+        if (grpIt == g_CyclicGroups.end()) continue;   //. group deleted since subscribing
 
         auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
             [&](const CyclicGroup::Slot& s) { return s.offset == subKey.slotOffset; });
-        if (slotIt == grpIt->slots.end()) continue; // slot deleted since subscribing
+        if (slotIt == grpIt->slots.end()) continue;   //. slot deleted since subscribing
 
         s_resolved.push_back(ResolveCyclic(*grpIt, *slotIt, true));
     }
 
-    // ---- Auto-tracked: active-and-incomplete weekly targets NOT already
-    // manually subscribed — gated by WeeklyAutoTrackEnabled, same master
-    // switch shared across all three UI files. Iterates the small weekly
-    // cache instead of every WorldEvent/CyclicGroup::Slot. ----
+    //_ Auto-tracked weekly targets not already manually subscribed
+    // (WeeklyAutoTrackEnabled); iterates the small weekly cache instead
+    // of every WorldEvent/CyclicGroup::Slot.
     if (WeeklyAutoTrackEnabled)
     {
         for (const auto& kv : s_weeklyCache)
         {
-            const std::string&      cacheKey = kv.first;  // not captured directly by the lambda below — see the C++20-extension note this avoids
+            //_ Copied out since pre-C++20 lambdas can't capture structured
+            // bindings (kv.first/kv.second) directly.
+            const std::string&      cacheKey = kv.first;
             const WeeklyTargetInfo& info     = kv.second;
             if (info.complete) continue;
 
             bool alreadyResolved = std::find_if(s_resolved.begin(), s_resolved.end(),
                 [&](const ResolvedSubscription& r) { return r.key == cacheKey; }) != s_resolved.end();
-            if (alreadyResolved) continue; // already added above as a manual subscription
+            if (alreadyResolved) continue;   //. already added manually
 
             if (cacheKey.rfind("Basic:", 0) == 0)
             {
                 std::string name = cacheKey.substr(6);
                 auto evIt = std::find_if(g_Events.begin(), g_Events.end(),
                     [&](const WorldEvent& e) { return e.name == name; });
-                if (evIt == g_Events.end()) continue; // event renamed/deleted since the mapping table was written
+                if (evIt == g_Events.end()) continue;   //. event renamed or deleted
 
                 s_resolved.push_back(ResolveBasic(*evIt, false));
             }
             else
             {
-                // "Cyclic:<group>:<offset>" — split on the LAST ':' since a group name could itself contain one.
+                //_ "Cyclic:<group>:<offset>" - split on the LAST ':' since
+                // a group name could itself contain one.
                 size_t lastColon = cacheKey.rfind(':');
-                std::string groupName = cacheKey.substr(7, lastColon - 7); // 7 == strlen("Cyclic:")
+                std::string groupName = cacheKey.substr(7, lastColon - 7);   //. 7 == strlen("Cyclic:")
                 int offset = atoi(cacheKey.c_str() + lastColon + 1);
 
                 auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
                     [&](const CyclicGroup& g) { return g.name == groupName; });
-                if (grpIt == g_CyclicGroups.end()) continue; // group renamed/deleted since the mapping table was written
+                if (grpIt == g_CyclicGroups.end()) continue;   //. group renamed or deleted
 
                 auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
                     [&](const CyclicGroup::Slot& s) { return s.offset == offset; });
-                if (slotIt == grpIt->slots.end()) continue; // slot renamed/deleted since the mapping table was written
+                if (slotIt == grpIt->slots.end()) continue;   //. slot renamed or deleted
 
                 s_resolved.push_back(ResolveCyclic(*grpIt, *slotIt, false));
             }
@@ -282,6 +289,9 @@ static void RebuildResolvedSubscriptions()
     }
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RefreshSubscriptionsCache / GetResolvedSubscriptions
+//--------------------------------------------------------------------------------
 void RefreshSubscriptionsCache(time_t now)
 {
     time_t    resetEpoch = GetCurrentWeeklyResetEpoch(now);
@@ -318,18 +328,26 @@ const std::vector<ResolvedSubscription>& GetResolvedSubscriptions()
     return s_resolved;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetSubscriptionActiveState
+//--------------------------------------------------------------------------------
+// Three branches: varying-schedule Basic Events (walk the sorted start
+// times), periodic (non-varying) Basic Events, and Cyclic slots (checks
+// every repeat within the period, since a slot can recur more than once).
+// All three return early once an active occurrence is found.
+//--------------------------------------------------------------------------------
 SubscriptionActiveState GetSubscriptionActiveState(const ResolvedSubscription& sub, time_t now)
 {
     SubscriptionActiveState st;
 
     if (sub.isBasic && sub.isVarying)
     {
-        if (sub.varyingTimes.empty()) return st; // no schedule data — active=false, both secs left at -1
+        if (sub.varyingTimes.empty()) return st;   //. no schedule data
 
         int secondsOfDay = (int)(now % 86400);
         for (int t : sub.varyingTimes)
         {
-            if (secondsOfDay < t) { st.secsUntilStart = t - secondsOfDay; return st; } // hasn't started yet
+            if (secondsOfDay < t) { st.secsUntilStart = t - secondsOfDay; return st; }   //. hasn't started yet
             if (secondsOfDay < t + sub.duration)
             {
                 st.active         = true;
@@ -337,17 +355,17 @@ SubscriptionActiveState GetSubscriptionActiveState(const ResolvedSubscription& s
                 st.secsUntilEnd   = t + sub.duration - secondsOfDay;
                 return st;
             }
-            // else: already passed today, check the next scheduled time
+            //_ else: already passed today - check the next scheduled time.
         }
-        // All times passed today — wrap to the first one tomorrow.
+        //_ All times passed today - wrap to the first one tomorrow.
         st.secsUntilStart = 86400 - secondsOfDay + sub.varyingTimes[0];
         return st;
     }
 
     if (sub.isBasic)
     {
-        // Periodic (non-varying) Basic Event.
-        if (sub.period <= 0) return st; // no schedule data
+        //_ Periodic (non-varying) Basic Event.
+        if (sub.period <= 0) return st;   //. no schedule data
 
         int phase = (((int)(now % sub.period) - sub.offset) % sub.period + sub.period) % sub.period;
         if (phase < sub.duration)
@@ -363,10 +381,9 @@ SubscriptionActiveState GetSubscriptionActiveState(const ResolvedSubscription& s
         return st;
     }
 
-    // Cyclic slot: same "soonest occurrence across every repeat within the
-    // period" phase math AddCyclicSegment/GetCyclicSlotStatus/
-    // AddCyclicCandidate each used to compute independently.
-    if (sub.period <= 0) return st; // no schedule data
+    //_ Previously computed independently by AddCyclicSegment/
+    // GetCyclicSlotStatus/AddCyclicCandidate.
+    if (sub.period <= 0) return st;   //. no schedule data
 
     int secondsOfDay = (int)(now % sub.period);
     int subSpan      = sub.period / sub.repeat;
@@ -384,7 +401,7 @@ SubscriptionActiveState GetSubscriptionActiveState(const ResolvedSubscription& s
             st.active         = true;
             st.secsUntilStart = 0;
             st.secsUntilEnd   = sub.duration - phase;
-            return st; // a slot can't be active in two repeats at once
+            return st;   //. only one active repeat
         }
         if (secsUntilStart < bestSecsUntil)
             bestSecsUntil = secsUntilStart;

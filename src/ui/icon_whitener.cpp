@@ -1,50 +1,52 @@
+//################################################################################
 // icon_whitener.cpp
-// Popup window that converts a user-picked icon to a "white/gray + alpha"
-// form suitable for use as a map-overlay icon in maprender.cpp.
-//
-// Image I/O uses the Windows Imaging Component (WIC) — no extra files or
-// libraries needed beyond wincodec.h (mingw-w64) and -lwindowscodecs -lole32
-// in the linker flags.
-//
-// Conversion pipeline (single pass):
-//   1. Luminance desaturation (ITU-R BT.709) with proper sRGB linearisation.
-//      Matches GIMP's Colors -> Desaturate -> Luminance.
-//   2. Normalize: scale all pixels up so the brightest maps to white,
-//      preserving relative shading between light and dark areas.
-//
-// The result is saved as "<textures dir>/<stem>_white.png".
+//--------------------------------------------------------------------------------
+// DrawIconWhitenerButton() / DrawIconWhitenerPopup()   whitener popup UI
+//--------------------------------------------------------------------------------
+// Implements the popup described in icon_whitener.h using the Windows Imaging
+// Component (WIC) - no extra files/libraries needed beyond wincodec.h
+// (mingw-w64) and -lwindowscodecs -lole32 in the linker flags. See
+// ProcessPixels for the desaturate+normalize pipeline and DoConvert for the
+// WIC load/save sequence.
+//--------------------------------------------------------------------------------
 
+#include "addon.h"          //. g_AddonDir
 #include "icon_whitener.h"
-#include "maprender.h"   // GetEventIconFilenames, ScanEventIconFiles
-#include "addon.h"       // g_AddonDir
 #include "imgui.h"
-#include "imgui_internal.h" // ImGuiItemFlags_Disabled
+#include "imgui_internal.h" //. ImGuiItemFlags_Disabled
+#include "maprender.h"      //. GetEventIconFilenames, ScanEventIconFiles
 
+#include <algorithm>
+#include <cmath>
+#include <filesystem>
 #include <string>
 #include <vector>
-#include <cmath>
-#include <algorithm>
-#include <filesystem>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <wincodec.h>
 
-// ---------------------------------------------------------------------------
-// Internal state
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// (anonymous namespace)
+//--------------------------------------------------------------------------------
+// Internal state and helpers for the whitener popup - not part of the public
+// API (see icon_whitener.h).
+//--------------------------------------------------------------------------------
 namespace {
 
-static bool        s_open          = false;
-static int         s_iconIndex     = 0;
-static std::string s_statusMessage;
-static bool        s_statusIsError = false;
+static bool        s_open          = false;   //. popup open/closed
+static int         s_iconIndex     = 0;       //. combo selection, 0 = none picked
+static std::string s_statusMessage;           //. last convert result or error
+static bool        s_statusIsError = false;   //. true if s_statusMessage is an error
 
-// ---------------------------------------------------------------------------
-// ProcessPixels — desaturate (luminance) then normalize
-// WIC decodes to GUID_WICPixelFormat32bppBGRA: byte order is B G R A.
-// Alpha is untouched.
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ProcessPixels
+//--------------------------------------------------------------------------------
+// Desaturates to luminance then normalizes so the brightest pixel becomes
+// white, in a single pass over the buffer (see file header for the pipeline
+// rationale). WIC decodes to GUID_WICPixelFormat32bppBGRA - byte order is
+// B G R A; alpha is untouched.
+//--------------------------------------------------------------------------------
 static void ProcessPixels(UINT w, UINT h, BYTE* px)
 {
     auto toLinear = [](float c) -> float {
@@ -59,8 +61,8 @@ static void ProcessPixels(UINT w, UINT h, BYTE* px)
 
     const UINT n = w * h;
 
-    // Pass 1 — desaturate to luminance, store result back as gray sRGB.
-    // Also track the brightest value for the normalize pass.
+    //_ Pass 1: desaturate to luminance, store result back as gray sRGB, and
+    // track the brightest value for the normalize pass.
     float brightest = 0.0f;
     for (UINT i = 0; i < n; i++)
     {
@@ -76,22 +78,25 @@ static void ProcessPixels(UINT w, UINT h, BYTE* px)
         brightest = std::max(brightest, srgb);
     }
 
-    if (brightest < 1e-6f) return; // fully black, nothing to normalize
+    if (brightest < 1e-6f) return;   //. fully black, nothing to normalize
 
-    // Pass 2 — normalize so the brightest pixel becomes white.
+    //_ Pass 2: normalize so the brightest pixel becomes white.
     float scale = 1.0f / brightest;
     for (UINT i = 0; i < n; i++)
     {
         BYTE* p  = px + i * 4;
-        float v  = (p[0] / 255.0f) * scale; // r == g == b after pass 1
+        float v  = (p[0] / 255.0f) * scale;   //. r,g,b equal after pass 1
         BYTE  out = to8(v);
         p[0] = p[1] = p[2] = out;
     }
 }
 
-// ---------------------------------------------------------------------------
-// WIC helper
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ToWide
+//--------------------------------------------------------------------------------
+// Converts a UTF-8 string to null-terminated wide string, as required by the
+// WIC filename APIs.
+//--------------------------------------------------------------------------------
 static std::wstring ToWide(const std::string& s)
 {
     if (s.empty()) return {};
@@ -101,9 +106,13 @@ static std::wstring ToWide(const std::string& s)
     return w;
 }
 
-// ---------------------------------------------------------------------------
-// DoConvert — load via WIC, process pixels, save via WIC
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DoConvert
+//--------------------------------------------------------------------------------
+// Loads filename via WIC, runs ProcessPixels over it, and saves the result as
+// "<stem>_white.png" in the same folder. Sets s_statusMessage/s_statusIsError
+// with the outcome.
+//--------------------------------------------------------------------------------
 static void DoConvert(const std::string& filename)
 {
     std::string texDir      = g_AddonDir + "\\textures";
@@ -129,17 +138,12 @@ static void DoConvert(const std::string& filename)
     HRESULT hr = S_OK;
     std::string errMsg;
 
-    // CoInitializeEx must be paired with exactly one CoUninitialize per
-    // thread that successfully initialized (or re-initialized) COM — S_OK
-    // means this call did the initializing, S_FALSE means COM was already
-    // initialized on this thread (e.g. by ImGui/the host) and this call
-    // just bumped its per-thread refcount, and in both cases a matching
-    // CoUninitialize is this function's responsibility to make. Any other
-    // result (e.g. RPC_E_CHANGED_MODE, if the thread is already COM-
-    // initialized with an incompatible concurrency model) means COM was
-    // NOT initialized by this call, so it must NOT be uninitialized by it
-    // either. Without this check, every "Convert & Save" click leaked one
-    // COM apartment reference on the UI thread that was never released.
+    //_ S_OK/S_FALSE both mean this call owns a CoUninitialize (S_OK = we
+    // initialized COM, S_FALSE = it was already initialized and this just
+    // bumped the per-thread refcount). Any other result (e.g. thread already
+    // COM-initialized with an incompatible concurrency model) means this call
+    // must NOT uninitialize - skipping this check used to leak one COM
+    // apartment reference per "Convert & Save" click.
     HRESULT coInitResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     bool comNeedsUninit = (coInitResult == S_OK || coInitResult == S_FALSE);
 
@@ -242,11 +246,11 @@ static void DoConvert(const std::string& filename)
     s_statusIsError = false;
 }
 
-} // namespace
+} //. namespace
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawIconWhitenerButton / DrawIconWhitenerPopup
+//--------------------------------------------------------------------------------
 
 void DrawIconWhitenerButton()
 {

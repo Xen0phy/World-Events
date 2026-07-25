@@ -1,37 +1,39 @@
+//################################################################################
+// events_cyclic.cpp
+//--------------------------------------------------------------------------------
+// g_CyclicGroups              compiled-in Cyclic Group roster (see
+//                             CyclicGroup, events.h)
+// g_DefaultCyclicCategories   compiled-in category defaults for the roster
+//                             above (see CategoryDefault, events_categories.h)
+//--------------------------------------------------------------------------------
+// Hand-written data only - no logic. Groups are grouped by comment banner,
+// one per expansion, matching g_DefaultCyclicCategories one-for-one below
+// (Eye of the North is filed under Icebrood Saga there, not Instanced -
+// see that list).
+//--------------------------------------------------------------------------------
+
 #include "events.h"
 #include "events_categories.h"
 
-// ---------------------------------------------------------------------------
-// Color helpers
-// ---------------------------------------------------------------------------
-// Each group is seeded with one base color, written directly as the RGBA
-// floats ColorSet::base actually stores (see events.h) — no hex literal or
-// conversion function of any kind, at compile time or otherwise. The
-// comment after each line is only the hex value these were originally
-// picked from, kept purely so a future edit can still reason in hex if
-// that's easier, e.g. pasting a value from an external color picker.
-// ColorSet::sec()/ter() then derive the secondary/tertiary shades a slot's
-// `tier` picks between by scaling R/G/B down, alpha unchanged.
-// ---------------------------------------------------------------------------
-const ColorSet COL_LWS2 { ImVec4(0.443f, 0.373f, 0.094f, 1.000f) }; // 0x715F18FF
-const ColorSet COL_HOT  { ImVec4(0.400f, 0.443f, 0.094f, 1.000f) }; // 0x667118FF
-const ColorSet COL_LWS3 { ImVec4(0.322f, 0.463f, 0.231f, 1.000f) }; // 0x52763BFF
-const ColorSet COL_POF  { ImVec4(0.592f, 0.388f, 0.125f, 1.000f) }; // 0x976320FF
-const ColorSet COL_LWS4 { ImVec4(0.494f, 0.204f, 0.580f, 1.000f) }; // 0x7E3494FF
-const ColorSet COL_IBS  { ImVec4(0.125f, 0.400f, 0.592f, 1.000f) }; // 0x206697FF
-const ColorSet COL_EOD  { ImVec4(0.125f, 0.545f, 0.592f, 1.000f) }; // 0x208B97FF
-const ColorSet COL_SOTO { ImVec4(0.820f, 0.612f, 0.235f, 1.000f) }; // 0xD19C3CFF
-const ColorSet COL_JW   { ImVec4(0.094f, 0.204f, 0.494f, 1.000f) }; // 0x18347EFF
-const ColorSet COL_VOE  { ImVec4(0.671f, 0.251f, 0.102f, 1.000f) }; // 0xAB401AFF
+//_ Each COL_* is the RGBA float tuple ColorSet::base actually stores (see
+// events.h); the trailing hex comment is only the original color-picker
+// value, kept for reference if a future edit wants to reason in hex.
+const ColorSet COL_LWS2 { ImVec4(0.443f, 0.373f, 0.094f, 1.000f) }; //. 0x715F18FF
+const ColorSet COL_HOT  { ImVec4(0.400f, 0.443f, 0.094f, 1.000f) }; //. 0x667118FF
+const ColorSet COL_LWS3 { ImVec4(0.322f, 0.463f, 0.231f, 1.000f) }; //. 0x52763BFF
+const ColorSet COL_POF  { ImVec4(0.592f, 0.388f, 0.125f, 1.000f) }; //. 0x976320FF
+const ColorSet COL_LWS4 { ImVec4(0.494f, 0.204f, 0.580f, 1.000f) }; //. 0x7E3494FF
+const ColorSet COL_IBS  { ImVec4(0.125f, 0.400f, 0.592f, 1.000f) }; //. 0x206697FF
+const ColorSet COL_EOD  { ImVec4(0.125f, 0.545f, 0.592f, 1.000f) }; //. 0x208B97FF
+const ColorSet COL_SOTO { ImVec4(0.820f, 0.612f, 0.235f, 1.000f) }; //. 0xD19C3CFF
+const ColorSet COL_JW   { ImVec4(0.094f, 0.204f, 0.494f, 1.000f) }; //. 0x18347EFF
+const ColorSet COL_VOE  { ImVec4(0.671f, 0.251f, 0.102f, 1.000f) }; //. 0xAB401AFF
 
+//_ Each group is its own 2h cycle of sequential events; offsets are
+// seconds from UTC midnight of each event's first occurrence.
 std::vector<CyclicGroup> g_CyclicGroups =
 {
-    // — each map has its own 2h cycle with sequential events.
-    // Offsets are seconds from UTC midnight of each event's first occurrence.
-
-    // ---------------------------------------------------------------------------
-    // Instanced
-    // ---------------------------------------------------------------------------
+    //_ Instanced
     { "Eye of the North",
         57563.0f, 21831.0f, m120, COL_IBS,
         {
@@ -42,9 +44,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
 
-    // ---------------------------------------------------------------------------
-    // Living World Season 2
-    // ---------------------------------------------------------------------------
+    //_ Living World Season 2
     { "Dry Top",
         37129.0f, 32802.0f, m60, COL_LWS2,
         {
@@ -53,9 +53,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
     
-    // ---------------------------------------------------------------------------
-    // Heart of Thorns
-    // ---------------------------------------------------------------------------
+    //_ Heart of Thorns
     { "Verdant Brink",
         34944.0f, 31850.0f, m120, COL_HOT,
         {
@@ -92,9 +90,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         std::nullopt, true, "dragons_stand_heros_choice_chest"
     },
 
-    // ---------------------------------------------------------------------------
-    // Living World Season 3
-    // ---------------------------------------------------------------------------
+    //_ Living World Season 3
     { "Lake Doric",
         45564.0f, 27004.0f, m120, COL_LWS3,
         {
@@ -104,9 +100,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
 
-    // ---------------------------------------------------------------------------
-    // Path of Fire
-    // ---------------------------------------------------------------------------
+    //_ Path of Fire
     { "Crystal Oasis",
         58692.0f, 43752.0f, m120, COL_POF,
         {
@@ -146,9 +140,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         std::nullopt, true, "domain_of_vabbi_heros_choice_chest"
     },
     
-    // ---------------------------------------------------------------------------
-    // Living World Season 4
-    // ---------------------------------------------------------------------------
+    //_ Living World Season 4
     { "Domain of Istan",
         57165.0f, 62605.0f, m120, COL_LWS4,
         {
@@ -170,9 +162,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
 
-    // ---------------------------------------------------------------------------
-    // Icebrood Saga
-    // ---------------------------------------------------------------------------
+    //_ Icebrood Saga
     { "Grothmar Valley",
         60957.0f, 19174.0f, m120, COL_IBS,
         {
@@ -192,9 +182,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
 
-    // ---------------------------------------------------------------------------
-    // End of Dragons
-    // ---------------------------------------------------------------------------
+    //_ End of Dragons
     { "Seitung Province",
         23247.0f, 102143.0f, m120, COL_EOD,
         {
@@ -223,9 +211,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
 
-    // ---------------------------------------------------------------------------
-    // Secrets of the Obscure
-    // ---------------------------------------------------------------------------
+    //_ Secrets of the Obscure
     { "Skywatch Archipelago",
         26013.0f, 23715.0f, m120, COL_SOTO,
         {
@@ -246,9 +232,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
 
-    // ---------------------------------------------------------------------------
-    // Janthir Wilds
-    // ---------------------------------------------------------------------------
+    //_ Janthir Wilds
     { "Janthir Syntri",
         39981.0f, 15269.0f, m120, COL_JW,
         {
@@ -262,9 +246,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
 
-    // ---------------------------------------------------------------------------
-    // Visions of Eternity
-    // ---------------------------------------------------------------------------
+    //_ Visions of Eternity
     { "Shipwreck Strand",
         10515.0f, 59212.0f, m120, COL_VOE,
         {
@@ -285,11 +267,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
     },
 };
 
-// Compiled-in default categories for the options-panel list, one per
-// expansion-grouping comment above — see CategoryDefault in events_categories.h
-// and the matching g_DefaultBasicCategories in events_basic.cpp. Built on
-// first load (or whenever EVENTS_DATA_VERSION advances past what a user's
-// saved file has), then fully user-editable from there.
+//_ Same idea as g_DefaultBasicCategories (events_basic.cpp) - one entry
+// per expansion banner above, for the Cyclic Group list instead.
 std::vector<CategoryDefault> g_DefaultCyclicCategories =
 {
     {"Living World", {

@@ -1,5 +1,7 @@
+//################################################################################
 // events_storage.cpp
-// JSON persistence for g_CyclicGroups and g_Events, both stored together in
+//--------------------------------------------------------------------------------
+// JSON persistence for g_Events and g_CyclicGroups, both stored together in
 // one file: "<addonDir>/events.json".
 //
 // File shape:
@@ -9,49 +11,40 @@
 //     "cyclicGroups": [ {...CyclicGroup, with nested "slots": [...]...}, ... ]
 //   }
 //
-// On load, the compiled-in defaults (g_Events / g_CyclicGroups as built by
-// events_basic.cpp / events_cyclic.cpp) are MERGED with whatever's on disk,
-// matched by KEY — not by array position, since inserting a new group/event
-// in the middle of the compiled-in list would otherwise shift every later
-// index and corrupt the match. Groups and events are keyed by name alone;
-// SLOTS are keyed by name+offset together, since slot names CAN legitimately
-// repeat within a single group — e.g. Dry Top has two slots both named
-// "Crash Site" at different offsets, a real repeated boss fight, not a
-// typo (see SlotKey() below).
+// On load, the compiled-in defaults are merged with whatever's on disk,
+// matched by key rather than replaced outright - see MergeByKey/
+// MergeGroups below for the exact rule and why a plain name isn't always
+// a safe key. The merged result becomes g_Events/g_CyclicGroups and is
+// also what gets written back to disk afterward, so a first run (no file
+// yet) writes out exactly the compiled-in defaults, and every run after
+// that keeps merging forward.
 //
-//   - Key exists in both   -> keep the JSON's version (preserves any user
-//                             customization — color overrides, edited
-//                             offsets, etc.). Slots within a matched group
-//                             are merged the same way, one level deeper.
-//   - Key only in defaults -> new content shipped in this build; added.
-//   - Key only in the JSON -> kept — could be a user-created entry, or a
-//                             compiled-in one the user renamed.
-//
-// The merged result is what g_Events / g_CyclicGroups actually end up
-// holding, and is also what gets written back to disk afterward — so a
-// first run (no file yet) writes out exactly the compiled-in defaults,
-// and every run after that keeps merging forward.
+// EVENTS_DATA_VERSION (events.h) gates that merge and is shared with
+// events_categories.cpp, since both read/write the same "data_version"
+// key in this same events.json.
 //
 // All functions swallow exceptions and return false on failure, matching
 // the conventions in settings.cpp.
+//--------------------------------------------------------------------------------
 
 #include "events.h"
 #include "nlohmann_json.hpp"
-#include <fstream>
+
 #include <filesystem>
+#include <fstream>
 #include <unordered_map>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
-// EVENTS_DATA_VERSION lives in events.h, shared with events_categories.cpp,
-// since both this file and events_categories.cpp read/write the same
-// "data_version" key in the same events.json.
-
-// ---------------------------------------------------------------------------
-// WorldEvent (de)serialization
-// ---------------------------------------------------------------------------
-
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SerializeEvent / DeserializeEvent
+//--------------------------------------------------------------------------------
+// (De)serializes one WorldEvent. iconTexture/chatCode are omitted when
+// empty and shown is omitted when true (the default) - all three fall
+// through cleanly via j.value() on load. isVarying selects varyingTimes
+// vs period/offset (see WorldEvent in events.h).
+//--------------------------------------------------------------------------------
 static json SerializeEvent(const WorldEvent& ev)
 {
     json j;
@@ -62,13 +55,13 @@ static json SerializeEvent(const WorldEvent& ev)
     j["duration"]   = ev.duration;
 
     if (!ev.iconTexture.empty())
-        j["iconTexture"] = ev.iconTexture; // omitted entirely when empty, matching customColor/idleColor's convention elsewhere in this file
+        j["iconTexture"] = ev.iconTexture;
 
     if (!ev.chatCode.empty())
-        j["chatCode"] = ev.chatCode; // same "omit when empty" convention
+        j["chatCode"] = ev.chatCode;
 
     if (!ev.shown)
-        j["shown"] = false; // omitted entirely when true (the default)
+        j["shown"] = false;
 
     if (ev.isVarying)
         j["varyingTimes"] = ev.varyingTimes;
@@ -102,9 +95,12 @@ static WorldEvent DeserializeEvent(const json& j)
     return ev;
 }
 
-// ---------------------------------------------------------------------------
-// CyclicGroup::Slot (de)serialization
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ColorTierToString / ColorTierFromString
+//--------------------------------------------------------------------------------
+// Converts ColorTier to/from its JSON string ("Primary"/"Secondary"/
+// "Tertiary"); unrecognized strings fall back to Primary.
+//--------------------------------------------------------------------------------
 static const char* ColorTierToString(ColorTier t)
 {
     switch (t)
@@ -122,14 +118,15 @@ static ColorTier ColorTierFromString(const std::string& s)
     return ColorTier::Primary;
 }
 
-// Colors are stored as "#RRGGBBAA" hex strings in the JSON — readable when
-// hand-edited — but stay plain ImU32/unsigned int everywhere in C++.
-//
-// Still used for idleColor/customColor below (CyclicGroup::idleColor,
-// CyclicGroup::Slot::customColor) — those are already native ImGui ImU32
-// values, not the packed-RRGGBBAA format ColorSet::base used to be, so they
-// were never part of the float-array migration just below and keep this
-// representation unchanged.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ColorToHexString / HexStringToColor
+//--------------------------------------------------------------------------------
+// Converts a packed ImU32 RGBA color to/from "#RRGGBBAA" hex, human-
+// readable when hand-edited. Used for idleColor/customColor, which stay
+// native ImU32 values in C++ and were never migrated to the float-array
+// format ColorSet::base uses (see SerializeColorArray below). Falls back
+// to `fallback` on any parse failure.
+//--------------------------------------------------------------------------------
 static std::string ColorToHexString(unsigned int rgba)
 {
     char buf[10];
@@ -144,23 +141,19 @@ static unsigned int HexStringToColor(const std::string& s, unsigned int fallback
     catch (...) { return fallback; }
 }
 
-// ---------------------------------------------------------------------------
-// ColorSet::base (de)serialization
-// ---------------------------------------------------------------------------
-// Written as a plain JSON array of 4 floats — [r, g, b, a] in [0,1] — the
-// same layout ImGui::ColorEdit4 already reads/writes, needing no
-// packing/unpacking at all (see events.h's ColorSet and color_utils.h).
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SerializeColorArray / DeserializeColorArray
+//--------------------------------------------------------------------------------
+// ColorSet::base is written as a plain [r, g, b, a] JSON array in [0,1],
+// the same layout ImGui::ColorEdit4 reads/writes directly - no packing
+// needed (contrast idleColor/customColor above, which stay packed ImU32).
 // DeserializeColorArray also accepts the OLD "#RRGGBBAA" hex-string shape
-// (ColorSet::base used to be a packed unsigned int, hex-encoded the same
-// way idleColor/customColor still are above) as a one-time read fallback.
-// There's no separate "needs resave" flag for this one, unlike
-// settings.ini's equivalent migration in settings.cpp: SaveAllData()
-// already runs unconditionally right after LoadEventsData() on every
-// AddonLoad (see addon.cpp), so the very next write already re-serializes
-// every group through SerializeColorArray below and lands on the new
-// format automatically — nothing extra to trigger here.
-// ---------------------------------------------------------------------------
+// (ColorSet::base's format before this migration) as a one-time read
+// fallback; no "needs resave" flag is needed since SaveAllData() already
+// runs right after LoadEventsData() on every AddonLoad (addon.cpp), so
+// the very next write re-serializes through this function and lands on
+// the new format automatically.
+//--------------------------------------------------------------------------------
 static json SerializeColorArray(const ImVec4& c)
 {
     return json::array({ c.x, c.y, c.z, c.w });
@@ -181,6 +174,14 @@ static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
     return fallback;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SerializeSlot / DeserializeSlot
+//--------------------------------------------------------------------------------
+// (De)serializes one CyclicGroup::Slot. customColor is presence-checked
+// (j.contains) rather than defaulted, so "unset" round-trips exactly;
+// chatCode is omitted when empty and shown when true (the default), same
+// convention as WorldEvent above.
+//--------------------------------------------------------------------------------
 static json SerializeSlot(const CyclicGroup::Slot& slot)
 {
     json j;
@@ -192,13 +193,12 @@ static json SerializeSlot(const CyclicGroup::Slot& slot)
 
     if (slot.customColor.has_value())
         j["customColor"] = ColorToHexString(*slot.customColor);
-    // omitted entirely when unset — j.value() on load falls through cleanly
 
     if (!slot.chatCode.empty())
-        j["chatCode"] = slot.chatCode; // same "omit when empty" convention
+        j["chatCode"] = slot.chatCode;
 
     if (!slot.shown)
-        j["shown"] = false; // omitted entirely when true (the default) — see WorldEvent's shown field above for the same convention
+        j["shown"] = false;
 
     return j;
 }
@@ -221,9 +221,14 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
     return slot;
 }
 
-// ---------------------------------------------------------------------------
-// CyclicGroup (de)serialization
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SerializeGroup / DeserializeGroup
+//--------------------------------------------------------------------------------
+// (De)serializes one CyclicGroup, including its nested slots array via
+// SerializeSlot/DeserializeSlot. idleColor is presence-checked like
+// Slot::customColor above; shown is omitted when true (the default), same
+// convention as WorldEvent above.
+//--------------------------------------------------------------------------------
 static json SerializeGroup(const CyclicGroup& grp)
 {
     json j;
@@ -237,7 +242,7 @@ static json SerializeGroup(const CyclicGroup& grp)
         j["idleColor"] = ColorToHexString(*grp.idleColor);
 
     if (!grp.shown)
-        j["shown"] = false; // omitted entirely when true (the default) — see WorldEvent's shown field above for the same convention
+        j["shown"] = false;
 
     json slots = json::array();
     for (const auto& slot : grp.slots)
@@ -254,7 +259,7 @@ static CyclicGroup DeserializeGroup(const json& j)
     grp.continentX = j.value("continentX", 0.0f);
     grp.continentY = j.value("continentY", 0.0f);
     grp.period     = j.value("period", 7200);
-    grp.colors     = ColorSet{ DeserializeColorArray(j.value("colors", json()), ImVec4(0.502f, 0.502f, 0.502f, 1.0f)) }; // matches the old "#808080FF" default
+    grp.colors     = ColorSet{ DeserializeColorArray(j.value("colors", json()), ImVec4(0.502f, 0.502f, 0.502f, 1.0f)) };   //. matches old #808080FF default
 
     if (j.contains("idleColor"))
         grp.idleColor = HexStringToColor(j.value("idleColor", std::string()), 0xFFFFFFFFu);
@@ -268,38 +273,28 @@ static CyclicGroup DeserializeGroup(const json& j)
     return grp;
 }
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MergeByKey
-// ---------------------------------------------------------------------------
-// Generic merge used for both top-level (events/groups) and nested (slots
-// within a matched group) merging — see the file-level comment above for
-// the merge rule. Preserves defaults' relative order first, then appends
-// anything in loaded that wasn't matched, in the order it appeared on disk.
+//--------------------------------------------------------------------------------
+// Generic key-matched merge, used for top-level events/groups and for
+// slots nested within a matched group. Preserves defaults' order first,
+// then appends unmatched loaded entries in on-disk order. getKey must be
+// unique within the list - plain name is NOT enough for slots, since
+// e.g. Dry Top has two slots both named "Crash Site" at different
+// offsets (see SlotKey below).
 //
-// resurrectMissingDefaults should be true only when the file's saved
-// data_version is OLDER than the compiled-in EVENTS_DATA_VERSION — see
-// LoadEventsData. When the versions match, the file is known fully
-// current, and treating an unmatched default as "new content" instead of
-// "the user removed/renamed it" causes a real bug: renaming something to
-// collide with another existing name makes the old name reappear from the
-// compiled defaults on the next load, alongside the renamed duplicate.
-//
-// IMPORTANT: getKey must produce a value that's actually unique within the
-// list, or entries silently collide and corrupt each other on merge. Plain
-// name is NOT safe on its own — e.g. Dry Top has two slots both named
-// "Crash Site" at different offsets (a real, intentional repeat boss
-// fight) — so getKey should combine name with whatever else disambiguates
-// otherwise-identical-looking entries; see callers below for the actual
-// key used for groups/events vs slots.
-// ---------------------------------------------------------------------------
+// resurrectMissingDefaults must be true only when the file predates
+// EVENTS_DATA_VERSION; otherwise an unmatched default is treated as
+// user-removed/renamed rather than new content - this is what prevents a
+// rename from resurrecting the old name on the next load.
+//--------------------------------------------------------------------------------
 template<typename T, typename KeyFn>
 static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vector<T>& loaded, KeyFn getKey, bool resurrectMissingDefaults)
 {
     std::unordered_map<std::string, size_t> loadedIndexByKey;
+    //_ Last entry wins if getKey produced a duplicate key (shouldn't happen).
     for (size_t i = 0; i < loaded.size(); i++)
-        loadedIndexByKey[getKey(loaded[i])] = i; // last entry with a given key wins if the
-                                                  // caller's key isn't actually unique —
-                                                  // see the IMPORTANT note above.
+        loadedIndexByKey[getKey(loaded[i])] = i;
 
     std::vector<bool> matched(loaded.size(), false);
     std::vector<T> result;
@@ -317,8 +312,8 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
         {
             result.push_back(def);
         }
-        // else: dropped — the file is current, this default's absence
-        // from it means the user removed/renamed it, not new content.
+        //_ Dropped when false: file is current, so this default's absence
+        // means the user removed/renamed it, not new content.
     }
 
     for (size_t i = 0; i < loaded.size(); i++)
@@ -328,30 +323,31 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
     return result;
 }
 
-// Key helpers. Plain name is fine for top-level groups/events today (no
-// duplicates exist in events_cyclic.cpp/events_basic.cpp as of this writing), but slots
-// within a single group CAN legitimately share a name — e.g. Dry Top has
-// two slots both named "Crash Site" at different offsets, a real repeat
-// occurrence, not a typo. Composite name+offset keys are used everywhere
-// an offset exists, so a future name collision (a user renaming things, or
-// a slot/group genuinely sharing a name elsewhere) can't silently corrupt
-// the merge the way a name-only key did before this fix.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GroupKey / SlotKey / EventKey
+//--------------------------------------------------------------------------------
+// Merge keys for MergeGroups/MergeByKey. Groups and events key on name
+// alone (no duplicates exist in events_cyclic.cpp/events_basic.cpp today).
+// Slots key on name+offset, since slot names CAN legitimately repeat
+// within one group - e.g. Dry Top's two "Crash Site" slots at different
+// offsets are a real repeated boss fight, not a typo.
+//--------------------------------------------------------------------------------
 static std::string GroupKey(const CyclicGroup& g) { return g.name; }
 static std::string SlotKey(const CyclicGroup::Slot& s) { return s.name + "|" + std::to_string(s.offset); }
 static std::string EventKey(const WorldEvent& e) { return e.name; }
 
-// CyclicGroups need an extra pass: even when a group itself matches by key
-// (so the loaded group "wins" overall), its SLOTS still need to be merged
-// the same way one level deeper — otherwise a new slot added to that group
-// in a newer build would never appear, since the whole loaded group object
-// would simply replace the compiled-in one wholesale.
-//
-// resurrectMissingDefaults is forwarded to BOTH levels: a group missing
-// from the file is only re-added when the file predates this build's
-// content, and a SLOT missing from an otherwise-matched group's loaded
-// slot list follows the exact same rule — a slot the user deleted from an
-// existing group shouldn't reappear just because the group itself still
-// exists.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// MergeGroups
+//--------------------------------------------------------------------------------
+// MergeByKey for CyclicGroup, plus one extra pass: even when a group
+// matches by key and the loaded version wins overall, its slots are
+// still merged one level deeper via MergeByKey, so a new slot added to
+// that group in a newer build still appears instead of being replaced
+// wholesale by the loaded group object. resurrectMissingDefaults is
+// forwarded to both levels, so a slot the user deleted from an otherwise-
+// matched group follows the same resurrect-or-drop rule as the group
+// itself.
+//--------------------------------------------------------------------------------
 static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defaults, const std::vector<CyclicGroup>& loaded, bool resurrectMissingDefaults)
 {
     std::unordered_map<std::string, size_t> loadedIndexByKey;
@@ -367,10 +363,7 @@ static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defa
         auto it = loadedIndexByKey.find(GroupKey(def));
         if (it != loadedIndexByKey.end())
         {
-            CyclicGroup merged = loaded[it->second]; // loaded group wins at the top level...
-            // ...but its slot list is merged with the compiled-in slot list,
-            // so newly-added slots in `def` still show up even though the
-            // rest of the group's fields come from the loaded version.
+            CyclicGroup merged = loaded[it->second];
             merged.slots = MergeByKey(def.slots, loaded[it->second].slots, SlotKey, resurrectMissingDefaults);
             result.push_back(merged);
             matched[it->second] = true;
@@ -388,9 +381,20 @@ static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defa
     return result;
 }
 
-// ---------------------------------------------------------------------------
-// SaveEventsData
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SaveEventsData / LoadEventsData
+//--------------------------------------------------------------------------------
+// SaveEventsData serializes g_Events/g_CyclicGroups straight to
+// events.json (see file header for the shape). LoadEventsData instead
+// merges them from disk via MergeByKey/MergeGroups, using
+// resurrectMissingDefaults = (saved data_version < EVENTS_DATA_VERSION),
+// then restamps apiWorldBossId/apiMapChestId from the compiled-in
+// defaults, since those cross-reference fields are never read from or
+// written to the file. A missing file isn't an error - g_Events/
+// g_CyclicGroups are simply left at their compiled-in defaults; the
+// caller (addon.cpp) is expected to call SaveEventsData right after so
+// the file exists from then on.
+//--------------------------------------------------------------------------------
 bool SaveEventsData(const std::string& addonDir)
 {
     try
@@ -419,37 +423,13 @@ bool SaveEventsData(const std::string& addonDir)
     catch (...) { return false; }
 }
 
-// ---------------------------------------------------------------------------
-// LoadEventsData
-// ---------------------------------------------------------------------------
-// Merges the compiled-in g_Events/g_CyclicGroups (as already populated by
-// events_basic.cpp/events_cyclic.cpp before this is called) with whatever's saved on
-// disk, by name, per the rules described at the top of this file. The
-// merged result REPLACES g_Events/g_CyclicGroups in place.
-//
-// The file's saved "data_version" is compared against the compiled-in
-// EVENTS_DATA_VERSION: if the file is already current (saved >= compiled,
-// the normal case — "<" handles a build downgrade gracefully too, see
-// below), a compiled-in default missing from the file is treated as
-// something the user removed/renamed, NOT new content, and is dropped
-// rather than resurrected. Only a genuinely older file (saved <
-// compiled — an actual upgrade to a build with new/changed content) gets
-// the resurrection behavior. This is what fixes the rename-collision bug:
-// renaming something to match an existing name no longer brings the old
-// name back from the compiled defaults on the next load, since the file
-// is (almost always) already current.
-//
-// Missing file -> not an error: g_Events/g_CyclicGroups are simply left as
-// the compiled-in defaults, and the caller (addon.cpp) is expected to call
-// SaveEventsData afterward so the file exists from then on.
-// ---------------------------------------------------------------------------
 bool LoadEventsData(const std::string& addonDir)
 {
     try
     {
         std::string filepath = addonDir + "\\events.json";
         std::ifstream file(filepath);
-        if (!file.is_open()) return false; // no file yet — keep compiled-in defaults
+        if (!file.is_open()) return false;   //. no file yet, keep defaults
 
         json j = json::parse(file);
 
@@ -466,9 +446,8 @@ bool LoadEventsData(const std::string& addonDir)
             for (const auto& gj : j["cyclicGroups"])
                 loadedGroups.push_back(DeserializeGroup(gj));
 
-        // Snapshot the compiled-in-only cross-reference fields BEFORE the
-        // merge below overwrites g_Events/g_CyclicGroups — restamped back
-        // in after the merge (see below).
+        //_ Snapshot compiled-in apiWorldBossId/apiMapChestId before the merge
+        // overwrites them below; restamped back in afterward (see below).
         std::unordered_map<std::string, std::string> defaultWorldBossIdByName;
         for (const auto& ev : g_Events)
             if (!ev.apiWorldBossId.empty())
@@ -483,13 +462,8 @@ bool LoadEventsData(const std::string& addonDir)
 
         g_CyclicGroups = MergeGroups(g_CyclicGroups, loadedGroups, resurrectMissingDefaults);
 
-        // Restamp apiWorldBossId/apiMapChestId from the compiled-in
-        // defaults for every matched entry. Neither field is ever written
-        // to or read from events.json (deliberately — they're compiled-in
-        // cross-references, not user-editable settings), and MergeByKey/
-        // MergeGroups make the loaded object win wholesale for any
-        // matched key, so without this restamp both fields would go
-        // blank on any load after a save.
+        //_ Restamps what MergeByKey/MergeGroups just overwrote with the loaded
+        // object's blank fields - see the pair comment above for why.
         for (auto& ev : g_Events)
         {
             auto it = defaultWorldBossIdByName.find(ev.name);

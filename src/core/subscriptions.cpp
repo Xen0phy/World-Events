@@ -1,22 +1,32 @@
+//################################################################################
 // subscriptions.cpp
-// Storage and JSON persistence for the user's subscribed-events watchlist.
+//--------------------------------------------------------------------------------
+// Storage and JSON persistence for the user's subscribed-events watchlist
+// (see subscriptions.h). No compiled-in defaults to merge against - like
+// events_categories.cpp, loading just replaces whatever's in memory with
+// whatever's on disk. Persisted in events.json alongside "events"/
+// "cyclicGroups"/"basicCategories"/"cyclicCategories", as six more
+// top-level keys.
 //
-// Mirrors events_categories.cpp closely: no compiled-in defaults to merge
-// against, so loading just replaces whatever's in memory with whatever's
-// on disk. Persisted in events.json alongside "events"/"cyclicGroups"/
-// "basicCategories"/"cyclicCategories", as two more sibling keys.
+// The chat-paste helpers (PasteToChat, BuildChatPasteMessage,
+// CopyTextToClipboard) also live here, alongside the watchlist storage
+// that feeds them.
+//--------------------------------------------------------------------------------
 
-#include "subscriptions.h"
 #include "addon.h"
 #include "background_threads.h"
-#include "settings.h"
 #include "nlohmann_json.hpp"
-#include <fstream>
-#include <filesystem>
+#include "settings.h"
+#include "subscriptions.h"
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 #include <algorithm>
 #include <atomic>
+#include <fstream>
+#include <filesystem>
 #include <thread>
-#include <windows.h>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -30,13 +40,13 @@ std::vector<CyclicSubscriptionKey>  g_ToastEnabledCyclicSlots;
 std::vector<std::string>            g_SoundEnabledBasicEvents;
 std::vector<CyclicSubscriptionKey>  g_SoundEnabledCyclicSlots;
 
-// See GetSubscriptionListGeneration's comment in subscriptions.h.
+//_ See GetSubscriptionListGeneration's comment in subscriptions.h.
 static uint64_t s_subscriptionListGeneration = 0;
 uint64_t GetSubscriptionListGeneration() { return s_subscriptionListGeneration; }
 
-// ---------------------------------------------------------------------------
-// Basic Event subscriptions
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsBasicEventSubscribed / ToggleBasicEventSubscription
+//--------------------------------------------------------------------------------
 bool IsBasicEventSubscribed(const std::string& eventName)
 {
     return std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventName)
@@ -53,6 +63,12 @@ void ToggleBasicEventSubscription(const std::string& eventName)
     s_subscriptionListGeneration++;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RenameSubscribedBasicEvent
+//--------------------------------------------------------------------------------
+// Patches every occurrence in each list, not just the first, in case of a
+// prior data inconsistency; see subscriptions.h for what gets patched.
+//--------------------------------------------------------------------------------
 void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName)
 {
     if (oldName == newName) return;
@@ -60,13 +76,7 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
     for (auto& name : g_SubscribedBasicEvents)
         if (name == oldName)
             name = newName;
-        // Deliberately no break: patch every occurrence, not just the
-        // first, in case of a prior data inconsistency.
 
-    // Same patch, same reasoning, for the toast-enabled and sound-enabled
-    // lists — otherwise a rename would silently drop a "notify" setting
-    // the user already configured for this event, with nothing in the UI
-    // hinting why.
     for (auto& name : g_ToastEnabledBasicEvents)
         if (name == oldName)
             name = newName;
@@ -78,9 +88,9 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
     s_subscriptionListGeneration++;
 }
 
-// ---------------------------------------------------------------------------
-// Cyclic slot subscriptions
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsCyclicSlotSubscribed / ToggleCyclicSlotSubscription
+//--------------------------------------------------------------------------------
 bool IsCyclicSlotSubscribed(const CyclicSubscriptionKey& key)
 {
     return std::find(g_SubscribedCyclicSlots.begin(), g_SubscribedCyclicSlots.end(), key)
@@ -97,9 +107,9 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key)
     s_subscriptionListGeneration++;
 }
 
-// ---------------------------------------------------------------------------
-// Per-event toast opt-in ("notify level") — see subscriptions.h
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsBasicEventToastEnabled / IsCyclicSlotToastEnabled
+//--------------------------------------------------------------------------------
 bool IsBasicEventToastEnabled(const std::string& eventName)
 {
     return std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventName)
@@ -112,6 +122,9 @@ bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key)
         != g_ToastEnabledCyclicSlots.end();
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsBasicEventSoundEnabled / IsCyclicSlotSoundEnabled
+//--------------------------------------------------------------------------------
 bool IsBasicEventSoundEnabled(const std::string& eventName)
 {
     return std::find(g_SoundEnabledBasicEvents.begin(), g_SoundEnabledBasicEvents.end(), eventName)
@@ -124,9 +137,13 @@ bool IsCyclicSlotSoundEnabled(const CyclicSubscriptionKey& key)
         != g_SoundEnabledCyclicSlots.end();
 }
 
-// Small helper shared by the two Set...NotifyLevel functions below:
-// membership in `list` is made to match `want`, added/erased as needed.
-// Local to this file — nothing outside needs a generic version of this.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SetMembership
+//--------------------------------------------------------------------------------
+// Makes membership of `value` in `list` match `want`, adding/erasing as
+// needed. Local to this file; shared by the two Set...NotifyLevel
+// functions below.
+//--------------------------------------------------------------------------------
 template <typename T>
 static void SetMembership(std::vector<T>& list, const T& value, bool want)
 {
@@ -139,6 +156,13 @@ static void SetMembership(std::vector<T>& list, const T& value, bool want)
         list.erase(it);
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetBasicEventNotifyLevel / SetBasicEventNotifyLevel
+//--------------------------------------------------------------------------------
+// Derives/sets the ladder described in subscriptions.h. Set clamps level to
+// 0..3, then brings subscribed/toast/sound into agreement via
+// ToggleBasicEventSubscription (bumps the generation) and SetMembership.
+//--------------------------------------------------------------------------------
 int GetBasicEventNotifyLevel(const std::string& eventName)
 {
     if (!IsBasicEventSubscribed(eventName)) return 0;
@@ -154,17 +178,18 @@ void SetBasicEventNotifyLevel(const std::string& eventName, int level)
     bool wantSound      = level >= 3;
 
     if (IsBasicEventSubscribed(eventName) != wantSubscribed)
-        ToggleBasicEventSubscription(eventName); // bumps s_subscriptionListGeneration
+        ToggleBasicEventSubscription(eventName);
 
-    // Unsubscribing always clears toast AND sound too, regardless of what
-    // they were — no way to end up "sound/toast-enabled but not
-    // subscribed" left over. Same reasoning one level up: dropping toast
-    // also drops sound, since there's no "sound but no toast" state in
-    // this ladder.
     SetMembership(g_ToastEnabledBasicEvents, eventName, wantSubscribed && wantToast);
     SetMembership(g_SoundEnabledBasicEvents, eventName, wantSubscribed && wantSound);
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetCyclicSlotNotifyLevel / SetCyclicSlotNotifyLevel
+//--------------------------------------------------------------------------------
+// Same logic as GetBasicEventNotifyLevel/SetBasicEventNotifyLevel, for
+// Cyclic slots.
+//--------------------------------------------------------------------------------
 int GetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key)
 {
     if (!IsCyclicSlotSubscribed(key)) return 0;
@@ -180,15 +205,15 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
     bool wantSound      = level >= 3;
 
     if (IsCyclicSlotSubscribed(key) != wantSubscribed)
-        ToggleCyclicSlotSubscription(key); // bumps s_subscriptionListGeneration
+        ToggleCyclicSlotSubscription(key);
 
     SetMembership(g_ToastEnabledCyclicSlots, key, wantSubscribed && wantToast);
     SetMembership(g_SoundEnabledCyclicSlots, key, wantSubscribed && wantSound);
 }
 
-// ---------------------------------------------------------------------------
-// (De)serialization
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SerializeCyclicKey / DeserializeCyclicKey
+//--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
     json j;
@@ -205,19 +230,23 @@ static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
     return key;
 }
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveSubscriptionsData / LoadSubscriptionsData
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
+// Save reads the existing events.json first (same pattern as
+// SaveCategoriesData) so this only adds/updates the six subscription keys
+// without clobbering the rest of the file.
+//
+// Load defaults any missing key to empty via .value(...), so an
+// events.json from before this feature existed loads with every
+// subscription non-toast/non-sound rather than opting in silently.
+//--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir)
 {
     try
     {
         std::string filepath = addonDir + "\\events.json";
 
-        // Read whatever's already there first (events/cyclicGroups/
-        // categories/data_version), so this save only adds/updates the
-        // subscription keys without clobbering the rest of the file —
-        // same pattern as SaveCategoriesData, and for the same reason.
         json j;
         {
             std::ifstream in(filepath);
@@ -262,17 +291,13 @@ bool LoadSubscriptionsData(const std::string& addonDir)
     {
         std::string filepath = addonDir + "\\events.json";
         std::ifstream file(filepath);
-        if (!file.is_open()) return false; // no file yet — subscriptions stay empty
+        if (!file.is_open()) return false;   //. no file yet, stays empty
 
         json j = json::parse(file);
 
         if (j.contains("subscribedBasicEvents"))
             g_SubscribedBasicEvents = j.value("subscribedBasicEvents", std::vector<std::string>{});
 
-        // .value(...) defaults to empty if the key is missing entirely —
-        // true for any events.json saved before this feature existed, and
-        // that's exactly the right behavior: nobody's prior subscriptions
-        // silently start out toast- or sound-enabled.
         g_ToastEnabledBasicEvents = j.value("toastEnabledBasicEvents", std::vector<std::string>{});
         g_SoundEnabledBasicEvents = j.value("soundEnabledBasicEvents", std::vector<std::string>{});
 
@@ -297,13 +322,13 @@ bool LoadSubscriptionsData(const std::string& addonDir)
     catch (...) { return false; }
 }
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CopyTextToClipboard
-// ---------------------------------------------------------------------------
-// Plain Win32 clipboard write. No synthetic keystrokes, no
-// window-handle targeting, nothing sent to the game process; this only
-// touches the shared OS clipboard, same as any other app's "Copy" button.
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
+// Plain Win32 clipboard write. No synthetic keystrokes, no window-handle
+// targeting, nothing sent to the game process - this only touches the
+// shared OS clipboard, same as any other app's "Copy" button.
+//--------------------------------------------------------------------------------
 bool CopyTextToClipboard(const std::string& text)
 {
     if (!OpenClipboard(nullptr))
@@ -327,66 +352,69 @@ bool CopyTextToClipboard(const std::string& text)
     return true;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// get_l_param
+//--------------------------------------------------------------------------------
+// Builds the LPARAM Windows expects for a synthesized WM_KEYDOWN/WM_KEYUP
+// message: scan code in bits 16-23, repeat/previous-state and transition-
+// state flags in the high bits. See MSDN's WM_KEYDOWN/WM_KEYUP docs for the
+// full bit layout.
+//--------------------------------------------------------------------------------
 LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
 {
     std::uint32_t scan_code = MapVirtualKeyA(key, MAPVK_VK_TO_VSC);
 
-    std::uint32_t l_param = 1; // repeat count, bits 0-15 (almost always 1)
-    l_param |= (scan_code & 0xFF) << 16; // bits 16-23
-    // bit 24: extended key flag - set if needed, e.g.:
-    // l_param |= (is_extended_key(key) ? 1u : 0u) << 24;
-    // bits 25-28: reserved, leave as 0
-    // bit 29: context code - 0 for normal key events
-    l_param |= (down && repeat ? 1u : 0u) << 30; // previous key state
-    l_param |= (!down ? 1u : 0u) << 31;           // transition state
+    std::uint32_t l_param = 1;                    //. repeat count, bits 0-15
+    l_param |= (scan_code & 0xFF) << 16;           //. bits 16-23
+    //_ Bit 24 (extended key flag) and bits 25-28 (reserved) are left 0
+    // here; set bit 24 via (is_extended_key(key)?1u:0u)<<24 if ever needed.
+    l_param |= (down && repeat ? 1u : 0u) << 30;   //. previous key state
+    l_param |= (!down ? 1u : 0u) << 31;            //. transition state
 
     return static_cast<LPARAM>(l_param);
 }
 
-// NOTE ON MIXED SendMessage/SendInput USAGE (do not "clean this up"):
-//
-// This function intentionally mixes two different input delivery mechanisms:
-//   - Enter and 'V' are delivered via SendMessage(tool_handle, WM_KEYDOWN/WM_KEYUP, ...)
-//   - Ctrl is delivered via SendInput(...)
-//
-// SendMessage posts directly to the target window's message queue, bypassing the
-// OS-level input pipeline. SendInput injects into the real, system-wide input stream
-// that Windows uses to track actual keyboard/modifier state (GetKeyState, etc).
-// Mixing them is normally fragile: an app *could* receive the WM_KEYDOWN for 'V' via
-// SendMessage without ever seeing Ctrl as "down" at the OS level, since that Ctrl
-// state only exists in the SendInput-driven input stream, not the message queue.
-//
-// This specific combination is required for the third-party target app this talks
-// to: an all-SendInput version and an all-SendMessage version both fail to deliver
-// a recognized Ctrl+V there. Do not unify this into a single mechanism without
-// re-testing against that actual target application — a "theoretically cleaner"
-// version can fail silently (no errors, just no input arriving) rather than
-// obviously breaking.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BuildChatPasteMessage
+//--------------------------------------------------------------------------------
 std::string BuildChatPasteMessage(const std::string& name, const std::string& chatCode)
 {
     std::string body = chatCode.empty() ? name : (name + ": " + chatCode);
-    return ChatChannelPrefix + body; // empty prefix (default) leaves body untouched
+    return ChatChannelPrefix + body;   //. empty prefix leaves body untouched
 }
 
+//_ Guards PasteToChat below against overlapping calls.
 std::atomic<bool> send_in_progress{false};
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// PasteToChat
+//--------------------------------------------------------------------------------
+// Deliberately mixes two input mechanisms: Enter and 'V' go through
+// SendMessage (posts straight to the target window's queue), while Ctrl
+// goes through SendInput (injects into the real, system-wide input stream
+// that GetKeyState et al. read). Required for the third-party target app
+// this talks to - an all-SendInput and an all-SendMessage version both
+// failed to deliver a recognized Ctrl+V there. Do not unify this into one
+// mechanism without re-testing against that app: a "cleaner" version can
+// fail silently, with no input arriving and no error raised.
+//
+// Runs on a detached background thread guarded by BackgroundThreadGuard
+// (background_threads.h) so AddonUnload can wait for it to finish rather
+// than risk the DLL unloading mid-sequence; IsShuttingDown() is checked
+// between steps so it can bail early, releasing Ctrl first if it was
+// already pressed down.
+//--------------------------------------------------------------------------------
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 {
     bool expected = false;
     if (!send_in_progress.compare_exchange_strong(expected, true))
-    {
-        // Already sending — ignore this click rather than overlap
-        return;
-    }
+        return;   //. already sending, ignore this click
+
     HWND tool_handle = GetForegroundWindow();
     CopyTextToClipboard(message);
     std::thread(
         [delay_ms, tool_handle]()
         {
-            // Registered for this thread's whole lifetime (every early
-            // "return" below included) so AddonUnload's
-            // WaitForBackgroundThreads can wait for it to actually finish
-            // instead of the DLL potentially being unloaded mid-sequence.
-            // See background_threads.h.
             BackgroundThreadGuard threadGuard;
 
             if (IsShuttingDown())
@@ -404,37 +432,30 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 
             if (IsShuttingDown()) { send_in_progress.store(false); return; }
 
-            // Ctrl down
             INPUT in{};
             in.type = INPUT_KEYBOARD;
             in.ki.wVk = VK_CONTROL;
-            SendInput(1, &in, sizeof(INPUT));
-            
+            SendInput(1, &in, sizeof(INPUT));   //. Ctrl down
+
             std::this_thread::sleep_for(delay_ms);
 
             if (IsShuttingDown())
             {
-                // Ctrl is physically "down" as far as the OS input stream
-                // is concerned — release it before bailing so an unload
-                // mid-sequence can't leave a stuck modifier key behind.
                 in.ki.dwFlags = KEYEVENTF_KEYUP;
-                SendInput(1, &in, sizeof(INPUT));
+                SendInput(1, &in, sizeof(INPUT));   //. release Ctrl before bailing
                 send_in_progress.store(false);
                 return;
             }
-            
-            // WM_PASTE was tried here directly but doesn't reliably reach the
-            // third-party target app — hence simulating Ctrl+V as raw key
-            // events below instead (see the mixed SendMessage/SendInput note
-            // above this function).
+
+            //_ WM_PASTE was tried here directly but doesn't reliably reach
+            // the third-party target app - hence the raw Ctrl+V key events.
             SendMessage(tool_handle, WM_KEYDOWN, 'V', get_l_param('V', true));
             SendMessage(tool_handle, WM_KEYUP, 'V', get_l_param('V', false));
             std::this_thread::sleep_for(delay_ms);
-            
-            // Ctrl up
+
             in.ki.dwFlags = KEYEVENTF_KEYUP;
-            SendInput(1, &in, sizeof(INPUT));
-            
+            SendInput(1, &in, sizeof(INPUT));   //. Ctrl up
+
             std::this_thread::sleep_for(delay_ms);
 
             if (IsShuttingDown()) { send_in_progress.store(false); return; }
@@ -443,7 +464,7 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
             SendMessage(tool_handle, WM_KEYUP, VK_RETURN, get_l_param(VK_RETURN, false));
             std::this_thread::sleep_for(delay_ms);
 
-            send_in_progress.store(false); // release the guard when done
+            send_in_progress.store(false);   //. release the guard when done
         }
     )
     .detach();

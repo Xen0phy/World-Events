@@ -25,14 +25,13 @@ add_custom_target(bump_rev
 add_dependencies(bump_rev check_weekly_vault)
 
 add_library(gw2-world-events SHARED
-    src/addon/addon_options_helpers.cpp
-    src/addon/addon_options.cpp
     src/addon/addon.cpp
     src/core/background_threads.cpp
     src/core/notify_sound.cpp
     src/core/settings.cpp
     src/core/subscriptions.cpp
     src/core/subscriptions_cache.cpp
+    src/core/time_format.cpp
     src/events/events_basic.cpp
     src/events/events_categories.cpp
     src/events/events_cyclic.cpp
@@ -41,8 +40,11 @@ add_library(gw2-world-events SHARED
     src/integration/apikey_crypto.cpp
     src/integration/gw2_api.cpp
     src/integration/weekly_vault.cpp
+    src/overlay/cyclicrender.cpp
     src/overlay/maprender.cpp
-    src/ui/cyclicrender.cpp
+    src/overlay/map_shared.cpp
+    src/ui/addon_options_helpers.cpp
+    src/ui/addon_options.cpp
     src/ui/icon_whitener.cpp
     src/ui/subscriptions_bar.cpp
     src/ui/subscriptions_notification.cpp

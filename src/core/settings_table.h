@@ -1,55 +1,65 @@
+//################################################################################
 // settings_table.h
+//--------------------------------------------------------------------------------
+// SETTING(Section, Key, Type, Default)      one scalar setting
+// SETTING_ARRAY(Section, Key, N, Default)   one fixed-size float[N] setting
+// SETTING_SECRET(Section, Key, Default)     std::string setting, encrypted on disk
+// ARR(...)                                  brace-init helper for SETTING_ARRAY defaults
+//--------------------------------------------------------------------------------
 // Single source of truth for every persisted setting in World Events.
+// Include with SETTING/SETTING_ARRAY/SETTING_SECRET defined to generate
+// globals, INI I/O, or anything else that needs to touch every setting,
+// then #undef them after the include.
 //
-// Include this file with SETTING / SETTING_FLOAT defined to generate
-// globals, INI I/O, or anything else that needs to touch every setting.
-// After each include site, #undef the macros you defined.
+// Section maps to an INI [Section] heading for human readability only -
+// keys are matched by name alone on load, not scoped by section. Key is
+// both the C++ variable name and the INI key name.
 //
-// Macro signature:
-//   SETTING(Section, Key, Type, Default)
-//
-// Section maps to an INI [Section] heading (for human readability only —
-// keys are matched by name alone on load, not scoped by section).
-// Key     is both the C++ variable name and the INI key name.
-//
-// DELIBERATELY NO #pragma once / include guard here: this header is meant
-// to be re-included multiple times — once per macro definition site — and
-// in settings.cpp specifically it's included TWICE in the same translation
-// unit (once transitively via settings.h for the extern declarations, once
-// directly for the storage definitions). An include guard would silently
-// turn the second inclusion into a no-op, meaning the actual global storage
-// would never be defined — a real, easy-to-miss failure mode for this
-// pattern if a guard is added without thinking through every include site.
+// DELIBERATELY NO include guard: this header is re-included once per
+// macro-definition site, and settings.cpp includes it TWICE in the same
+// translation unit (once via settings.h for the extern declarations, once
+// directly for the storage definitions) - a guard would silently turn the
+// second inclusion into a no-op, so the actual global storage would never
+// get defined.
+//--------------------------------------------------------------------------------
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SETTING
+//--------------------------------------------------------------------------------
 #ifndef SETTING
 #define SETTING(S, Key, Type, Default)
 #endif
 
-// Same idea as SETTING above, but for settings whose ON-DISK representation
-// needs to differ from their in-memory one — currently just Gw2ApiKey (see
-// below), which is encrypted in settings.ini but a plain std::string in
-// memory. Defaults to forwarding straight to SETTING (so include sites that
-// don't care about the distinction, like the storage-declaration site in
-// settings.cpp, just get a normal std::string field); settings.cpp's
-// SaveSettings/LoadSettings each define their own SETTING_SECRET instead,
-// to encrypt/decrypt at the point they'd otherwise write/parse the raw
-// value. Kept as a genuinely separate macro (not a runtime strcmp branch
-// inside SETTING) so each call site only ever compiles the branch that
-// actually matches std::string — a runtime branch would still require both
-// branches to type-check for every non-string SETTING too.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SETTING_SECRET
+//--------------------------------------------------------------------------------
+// Like SETTING, for settings whose on-disk form differs from their
+// in-memory one - currently just Gw2ApiKey (encrypted in settings.ini, a
+// plain std::string in memory). Defaults to forwarding to SETTING, so
+// include sites that don't care (e.g. settings.cpp's storage-declaration
+// site) get a normal std::string field; SaveSettings/LoadSettings define
+// their own SETTING_SECRET to encrypt/decrypt at the point they'd
+// otherwise write/parse the raw value. Kept as a real separate macro
+// rather than a runtime branch inside SETTING so a non-string SETTING
+// never has to type-check the encrypt/decrypt branch at all.
+//--------------------------------------------------------------------------------
 #ifndef SETTING_SECRET
 #define SETTING_SECRET(S, Key, Default) SETTING(S, Key, std::string, Default)
 #endif
 
-// Same idea as SETTING above, but for a fixed-size array of floats instead
-// of one scalar — currently used only for colors (N=4: R,G,B,A in [0,1],
-// the exact layout ImGui::ColorEdit3/4 read/write directly). Kept generic
-// on N rather than hardcoding "color" into the macro name in case a future
-// setting needs some other small float tuple.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SETTING_ARRAY / ARR
+//--------------------------------------------------------------------------------
+// SETTING_ARRAY is SETTING for a fixed-size float[N] instead of one scalar
+// - currently only colors (N=4: R,G,B,A in [0,1], the layout
+// ImGui::ColorEdit3/4 read/write directly). Generic on N rather than
+// hardcoding "color" in case a future setting needs some other float
+// tuple.
 //
 // ARR(...) is just `{ ... }` under a name that reads better at the call
-// site than a bare brace-init would (SETTING_ARRAY(..., 4, { 0.2f, ... })
-// looks like a stray brace; ARR(0.2f, ...) reads as "this is the array").
+// site than a bare brace-init (ARR(0.2f, ...) reads as "this is the
+// array", where the brace alone looks like a stray one).
+//--------------------------------------------------------------------------------
 #ifndef SETTING_ARRAY
 #define SETTING_ARRAY(S, Key, N, Default)
 #endif
@@ -57,318 +67,337 @@
 #define ARR(...) { __VA_ARGS__ }
 #endif
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [Cyclic]
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 SETTING(Cyclic, ShowCyclicOverlay,   bool,  true)
 SETTING(Cyclic, CyclicRadius,        float, 20.0f)
 SETTING(Cyclic, CyclicThickness,     float, 20.0f)
 
-// Stored as DEGREES, not seconds. Degrees are period-independent — 270°
-// means "75% of however long this particular group's cycle is", whether
-// that's Dry Top's 3600s or everything else's 7200s. Seconds are NOT
-// period-independent (270° of a 3600s cycle is a different number of
-// seconds than 270° of a 7200s cycle), and a single flat settings value
-// can't hold "seconds" correctly for groups with different periods anyway —
-// see cyclicrender.cpp for the per-group conversion (SECS_PER_DEG is
-// computed from each group's own `period`, not a hardcoded constant).
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// CyclicMaxFutureDeg / CyclicMaxPastDeg
+//--------------------------------------------------------------------------------
+// Stored as DEGREES, not seconds - period-independent, so 270 deg means
+// "75% of however long this group's own cycle is", whether that's Dry
+// Top's 3600s or everything else's 7200s. A flat seconds value can't hold
+// that correctly across groups with different periods; see
+// cyclicrender.cpp for the per-group deg->sec conversion.
+//--------------------------------------------------------------------------------
 SETTING(Cyclic, CyclicMaxFutureDeg,  float, 270.0f)
 SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [BasicEvents]
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 
-// Status colors for the plain-dot AND icon-tint rendering in
-// maprender.cpp — one shared color per status, applied to every Basic
-// Event (not per-event; see DrawBulkIconPicker's "All icons" picker for
-// the equivalent all-at-once pattern already used for icon choice).
-// Stored as RGBA floats in [0,1] — ImGui::ColorEdit4 reads/writes these
-// arrays directly (see addon_options.cpp), and drawing converts to an
-// ImU32 via the plain ImGui::ColorConvertFloat4ToU32 (see color_utils.h)
-// — no custom packing/unpacking anywhere.
-//
-// No separate alpha setting: alpha lives in the color itself (the 4th
-// float below) — whatever alpha the user picks via the color swatch IS
-// the actual opacity used, nothing layered on top of it.
-SETTING_ARRAY(BasicEvents, BasicEventColorActive,  4, ARR(1.000f, 0.196f, 0.196f, 0.706f)) // red    (was 0xFF3232B4u)
-SETTING_ARRAY(BasicEvents, BasicEventColorSoon,    4, ARR(1.000f, 0.549f, 0.000f, 0.706f)) // orange (was 0xFF8C00B4u)
-SETTING_ARRAY(BasicEvents, BasicEventColorWaiting, 4, ARR(0.627f, 0.627f, 0.627f, 0.706f)) // gray   (was 0xA0A0A0B4u)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BasicEventColorActive / BasicEventColorSoon / BasicEventColorWaiting
+//--------------------------------------------------------------------------------
+// One shared RGBA color per status, applied to every Basic Event (not
+// per-event), used for both plain-dot and icon-tint rendering in
+// maprender.cpp. ImGui::ColorEdit4 reads/writes these arrays directly;
+// drawing converts via plain ImGui::ColorConvertFloat4ToU32 (color_
+// utils.h) - no custom packing. No separate alpha setting: alpha lives in
+// the 4th float, so whatever the user picks IS the actual opacity used.
+//--------------------------------------------------------------------------------
+SETTING_ARRAY(BasicEvents, BasicEventColorActive,  4, ARR(1.000f, 0.196f, 0.196f, 0.706f)) //. red, was 0xFF3232B4u
+SETTING_ARRAY(BasicEvents, BasicEventColorSoon,    4, ARR(1.000f, 0.549f, 0.000f, 0.706f)) //. orange, was 0xFF8C00B4u
+SETTING_ARRAY(BasicEvents, BasicEventColorWaiting, 4, ARR(0.627f, 0.627f, 0.627f, 0.706f)) //. gray, was 0xA0A0A0B4u
 
-// Size, in pixels. Independent of each other — changing one does NOT
-// affect the other. BasicEventIconSize is the icon's HALF-width (matching
-// how maprender.cpp already computes it); height is still derived from
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BasicEventDotRadius / BasicEventIconSize
+//--------------------------------------------------------------------------------
+// Size in pixels, independent of each other. BasicEventIconSize is the
+// icon's HALF-width (matching maprender.cpp); height still derives from
 // the icon texture's own aspect ratio, not a separate setting, so
 // user-supplied icons never render stretched.
+//--------------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventDotRadius, float, 8.0f)
 SETTING(BasicEvents, BasicEventIconSize,  float, 12.0f)
 
-// Zoom-based scaling. Markers stay at their base size (the settings
-// above) from fully-zoomed-out up until BasicEventZoomStartPct of the
-// way to fully-zoomed-in, then grow linearly, reaching
-// BasicEventZoomMaxMultiplier * base size at 100% zoom (fully zoomed
-// in). Compass.Scale itself is continent-units-per-pixel and has no
-// fixed 0–100 range exposed by Mumble, so "percent zoom" is derived at
-// render time from the current map's own min/max Compass.Scale — see
-// GetZoomPercent() in maprender.cpp for that mapping.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BasicEventZoomScalingEnabled / BasicEventZoomStartPct / BasicEventZoomMaxMultiplier
+//--------------------------------------------------------------------------------
+// Zoom-based marker scaling. Markers stay at base size from fully-zoomed-
+// out until StartPct of the way to fully-zoomed-in, then grow linearly to
+// MaxMultiplier * base size at 100% zoom. Compass.Scale has no fixed
+// 0-100 range from Mumble, so "percent zoom" is derived at render time
+// from the current map's own min/max Compass.Scale - see
+// GetZoomPercent() in maprender.cpp.
+//--------------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventZoomScalingEnabled, bool,  true)
-SETTING(BasicEvents, BasicEventZoomStartPct,       float, 0.0f) // % zoom at which growth begins
-SETTING(BasicEvents, BasicEventZoomMaxMultiplier,  float, 3.0f)  // size multiplier at 100% zoom
+SETTING(BasicEvents, BasicEventZoomStartPct,       float, 0.0f)
+SETTING(BasicEvents, BasicEventZoomMaxMultiplier,  float, 3.0f)
 
-// Calibration data for the self-learning zoom range described above —
-// persisted so the very first frame after restarting the game/addon
-// already has a usable range instead of starting back at "no variation
-// observed yet" (which would mean a flat 0% / no growth) until the user
-// zooms fully in and out again. -1 means "not yet calibrated".
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BasicEventZoomScaleMinObserved / BasicEventZoomScaleMaxObserved
+//--------------------------------------------------------------------------------
+// Calibration data for the zoom range above, persisted so the first frame
+// after restarting already has a usable range instead of a flat 0%/no
+// growth until the user zooms fully in and out again. -1 means "not yet
+// calibrated".
+//--------------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventZoomScaleMinObserved, float, -1.0f)
 SETTING(BasicEvents, BasicEventZoomScaleMaxObserved, float, -1.0f)
 
-// Time-window filter — only show upcoming Basic Events that start within
-// the next N minutes; currently-active events always show regardless.
-// Stored in minutes, in 10-minute steps, up to 360 (6h). A separate
-// enabled flag gates the filter, rather than using 0 minutes as an
-// "off" sentinel, since 0 is also a theoretically valid (if useless)
-// window value to slide to.
-//
-// Deliberately NOT applied to cyclic groups — see RenderCyclicGroups in
-// cyclicrender.cpp: a cyclic group's ring already shows its own rolling
-// future/past window (CyclicMaxFutureDeg/CyclicMaxPastDeg) for every slot
-// within the SAME ring, so a single group-level "hide the whole ring"
-// time filter would conflict with that per-slot windowing rather than
-// compose with it.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BasicEventTimeFilterEnabled / BasicEventTimeFilterMinutes
+//--------------------------------------------------------------------------------
+// Only show upcoming Basic Events starting within the next N minutes;
+// currently-active events always show regardless. Minutes, in 10-minute
+// steps up to 360 (6h); a separate enabled flag gates the filter rather
+// than using 0 as an "off" sentinel, since 0 is also a theoretically
+// valid window value. Deliberately NOT applied to cyclic groups - see
+// RenderCyclicGroups in cyclicrender.cpp: a cyclic group's ring already
+// shows its own rolling window per slot, and a group-level "hide the
+// whole ring" filter would conflict with that rather than compose.
+//--------------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventTimeFilterEnabled,    bool, false)
 SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [Subscriptions]
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ShowSubscriptionsWindow
+//--------------------------------------------------------------------------------
 // Open/closed state of the standalone watchlist window (subscriptions.h /
 // subscriptions_window.h). WHICH events are subscribed lives in
-// events.json instead (see subscriptions.cpp) — same split as everything
-// else in this file: settings.ini holds UI/display preferences, events.json
-// holds the actual event/grouping/membership data.
+// events.json instead (subscriptions.cpp) - settings.ini holds UI/display
+// preferences, events.json holds the actual event/grouping/membership
+// data.
+//--------------------------------------------------------------------------------
 SETTING(Subscriptions, ShowSubscriptionsWindow, bool, false)
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ShowSubscriptionsBar
+//--------------------------------------------------------------------------------
 // Open/closed state of the alternate "distribution bar" watchlist view
-// (subscriptions_bar.h/.cpp) — same subscription data as
-// ShowSubscriptionsWindow above, drawn as colored segments along a fixed
-// 2h timeline strip instead of a text list. Independent toggle: either,
-// both, or neither view can be open at once.
+// (subscriptions_bar.h/.cpp) - same subscription data as
+// ShowSubscriptionsWindow, drawn as colored segments on a fixed 2h
+// timeline strip instead of a text list. Independent toggle: either, both,
+// or neither view can be open at once.
+//--------------------------------------------------------------------------------
 SETTING(Subscriptions, ShowSubscriptionsBar, bool, false)
 
-// Two display-mode toggles for the distribution bar (subscriptions_bar.cpp),
-// independent of each other:
-//
-// SubscriptionsBarMinimalMode strips the bar down to bare colored blocks —
-// no per-slot lane/curve-drop layout — trading detail for a slimmer strip.
-// When on, every subscribed event/slot gets its own dot sitting directly on
-// the baseline (CollectAllEventDots) instead of only lane>0 overlaps
-// getting a dot underneath the visible lane-0 line (CollectOverlapDots).
-//
-// SubscriptionsBarBottomAnchored pins the bar to the bottom screen edge and
-// flips every drop/pop-out direction to grow upward instead of down,
-// instead of the default top-pinned, drop-downward layout.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsBarMinimalMode / SubscriptionsBarBottomAnchored
+//--------------------------------------------------------------------------------
+// Two independent display-mode toggles for the distribution bar
+// (subscriptions_bar.cpp). MinimalMode strips the bar to bare colored
+// blocks - every subscribed event/slot gets its own dot on the baseline
+// (CollectAllEventDots) instead of only lane>0 overlaps getting a dot
+// underneath the lane-0 line (CollectOverlapDots). BottomAnchored pins the
+// bar to the bottom screen edge and flips every drop/pop-out direction to
+// grow upward, instead of the default top-pinned, drop-downward layout.
+//--------------------------------------------------------------------------------
 SETTING(Subscriptions, SubscriptionsBarMinimalMode,     bool, false)
 SETTING(Subscriptions, SubscriptionsBarBottomAnchored,  bool, false)
 
-// Default color for the subscription bar's dots. Alpha will be suppressed in
-// settings for visibility reasons. Defaulted to plain white.
-SETTING_ARRAY(Subscriptions, SubscriptionsBarDotColor, 4, ARR(0.996f, 1.000f, 0.996f, 1.000f)) // was 0xFEFFFEFFu
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsBarDotColor
+//--------------------------------------------------------------------------------
+// Default dot color for the subscription bar (alpha suppressed in the
+// options UI for visibility); plain white by default, was 0xFEFFFEFFu.
+SETTING_ARRAY(Subscriptions, SubscriptionsBarDotColor, 4, ARR(0.996f, 1.000f, 0.996f, 1.000f))
 
-// How long the mouse must sit still over a distribution-line segment or
-// dot marker (subscriptions_bar.cpp) before its curve-drop hover
-// animation starts — avoids every segment along the strip popping in and
-// out as the mouse merely passes over the top edge of the screen on its
-// way to/from somewhere else (e.g. the character select / login screen
-// menus, or just moving the mouse up to click a Nexus icon). 0 disables
-// the delay entirely (drop starts the instant the mouse touches a
-// segment).
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsBarHoverDelayMs
+//--------------------------------------------------------------------------------
+// How long the mouse must sit still over a distribution-bar segment/dot
+// (subscriptions_bar.cpp) before its curve-drop hover animation starts -
+// avoids every segment popping in and out as the mouse merely passes over
+// the top edge en route elsewhere. 0 disables the delay (drop starts
+// instantly on touch).
+//--------------------------------------------------------------------------------
 SETTING(Subscriptions, SubscriptionsBarHoverDelayMs, int, 500)
 
-// The corners of the screen right under the top edge are where GW2's own
-// UI actually lives (party/buffs top-left, minimap/compass top-right) —
-// there's only ~8px of genuinely free space directly under the line
-// there, nowhere near enough for a dropped block's label to be legible
-// without covering something. The wide middle strip of the screen has
-// much more free space, which is why the drop only needs to move for
-// segments whose x-range falls inside these edge margins.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsBarUnsafeLeftPx / SubscriptionsBarUnsafeRightPx / SubscriptionsBarUnsafeHeightPx
+//--------------------------------------------------------------------------------
+// GW2's own UI (party/buffs top-left, minimap/compass top-right) leaves
+// only ~8px of free space right under the top edge there, not enough for
+// a dropped block's label; the wide middle strip has plenty, so the drop
+// only needs to move for segments whose x-range falls inside these edge
+// margins (see subscriptions_bar.cpp's SegmentOverlapsUnsafeZone).
 //
-// SubscriptionsBarUnsafeLeftPx / SubscriptionsBarUnsafeRightPx are each
-// measured inward from their respective screen edge (not from the
-// center) and are independent since GW2's left and right top UI blocks
-// aren't the same width (default 300 covers the default UI's compact
-// party/buff area on the left; SubscriptionsBarUnsafeRightPx covers the
-// minimap/compass on the right — see subscriptions_bar.cpp's
-// SegmentOverlapsUnsafeZone). 0 disables the left or right zone
-// individually, dropping straight down everywhere on that side.
-SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,  int, 0)
-SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx, int, 0)
-
-// How far down a dropped block starts (instead of the line itself) when
-// its segment falls inside either unsafe zone above — i.e. how tall the
-// corner UI actually is, in px, that the drop needs to clear. Same value
-// for both corners; if one side's UI is taller than the other in a
-// user's particular layout, they can only push this number up for both,
-// not per-side — that asymmetry wasn't worth a second setting for what's
-// already a corner-case (no pun intended) escape hatch.
+// Left/Right are each measured inward from their own screen edge and are
+// independent, since GW2's left/right top UI blocks differ in width (0
+// disables a zone individually, dropping straight down there). HeightPx
+// is how tall that corner UI is, in px, that the drop needs to clear -
+// one shared value for both corners, not per-side.
+//--------------------------------------------------------------------------------
+SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,   int, 0)
+SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx,  int, 0)
 SETTING(Subscriptions, SubscriptionsBarUnsafeHeightPx, int, 90)
 
-// How far a fully-hovered segment drops down from the baseline (attached
-// pop-out block), and, once pill-detach kicks in for unsafe-zone segments,
-// the pill's fixed height too — the two are deliberately unified into one
-// value (pill height must equal a normal safe-zone pop-out's height
-// exactly; there is no separate pill-height constant). Sized by default
-// to comfortably fit two centered lines of label text; raise it if your
-// font/DPI settings need more room, lower it for a more compact pop-out.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsBarMaxDropPx
+//--------------------------------------------------------------------------------
+// How far a fully-hovered segment drops from the baseline, and, once
+// pill-detach kicks in for unsafe-zone segments, the pill's fixed height
+// too - deliberately unified into one value (pill height must equal a
+// normal pop-out's height exactly). Sized by default to fit two centered
+// lines of label text.
+//--------------------------------------------------------------------------------
 SETTING(Subscriptions, SubscriptionsBarMaxDropPx, int, 50)
 
-// When true, active rows are simply left out of the watchlist window's
-// list entirely (not just dimmed/recolored) — a "only show me what's NOT
-// already happening" mode. Only affects the watchlist window; Basic Event
-// markers on the map keep showing active events regardless (that's a
-// separate, existing on/off-map concern with its own established colors,
-// not something this toggle should also reach into).
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsHideActive / SubscriptionsBarHideActive
+//--------------------------------------------------------------------------------
+// "Only show me what's NOT already happening": active rows/segments are
+// left out of the watchlist window's list / distribution bar's
+// CollectVisibleSegments output entirely (not just dimmed), so lanes,
+// dots, stacking and drawing never see them. Two independent settings,
+// not one shared, since a user may want one view filtered without the
+// other. Basic Event markers on the map are unaffected either way - a
+// separate, existing on/off-map concern.
+//--------------------------------------------------------------------------------
 SETTING(Subscriptions, SubscriptionsHideActive, bool, false)
-
-// Same idea as SubscriptionsHideActive above, but for the distribution
-// bar (subscriptions_bar.cpp) instead of the watchlist window — its own
-// setting, not reused, since the two views are explicitly independent
-// (see ShowSubscriptionsBar's comment) and a user may want one filtered
-// without the other. A segment that's currently active is simply left
-// out of CollectVisibleSegments' output entirely when this is true, same
-// as SubscriptionsHideActive's window-list filtering — so lanes, dots,
-// stacking and drawing never see it and nothing else about the bar's
-// layout changes; an active segment just isn't there.
 SETTING(Subscriptions, SubscriptionsBarHideActive, bool, false)
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsActiveColor / SubscriptionsSoonColor
+//--------------------------------------------------------------------------------
 // Text colors for the watchlist window's two highlighted states: an
-// active row, and a row starting within the next 15 minutes ("soon" —
-// same 900s threshold already used for BasicEventColorSoon on the map,
-// reused here rather than introducing a second configurable window).
-// Rows that are neither just use the window's normal default text color,
-// so there's no separate "waiting" setting the way the map markers have
-// one — the list only needs to draw attention to the two states that are
-// actually time-sensitive.
+// active row, and one starting within 15 minutes ("soon" - same 900s
+// threshold as BasicEventColorSoon, reused rather than adding a second
+// configurable window). Rows that are neither use the window's normal
+// text color, so there's no separate "waiting" setting the way map
+// markers have.
 //
-// Stored as RGBA floats, same as the map's BasicEventColor* settings, but
-// note the 4th component (alpha) is unused/ignored here: this feeds
-// straight into ImGui::TextColored, which is plain text with no separate
-// opacity control worth exposing, so the options-panel picker for these is
-// a ColorEdit3 (RGB only, see addon_options.cpp) rather than ColorEdit4 —
-// unlike BasicEventColor*, which DOES use every channel including alpha.
-// The unused 4th slot is still stored (rather than shrinking these to
-// SETTING_ARRAY(..., 3, ...)) purely so ToImVec4/ToImVec4Opaque in
-// color_utils.h can stay one shared helper for every color setting,
-// instead of a separate 3-float variant just for these two.
-SETTING_ARRAY(Subscriptions, SubscriptionsActiveColor, 4, ARR(0.400f, 1.000f, 0.400f, 1.000f)) // light green (was 0x66FF66FFu)
-SETTING_ARRAY(Subscriptions, SubscriptionsSoonColor,   4, ARR(1.000f, 0.549f, 0.000f, 1.000f)) // orange, matches BasicEventColorSoon's RGB (was 0xFF8C00FFu)
+// Stored as RGBA like the map's BasicEventColor* settings, but the 4th
+// component (alpha) is unused: this feeds ImGui::TextColored directly, so
+// the options-panel picker is a ColorEdit3 (RGB only). The unused slot is
+// still stored so ToImVec4/ToImVec4Opaque (color_utils.h) can stay one
+// shared helper for every color setting.
+//--------------------------------------------------------------------------------
+SETTING_ARRAY(Subscriptions, SubscriptionsActiveColor, 4, ARR(0.400f, 1.000f, 0.400f, 1.000f)) //. light green, was 0x66FF66FFu
+SETTING_ARRAY(Subscriptions, SubscriptionsSoonColor,   4, ARR(1.000f, 0.549f, 0.000f, 1.000f)) //. matches BasicEventColorSoon's RGB
 
-// Master switch for the "auto-tracked weekly Wizard's Vault target" overlay
-// shared by all three subscription views (subscriptions_window.cpp,
-// subscriptions_bar.cpp, subscriptions_notification.cpp): when true (the
-// default), any Basic Event / Cyclic slot that is an active-and-incomplete
-// target of THIS WEEK's Vault rotation (weekly_vault.h) is surfaced in all
-// three views even if the user never manually subscribed to it themselves.
-// When false, none of the three auto-add anything — each view falls back
-// to showing only what's actually in g_SubscribedBasicEvents/
-// g_SubscribedCyclicSlots, exactly as if weekly_vault.h didn't exist.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// WeeklyAutoTrackEnabled
+//--------------------------------------------------------------------------------
+// Master switch for the "auto-tracked weekly Wizard's Vault target"
+// overlay shared by all three subscription views. When true (default),
+// any Basic Event/Cyclic slot that's an active-and-incomplete target of
+// THIS WEEK's Vault rotation (weekly_vault.h) is surfaced in all three
+// views even if the user never manually subscribed to it. When false,
+// each view falls back to showing only g_SubscribedBasicEvents/
+// g_SubscribedCyclicSlots, as if weekly_vault.h didn't exist.
 //
-// Deliberately does NOT touch the small red "counts toward this week's
-// Wizard's Vault objective" marker/border drawn on a row/segment/popup that
-// IS manually subscribed — that's just an informational tag on something
-// the user already chose to track, not the addon auto-adding anything on
-// its own, so it keeps showing regardless of this setting.
+// Does NOT touch the small red "counts toward this week's Vault
+// objective" marker drawn on a row that IS manually subscribed - that's
+// just an informational tag on something the user already chose to
+// track, so it keeps showing regardless of this setting.
+//--------------------------------------------------------------------------------
 SETTING(Subscriptions, WeeklyAutoTrackEnabled, bool, true)
 
-// Default color for the weekly markers on the subscription bar, window and
-// notification toast border. Alpha will be suppressed in settings for
-// visibility reasons. Defaulted to red.
-SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f, 1.000f)) // was 0xFF2828FFu
+//_ Default color for the weekly-target marker on the bar/window/toast
+// border (alpha suppressed for visibility); red by default, was 0xFF2828FFu.
+SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f, 1.000f))
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Gw2ApiKey
+//--------------------------------------------------------------------------------
 // GW2 API key (needs at minimum the "progression" permission), used ONLY
-// to call GET /v2/account/worldbosses — see gw2_api.h/.cpp. Drives
+// to call GET /v2/account/worldbosses (gw2_api.h/.cpp). Drives
 // automatically hiding a subscribed Core Boss from the Subscriptions
 // window/bar once the account has already killed it since the last UTC
-// daily reset. Empty = feature off; nothing is hidden, and no requests
-// are made (see PollGw2Api's early-out).
+// daily reset. Empty = feature off, nothing hidden, no requests made (see
+// PollGw2Api's early-out).
 //
-// This global always holds the PLAINTEXT key at runtime (that's what
-// gw2_api.cpp sends over HTTPS). On disk it's a different story:
-// settings.ini stores it AES-256-GCM-encrypted, with the master key kept
-// in a separate "apikey.key" file next to settings.ini — see
-// apikey_crypto.h/.cpp for the scheme and its threat model, and
-// settings.cpp for where Gw2ApiKey is special-cased out of the generic
-// write/parse path every other setting here uses. Pre-encryption
-// settings.ini files (plaintext key) still load fine and get re-saved
-// encrypted automatically.
+// This global always holds the PLAINTEXT key at runtime (what
+// gw2_api.cpp sends over HTTPS). On disk it's AES-256-GCM-encrypted, with
+// the master key in a separate "apikey.key" file next to settings.ini -
+// see apikey_crypto.h/.cpp for the scheme, and settings.cpp for where
+// this key is special-cased out of the generic write/parse path every
+// other setting uses. Pre-encryption settings.ini files (plaintext key)
+// still load fine and get re-saved encrypted automatically.
+//--------------------------------------------------------------------------------
 SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [System]
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 
-// Delay, in milliseconds, PasteToChat (subscriptions.cpp) waits between each
-// step of its simulated Enter -> Ctrl+V -> Enter keystroke sequence when a
-// watchlist row, distribution-bar segment, or notification popup is clicked.
-// Shared by all three subscription views (subscriptions_window.cpp,
-// subscriptions_bar.cpp, subscriptions_notification.cpp), since they all
-// paste through this same PasteToChat helper — not "Subscriptions"-scoped
-// itself because chat-paste timing is a general input-simulation concern
-// rather than a subscriptions-specific display preference, though it
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// delayMilliseconds
+//--------------------------------------------------------------------------------
+// Delay, in ms, PasteToChat (subscriptions.cpp) waits between each step
+// of its simulated Enter -> Ctrl+V -> Enter sequence when a watchlist
+// row/segment/popup is clicked. Shared by all three subscription views,
+// since they all paste through the same PasteToChat helper - not
+// "Subscriptions"-scoped itself, since chat-paste timing is a general
+// input-simulation concern rather than a display preference, though it
 // currently has no other caller.
+//--------------------------------------------------------------------------------
 SETTING(System, delayMilliseconds, int, 20)
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ChatChannelPrefix
+//--------------------------------------------------------------------------------
 // Slash-command prefix prepended to every PasteToChat message (see
-// BuildChatPasteMessage in subscriptions.cpp) so a watchlist row/segment/
-// toast click always lands in a specific chat channel, regardless of
-// whichever channel tab currently has keyboard focus in-game. Empty (the
-// default) pastes exactly as before — no prefix, whatever channel is
-// already selected. One value covers all three subscription views (same
-// "not Subscriptions-scoped" reasoning as delayMilliseconds just above),
-// stored as the literal command text itself (e.g. "/p ") rather than an
-// enum index, so the options-panel Combo (addon_options.cpp) is the only
-// place that needs to know the full label<->command mapping.
+// BuildChatPasteMessage in subscriptions.cpp) so a click always lands in
+// a specific chat channel regardless of which tab has keyboard focus.
+// Empty (default) pastes exactly as before. One value covers all three
+// subscription views (same reasoning as delayMilliseconds above), stored
+// as the literal command text (e.g. "/p ") rather than an enum index, so
+// the options-panel Combo (addon_options.cpp) is the only place that
+// needs the full label<->command mapping.
+//--------------------------------------------------------------------------------
 SETTING(System, ChatChannelPrefix, std::string, std::string())
 
-// ---------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [Notifications]
-// ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 
-// A fourth view of the same subscription data as the window/bar above (see
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// NotificationsEnabled
+//--------------------------------------------------------------------------------
+// A fourth view of the same subscription data as the window/bar (see
 // subscriptions_notification.h/.cpp): small "toast" popups in the
-// lower-right corner instead of a persistent list/strip. Master on/off
-// switch — when false, RenderSubscriptionsNotifications() is a complete
-// no-op (no state tracked, no popups fired, nothing drawn), same early-out
-// pattern as ShowSubscriptionsWindow/ShowSubscriptionsBar above.
+// lower-right corner instead of a persistent list/strip. Master switch -
+// when false, RenderSubscriptionsNotifications() is a complete no-op,
+// same early-out pattern as ShowSubscriptionsWindow/ShowSubscriptionsBar.
+//--------------------------------------------------------------------------------
 SETTING(Notifications, NotificationsEnabled, bool, false)
 
-// How many minutes before a subscribed Basic Event or Cyclic slot's next
-// occurrence starts to fire the "starting soon" popup. Fires once per
-// upcoming occurrence (re-armed the moment that occurrence's active window
-// closes — see s_notifyStates/NotifyState::leadFired in
-// subscriptions_notification.cpp). 0 disables this popup entirely; the
-// on-start popup below is independent and still fires regardless.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// NotificationLeadMinutes
+//--------------------------------------------------------------------------------
+// Minutes before a subscribed occurrence starts to fire the "starting
+// soon" popup. Fires once per occurrence, re-armed the moment that
+// occurrence's active window closes (see s_notifyStates/
+// NotifyState::leadFired in subscriptions_notification.cpp). 0 disables
+// this popup; the on-start popup below is independent and still fires.
+//--------------------------------------------------------------------------------
 SETTING(Notifications, NotificationLeadMinutes, int, 5)
 
-// Second, independent popup: fired the instant a subscribed Basic Event or
-// Cyclic slot actually goes active, regardless of whether the lead-time
-// popup above already fired for it. Its own on/off, since a user may want
-// only the advance warning, only the "it's live" ping, or both.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// NotificationOnStart
+//--------------------------------------------------------------------------------
+// Second, independent popup: fires the instant a subscribed occurrence
+// actually goes active, regardless of whether the lead-time popup above
+// already fired. Its own on/off, since a user may want only the advance
+// warning, only the "it's live" ping, or both.
+//--------------------------------------------------------------------------------
 SETTING(Notifications, NotificationOnStart, bool, false)
 
-// How long a popup stays fully visible before it starts fading out, in
-// seconds. Purely cosmetic — has no bearing on whether/when a popup fires,
-// only how long it lingers on screen once it has.
+//_ How long a popup stays fully visible before fading, in seconds -
+// purely cosmetic, no bearing on whether/when a popup fires.
 SETTING(Notifications, NotificationDisplaySeconds, int, 10)
 
-// Filename (no path) of a single user-supplied .wav under
-// "<addon dir>/sounds", picked via the Combo next to the "Test" button in
-// the options panel (addon_options.cpp) — see notify_sound.h for the
-// scan/playback plumbing. Empty (the default) means no sound file is
-// selected. Played by subscriptions_notification.cpp alongside a fired
-// "starting soon"/"now active" popup for any event/slot whose own notify
-// level has sound enabled (level 3 — see subscriptions.h); the "Test"
-// button plays it unconditionally regardless of any subscription's
-// notify level.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// NotificationSoundFile
+//--------------------------------------------------------------------------------
+// Filename (no path) of a single user-supplied .wav under "<addon dir>/
+// sounds", picked via the Combo next to the "Test" button in the options
+// panel (see notify_sound.h for the scan/playback plumbing). Empty
+// (default) means no sound file selected. Played by
+// subscriptions_notification.cpp alongside a fired popup for any
+// event/slot whose notify level has sound enabled (level 3 - see
+// subscriptions.h); the "Test" button plays it unconditionally.
+//--------------------------------------------------------------------------------
 SETTING(Notifications, NotificationSoundFile, std::string, std::string())
