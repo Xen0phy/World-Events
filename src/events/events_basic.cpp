@@ -53,9 +53,9 @@ std::vector<WorldEvent> g_Events =
                                                                                                                                                               20 * m60}, 0, 0, "triple_trouble_wurm"},
 
     //_ Ley Line Anomaly
-    {"Ley Line Anomaly (Iron Marches)",  60822.0f, 28530.0f,  false, m20, "[&BOcBAAA=]",  true, "EventBoss.png",   {}, 6 * m60,           m20},
-    {"Ley Line Anomaly (Gendarran)",     48365.0f, 29970.0f,  false, m20, "[&BOQAAAA=]",  true, "EventBoss.png",   {}, 6 * m60,    m120 + m20},
-    {"Ley Line Anomaly (Timberline)",    52914.0f, 35729.0f,  false, m20, "[&BEwCAAA=]",  true, "EventBoss.png",   {}, 6 * m60, 4 * m60 + m20},
+    {"Ley Line Anomaly (Timberline)",    52914.0f, 35729.0f,  false, m20, "[&BEwCAAA=]",  true, "EventBoss.png",   {}, 6 * m60,           m20},
+    {"Ley Line Anomaly (Iron Marches)",  60822.0f, 28530.0f,  false, m20, "[&BOcBAAA=]",  true, "EventBoss.png",   {}, 6 * m60,    m120 + m20},
+    {"Ley Line Anomaly (Gendarran)",     48365.0f, 29970.0f,  false, m20, "[&BOQAAAA=]",  true, "EventBoss.png",   {}, 6 * m60, 4 * m60 + m20},
 
     //_ Invasions
     {"Scarlet's Portal Invasion",        47338.0f, 29795.0f,  false, m15, "[&BOQAAAA=]", false, "EventMap.png",    {},    m120,           m60},
@@ -98,9 +98,9 @@ std::vector<CategoryDefault> g_DefaultBasicCategories =
         {"Triple Trouble"},
     }},
     {"LLA", {
-        {"Ley Line Anomaly (Iron Marches)"},
-        {"Ley Line Anomaly (Gendarran)"},
-        {"Ley Line Anomaly (Timberline)"},
+        {"Ley Line Anomaly (Timberline)",   true,           m20},
+        {"Ley Line Anomaly (Iron Marches)", true,    m120 + m20},
+        {"Ley Line Anomaly (Gendarran)",    true, 4 * m60 + m20},
     }},
     {"Invasions", {
         {"Scarlet's Portal Invasion"},

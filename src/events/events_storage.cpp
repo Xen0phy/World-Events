@@ -28,6 +28,7 @@
 //--------------------------------------------------------------------------------
 
 #include "events.h"
+#include "events_categories.h"
 #include "nlohmann_json.hpp"
 
 #include <filesystem>
@@ -382,6 +383,31 @@ static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defa
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ApplyCategoryOffsetOverrides
+//--------------------------------------------------------------------------------
+// Implements CategoryDefaultMember::offset (events_categories.h). Reads
+// straight from g_DefaultBasicCategories/g_DefaultCyclicCategories - the
+// same compiled-in list events_basic.cpp/events_cyclic.cpp already
+// maintain for category placement - so a schedule fix is a one-line edit
+// right next to that member's category entry, no separate table to keep
+// in sync. Same version gate as ForceCategoryMembership
+// (events_categories.cpp): runs once, only while the saved file predates
+// EVENTS_DATA_VERSION, then stops applying once the file's version
+// catches up on the next save.
+//--------------------------------------------------------------------------------
+static void ApplyCategoryOffsetOverrides(std::vector<WorldEvent>& events, int64_t savedVersion)
+{
+    if (savedVersion >= EVENTS_DATA_VERSION) return;
+
+    for (const auto& def : g_DefaultBasicCategories)
+        for (const auto& m : def.members)
+            if (m.offset.has_value())
+                for (auto& ev : events)
+                    if (ev.name == m.name)
+                        ev.offset = *m.offset;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveEventsData / LoadEventsData
 //--------------------------------------------------------------------------------
 // SaveEventsData serializes g_Events/g_CyclicGroups straight to
@@ -459,6 +485,7 @@ bool LoadEventsData(const std::string& addonDir)
                 defaultMapChestIdByName[grp.name] = grp.apiMapChestId;
 
         g_Events = MergeByKey(g_Events, loadedEvents, EventKey, resurrectMissingDefaults);
+        ApplyCategoryOffsetOverrides(g_Events, savedVersion);
 
         g_CyclicGroups = MergeGroups(g_CyclicGroups, loadedGroups, resurrectMissingDefaults);
 

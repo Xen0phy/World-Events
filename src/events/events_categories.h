@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -57,11 +58,17 @@ extern std::vector<Category> g_CyclicCategories;
 // of the user's current arrangement. Use sparingly - it overrides a user's
 // own organization. Default false costs nothing: membership just seeds
 // once and becomes fully user-editable after.
+//
+// offset: when set, one-time-pushes this member's WorldEvent::offset
+// (seconds from UTC midnight) to this value, unconditionally, the same
+// version-gated way as forced - see ApplyCategoryOffsetOverrides in
+// events_storage.cpp.
 //--------------------------------------------------------------------------------
 struct CategoryDefaultMember
 {
     std::string name;
     bool forced = false;   //. see block above
+    std::optional<int> offset;   //. see block above
 };
 
 struct CategoryDefault
