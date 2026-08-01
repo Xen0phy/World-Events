@@ -268,7 +268,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "Dragon's End",
         34101.0f, 103128.0f, m120, COL_EOD,
         {
-            { "Jade Maw",                  0,  MIN(8), ColorTier::Secondary, "[&BKIMAAA=]", true, 1, {}, true, {m15, m45} },
+            { "Jade Maw",                  0,  MIN(8), ColorTier::Secondary, "[&BKIMAAA=]", true, 1, {}, true, {m5, m45} },
             { "Battle for the Jade Sea", m60,     m60, ColorTier::Primary,   "[&BKIMAAA=]" },
         }
     },
