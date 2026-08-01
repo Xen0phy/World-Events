@@ -118,11 +118,10 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsDuplicateEventName / IsDuplicateGroupName / IsDuplicateSlotKey
 //--------------------------------------------------------------------------------
-// Match the merge keys from events_storage.cpp: groups/events by name
-// alone (GroupKey/EventKey), slots by name+offset together (SlotKey) -
-// two slots can share a name at different offsets (Dry Top's two
-// "Crash Site" slots) without colliding. selfIndex excludes the entry
-// being checked from its own comparison.
+// Match the merge keys from events_storage.cpp: groups/events/slots all
+// by name alone (GroupKey/EventKey/SlotKey) - for slots this means unique
+// WITHIN the group, not globally. selfIndex excludes the entry being
+// checked from its own comparison.
 //--------------------------------------------------------------------------------
 bool IsDuplicateEventName(const std::vector<WorldEvent>& events, int selfIndex)
 {
@@ -149,7 +148,7 @@ bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfInd
     const CyclicGroup::Slot& self = slots[selfIndex];
     if (self.name.empty()) return false;
     for (int i = 0; i < (int)slots.size(); i++)
-        if (i != selfIndex && slots[i].name == self.name && slots[i].offset == self.offset)
+        if (i != selfIndex && slots[i].name == self.name)
             return true;
     return false;
 }
@@ -861,15 +860,6 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             if (slotOpen)
             {
                 ImGui::SetNextItemWidth(50.0f);
-                int offsetMinutes = slot.offset / 60;
-                if (ImGui::DragInt("Offset", &offsetMinutes, 0, 0, 0, "%dmin"))
-                {
-                    if (offsetMinutes < 0) offsetMinutes = 0;
-                    slot.offset = offsetMinutes * 60;
-                }
-
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50.0f);
                 int durationMinutes = slot.duration / 60;
                 if (ImGui::DragInt("Duration (min)", &durationMinutes, 0, 0, 0, "%dmin"))
                 {
@@ -877,31 +867,93 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                     slot.duration = durationMinutes * 60;
                 }
 
-                //_ Repeat must evenly divide the period; snaps down to
-                // the nearest divisor of the CURRENT period (re-checked every frame).
                 ImGui::SameLine();
-                ImGui::SetNextItemWidth(50.0f);
-                int repeatInput = slot.repeat;
-                if (ImGui::InputInt("Repetition", &repeatInput, 0, 0))
+                ImGui::Checkbox("Varying", &slot.isVarying);
+
+                if (!slot.isVarying)
                 {
-                    if (repeatInput < 1) repeatInput = 1;
-                    if (repeatInput > grp.period) repeatInput = grp.period;
-                    while (repeatInput > 1 && grp.period % repeatInput != 0)
-                        repeatInput--;
-                    slot.repeat = repeatInput;
+                    ImGui::SetNextItemWidth(50.0f);
+                    int offsetMinutes = slot.offset / 60;
+                    if (ImGui::DragInt("Offset", &offsetMinutes, 0, 0, 0, "%dmin"))
+                    {
+                        if (offsetMinutes < 0) offsetMinutes = 0;
+                        slot.offset = offsetMinutes * 60;
+                    }
+
+                    //_ Repeat must evenly divide the period; snaps down to
+                    // the nearest divisor of the CURRENT period (re-checked every frame).
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(50.0f);
+                    int repeatInput = slot.repeat;
+                    if (ImGui::InputInt("Repetition", &repeatInput, 0, 0))
+                    {
+                        if (repeatInput < 1) repeatInput = 1;
+                        if (repeatInput > grp.period) repeatInput = grp.period;
+                        while (repeatInput > 1 && grp.period % repeatInput != 0)
+                            repeatInput--;
+                        slot.repeat = repeatInput;
+                    }
+                    else if (grp.period % slot.repeat != 0)
+                    {
+                        //_ Period changed elsewhere (e.g. the dropdown above)
+                        // and no longer divides evenly - snap down the same way.
+                        int fixed = slot.repeat;
+                        while (fixed > 1 && grp.period % fixed != 0)
+                            fixed--;
+                        slot.repeat = fixed;
+                    }
+                    Tooltip("How often the event repeats in the set period.\n"
+                            "Has to fit perfectly, if not possible make a second entry instead.\n"
+                            "Example: Event repeats exactly every hour. So 2 repeats in a 2h period.");
                 }
-                else if (grp.period % slot.repeat != 0)
+                else
                 {
-                    //_ Period changed elsewhere (e.g. the dropdown above)
-                    // and no longer divides evenly - snap down the same way.
-                    int fixed = slot.repeat;
-                    while (fixed > 1 && grp.period % fixed != 0)
-                        fixed--;
-                    slot.repeat = fixed;
+                    //_ Sorted minute-into-period times, not HH:MM (the
+                    // period isn't always 24h). offset/repeat are unused
+                    // while isVarying is set (see events.h).
+                    ImGui::Spacing();
+                    ImGui::TextUnformatted("Times (min into period)");
+                    ImGui::SameLine();
+                    bool pendingAddTime = ImGui::SmallButton("+##add_slot_time");
+
+                    int pendingRemoveTimeIndex = -1;
+                    int periodMinutes = grp.period / 60;
+
+                    for (int t = 0; t < (int)slot.varyingTimes.size(); t++)
+                    {
+                        ImGui::PushID(t);
+
+                        int minutes = slot.varyingTimes[t] / 60;
+                        bool changed = false;
+                        ImGui::SetNextItemWidth(50.0f);
+                        if (ImGui::InputInt("##slotVaryingTime", &minutes, 0, 0))
+                        {
+                            minutes = std::clamp(minutes, 0, periodMinutes > 0 ? periodMinutes - 1 : 0);
+                            changed = true;
+                        }
+                        ImGui::SameLine();
+                        ImGui::TextUnformatted("min");
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("-##remove_slot_time"))
+                            pendingRemoveTimeIndex = t;
+
+                        if (changed)
+                            slot.varyingTimes[t] = minutes * 60;
+
+                        ImGui::PopID();
+                    }
+
+                    if (pendingRemoveTimeIndex >= 0)
+                        slot.varyingTimes.erase(slot.varyingTimes.begin() + pendingRemoveTimeIndex);
+
+                    if (pendingAddTime)
+                        slot.varyingTimes.push_back(0);
+
+                    //_ Re-sorted every frame - GetSubscriptionActiveState's
+                    // cyclic-varying branch (subscriptions_cache.cpp)
+                    // requires ascending order.
+                    std::sort(slot.varyingTimes.begin(), slot.varyingTimes.end());
                 }
-                Tooltip("How often the event repeats in the set period.\n"
-                        "Has to fit perfectly, if not possible make a second entry instead.\n"
-                        "Example: Event repeats exactly every hour. So 2 repeats in a 2h period.");
 
                 ImGui::SetNextItemWidth(100.0f);
                 static const char* const kTierLabels[] = { "Primary", "Secondary", "Tertiary" };

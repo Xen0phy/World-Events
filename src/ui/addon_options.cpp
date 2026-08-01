@@ -33,6 +33,7 @@
 #include "icon_whitener.h"
 #include "imgui.h"
 #include "notify_sound.h"
+#include "reset_defaults.h"
 #include "settings.h"
 
 #include <algorithm>
@@ -619,6 +620,10 @@ void AddonOptions()
         std::transform(searchQueryLower.begin(), searchQueryLower.end(), searchQueryLower.begin(),
             [](unsigned char c) { return (char)std::tolower(c); });
         bool searchActive = !searchQueryLower.empty();
+
+        ImGui::SameLine();
+        DrawResetToDefaultsButton();
+        DrawResetToDefaultsPopup(); //. no-op unless the confirm popup is open
 
         if (ImGui::BeginTable("##world_events_data", 2, ImGuiTableFlags_SizingStretchSame))
         {

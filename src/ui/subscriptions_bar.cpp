@@ -762,7 +762,10 @@ static void PathRoundedRect(ImDrawList* dl, ImVec2 p0, ImVec2 p1, float rounding
 void RenderSubscriptionsBar()
 {
     if (!ShowSubscriptionsBar) return;
-    if (g_SubscribedBasicEvents.empty() && g_SubscribedCyclicSlots.empty())
+    //_ Manual lists being empty doesn't mean nothing renders - weekly
+    // auto-tracked segments (WeeklyAutoTrackEnabled, subscriptions_cache.cpp)
+    // populate segs independently; segs.empty() below is the real check.
+    if (g_SubscribedBasicEvents.empty() && g_SubscribedCyclicSlots.empty() && !WeeklyAutoTrackEnabled)
     {
         s_dropStates.clear();
         return;

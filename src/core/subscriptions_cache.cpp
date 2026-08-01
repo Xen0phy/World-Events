@@ -196,11 +196,12 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
     bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset });
     r.doneToday = apiDone || manualDone;
 
-    r.isVarying = false;   //. no varying-schedule concept
-    r.period    = grp.period;
-    r.duration  = slot.duration;
-    r.offset    = slot.offset;
-    r.repeat    = slot.repeat > 0 ? slot.repeat : 1;
+    r.isVarying    = slot.isVarying;
+    r.varyingTimes = slot.varyingTimes;
+    r.period       = grp.period;
+    r.duration     = slot.duration;
+    r.offset       = slot.offset;
+    r.repeat       = slot.repeat > 0 ? slot.repeat : 1;
 
     return r;
 }
@@ -331,10 +332,12 @@ const std::vector<ResolvedSubscription>& GetResolvedSubscriptions()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetSubscriptionActiveState
 //--------------------------------------------------------------------------------
-// Three branches: varying-schedule Basic Events (walk the sorted start
-// times), periodic (non-varying) Basic Events, and Cyclic slots (checks
-// every repeat within the period, since a slot can recur more than once).
-// All three return early once an active occurrence is found.
+// Four branches: varying-schedule Basic Events (walk the sorted start
+// times), periodic (non-varying) Basic Events, varying-schedule Cyclic
+// slots (same walk, scoped to the group's period instead of a day), and
+// periodic (non-varying) Cyclic slots (checks every repeat within the
+// period, since a slot can recur more than once). All four return early
+// once an active occurrence is found.
 //--------------------------------------------------------------------------------
 SubscriptionActiveState GetSubscriptionActiveState(const ResolvedSubscription& sub, time_t now)
 {
@@ -378,6 +381,28 @@ SubscriptionActiveState GetSubscriptionActiveState(const ResolvedSubscription& s
         {
             st.secsUntilStart = sub.period - phase;
         }
+        return st;
+    }
+
+    if (!sub.isBasic && sub.isVarying)
+    {
+        if (sub.varyingTimes.empty() || sub.period <= 0) return st;   //. no schedule data
+
+        int secondsOfPeriod = (int)(now % sub.period);
+        for (int t : sub.varyingTimes)
+        {
+            if (secondsOfPeriod < t) { st.secsUntilStart = t - secondsOfPeriod; return st; }   //. hasn't started yet this cycle
+            if (secondsOfPeriod < t + sub.duration)
+            {
+                st.active         = true;
+                st.secsUntilStart = 0;
+                st.secsUntilEnd   = t + sub.duration - secondsOfPeriod;
+                return st;
+            }
+            //_ else: already passed this cycle - check the next scheduled time.
+        }
+        //_ All times passed this cycle - wrap to the first one next cycle.
+        st.secsUntilStart = sub.period - secondsOfPeriod + sub.varyingTimes[0];
         return st;
     }
 

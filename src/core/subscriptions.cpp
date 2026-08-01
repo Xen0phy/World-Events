@@ -108,6 +108,20 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ClearAllSubscriptions
+//--------------------------------------------------------------------------------
+void ClearAllSubscriptions()
+{
+    g_SubscribedBasicEvents.clear();
+    g_SubscribedCyclicSlots.clear();
+    g_ToastEnabledBasicEvents.clear();
+    g_ToastEnabledCyclicSlots.clear();
+    g_SoundEnabledBasicEvents.clear();
+    g_SoundEnabledCyclicSlots.clear();
+    s_subscriptionListGeneration++;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventToastEnabled / IsCyclicSlotToastEnabled
 //--------------------------------------------------------------------------------
 bool IsBasicEventToastEnabled(const std::string& eventName)

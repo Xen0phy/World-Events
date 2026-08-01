@@ -40,7 +40,7 @@
 #include <vector>
 
 //_ YYYYMMDDHHmm, see file header for what this gates and when to bump it.
-constexpr int64_t EVENTS_DATA_VERSION = 202607251957;
+constexpr int64_t EVENTS_DATA_VERSION = 202608010844;
 
 //********************************************************************************
 // WorldEvent
@@ -164,24 +164,29 @@ struct CyclicGroup
     // Slot
     //--------------------------------------------------------------------------------
     // name          slot/event name
-    // offset        seconds from UTC midnight of the first occurrence
+    // offset        seconds from UTC midnight of the first occurrence;
+    //               ignored when isVarying is true
     // duration      seconds
     // tier          which of the group's colors.pri()/sec()/ter() to use
     // chatCode      optional GW2 chat/map code; empty = unset
     // shown         hides this slot's arc only; see CyclicGroup::shown for
     //               the whole ring
     // repeat        evenly-spaced occurrences per period (period must
-    //               divide evenly by this)
+    //               divide evenly by this); ignored when isVarying is true
     // customColor   optional per-slot color override; takes precedence
     //               over tier
+    // isVarying     true = irregular schedule (see varyingTimes) instead of
+    //               offset+repeat; false (default) = offset+repeat as before
+    // varyingTimes  isVarying only: sorted seconds-into-period list, one
+    //               entry per occurrence (same anchor as offset)
     //--------------------------------------------------------------------------------
     // One occurrence within a CyclicGroup's ring.
     //
-    // chatCode/shown/repeat/customColor are appended in this order for the
-    // same positional-aggregate-init reason as WorldEvent's tail fields
-    // (see events_basic.cpp/events_cyclic.cpp) - each field's position is
-    // how many trailing values a compiled-in row must supply, so later/
-    // rarer fields go last.
+    // chatCode/shown/repeat/customColor/isVarying/varyingTimes are appended
+    // in this order for the same positional-aggregate-init reason as
+    // WorldEvent's tail fields (see events_basic.cpp/events_cyclic.cpp) -
+    // each field's position is how many trailing values a compiled-in row
+    // must supply, so later/rarer fields go last.
     //--------------------------------------------------------------------------------
     struct Slot
     {
@@ -195,6 +200,9 @@ struct CyclicGroup
         int         repeat = 1;
 
         std::optional<ImU32> customColor;
+
+        bool        isVarying = false;
+        std::vector<int> varyingTimes;
     };
 
     std::vector<Slot> slots;
@@ -234,10 +242,10 @@ extern std::vector<CyclicGroup> g_CyclicGroups;
 constexpr int MIN(int minutes) { return minutes * 60; }
 
 //_ Precomputed minute->second constants for the table literals below
-// (m50/m85/m110 skipped - unused).
+// (m85/m110 skipped - unused).
 constexpr int   m5=MIN(  5),  m10=MIN( 10),  m15=MIN( 15),  m20=MIN( 20),
                m25=MIN( 25),  m30=MIN( 30),  m35=MIN( 35),  m40=MIN( 40),
-               m45=MIN( 45),  m55=MIN( 55),  m60=MIN( 60),
+               m45=MIN( 45),  m50=MIN( 50),  m55=MIN( 55),  m60=MIN( 60),
                m65=MIN( 65),  m70=MIN( 70),  m75=MIN( 75),  m80=MIN( 80),
                m90=MIN( 90),  m95=MIN( 95), m100=MIN(100),
               m105=MIN(105), m115=MIN(115), m120=MIN(120);

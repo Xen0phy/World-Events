@@ -63,15 +63,17 @@
 // isWeeklyTarget       active-and-incomplete weekly Wizard's Vault target
 //                      this week (weekly_vault.h)
 // doneToday            API-confirmed OR manually marked done
-// isVarying            Basic Events with a per-day time list instead of a
-//                      fixed period
-// varyingTimes         Basic + isVarying only
+// isVarying            per-day (Basic) or per-cycle (Cyclic) time list
+//                      instead of a fixed period / offset+repeat
+// varyingTimes         isVarying only: sorted times within the relevant
+//                      cycle (a day for Basic, the group's period for Cyclic)
 // period               Basic (non-varying): the event's own period.
 //                      Cyclic: the group's period
 // duration             event/slot duration in seconds
-// offset               Basic (non-varying): ev.offset. Cyclic: slot.offset
-// repeat               Cyclic only: how many times the slot recurs per
-//                      period
+// offset               Basic (non-varying): ev.offset. Cyclic (non-varying):
+//                      slot.offset
+// repeat               Cyclic (non-varying) only: how many times the slot
+//                      recurs per period
 //--------------------------------------------------------------------------------
 // isVarying/varyingTimes/period/duration/offset/repeat are copied out of
 // WorldEvent/CyclicGroup::Slot at resolve time, so GetSubscriptionActiveState

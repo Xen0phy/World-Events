@@ -46,6 +46,7 @@ add_library(gw2-world-events SHARED
     src/ui/addon_options_helpers.cpp
     src/ui/addon_options.cpp
     src/ui/icon_whitener.cpp
+    src/ui/reset_defaults.cpp
     src/ui/subscriptions_bar.cpp
     src/ui/subscriptions_notification.cpp
     src/ui/subscriptions_window.cpp

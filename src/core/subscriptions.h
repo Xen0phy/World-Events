@@ -79,6 +79,17 @@ bool IsCyclicSlotSubscribed(const CyclicSubscriptionKey& key);
 void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ClearAllSubscriptions
+//--------------------------------------------------------------------------------
+// Empties every list above (subscribed/toast/sound, Basic and Cyclic
+// alike) and bumps the generation counter once. Unlike calling
+// LoadSubscriptionsData with no file on disk - which leaves these lists
+// untouched rather than clearing them - this always empties them, so it's
+// the right call for an explicit "wipe subscriptions" action mid-session.
+//--------------------------------------------------------------------------------
+void ClearAllSubscriptions();
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenameSubscribedBasicEvent
 //--------------------------------------------------------------------------------
 // Patches a Basic Event subscription from oldName to newName, including its

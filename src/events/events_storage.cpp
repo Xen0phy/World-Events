@@ -181,16 +181,22 @@ static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
 // (De)serializes one CyclicGroup::Slot. customColor is presence-checked
 // (j.contains) rather than defaulted, so "unset" round-trips exactly;
 // chatCode is omitted when empty and shown when true (the default), same
-// convention as WorldEvent above.
+// convention as WorldEvent above. isVarying/varyingTimes follow the exact
+// same convention as WorldEvent's own pair: isVarying always written,
+// varyingTimes only written/read when isVarying is true.
 //--------------------------------------------------------------------------------
 static json SerializeSlot(const CyclicGroup::Slot& slot)
 {
     json j;
-    j["name"]     = slot.name;
-    j["offset"]   = slot.offset;
-    j["duration"] = slot.duration;
-    j["tier"]     = ColorTierToString(slot.tier);
-    j["repeat"]   = slot.repeat;
+    j["name"]      = slot.name;
+    j["offset"]    = slot.offset;
+    j["duration"]  = slot.duration;
+    j["tier"]      = ColorTierToString(slot.tier);
+    j["repeat"]    = slot.repeat;
+    j["isVarying"] = slot.isVarying;
+
+    if (slot.isVarying)
+        j["varyingTimes"] = slot.varyingTimes;
 
     if (slot.customColor.has_value())
         j["customColor"] = ColorToHexString(*slot.customColor);
@@ -207,11 +213,15 @@ static json SerializeSlot(const CyclicGroup::Slot& slot)
 static CyclicGroup::Slot DeserializeSlot(const json& j)
 {
     CyclicGroup::Slot slot{};
-    slot.name     = j.value("name", std::string("Unnamed Event"));
-    slot.offset   = j.value("offset", 0);
-    slot.duration = j.value("duration", 0);
-    slot.tier     = ColorTierFromString(j.value("tier", std::string("Primary")));
-    slot.repeat   = j.value("repeat", 1);
+    slot.name      = j.value("name", std::string("Unnamed Event"));
+    slot.offset    = j.value("offset", 0);
+    slot.duration  = j.value("duration", 0);
+    slot.tier      = ColorTierFromString(j.value("tier", std::string("Primary")));
+    slot.repeat    = j.value("repeat", 1);
+    slot.isVarying = j.value("isVarying", false);
+
+    if (slot.isVarying)
+        slot.varyingTimes = j.value("varyingTimes", std::vector<int>{});
 
     if (j.contains("customColor"))
         slot.customColor = HexStringToColor(j.value("customColor", std::string()), 0xFFFFFFFFu);
@@ -280,9 +290,7 @@ static CyclicGroup DeserializeGroup(const json& j)
 // Generic key-matched merge, used for top-level events/groups and for
 // slots nested within a matched group. Preserves defaults' order first,
 // then appends unmatched loaded entries in on-disk order. getKey must be
-// unique within the list - plain name is NOT enough for slots, since
-// e.g. Dry Top has two slots both named "Crash Site" at different
-// offsets (see SlotKey below).
+// unique within the list (see GroupKey/SlotKey/EventKey below).
 //
 // resurrectMissingDefaults must be true only when the file predates
 // EVENTS_DATA_VERSION; otherwise an unmatched default is treated as
@@ -292,10 +300,14 @@ static CyclicGroup DeserializeGroup(const json& j)
 template<typename T, typename KeyFn>
 static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vector<T>& loaded, KeyFn getKey, bool resurrectMissingDefaults)
 {
-    std::unordered_map<std::string, size_t> loadedIndexByKey;
-    //_ Last entry wins if getKey produced a duplicate key (shouldn't happen).
+    //_ Collect ALL loaded indices per key, not just the last one - a
+    // pre-migration file can have legitimate same-name duplicates (e.g.
+    // Jade Maw's old two-slot firing pattern, now one isVarying slot) and
+    // every one of them needs to be accounted for below, or the ones the
+    // map doesn't keep leak back in as stray "unmatched" entries.
+    std::unordered_map<std::string, std::vector<size_t>> loadedIndicesByKey;
     for (size_t i = 0; i < loaded.size(); i++)
-        loadedIndexByKey[getKey(loaded[i])] = i;
+        loadedIndicesByKey[getKey(loaded[i])].push_back(i);
 
     std::vector<bool> matched(loaded.size(), false);
     std::vector<T> result;
@@ -303,11 +315,28 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
 
     for (const auto& def : defaults)
     {
-        auto it = loadedIndexByKey.find(getKey(def));
-        if (it != loadedIndexByKey.end())
+        auto it = loadedIndicesByKey.find(getKey(def));
+        if (it != loadedIndicesByKey.end())
         {
-            result.push_back(loaded[it->second]);
-            matched[it->second] = true;
+            const std::vector<size_t>& indices = it->second;
+            for (size_t idx : indices)
+                matched[idx] = true;   //_ consume every duplicate, not just one
+
+            if (indices.size() > 1 && resurrectMissingDefaults)
+            {
+                //_ Same-name duplicates only happen from a file that predates
+                // this key's current shape (a slot that used to fire via two
+                // separate entries and now collapses into one isVarying
+                // entry). There's no sound way to pick which stale duplicate
+                // "wins", so take the compiled-in default instead - this is
+                // what actually replaces the two old entries with the new
+                // singular one.
+                result.push_back(def);
+            }
+            else
+            {
+                result.push_back(loaded[indices.back()]);
+            }
         }
         else if (resurrectMissingDefaults)
         {
@@ -327,14 +356,19 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GroupKey / SlotKey / EventKey
 //--------------------------------------------------------------------------------
-// Merge keys for MergeGroups/MergeByKey. Groups and events key on name
-// alone (no duplicates exist in events_cyclic.cpp/events_basic.cpp today).
-// Slots key on name+offset, since slot names CAN legitimately repeat
-// within one group - e.g. Dry Top's two "Crash Site" slots at different
-// offsets are a real repeated boss fight, not a typo.
+// Merge keys for MergeGroups/MergeByKey. Groups, events, and slots all key
+// on name alone - for slots this means unique WITHIN the group, not
+// globally. Two slots sharing a name used to be legitimate (e.g. Dry
+// Top's "Clear Prosperity", Dragon's End's "Jade Maw" firing twice at
+// different offsets) before isVarying existed; now that case collapses
+// into one isVarying slot instead, so treat any future same-name
+// collision within a group as a bug to fix via isVarying, not a case to
+// re-support. MergeByKey collapses same-key duplicates from a
+// pre-migration file back down to the single compiled-in default (see
+// MergeByKey above) rather than re-supporting the old multi-entry shape.
 //--------------------------------------------------------------------------------
 static std::string GroupKey(const CyclicGroup& g) { return g.name; }
-static std::string SlotKey(const CyclicGroup::Slot& s) { return s.name + "|" + std::to_string(s.offset); }
+static std::string SlotKey(const CyclicGroup::Slot& s) { return s.name; }
 static std::string EventKey(const WorldEvent& e) { return e.name; }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -351,9 +385,11 @@ static std::string EventKey(const WorldEvent& e) { return e.name; }
 //--------------------------------------------------------------------------------
 static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defaults, const std::vector<CyclicGroup>& loaded, bool resurrectMissingDefaults)
 {
-    std::unordered_map<std::string, size_t> loadedIndexByKey;
+    //_ Same duplicate-key handling as MergeByKey above - see that function
+    // for why every loaded index sharing a key must be consumed.
+    std::unordered_map<std::string, std::vector<size_t>> loadedIndicesByKey;
     for (size_t i = 0; i < loaded.size(); i++)
-        loadedIndexByKey[GroupKey(loaded[i])] = i;
+        loadedIndicesByKey[GroupKey(loaded[i])].push_back(i);
 
     std::vector<bool> matched(loaded.size(), false);
     std::vector<CyclicGroup> result;
@@ -361,13 +397,27 @@ static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defa
 
     for (const auto& def : defaults)
     {
-        auto it = loadedIndexByKey.find(GroupKey(def));
-        if (it != loadedIndexByKey.end())
+        auto it = loadedIndicesByKey.find(GroupKey(def));
+        if (it != loadedIndicesByKey.end())
         {
-            CyclicGroup merged = loaded[it->second];
-            merged.slots = MergeByKey(def.slots, loaded[it->second].slots, SlotKey, resurrectMissingDefaults);
-            result.push_back(merged);
-            matched[it->second] = true;
+            const std::vector<size_t>& indices = it->second;
+            for (size_t idx : indices)
+                matched[idx] = true;
+
+            if (indices.size() > 1 && resurrectMissingDefaults)
+            {
+                //_ Same reasoning as MergeByKey: a group-name duplicate can
+                // only come from a pre-migration file, so take the
+                // compiled-in group (slots included) wholesale rather than
+                // guessing which stale duplicate to merge from.
+                result.push_back(def);
+            }
+            else
+            {
+                CyclicGroup merged = loaded[indices.back()];
+                merged.slots = MergeByKey(def.slots, loaded[indices.back()].slots, SlotKey, resurrectMissingDefaults);
+                result.push_back(merged);
+            }
         }
         else if (resurrectMissingDefaults)
         {
@@ -449,8 +499,23 @@ bool SaveEventsData(const std::string& addonDir)
     catch (...) { return false; }
 }
 
+//_ Snapshotted the first time LoadEventsData runs, before its merge below
+// can mutate g_Events/g_CyclicGroups away from the compiled-in roster -
+// see ResetEventsToDefaults, which restores from these rather than the
+// (by-then possibly user-edited) globals.
+static std::vector<WorldEvent>  s_compiledDefaultEvents;
+static std::vector<CyclicGroup> s_compiledDefaultGroups;
+static bool                     s_compiledDefaultsCaptured = false;
+
 bool LoadEventsData(const std::string& addonDir)
 {
+    if (!s_compiledDefaultsCaptured)
+    {
+        s_compiledDefaultEvents    = g_Events;
+        s_compiledDefaultGroups    = g_CyclicGroups;
+        s_compiledDefaultsCaptured = true;
+    }
+
     try
     {
         std::string filepath = addonDir + "\\events.json";
@@ -507,4 +572,15 @@ bool LoadEventsData(const std::string& addonDir)
         return true;
     }
     catch (...) { return false; }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ResetEventsToDefaults
+//--------------------------------------------------------------------------------
+void ResetEventsToDefaults()
+{
+    if (!s_compiledDefaultsCaptured) return;   //. LoadEventsData never ran
+
+    g_Events       = s_compiledDefaultEvents;
+    g_CyclicGroups = s_compiledDefaultGroups;
 }

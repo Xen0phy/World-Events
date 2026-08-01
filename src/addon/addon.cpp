@@ -24,6 +24,9 @@
 #include "subscriptions_ui.h"
 #include "version.h"
 
+#include <filesystem>
+#include <system_error>
+
 AddonAPI_t*      APIDefs    = nullptr;
 Mumble::Data*    MumbleLink = nullptr;
 NexusLinkData_t* NexusLink  = nullptr;
@@ -58,6 +61,37 @@ static void SaveAllData(const std::string& addonDir)
     SaveCategoriesData(addonDir);     //. after events (see events_categories.h)
     SaveSubscriptionsData(addonDir);  //. after events (see subscriptions.h)
     SaveDailyTrackingData(addonDir);  //. after events (see events_tracking.h)
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ResetAllDataToDefaults
+//--------------------------------------------------------------------------------
+// Deletes events.json, then rebuilds g_Events/g_CyclicGroups from the
+// compiled-in snapshot (ResetEventsToDefaults - a plain reload can't do
+// this, since it would merge from the current, already-edited globals),
+// reloads categories with the file gone (resolves to compiled-in
+// defaults, same as AddonLoad's first-ever run), and explicitly clears
+// subscriptions/done-today markers (see the note below on why reloading
+// those two instead wouldn't actually clear them). SaveAllData then
+// writes all of that back out as a fresh file.
+//--------------------------------------------------------------------------------
+bool ResetAllDataToDefaults()
+{
+    std::error_code ec;
+    std::filesystem::remove(g_AddonDir + "\\events.json", ec);
+
+    ResetEventsToDefaults();
+    LoadCategoriesData(g_AddonDir); //. no file - resolves to compiled-in defaults
+
+    //_ LoadSubscriptionsData/LoadDailyTrackingData both treat "no file" as
+    // "nothing to load, leave memory as-is" (see their own comments) -
+    // exactly wrong here, since memory still holds whatever was
+    // subscribed/marked-done before the reset. Clear explicitly instead.
+    ClearAllSubscriptions();
+    ClearAllDoneMarkers();
+
+    SaveAllData(g_AddonDir);
+    return !ec;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

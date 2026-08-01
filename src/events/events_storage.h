@@ -17,3 +17,13 @@
 //--------------------------------------------------------------------------------
 bool SaveEventsData(const std::string& addonDir);
 bool LoadEventsData(const std::string& addonDir);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ResetEventsToDefaults
+//--------------------------------------------------------------------------------
+// Restores g_Events/g_CyclicGroups in memory to the exact compiled-in
+// roster, snapshotted the first time LoadEventsData ran. No-op if
+// LoadEventsData never ran. Doesn't touch disk - see
+// ResetAllDataToDefaults (addon.h) for the full "Default" button sequence.
+//--------------------------------------------------------------------------------
+void ResetEventsToDefaults();

@@ -96,9 +96,11 @@ struct DefaultIconEntry
 
 static const DefaultIconEntry s_defaultIcons[] =
 {
+    { "BasicCross.png",  g_BasicIconData,       g_BasicIconData_size },
     { "Convergence.png", g_ConvergenceIconData, g_ConvergenceIconData_size },
     { "EventBoss.png",   g_EventBossIconData,   g_EventBossIconData_size },
     { "EventMap.png",    g_EventMapIconData,    g_EventMapIconData_size },
+    { "Festival.png",    g_FestivalIconData,    g_FestivalIconData_size },
     { "WorldBoss.png",   g_WorldBossIconData,   g_WorldBossIconData_size },
 };
 

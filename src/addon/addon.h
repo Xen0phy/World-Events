@@ -124,3 +124,15 @@ void AddonRender();
 // addon_options.cpp, not addon.cpp.
 //--------------------------------------------------------------------------------
 void AddonOptions();
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ResetAllDataToDefaults
+//--------------------------------------------------------------------------------
+// "Default" button in the options panel's Events tab (addon_options.cpp):
+// deletes events.json outright and rebuilds every list it holds - events,
+// cyclicGroups, categories, subscriptions/toast/sound opt-ins, and daily
+// done-today markers - back to a clean compiled-in slate, then writes a
+// fresh file. Returns false if the on-disk delete failed (everything in
+// memory still gets reset either way).
+//--------------------------------------------------------------------------------
+bool ResetAllDataToDefaults();

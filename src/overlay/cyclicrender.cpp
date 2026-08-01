@@ -11,6 +11,7 @@
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
+#include "color_utils.h"
 #include "cyclicrender.h"
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -235,14 +236,27 @@ void RenderCyclicGroups()
             if (!slot.shown)
                 continue;
 
-            ImU32 color  = grp.SlotColor(slot);
-            int repeat   = slot.repeat > 0 ? slot.repeat : 1;
-            int subSpan  = grp.period / repeat; //. spacing between repeated occurrences
+            ImU32 color = grp.SlotColor(slot);
 
-            for (int r = 0; r < repeat; r++)
+            //_ Either offset+repeat (evenly-spaced) or an explicit list
+            // (isVarying) - both become "a list of base offsets," so the
+            // geometry below doesn't care which produced it.
+            std::vector<int> baseOffsets;
+            if (slot.isVarying)
             {
-                int baseOffset = slot.offset + r * subSpan;
+                baseOffsets = slot.varyingTimes;
+            }
+            else
+            {
+                int repeat  = slot.repeat > 0 ? slot.repeat : 1;
+                int subSpan = grp.period / repeat; //. spacing between repeated occurrences
+                baseOffsets.reserve(repeat);
+                for (int r = 0; r < repeat; r++)
+                    baseOffsets.push_back(slot.offset + r * subSpan);
+            }
 
+            for (int baseOffset : baseOffsets)
+            {
                 //_ A wrapping occurrence (crosses the period boundary) is split
                 // into a this-cycle tail + next-cycle head so the active/fade
                 // segment renders correctly across the 0s/period wrap.
@@ -337,7 +351,6 @@ void RenderCyclicGroups()
             // TooltipEntry
             //--------------------------------------------------------------------------------
             // name    slot/event name shown in the tooltip
-            // color   text color for an active entry
             // active  true if currently active, false if upcoming
             // secs    secsLeft if active, secsUntilStart if upcoming
             //--------------------------------------------------------------------------------
@@ -350,7 +363,6 @@ void RenderCyclicGroups()
             struct TooltipEntry
             {
                 std::string name;
-                ImU32       color;
                 bool        active;
                 int         secs;
             };
@@ -359,18 +371,32 @@ void RenderCyclicGroups()
 
             for (const auto& slot : grp.slots)
             {
-                ImU32 color = IM_COL32(255, 255, 255, 255);   //. TODO: use grp.SlotColor(slot)?
-                int repeat  = slot.repeat > 0 ? slot.repeat : 1;
-                int subSpan = grp.period / repeat;
+                //_ Same as the drawing loop above: a hidden slot shouldn't
+                // leak into the tooltip just because its arc is suppressed.
+                if (!slot.shown)
+                    continue;
+
+                std::vector<int> baseOffsets;
+                if (slot.isVarying)
+                {
+                    baseOffsets = slot.varyingTimes;
+                }
+                else
+                {
+                    int repeat  = slot.repeat > 0 ? slot.repeat : 1;
+                    int subSpan = grp.period / repeat;
+                    baseOffsets.reserve(repeat);
+                    for (int r = 0; r < repeat; r++)
+                        baseOffsets.push_back(slot.offset + r * subSpan);
+                }
 
                 bool foundActive    = false;
                 int  activeSecsLeft = 0;
                 bool foundUpcoming  = false;
                 int  bestSecsUntil  = grp.period;
 
-                for (int r = 0; r < repeat; r++)
+                for (int baseOffset : baseOffsets)
                 {
-                    int baseOffset = slot.offset + r * subSpan;
                     int phase          = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
                     bool active        = (phase < slot.duration);
                     int secsUntilStart = active ? 0 : (grp.period - phase);
@@ -392,8 +418,8 @@ void RenderCyclicGroups()
                     continue;
 
                 TooltipEntry candidate = foundActive
-                    ? TooltipEntry{ slot.name, color, true, activeSecsLeft }
-                    : TooltipEntry{ slot.name, color, false, bestSecsUntil };
+                    ? TooltipEntry{ slot.name, true, activeSecsLeft }
+                    : TooltipEntry{ slot.name, false, bestSecsUntil };
 
                 auto it = byName.find(slot.name);
                 if (it == byName.end())
@@ -426,18 +452,21 @@ void RenderCyclicGroups()
 
             for (const auto& e : entries)
             {
+                //_ Same status swatches/threshold as the Basic Events map
+                // dots (maprender.cpp) - active/soon/waiting - so ring
+                // tooltips match the rest of the overlay.
                 if (e.active)
                 {
-                    ImGui::TextColored(ImVec4(
-                        ((e.color >>  0) & 0xFF) / 255.0f,
-                        ((e.color >>  8) & 0xFF) / 255.0f,
-                        ((e.color >> 16) & 0xFF) / 255.0f, 1.0f),
+                    ImGui::TextColored(ToImVec4(BasicEventColorActive),
                         "%s — Active (ends in %s)",
                         e.name.c_str(), FormatMinSec(e.secs).c_str());
                 }
                 else
                 {
-                    ImGui::Text("%s — in %s",
+                    const float* col = e.secs < 900 ? BasicEventColorSoon
+                                                      : BasicEventColorWaiting;
+                    ImGui::TextColored(ToImVec4(col),
+                        "%s — in %s",
                         e.name.c_str(), FormatCountdown(e.secs).c_str());
                 }
             }

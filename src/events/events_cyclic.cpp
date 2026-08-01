@@ -14,6 +14,7 @@
 
 #include "events.h"
 #include "events_categories.h"
+#include <optional>
 
 //_ Each COL_* is the RGBA float tuple ColorSet::base actually stores (see
 // events.h); the trailing hex comment is only the original color-picker
@@ -28,6 +29,7 @@ const ColorSet COL_EOD  { ImVec4(0.125f, 0.545f, 0.592f, 1.000f) }; //. 0x208B97
 const ColorSet COL_SOTO { ImVec4(0.820f, 0.612f, 0.235f, 1.000f) }; //. 0xD19C3CFF
 const ColorSet COL_JW   { ImVec4(0.094f, 0.204f, 0.494f, 1.000f) }; //. 0x18347EFF
 const ColorSet COL_VOE  { ImVec4(0.671f, 0.251f, 0.102f, 1.000f) }; //. 0xAB401AFF
+const ColorSet COL_FEST { ImVec4(1.000f, 1.000f, 1.000f, 1.000f) }; //. 0xFFFFFFFF
 
 //_ Each group is its own 2h cycle of sequential events; offsets are
 // seconds from UTC midnight of each event's first occurrence.
@@ -44,12 +46,73 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
 
+    //_ Festivals
+    { "Festival of the Four Winds",
+        56040.0f, 39398.0f, m120, COL_FEST,
+        {
+            {"Skiff Race",       0, m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"Water Balloons", m15, m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"Treasure Hunt",  m30, m30, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"Skimmer Race",   m75, m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"Fishing",        m90, m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"Dolyak Race",   m105, m10, ColorTier::Primary, "[&BBwHAAA=]"},
+        }, std::nullopt, false
+    },
+
     //_ Living World Season 2
     { "Dry Top",
         37129.0f, 32802.0f, m60, COL_LWS2,
         {
-            {"Crash Site",  0, m40, ColorTier::Tertiary, "[&BIAHAAA=]" },
-            {"Sandstorm", m40, m20, ColorTier::Primary,  "[&BIAHAAA=]" },
+            //_ Main Cycle
+            {"Crash Site",         0,    m40,  ColorTier::Tertiary, "[&BIAHAAA=]" },
+            {"Sandstorm",        m40,    m20,   ColorTier::Primary, "[&BIAHAAA=]" },
+    
+            //_ Crash Site detail - Group A: fires at 0/15/30 within the 40-min
+            // Crash Site window.
+            {"Tendril A",          0,     m5, ColorTier::Secondary, "[&BIAHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"Race",               0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"Moa",                0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"Crash Victims",      0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"Shaman",             0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"Tendril B",          0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"Skritt Supplies",    0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"Escort Rustbucket",  0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+    
+            //_ Crash Site detail - Group B: fires at 5/20/35.
+            {"Frog",               0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"Queen",              0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"Serene",             0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"South Mine",         0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"Inquest Leader",     0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"Light Golem",        0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"Vine Bridge",        0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"Collect Beetles",    0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+    
+            //_ Crash Site detail - Group C: fires at 10/25 only (40 is
+            // Sandstorm, so no third occurrence).
+            {"Basket",             0,     m5, ColorTier::Secondary, "[&BIAHAAA=]", false, 1,                               {}, true,     {m10, m25} },
+            {"Town",               0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1,                               {}, true,     {m10, m25} },
+            {"North Mine",         0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1,                               {}, true,     {m10, m25} },
+            {"Ley Line Hub",       0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1,                               {}, true,     {m10, m25} },
+            {"Inquest Suit",       0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1,                               {}, true,     {m10, m25} },
+    
+            //_ Sandstorm detail - shared between the m40 and m50 subphase.
+            {"Mite farm",          0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"Haze",               0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"North Mine block",   0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"Stop Skritt (1)",    0,     m5, ColorTier::Secondary, "[&BIcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"Protect Eway",       0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"Giant",              0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"Stop Skritt (2)",    0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+    
+            //_ Sandstorm detail - single-occurrence, no isVarying needed.
+            {"Devourer Queen",   m45,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"Rare creature",    m45,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"Small Dust",       m50,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"Skritt Queen",     m50,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"Chickenado",       m50,     m5, ColorTier::Secondary, "[&BIgHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"Big Dust",         m55, MIN(2), ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"Giant Beetle", MIN(57), MIN(3), ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
         }
     },
     
@@ -126,7 +189,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "The Desolation",
         59943.0f, 50257.0f, m120, COL_POF,
         {
-            { "Junundu Rising",  m30, m20, ColorTier::Primary,   "[&BMEKAAA=]", false, 2 },
+            { "Junundu Rising",  m30, m20, ColorTier::Primary,   "[&BMEKAAA=]", true, 2 },
             { "Maws of Torment", m60, m20, ColorTier::Secondary, "[&BKMKAAA=]" },
         },
         std::nullopt, true, "the_desolation_heros_choice_chest"
@@ -134,7 +197,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "Domain of Vabbi",
         66332.0f, 53596.0f, m120, COL_POF,
         {
-            { "Forged with Fire", 0, m30, ColorTier::Primary,   "[&BO0KAAA=]", false, 2 },
+            { "Forged with Fire", 0, m30, ColorTier::Primary,   "[&BO0KAAA=]", true, 2 },
             { "Serpents' Ire",  m30, m30, ColorTier::Secondary, "[&BHQKAAA=]" },
         },
         std::nullopt, true, "domain_of_vabbi_heros_choice_chest"
@@ -205,9 +268,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "Dragon's End",
         34101.0f, 103128.0f, m120, COL_EOD,
         {
-            { "Jade Maw",                 m5, MIN(8), ColorTier::Secondary, "[&BKIMAAA=]" },
-            { "Jade Maw",                m45, MIN(8), ColorTier::Secondary, "[&BKIMAAA=]" },
-            { "Battle for the Jade Sea", m60,    m60, ColorTier::Primary,   "[&BKIMAAA=]" },
+            { "Jade Maw",                  0,  MIN(8), ColorTier::Secondary, "[&BKIMAAA=]", true, 1, {}, true, {m15, m45} },
+            { "Battle for the Jade Sea", m60,     m60, ColorTier::Primary,   "[&BKIMAAA=]" },
         }
     },
 
@@ -315,5 +377,8 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
         {"Shipwreck Strand"},
         {"Starlit Weald"},
         {"Eternity's Garden"},
+    }},
+    {"Festivals", {
+        {"Festival of the Four Winds"},
     }},
 };
