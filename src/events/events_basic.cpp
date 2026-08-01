@@ -107,9 +107,9 @@ std::vector<CategoryDefault> g_DefaultBasicCategories =
         {"Triple Trouble"},
     }},
     {"LLA", {
-        {"Ley Line Anomaly (Timberline)",   true,           m20},
-        {"Ley Line Anomaly (Iron Marches)", true,    m120 + m20},
-        {"Ley Line Anomaly (Gendarran)",    true, 4 * m60 + m20},
+        {"Ley Line Anomaly (Timberline)"},
+        {"Ley Line Anomaly (Iron Marches)"},
+        {"Ley Line Anomaly (Gendarran)"},
     }},
     {"Invasions", {
         {"Scarlet's Portal Invasion"},
