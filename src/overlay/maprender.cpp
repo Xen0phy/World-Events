@@ -57,6 +57,7 @@
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -72,6 +73,10 @@ struct EventIconEntry
     bool        requested   = false;
 };
 
+//_ Guards s_iconCache: Nexus's texture-load callback (OnEventIconReceived)
+// runs on a background thread while GetOrRequestEventIcon reads/inserts
+// from the render thread - unsynchronized, that's a real race.
+static std::mutex s_iconCacheMutex;
 static std::unordered_map<std::string, EventIconEntry> s_iconCache;
 
 static std::vector<std::string> s_iconFilenames;
@@ -165,6 +170,7 @@ const std::vector<std::string>& GetEventIconFilenames()
 //--------------------------------------------------------------------------------
 static void OnEventIconReceived(const char* aIdentifier, Texture_t* aTexture)
 {
+    std::lock_guard<std::mutex> lock(s_iconCacheMutex);
     auto it = s_iconCache.find(aIdentifier);
     if (it != s_iconCache.end())
         it->second.texture = aTexture;
@@ -188,13 +194,26 @@ static Texture_t* GetOrRequestEventIcon(const std::string& filename)
 {
     if (filename.empty()) return nullptr;
 
-    auto& entry = s_iconCache[filename]; //. default-constructs on first use
-    if (entry.texture && entry.texture->Resource)
-        return entry.texture;
-
-    if (!entry.requested)
+    //_ Only the cache lookup/insert itself needs to be under the lock -
+    // the actual load dispatch below talks to Nexus and shouldn't happen
+    // while holding it.
+    bool needsRequest = false;
     {
-        entry.requested = true;
+        std::lock_guard<std::mutex> lock(s_iconCacheMutex);
+
+        auto& entry = s_iconCache[filename]; //. default-constructs on first use
+        if (entry.texture && entry.texture->Resource)
+            return entry.texture;
+
+        if (!entry.requested)
+        {
+            entry.requested = true;
+            needsRequest = true;
+        }
+    }
+
+    if (needsRequest)
+    {
         std::string fullPath = g_AddonDir + "\\textures\\" + filename;
 
         //_ Identifier must be unique per filename so OnEventIconReceived
