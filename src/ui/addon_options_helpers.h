@@ -176,10 +176,11 @@ struct NameRowResult { bool open; std::string newName; };
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNameAndContextMenu
 //--------------------------------------------------------------------------------
-// Shared expand/collapse + name + right-click "Edit name"/"Delete" row,
-// used for Basic Events, Cyclic Groups, Cyclic slots, and both category
-// lists. See the .cpp for the full contract on editBuffers/editKey/
-// removeIndex, autoTag, toggleDone, and notifyLevel/setNotifyLevel.
+// Shared expand/collapse + name + right-click "Edit name"/"Reset"/"Delete"
+// row, used for Basic Events, Cyclic Groups, Cyclic slots, and both
+// category lists. See the .cpp for the full contract on editBuffers/
+// editKey/removeIndex, autoTag, toggleDone, notifyLevel/setNotifyLevel,
+// and resetToDefault/resetAvailable.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
     const char* treeNodeId,
@@ -192,7 +193,9 @@ NameRowResult DrawNameAndContextMenu(
     const char* autoTag = nullptr,
     std::function<void()> toggleDone = nullptr,
     int notifyLevel = -1,
-    std::function<void(int)> setNotifyLevel = nullptr);
+    std::function<void(int)> setNotifyLevel = nullptr,
+    std::function<void()> resetToDefault = nullptr,
+    bool resetAvailable = true);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ContainsCaseInsensitive / EventMatchesSearch / GroupMatchesSearch

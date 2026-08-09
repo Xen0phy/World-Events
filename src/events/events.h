@@ -40,7 +40,7 @@
 #include <vector>
 
 //_ YYYYMMDDHHmm, see file header for what this gates and when to bump it.
-constexpr int64_t EVENTS_DATA_VERSION = 202608010844;
+constexpr int64_t EVENTS_DATA_VERSION = 202608091139;
 
 //********************************************************************************
 // WorldEvent
@@ -232,6 +232,38 @@ struct CyclicGroup
 
 //_ Populated in events_cyclic.cpp, used by cyclicrender.cpp.
 extern std::vector<CyclicGroup> g_CyclicGroups;
+
+//********************************************************************************
+// SlotOverride
+//--------------------------------------------------------------------------------
+// groupName/slotName   must match CyclicGroup::name / Slot::name exactly
+// offset/duration      one-time-pushed onto the matching Slot when set
+//--------------------------------------------------------------------------------
+// Same purpose and same version gate as CategoryDefaultMember::offset/
+// duration (events_categories.h) - a one-time, version-gated correction
+// applied on top of whatever's on disk - but at Slot granularity, since a
+// Slot's own fields aren't reachable through the group-level category
+// mechanism (CyclicGroup categories key by group name, and CyclicGroup
+// itself has no offset/duration of its own - only its slots do).
+//
+// Applied by ApplySlotOverrides in events_storage.cpp, right after
+// MergeGroups, gated the same way as ApplyCategoryOffsetOverrides: runs
+// once, only while the saved file predates EVENTS_DATA_VERSION. As with
+// the Category overrides, EVENTS_DATA_VERSION must be bumped whenever an
+// entry is added here, or an already-current local file never re-enters
+// the gate and the fix never reaches it.
+//--------------------------------------------------------------------------------
+struct SlotOverride
+{
+    std::string groupName;
+    std::string slotName;
+    std::optional<int> offset;
+    std::optional<int> duration;
+};
+
+//_ Populated in events_cyclic.cpp, consumed by ApplySlotOverrides
+// (events_storage.cpp).
+extern std::vector<SlotOverride> g_SlotOverrides;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MIN

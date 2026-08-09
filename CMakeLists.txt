@@ -1,8 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(CMAKE_SYSTEM_NAME Windows)
-set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
-set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+# Compiler/target selection now lives in the toolchain file rather than being
+# hardcoded here, so the same CMakeLists.txt builds under either backend:
+#   MinGW (default, unchanged, no -DCMAKE_TOOLCHAIN_FILE needed):
+#     cmake -B build/mingw
+#   MSVC-ABI via clang-cl + lld-link (xwin sysroot):
+#     cmake -B build/msvc -G Ninja -DCMAKE_TOOLCHAIN_FILE=toolchain-msvc-clangcl.cmake -DXWIN_SYSROOT=~/.xwin
+if(NOT CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_SYSTEM_NAME Windows)
+    set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
+    set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+endif()
 
 project(gw2-world-events)
 set(CMAKE_CXX_STANDARD 17)
@@ -68,6 +76,12 @@ target_include_directories(gw2-world-events PRIVATE
     src/ui
 )
 
+# NOMINMAX: without this, <windows.h>/minwindef.h's macro-style min/max
+# collide with std::min/std::max call sites (e.g. subscriptions_bar.cpp,
+# subscriptions_notification.cpp, icon_whitener.cpp), producing
+# "expected unqualified-id" errors under clang-cl/xwin's SDK headers.
+target_compile_definitions(gw2-world-events PRIVATE NOMINMAX)
+
 target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp bcrypt winmm)
 
 set_target_properties(gw2-world-events PROPERTIES
@@ -76,18 +90,39 @@ set_target_properties(gw2-world-events PROPERTIES
     SUFFIX ".dll"
 )
 
-target_compile_options(gw2-world-events PRIVATE
-    -Os
-    -ffunction-sections
-    -fdata-sections
-    -fno-rtti
-)
-
-target_link_options(gw2-world-events PRIVATE
-    -static-libgcc
-    -static-libstdc++
-    -static
-    -s
-    -Wl,--gc-sections
-    -Wl,--exclude-libs,ALL
-)
+if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    # clang-cl / lld-link (MSVC ABI) path.
+    # /EHsc: clang-cl disables C++ exceptions by default like cl.exe does.
+    # /GR-:  matches -fno-rtti (RTTI stays off).
+    # /MT:   static multithreaded CRT -- the MSVC-world analogue of the
+    #        mingw -static-libgcc/-static-libstdc++/-static trio, so the
+    #        addon DLL doesn't depend on the user having the right VC++
+    #        redistributable installed.
+    # /O1:   optimize for size, matching -Os.
+    target_compile_options(gw2-world-events PRIVATE
+        /O1
+        /GR-
+        /EHsc
+        /MT
+    )
+    target_link_options(gw2-world-events PRIVATE
+        /OPT:REF   # dead code/data stripping, ~= --gc-sections
+        /OPT:ICF   # identical comdat folding, extra win lld-link gives for free
+    )
+else()
+    # mingw-w64 (GNU ABI) path -- unchanged from before.
+    target_compile_options(gw2-world-events PRIVATE
+        -Os
+        -ffunction-sections
+        -fdata-sections
+        -fno-rtti
+    )
+    target_link_options(gw2-world-events PRIVATE
+        -static-libgcc
+        -static-libstdc++
+        -static
+        -s
+        -Wl,--gc-sections
+        -Wl,--exclude-libs,ALL
+    )
+endif()

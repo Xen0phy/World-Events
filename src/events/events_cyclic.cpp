@@ -139,7 +139,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         37372.0f, 35317.0f, m120, COL_HOT,
         {
             { "Prep",        m25, m5,  ColorTier::Secondary, "[&BPUHAAA=]" },
-            { "Chak Gerent", m30, m40, ColorTier::Primary,   "[&BPUHAAA=]" },
+            { "Chak Gerent", m30, m15, ColorTier::Primary,   "[&BPUHAAA=]" },
             { "Outposts",    m70, m75, ColorTier::Tertiary,  "[&BAwIAAA=]" },
         },
         std::nullopt, true, "tangled_depths_heros_choice_chest"
@@ -381,4 +381,15 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
     {"Festivals", {
         {"Festival of the Four Winds"},
     }},
+};
+
+//_ One-time-pushed Slot corrections; see SlotOverride (events.h) for what
+// this does and why EVENTS_DATA_VERSION must be bumped alongside any
+// entry added here.
+std::vector<SlotOverride> g_SlotOverrides =
+{
+    //_ Chak Gerent's duration was wrong in files saved before this fix;
+    // the roster above already has the correct m15, this pushes it onto
+    // whatever a pre-existing local file has stored.
+    {"Tangled Depths", "Chak Gerent", std::nullopt, m15},
 };

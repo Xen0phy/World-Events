@@ -433,17 +433,19 @@ static std::vector<CyclicGroup> MergeGroups(const std::vector<CyclicGroup>& defa
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ApplyCategoryOffsetOverrides
+// ApplyCategoryOffsetOverrides / ApplyCategoryDurationOverrides
 //--------------------------------------------------------------------------------
-// Implements CategoryDefaultMember::offset (events_categories.h). Reads
-// straight from g_DefaultBasicCategories/g_DefaultCyclicCategories - the
-// same compiled-in list events_basic.cpp/events_cyclic.cpp already
-// maintain for category placement - so a schedule fix is a one-line edit
-// right next to that member's category entry, no separate table to keep
-// in sync. Same version gate as ForceCategoryMembership
-// (events_categories.cpp): runs once, only while the saved file predates
-// EVENTS_DATA_VERSION, then stops applying once the file's version
-// catches up on the next save.
+// Implement CategoryDefaultMember::offset/duration (events_categories.h).
+// Read straight from g_DefaultBasicCategories - the same compiled-in list
+// events_basic.cpp already maintains for category placement - so a
+// schedule fix is a one-line edit right next to that member's category
+// entry, no separate table to keep in sync. Same version gate as
+// ForceCategoryMembership (events_categories.cpp): runs once, only while
+// the saved file predates EVENTS_DATA_VERSION, then stops applying once
+// the file's version catches up on the next save. Whenever either
+// override is used to correct bad compiled-in data, EVENTS_DATA_VERSION
+// (events.h) must be bumped too, or a local file already at the current
+// version never re-enters this gate and the fix never reaches it.
 //--------------------------------------------------------------------------------
 static void ApplyCategoryOffsetOverrides(std::vector<WorldEvent>& events, int64_t savedVersion)
 {
@@ -455,6 +457,44 @@ static void ApplyCategoryOffsetOverrides(std::vector<WorldEvent>& events, int64_
                 for (auto& ev : events)
                     if (ev.name == m.name)
                         ev.offset = *m.offset;
+}
+
+static void ApplyCategoryDurationOverrides(std::vector<WorldEvent>& events, int64_t savedVersion)
+{
+    if (savedVersion >= EVENTS_DATA_VERSION) return;
+
+    for (const auto& def : g_DefaultBasicCategories)
+        for (const auto& m : def.members)
+            if (m.duration.has_value())
+                for (auto& ev : events)
+                    if (ev.name == m.name)
+                        ev.duration = *m.duration;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ApplySlotOverrides
+//--------------------------------------------------------------------------------
+// Implements SlotOverride (events.h) - the Slot-granularity counterpart to
+// ApplyCategoryOffsetOverrides/ApplyCategoryDurationOverrides above, for
+// corrections that live inside a CyclicGroup's slots rather than at the
+// group level. Same version gate: runs once, only while the saved file
+// predates EVENTS_DATA_VERSION.
+//--------------------------------------------------------------------------------
+static void ApplySlotOverrides(std::vector<CyclicGroup>& groups, int64_t savedVersion)
+{
+    if (savedVersion >= EVENTS_DATA_VERSION) return;
+
+    for (const auto& ov : g_SlotOverrides)
+        for (auto& grp : groups)
+            if (grp.name == ov.groupName)
+                for (auto& slot : grp.slots)
+                    if (slot.name == ov.slotName)
+                    {
+                        if (ov.offset.has_value())
+                            slot.offset = *ov.offset;
+                        if (ov.duration.has_value())
+                            slot.duration = *ov.duration;
+                    }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -551,8 +591,10 @@ bool LoadEventsData(const std::string& addonDir)
 
         g_Events = MergeByKey(g_Events, loadedEvents, EventKey, resurrectMissingDefaults);
         ApplyCategoryOffsetOverrides(g_Events, savedVersion);
+        ApplyCategoryDurationOverrides(g_Events, savedVersion);
 
         g_CyclicGroups = MergeGroups(g_CyclicGroups, loadedGroups, resurrectMissingDefaults);
+        ApplySlotOverrides(g_CyclicGroups, savedVersion);
 
         //_ Restamps what MergeByKey/MergeGroups just overwrote with the loaded
         // object's blank fields - see the pair comment above for why.
@@ -583,4 +625,41 @@ void ResetEventsToDefaults()
 
     g_Events       = s_compiledDefaultEvents;
     g_CyclicGroups = s_compiledDefaultGroups;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetDefaultEvent / GetDefaultCyclicGroup / GetDefaultCyclicSlot
+//--------------------------------------------------------------------------------
+// Plain linear scan over s_compiledDefaultEvents/s_compiledDefaultGroups -
+// small, options-panel-only lookups, not worth an index.
+//--------------------------------------------------------------------------------
+const WorldEvent* GetDefaultEvent(const std::string& name)
+{
+    if (!s_compiledDefaultsCaptured) return nullptr;
+
+    for (const auto& ev : s_compiledDefaultEvents)
+        if (ev.name == name)
+            return &ev;
+    return nullptr;
+}
+
+const CyclicGroup* GetDefaultCyclicGroup(const std::string& name)
+{
+    if (!s_compiledDefaultsCaptured) return nullptr;
+
+    for (const auto& grp : s_compiledDefaultGroups)
+        if (grp.name == name)
+            return &grp;
+    return nullptr;
+}
+
+const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupName, const std::string& slotName)
+{
+    const CyclicGroup* grp = GetDefaultCyclicGroup(groupName);
+    if (!grp) return nullptr;
+
+    for (const auto& slot : grp->slots)
+        if (slot.name == slotName)
+            return &slot;
+    return nullptr;
 }

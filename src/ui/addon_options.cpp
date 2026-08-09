@@ -625,6 +625,9 @@ void AddonOptions()
         DrawResetToDefaultsButton();
         DrawResetToDefaultsPopup(); //. no-op unless the confirm popup is open
 
+        ImGui::SameLine();
+        ImGui::TextDisabled("(right-click an entry below for more options)");
+
         if (ImGui::BeginTable("##world_events_data", 2, ImGuiTableFlags_SizingStretchSame))
         {
             //_ Row 3 - Basic Events tree (col 0), Cyclic Events tree (col 1)

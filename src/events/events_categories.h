@@ -59,16 +59,18 @@ extern std::vector<Category> g_CyclicCategories;
 // own organization. Default false costs nothing: membership just seeds
 // once and becomes fully user-editable after.
 //
-// offset: when set, one-time-pushes this member's WorldEvent::offset
-// (seconds from UTC midnight) to this value, unconditionally, the same
-// version-gated way as forced - see ApplyCategoryOffsetOverrides in
-// events_storage.cpp.
+// offset/duration: when set, one-time-pushes this member's
+// WorldEvent::offset/duration (offset = seconds from UTC midnight,
+// duration = seconds) to this value, unconditionally, the same
+// version-gated way as forced - see ApplyCategoryOffsetOverrides/
+// ApplyCategoryDurationOverrides in events_storage.cpp.
 //--------------------------------------------------------------------------------
 struct CategoryDefaultMember
 {
     std::string name;
-    bool forced = false;   //. see block above
-    std::optional<int> offset;   //. see block above
+    bool forced = false;
+    std::optional<int> offset;
+    std::optional<int> duration;
 };
 
 struct CategoryDefault

@@ -12,6 +12,7 @@
 
 #include "addon_options_helpers.h"
 #include "color_utils.h"
+#include "events_storage.h" //. GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot
 #include "events_tracking.h"
 #include "imgui_internal.h" //. for internal-only ImGui APIs
 #include "subscriptions.h"
@@ -404,9 +405,16 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 //--------------------------------------------------------------------------------
 // Shared expand/collapse + name + right-click row, used by Basic Events,
 // Cyclic Groups, Cyclic slots, and both category lists. Right-click always
-// offers Edit name / Delete; toggleDone and notifyLevel/setNotifyLevel add
-// optional entries, left null/-1 where not applicable (e.g. categories
-// pass neither).
+// offers Edit name / Delete; toggleDone, notifyLevel/setNotifyLevel, and
+// resetToDefault add optional entries, left null/-1 where not applicable
+// (e.g. categories pass none of them - no "Reset" for those).
+//
+// resetToDefault, when non-null, adds "Reset" between Edit name and
+// Delete; resetAvailable (only meaningful together with resetToDefault)
+// greys it out for entries with no compiled-in default to reset to (see
+// GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot in
+// events_storage.h) rather than hiding the entry outright, so its
+// position in the menu stays predictable either way.
 //
 // editBuffers is the caller's own edit-in-progress map, keyed by editKey
 // (kept separate from removeIndex since slots share one map across
@@ -414,7 +422,7 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 // pendingRemoveIndex = removeIndex on Delete.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType, const char* autoTag, std::function<void()> toggleDone,
-    int notifyLevel, std::function<void(int)> setNotifyLevel)
+    int notifyLevel, std::function<void(int)> setNotifyLevel, std::function<void()> resetToDefault, bool resetAvailable)
 {
     std::string label = currentName.empty() ? "(unnamed)" : currentName;
     if (autoTag)
@@ -458,6 +466,12 @@ NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int re
         if (ImGui::MenuItem("Edit name"))
             editBuffers[editKey] = currentName; //. seeded when edit starts
         ImGui::Separator();
+        if (resetToDefault)
+        {
+            if (ImGui::MenuItem("Reset", nullptr, false, resetAvailable))
+                resetToDefault();
+            ImGui::Separator();
+        }
         if (ImGui::MenuItem("Delete"))
             pendingRemoveIndex = removeIndex;
         ImGui::EndPopup();
@@ -554,10 +568,13 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     ImGui::SameLine();
 
     std::string oldName = ev.name;
+    const WorldEvent* defaultEv = GetDefaultEvent(ev.name);
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
         [&ev]() { ToggleBasicEventDoneToday(ev.name); },
-        notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.name, lvl); });
+        notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.name, lvl); },
+        [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. name unchanged - defaultEv was found BY ev.name
+        defaultEv != nullptr);
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
@@ -756,8 +773,12 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     ImGui::SameLine();
 
     std::string oldGroupName = grp.name;
+    const CyclicGroup* defaultGrp = GetDefaultCyclicGroup(grp.name);
     NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, grp.name, editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType,
-        grp.apiMapChestId.empty() ? nullptr : "(auto)");
+        grp.apiMapChestId.empty() ? nullptr : "(auto)",
+        nullptr, -1, nullptr,
+        [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. name unchanged - defaultGrp was found BY grp.name
+        defaultGrp != nullptr);
     bool open = nameResult.open;
     if (nameResult.newName != oldGroupName)
     {
@@ -845,9 +866,12 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             ImGui::SameLine();
 
             int slotEditKey = i * 100000 + s;
+            const CyclicGroup::Slot* defaultSlot = GetDefaultCyclicSlot(grp.name, slot.name);
             NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, slot.name, editingSlotNames, pendingRemoveSlotIndex,
                 nullptr, nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
-                notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); });
+                notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); },
+                [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. name unchanged - defaultSlot was found BY (grp.name, slot.name)
+                defaultSlot != nullptr);
             bool slotOpen = slotNameResult.open;
             //_ Slots aren't categorized, and subscriptions key on
             // (group name, offset), not name - so no rename fixups needed.
