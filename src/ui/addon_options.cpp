@@ -45,9 +45,10 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonOptions
 //--------------------------------------------------------------------------------
-// Laid out as three stacked BeginTable/EndTable pairs plus one full-width
-// CollapsingHeader between the first two - a CollapsingHeader clips to a
-// single table column, so it can't be drawn inside either table. List
+// Laid out as three stacked BeginTable/EndTable pairs plus two full-width
+// CollapsingHeaders (one wrapping Table 2+3, one nested around just the
+// search box and Table 3) - a CollapsingHeader clips to a single table
+// column, so it can't be drawn inside either table. List
 // mutations (add/remove event, group, category) are captured as bools
 // during the row loop and applied afterward, to avoid invalidating
 // indices mid-iteration. One search box filters both the Basic and
@@ -78,6 +79,29 @@ void AddonOptions()
         ImGui::TextDisabled("Notify: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsNotifyDataMs, g_AvgSubsNotifyDrawMs);
     }
     
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    
+    //_ Master is a derived AND of the three settings, not its own.
+    bool disableAllCompetitive = DisableWindowWhenCompetitive && DisableBarWhenCompetitive && DisableNotifyWhenCompetitive;
+    if (ImGui::Checkbox("Disable overlay in PvP/WvW", &disableAllCompetitive))
+    {
+        DisableWindowWhenCompetitive = disableAllCompetitive;
+        DisableBarWhenCompetitive    = disableAllCompetitive;
+        DisableNotifyWhenCompetitive = disableAllCompetitive;
+    }
+    Tooltip("Hides map events, cyclic rings, and all subscriptions\n"
+            "views (window/bar/toast) while you're on a PvP or WvW\n"
+            "map. Doesn't change what's subscribed, only what shows.");
+
+    ImGui::SameLine();
+    ImGui::Checkbox("Window##dis_comp_window", &DisableWindowWhenCompetitive);
+    ImGui::SameLine();
+    ImGui::Checkbox("Toast##dis_comp_toast", &DisableNotifyWhenCompetitive);
+    ImGui::SameLine();
+    ImGui::Checkbox("Bar##dis_comp_bar", &DisableBarWhenCompetitive);
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -336,9 +360,7 @@ void AddonOptions()
         ImGui::EndTable();
     }
 
-    //_ Full-width CollapsingHeader, drawn outside any table's column
-    // context between Table 1 and Table 2; Table 2 only exists while open.
-    if (ImGui::CollapsingHeader("World Events (Basic + Cyclic)", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Events Settings (Basic|Cyclic)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         //_ Table 2 - Search/API key (Row 1) and section controls (Row 2);
         // exists only while the header above is expanded.
@@ -603,11 +625,10 @@ void AddonOptions()
             
             ImGui::EndTable();
         }
+    }
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
+    if (ImGui::CollapsingHeader("Event Lists (Basic|Cyclic)", ImGuiTreeNodeFlags_DefaultOpen))
+    {
         //_ Table 3 - Basic Events tree (col 0), Cyclic Events tree (col 1);
         // split out so the search box below can filter both outside any column.
 
@@ -646,14 +667,14 @@ void AddonOptions()
             MakeDropTarget(kBasicEventDragType, g_BasicCategories, -1);
             ImGui::SameLine();
             bool pendingAdd = ImGui::SmallButton("+##add_basic_event");
-    
+
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
             ImGui::TextUnformatted("Categories");
             ImGui::SameLine();
             bool pendingAddBasicCategory = ImGui::SmallButton("+##add_basic_category");
-            
+        
             //_ Section-level bulk icon picker, applies to every Basic Event
             // regardless of category; no per-category equivalent exists.
             {
@@ -772,7 +793,7 @@ void AddonOptions()
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
-            
+        
             //_ Cyclic Events header + add buttons; same deferred add/remove
             // pattern as Basic Events above.
             ImGui::TextUnformatted("Cyclic Events");

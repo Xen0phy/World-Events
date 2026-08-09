@@ -158,6 +158,25 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [Subscriptions]
 //--------------------------------------------------------------------------------
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DisableWindowWhenCompetitive / DisableBarWhenCompetitive / DisableNotifyWhenCompetitive
+//--------------------------------------------------------------------------------
+// Per-view kill-switches for the three subscriptions views (window/bar/
+// toast) while Mumble reports Context.IsCompetitive - i.e. the player is
+// on a PvP or WvW map. Checked once per frame in AddonRender (see
+// addon.cpp); doesn't touch the underlying subscription data, only
+// whether that view gets drawn. The options panel's combined "Disable
+// overlay in PvP/WvW" checkbox is a derived AND of these three, not a
+// separate stored setting - it lets players keep just one view (e.g. the
+// toast) active in competitive modes. No equivalent setting exists for
+// the map overlay (events/cyclic rings): those are tied to open-world
+// MapIDs and never have anything to draw on a PvP/WvW map regardless.
+// Default true - the overlay is aimed at open-world meta events and has
+// no real use case in competitive modes.
+//--------------------------------------------------------------------------------
+SETTING(Subscriptions, DisableWindowWhenCompetitive, bool, true)
+SETTING(Subscriptions, DisableBarWhenCompetitive,    bool, true)
+SETTING(Subscriptions, DisableNotifyWhenCompetitive, bool, true)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ShowSubscriptionsWindow

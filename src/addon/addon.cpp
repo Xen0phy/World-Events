@@ -211,13 +211,22 @@ void AddonRender()
     // unconditionally on IsGameplay; only the overlays need IsMapOpen too.
     if (MumbleLink && NexusLink && NexusLink->IsGameplay)
     {
-        //_ Cheap no-op most frames (internal rate limiting) - called here
-        // alongside the two views that actually consume its data.
-        PollGw2Api();
+        //_ Per-view kill-switches so at least one can stay on; also skips
+        // PollGw2Api itself once none of the three would consume its
+        // data anyway - no point polling for nothing to show.
+        bool isCompetitive = MumbleLink->Context.IsCompetitive;
+        bool allDisabled = DisableWindowWhenCompetitive && DisableBarWhenCompetitive && DisableNotifyWhenCompetitive;
 
-        RenderSubscriptionsWindow();
-        RenderSubscriptionsBar();
-        RenderSubscriptionsNotifications();
+        if (!(isCompetitive && allDisabled))
+        {
+            //_ Cheap no-op most frames (internal rate limiting) - called here
+            // alongside the two views that actually consume its data.
+            PollGw2Api();
+
+            if (!(isCompetitive && DisableWindowWhenCompetitive)) RenderSubscriptionsWindow();
+            if (!(isCompetitive && DisableBarWhenCompetitive))    RenderSubscriptionsBar();
+            if (!(isCompetitive && DisableNotifyWhenCompetitive)) RenderSubscriptionsNotifications();
+        }
     }
 
     if (!MumbleLink || !NexusLink)          return;
@@ -233,6 +242,10 @@ void AddonRender()
     wasMapOpen = isMapOpen;
 
     if (!isMapOpen) return;
+
+    //_ PvP/WvW maps never have Basic/Cyclic events on them - unconditional,
+    // not tied to any setting (unlike the subscriptions views above).
+    if (MumbleLink->Context.IsCompetitive) return;
 
     RenderMapEvents();
     if (ShowCyclicOverlay)
