@@ -399,13 +399,17 @@ static void DrawAndExpirePopups()
         ImGui::SetNextWindowSize(ImVec2(kPopupWidth, kPopupHeight));
         ImGui::SetNextWindowBgAlpha(0.0f);
         ImGui::Begin(winId.c_str(), nullptr,
-            ImGuiWindowFlags_NoTitleBar        |
-            ImGuiWindowFlags_NoResize          |
-            ImGuiWindowFlags_NoMove            |
-            ImGuiWindowFlags_NoScrollbar       |
-            ImGuiWindowFlags_NoSavedSettings   |
-            ImGuiWindowFlags_NoBackground      |
-            ImGuiWindowFlags_NoFocusOnAppearing);
+            ImGuiWindowFlags_NoTitleBar         |
+            ImGuiWindowFlags_NoResize           |
+            ImGuiWindowFlags_NoMove             |
+            ImGuiWindowFlags_NoScrollbar        |
+            ImGuiWindowFlags_NoSavedSettings    |
+            ImGuiWindowFlags_NoBackground       |
+            ImGuiWindowFlags_NoFocusOnAppearing |
+            //_ FIXME: NoNav added to hopefully prevent a rare
+            // ImGui bug from happening. Remove when vendored
+            // ImGui version has been updated. (Imgui.cpp:7225)
+            ImGuiWindowFlags_NoNav);
         ImGui::InvisibleButton("##we_notif_hit", ImVec2(kPopupWidth, kPopupHeight));
         bool hovered      = ImGui::IsItemHovered();
         bool clicked      = ImGui::IsItemClicked(ImGuiMouseButton_Left);

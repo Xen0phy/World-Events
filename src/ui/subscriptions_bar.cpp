@@ -1356,7 +1356,11 @@ void RenderSubscriptionsBar()
             ImGuiWindowFlags_NoMove          |
             ImGuiWindowFlags_NoScrollbar     |
             ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoBackground);
+            ImGuiWindowFlags_NoBackground    |
+            //_ FIXME: NoNav added to hopefully prevent a rare
+            // ImGui bug from happening. Remove when vendored
+            // ImGui version has been updated. (Imgui.cpp:7225)
+            ImGuiWindowFlags_NoNav);
         ImGui::PopStyleVar();
         ImGui::InvisibleButton("##we_subbar_line_click_hit", ImVec2(screenW, lineWinY1 - lineWinY0));
         bool lineClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
@@ -1453,7 +1457,11 @@ void RenderSubscriptionsBar()
             ImGuiWindowFlags_NoMove          |
             ImGuiWindowFlags_NoScrollbar     |
             ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoBackground);
+            ImGuiWindowFlags_NoBackground    |
+            //_ FIXME: NoNav added to hopefully prevent a rare
+            // ImGui bug from happening. Remove when vendored
+            // ImGui version has been updated. (Imgui.cpp:7225)
+            ImGuiWindowFlags_NoNav);
         ImGui::InvisibleButton("##we_subbar_click_hit", ImVec2(w, h));
         bool clicked      = ImGui::IsItemClicked(ImGuiMouseButton_Left);
         bool rightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
