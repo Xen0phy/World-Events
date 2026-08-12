@@ -388,8 +388,6 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
 // entry added here.
 std::vector<SlotOverride> g_SlotOverrides =
 {
-    //_ Chak Gerent's duration was wrong in files saved before this fix;
-    // the roster above already has the correct m15, this pushes it onto
-    // whatever a pre-existing local file has stored.
     {"Tangled Depths", "Chak Gerent", std::nullopt, m15},
+    {"Verdant Brink", "Night Enemy", m105, std::nullopt},
 };
