@@ -13,13 +13,14 @@
 
 #include "events.h"
 #include "events_categories.h"
+#include <optional>
 
 //_ Coords, most of which waere taken directly from Sognus's World Bosses data.
 std::vector<WorldEvent> g_Events =
 {
     //_ Instanced
-    {"Outer Nayos",                      24046.0f, 22754.0f, false, m20, "[&BB8OAAA=]",  true, "Convergence.png", {}, MIN(180),       m90},
-    {"Mount Balrior",                    43095.0f, 22672.0f, false, m20, "[&BK4OAAA=]",  true, "Convergence.png", {}, MIN(180),         0},
+    {"Outer Nayos",                      24046.0f, 22754.0f, false, m10, "[&BB8OAAA=]",  true, "Convergence.png", {}, MIN(180),       m90},
+    {"Mount Balrior",                    43095.0f, 22672.0f, false, m10, "[&BK4OAAA=]",  true, "Convergence.png", {}, MIN(180),         0},
 
     //_ Core bosses - trailing string on each row is that boss's
     // /v2/worldbosses id (see WorldEvent::apiWorldBossId, events.h).
@@ -58,10 +59,11 @@ std::vector<WorldEvent> g_Events =
         MIN(1200)}, //. 20:00
         0, 0, "triple_trouble_wurm"},
 
-    //_ Ley Line Anomaly
-    {"Ley Line Anomaly (Timberline)",    52914.0f, 35729.0f,  false, m20, "[&BEwCAAA=]",  true, "EventBoss.png",   {}, MIN(360),      m20},
-    {"Ley Line Anomaly (Iron Marches)",  60822.0f, 28530.0f,  false, m20, "[&BOcBAAA=]",  true, "EventBoss.png",   {}, MIN(360), MIN(140)},
-    {"Ley Line Anomaly (Gendarran)",     48365.0f, 29970.0f,  false, m20, "[&BOQAAAA=]",  true, "EventBoss.png",   {}, MIN(360), MIN(260)},
+    //_ Ley Line Anomaly - one chest/day no matter which location you tag,
+    // so all three share a doneGroup (see WorldEvent::doneGroup, events.h).
+    {"Ley Line Anomaly (Timberline)",    52914.0f, 35729.0f,  false, m20, "[&BEwCAAA=]",  true, "EventBoss.png",   {}, MIN(360),      m20, "", "Ley Line Anomaly"},
+    {"Ley Line Anomaly (Iron Marches)",  60822.0f, 28530.0f,  false, m20, "[&BOcBAAA=]",  true, "EventBoss.png",   {}, MIN(360), MIN(140), "", "Ley Line Anomaly"},
+    {"Ley Line Anomaly (Gendarran)",     48365.0f, 29970.0f,  false, m20, "[&BOQAAAA=]",  true, "EventBoss.png",   {}, MIN(360), MIN(260), "", "Ley Line Anomaly"},
 
     //_ Invasions
     {"Scarlet's Portal Invasion",        47338.0f, 29795.0f,  false, m15, "[&BOQAAAA=]", false, "EventMap.png",    {},     m120,      m60},
@@ -74,13 +76,17 @@ std::vector<WorldEvent> g_Events =
     {"Awakened Invasion (Metrica)",      41010.0f, 35462.0f,  false, m15, "[&BEgAAAA=]", false, "EventMap.png",    {}, MIN(420), MIN(390)},
 
     //_ Fractal Incursions
-    {"Fractal Incursion (Kessex)",       45568.0f, 32025.0f,  false, m15, "[&BBIAAAA=]", false, "EventBoss.png",   {}, MIN(240),        0},
+    {"Fractal Incursion (Brisban)",      45568.0f, 32025.0f,  false, m15, "[&BBIAAAA=]", false, "EventBoss.png",   {}, MIN(240),        0},
     {"Fractal Incursion (Snowden)",      51347.0f, 29164.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, MIN(240),      m60},
-    {"Fractal Incursion (Brisban)",      40826.0f, 33123.0f,  false, m15, "[&BHUAAAA=]", false, "EventBoss.png",   {}, MIN(240),     m120},
+    {"Fractal Incursion (Kessex)",       40826.0f, 33123.0f,  false, m15, "[&BHUAAAA=]", false, "EventBoss.png",   {}, MIN(240),     m120},
     {"Fractal Incursion (Diessa)",       58085.0f, 29462.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, MIN(240), MIN(180)},
 
     //_ Festivals
     {"Your Mad King Says...",            49178.0f, 31170.0f,  false, m10, "[&BBEEAAA=]", false,  "Festival.png",   {},     m120,        0},
+    {"Dragon Bash (Wayfarer)",           55580.0f, 30795.0f,  false,  m5, "[&BH0BAAA=]", false,  "Festival.png",   {},      m60,        0},
+    {"Dragon Bash (Dredgehaunt)",        53309.0f, 32602.0f,  false,  m5, "[&BGMCAAA=]", false,  "Festival.png",   {},      m60,      m15},
+    {"Dragon Bash (Lornar's)",           51371.0f, 32602.0f,  false,  m5, "[&BJkBAAA=]", false,  "Festival.png",   {},      m60,      m30},
+    {"Dragon Bash (Snowden)",            52475.0f, 28935.0f,  false,  m5, "[&BL4AAAA=]", false,  "Festival.png",   {},      m60,      m45},
 };
 
 //_ Compiled-in category defaults, one per group above; see CategoryDefault
@@ -88,8 +94,8 @@ std::vector<WorldEvent> g_Events =
 std::vector<CategoryDefault> g_DefaultBasicCategories =
 {
     {"Instanced", {
-        {"Outer Nayos"},
-        {"Mount Balrior"},
+        {"Outer Nayos", false, std::nullopt, m10},
+        {"Mount Balrior", false, std::nullopt, m10},
     }},
     {"Core bosses", {
         {"Admiral Taidha Covington"},
@@ -122,12 +128,16 @@ std::vector<CategoryDefault> g_DefaultBasicCategories =
         {"Awakened Invasion (Metrica)"},
     }},
     {"Fractal Incursions", {
-        {"Fractal Incursion (Kessex)"},
-        {"Fractal Incursion (Snowden)"},
-        {"Fractal Incursion (Brisban)"},
-        {"Fractal Incursion (Diessa)"},
+        {"Fractal Incursion (Brisban)", true, 0},
+        {"Fractal Incursion (Snowden)", true},
+        {"Fractal Incursion (Kessex)", true, m120},
+        {"Fractal Incursion (Diessa)", true},
     }},
     {"Festivals", {
         {"Your Mad King Says..."},
+        {"Dragon Bash (Wayfarer)"},
+        {"Dragon Bash (Dredgehaunt)"},
+        {"Dragon Bash (Lornar's)"},
+        {"Dragon Bash (Snowden)"},
     }},
 };

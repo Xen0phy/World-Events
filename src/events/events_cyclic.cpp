@@ -122,14 +122,14 @@ std::vector<CyclicGroup> g_CyclicGroups =
         {
             { "Night Bosses", m10, m20, ColorTier::Primary,   "[&BAgIAAA=]" },
             { "Securing Day", m30, m75, ColorTier::Tertiary,  "[&BAgIAAA=]" },
-            { "Night Enemy",  m95, m25, ColorTier::Secondary, "[&BAgIAAA=]" },
+            { "Night Enemy", m105, m25, ColorTier::Secondary, "[&BAgIAAA=]" },
         },
         std::nullopt, true, "verdant_brink_heros_choice_chest"
     },
     { "Auric Basin",
         34486.0f, 33919.0f, m120, COL_HOT,
         {
-            { "Challenges", m45,m15,  ColorTier::Secondary, "[&BGwIAAA=]" },
+            { "Challenges", m45, m15, ColorTier::Secondary, "[&BGwIAAA=]" },
             { "Octovine",   m60, m20, ColorTier::Primary,   "[&BAIIAAA=]" },
             { "Pylons",     m90, m75, ColorTier::Tertiary,  "[&BN0HAAA=]" },
         },
@@ -139,8 +139,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
         37372.0f, 35317.0f, m120, COL_HOT,
         {
             { "Prep",        m25, m5,  ColorTier::Secondary, "[&BPUHAAA=]" },
-            { "Chak Gerent", m30, m15, ColorTier::Primary,   "[&BPUHAAA=]" },
-            { "Outposts",    m70, m75, ColorTier::Tertiary,  "[&BAwIAAA=]" },
+            { "Chak Gerent", m30, m20, ColorTier::Primary,   "[&BPUHAAA=]" },
+            { "Outposts",    m50, m95, ColorTier::Tertiary,  "[&BAwIAAA=]" },
         },
         std::nullopt, true, "tangled_depths_heros_choice_chest"
     },
@@ -298,7 +298,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "Janthir Syntri",
         39981.0f, 15269.0f, m120, COL_JW,
         {
-            { "Of Mists and Monsters", m30,m15, ColorTier::Primary, "[&BCoPAAA=]" },
+            { "Of Mists and Monsters", m30,m25, ColorTier::Primary, "[&BCoPAAA=]" },
         }
     },
     { "Bava Nisos",
@@ -388,6 +388,8 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
 // entry added here.
 std::vector<SlotOverride> g_SlotOverrides =
 {
-    {"Tangled Depths", "Chak Gerent", std::nullopt, m15},
-    {"Verdant Brink", "Night Enemy", m105, std::nullopt},
+    {"Verdant Brink",  "Night Enemy", m105, std::nullopt},
+    {"Tangled Depths", "Chak Gerent", m30, m20},
+    {"Tangled Depths", "Outposts",    m50, m95},
+    {"Janthir Syntri", "Of Mists and Monsters", m30,m25},
 };

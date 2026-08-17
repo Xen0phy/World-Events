@@ -504,7 +504,7 @@ static void ApplySlotOverrides(std::vector<CyclicGroup>& groups, int64_t savedVe
 // events.json (see file header for the shape). LoadEventsData instead
 // merges them from disk via MergeByKey/MergeGroups, using
 // resurrectMissingDefaults = (saved data_version < EVENTS_DATA_VERSION),
-// then restamps apiWorldBossId/apiMapChestId from the compiled-in
+// then restamps apiWorldBossId/doneGroup/apiMapChestId from the compiled-in
 // defaults, since those cross-reference fields are never read from or
 // written to the file. A missing file isn't an error - g_Events/
 // g_CyclicGroups are simply left at their compiled-in defaults; the
@@ -577,12 +577,20 @@ bool LoadEventsData(const std::string& addonDir)
             for (const auto& gj : j["cyclicGroups"])
                 loadedGroups.push_back(DeserializeGroup(gj));
 
-        //_ Snapshot compiled-in apiWorldBossId/apiMapChestId before the merge
-        // overwrites them below; restamped back in afterward (see below).
+        //_ Snapshot compiled-in apiWorldBossId/doneGroup/apiMapChestId before
+        // the merge overwrites them below; restamped back in afterward (see
+        // below). doneGroup rides along with apiWorldBossId here since both
+        // are compiled-in-only, never-serialized fields (see SerializeEvent
+        // and WorldEvent::doneGroup in events.h).
         std::unordered_map<std::string, std::string> defaultWorldBossIdByName;
+        std::unordered_map<std::string, std::string> defaultDoneGroupByName;
         for (const auto& ev : g_Events)
+        {
             if (!ev.apiWorldBossId.empty())
                 defaultWorldBossIdByName[ev.name] = ev.apiWorldBossId;
+            if (!ev.doneGroup.empty())
+                defaultDoneGroupByName[ev.name] = ev.doneGroup;
+        }
 
         std::unordered_map<std::string, std::string> defaultMapChestIdByName;
         for (const auto& grp : g_CyclicGroups)
@@ -603,6 +611,10 @@ bool LoadEventsData(const std::string& addonDir)
             auto it = defaultWorldBossIdByName.find(ev.name);
             if (it != defaultWorldBossIdByName.end())
                 ev.apiWorldBossId = it->second;
+
+            auto git = defaultDoneGroupByName.find(ev.name);
+            if (git != defaultDoneGroupByName.end())
+                ev.doneGroup = git->second;
         }
         for (auto& grp : g_CyclicGroups)
         {

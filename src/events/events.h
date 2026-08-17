@@ -55,20 +55,34 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608120914;
 // varyingTimes   isVarying only: sorted seconds-from-UTC-midnight starts
 // period/offset  isVarying=false only: seconds per cycle / first-start offset
 // apiWorldBossId /v2/worldbosses id; empty = no API "done today" signal
+// doneGroup      shared manual "done today" key; empty = event's own name
 //--------------------------------------------------------------------------------
 // One "Basic Event": a single map dot with its own schedule, either
 // periodic (period/offset) or irregular (isVarying + varyingTimes).
 //
-// chatCode/shown/iconTexture/apiWorldBossId are appended in this exact
-// order, deliberately last-to-first by how rarely each is set: the list
-// below is built with positional aggregate init (events_basic.cpp), so
-// each field's position determines how many trailing values a compiled-in
-// row must supply. shown defaults to true (opt-out, unlike the
+// chatCode/shown/iconTexture/apiWorldBossId/doneGroup are appended in this
+// exact order, deliberately last-to-first by how rarely each is set: the
+// list below is built with positional aggregate init (events_basic.cpp),
+// so each field's position determines how many trailing values a
+// compiled-in row must supply. shown defaults to true (opt-out, unlike the
 // Subscriptions bar/window, which are opt-in separately); chatCode/
 // iconTexture default to "" meaning unset/plain-dot; apiWorldBossId
 // default "" means no API "done today" signal, which is correct for
 // everything except the 13 classic Tyria world bosses the public API
 // covers (see gw2_api.h) - not a TODO.
+//
+// doneGroup exists for cases like the Ley Line Anomaly: three separate
+// WorldEvent rows (Timberline/Iron Marches/Gendarran), one per possible
+// spawn location, but only one chest per day no matter which location you
+// actually finish it at. Give all rows that share a daily reward the same
+// doneGroup string (any stable value works, e.g. "Ley Line Anomaly") and
+// marking any one of them "done today" (events_tracking.h) marks them all.
+// Rows that don't set it just default to "", which events_tracking.cpp
+// treats as "this event's own name is its group" - i.e. ungrouped,
+// unaffected. Like apiWorldBossId, this is compiled-in-only: not written
+// to events.json, restamped by name after every load (events_storage.cpp)
+// the same way apiWorldBossId is, so user edits/renames of copies can't
+// silently detach a row from its group.
 //
 // iconTexture, when set, must be a neutral-gray RGB + alpha source image -
 // it's recolored at draw time via multiplicative tint (maprender.cpp),
@@ -91,6 +105,7 @@ struct WorldEvent
     int         offset;
 
     std::string apiWorldBossId;
+    std::string doneGroup;
 };
 
 //_ Populated in events_basic.cpp, used by maprender.cpp.

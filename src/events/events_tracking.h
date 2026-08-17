@@ -41,6 +41,15 @@
 // IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday
 //--------------------------------------------------------------------------------
 // Query/toggle the manual "done today" mark for a Basic Event, by name.
+//
+// Internally resolved through that event's WorldEvent::doneGroup (events.h)
+// before touching storage: events that share a doneGroup - e.g. the three
+// Ley Line Anomaly spawn locations, which only pay out one chest/day
+// between them - are marked/checked as one unit, so marking any one of
+// them done marks all of them done, and un-marking any one un-marks all of
+// them. Events with no doneGroup set (the common case) behave exactly as
+// before, keyed on their own name. Callers don't need to know or care
+// which case applies; pass the specific event's own name either way.
 //--------------------------------------------------------------------------------
 bool IsBasicEventMarkedDoneToday(const std::string& eventName);
 void ToggleBasicEventDoneToday(const std::string& eventName);

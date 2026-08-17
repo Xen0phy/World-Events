@@ -12,6 +12,7 @@
 //--------------------------------------------------------------------------------
 
 #include "events_tracking.h"
+#include "events.h"
 #include "nlohmann_json.hpp"
 
 #include <algorithm>
@@ -65,21 +66,47 @@ static void RollOverIfNewUtcDay()
     s_doneMarkersGeneration++;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ResolveBasicDoneKey
+//--------------------------------------------------------------------------------
+// Maps a Basic Event's own name to the key its "done today" mark is
+// actually stored/looked-up under: g_Events[name].doneGroup if that event
+// has one set, else the name itself unchanged. See WorldEvent::doneGroup
+// (events.h) and this file's header comment for the Ley Line Anomaly case
+// this exists for.
+//
+// Plain linear scan over g_Events - same cost class as the lookups
+// GetDefaultEvent (events_storage.cpp) already does for the options panel,
+// and this runs on the same rare "user right-clicked a row" path, not
+// per-frame.
+//--------------------------------------------------------------------------------
+static std::string ResolveBasicDoneKey(const std::string& eventName)
+{
+    for (const auto& ev : g_Events)
+    {
+        if (ev.name != eventName) continue;
+        return ev.doneGroup.empty() ? eventName : ev.doneGroup;
+    }
+    return eventName; //. unknown name (e.g. stale data) - fall back to itself
+}
+
 bool IsBasicEventMarkedDoneToday(const std::string& eventName)
 {
     RollOverIfNewUtcDay();
-    return std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), eventName)
+    const std::string key = ResolveBasicDoneKey(eventName);
+    return std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), key)
         != s_DoneTodayBasicEvents.end();
 }
 
 void ToggleBasicEventDoneToday(const std::string& eventName)
 {
     RollOverIfNewUtcDay();
-    auto it = std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), eventName);
+    const std::string key = ResolveBasicDoneKey(eventName);
+    auto it = std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), key);
     if (it != s_DoneTodayBasicEvents.end())
         s_DoneTodayBasicEvents.erase(it);
     else
-        s_DoneTodayBasicEvents.push_back(eventName);
+        s_DoneTodayBasicEvents.push_back(key);
     s_doneMarkersGeneration++;
 }
 

@@ -75,6 +75,17 @@ SETTING(Cyclic, CyclicRadius,        float, 20.0f)
 SETTING(Cyclic, CyclicThickness,     float, 20.0f)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// CyclicHandColor
+//--------------------------------------------------------------------------------
+// The "now" hand every ring draws fixed at 12 o'clock (HAND_DEG,
+// cyclicrender.cpp). Default matches the previous hardcoded COL_HAND
+// (255,255,255,240) it replaces. Same float[4] RGBA-in-[0,1] convention as
+// every other SETTING_ARRAY color here; ColorU32() (color_utils.h) converts
+// it at draw time.
+//--------------------------------------------------------------------------------
+SETTING_ARRAY(Cyclic, CyclicHandColor, 4, ARR(1.000f, 0.196f, 0.196f, 0.706f))
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CyclicMaxFutureDeg / CyclicMaxPastDeg
 //--------------------------------------------------------------------------------
 // Stored as DEGREES, not seconds - period-independent, so 270 deg means

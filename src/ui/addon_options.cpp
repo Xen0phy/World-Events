@@ -621,6 +621,10 @@ void AddonOptions()
                 if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxFutureDeg = 360 - CyclicMaxPastDeg; }
                 Tooltip("How long a finished event lingers before fading out.\n"
                         "Measured in degrees of the ring.");
+
+                ImGui::TextUnformatted("Hand");
+                ImGui::ColorEdit4("Color##cyclic_hand_color", CyclicHandColor, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                Tooltip("Color of the fixed \"now\" hand at the top of every ring.");
             }
             
             ImGui::EndTable();

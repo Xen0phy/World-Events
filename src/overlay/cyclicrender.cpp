@@ -144,14 +144,23 @@ static void DrawArc(ImDrawList* dl, ImVec2 center, float radius,
 // ARC_TO=270 deg measured the other way (~15min past, MAX_PAST_SECS), leaving
 // a 90 deg gap at the bottom, opposite the hand.
 //
-// Each slot occurrence is driven by two independent clocks:
-//   - EXIT: its own active/past fade-out. A wrapping occurrence (crosses the
-//     0s/period boundary) is split into a this-cycle tail + next-cycle head
-//     so it renders correctly across the wrap.
-//   - ENTRY: the lead-in to that occurrence's NEXT recurrence, computed once
-//     per occurrence (not per wrap-pass) from (period - phase). Tracked
-//     independently of whether the current occurrence is still active, so
-//     the entering arc can appear before the exiting one has fully faded.
+// Each slot occurrence's active/fade geometry is driven by a single phase,
+// computed modulo grp.period against the occurrence's TRUE (untruncated)
+// baseOffset/slot.duration - see the phase calc below. That modulo already
+// wraps correctly across the 0s/period reset on its own (same trick the
+// ENTRY lead-in below it uses), so a wrapping occurrence (one whose
+// duration crosses the reset, e.g. Verdant Brink's Night Enemy) needs no
+// special-casing: computing remaining/elapsed time against a truncated
+// per-side duration instead of the true one was a past bug here - it made
+// the future arc shrink to nothing approaching the reset (as if the event
+// were ending, when it was only crossing the reset) and elapsed time snap
+// back to zero right after, i.e. exactly the "cut off, then flips back in"
+// glitch this used to show at the wrap.
+//   - EXIT: the occurrence's own active/past fade-out, from its phase.
+//   - ENTRY: the lead-in to that occurrence's NEXT recurrence, computed
+//     once per occurrence from (period - phase). Tracked independently of
+//     whether the current occurrence is still active, so the entering arc
+//     can appear before the exiting one has fully faded.
 //--------------------------------------------------------------------------------
 
 static constexpr float HAND_DEG = 0.0f;   //. top of circle, "now"
@@ -168,7 +177,7 @@ void RenderCyclicGroups()
     const float RADIUS    = CyclicRadius    * zoomMult;
     const float THICKNESS = CyclicThickness * zoomMult;
     constexpr ImU32 COL_TRACK = IM_COL32(100, 100, 100, 120);
-    constexpr ImU32 COL_HAND  = IM_COL32(255, 255, 255, 240);
+    const ImU32 COL_HAND = ColorU32(CyclicHandColor); //. user-adjustable, settings_table.h
 
     //_ This window always keeps NoMouseInputs. Drag capture is handled
     // per-marker by a small anchor window instead, so this full-screen
@@ -257,48 +266,34 @@ void RenderCyclicGroups()
 
             for (int baseOffset : baseOffsets)
             {
-                //_ A wrapping occurrence (crosses the period boundary) is split
-                // into a this-cycle tail + next-cycle head so the active/fade
-                // segment renders correctly across the 0s/period wrap.
-                int slotEnd = baseOffset + slot.duration;
-                int wrapDur = slotEnd > grp.period ? slotEnd % grp.period : 0;
-                int passes  = wrapDur ? 2 : 1;
+                //_ Single continuous phase for this occurrence, wrapping
+                // correctly across the 0s/period reset via modulo - no
+                // per-wrap splitting/truncation needed
+                int phase         = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
+                bool active       = (phase < slot.duration);
+                int secsFromStart = phase;
 
-                for (int pass = 0; pass < passes; pass++)
+                if (active)
                 {
-                    //_ Pass 0's duration is capped at what actually fits before
-                    // the wrap (slot.duration - wrapDur), not (period - baseOffset).
-                    int offset   = pass == 0 ? baseOffset : 0;
-                    int duration = pass == 0 ? (slot.duration - wrapDur) : wrapDur;
-                    if (duration <= 0) continue;
+                    //_ Segment straddles the hand: future part solid, past part fades.
+                    float futureDeg = fminf((float)(slot.duration - secsFromStart) / SECS_PER_DEG,
+                                            ARC_FROM);
+                    float pastSecs  = fminf((float)secsFromStart, MAX_PAST_SECS);
+                    float pastDeg   = 360.0f - pastSecs / SECS_PER_DEG;
 
-                    int phase         = ((secondsOfDay - offset) % grp.period + grp.period) % grp.period;
-                    bool active       = (phase < duration);
-                    int secsFromStart = phase;
+                    if (futureDeg > HAND_DEG)
+                        DrawArc(dl, pos, RADIUS, futureDeg, HAND_DEG,
+                                color, THICKNESS);
 
-                    if (active)
-                    {
-                        //_ Segment straddles the hand: future part solid, past part fades.
-                        float futureDeg = fminf((float)(duration - secsFromStart) / SECS_PER_DEG,
-                                                ARC_FROM);
-                        float pastSecs  = fminf((float)secsFromStart, MAX_PAST_SECS);
-                        float pastDeg   = 360.0f - pastSecs / SECS_PER_DEG;
-
-                        if (futureDeg > HAND_DEG)
-                            DrawArc(dl, pos, RADIUS, futureDeg, HAND_DEG,
-                                    color, THICKNESS);
-
-                        if (pastDeg < 360.0f)
-                            DrawArc(dl, pos, RADIUS, HAND_DEG, pastDeg,
-                                    color, THICKNESS, 1.0f, 0.0f);
-                    }
+                    if (pastDeg < 360.0f)
+                        DrawArc(dl, pos, RADIUS, HAND_DEG, pastDeg,
+                                color, THICKNESS, 1.0f, 0.0f);
                 }
 
-                //_ Lead-in to this occurrence's NEXT recurrence, computed once per
-                // occurrence (not per pass) from (period - phase) - see ENTRY in the
-                // function header above for why this runs independently of `active`.
-                int basePhase     = ((secondsOfDay - baseOffset) % grp.period + grp.period) % grp.period;
-                int secsUntilNext = grp.period - basePhase;
+                //_ Lead-in to this occurrence's NEXT recurrence, from
+                // (period - phase) - see ENTRY in the function header above
+                // for why this runs independently of `active`.
+                int secsUntilNext = grp.period - phase;
                 if ((float)secsUntilNext <= MAX_FUTURE_SECS)
                 {
                     float leadDeg  = (float)secsUntilNext / SECS_PER_DEG;
