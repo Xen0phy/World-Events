@@ -4,8 +4,8 @@
 // Declarations for the World Events options panel's helper layer:
 // scoped-disable, period widgets, icon/color pickers, duplicate-name
 // checks, drag-and-drop plumbing, the notify-level control, the shared
-// name/context-menu row, search predicates, and the two full row
-// drawers (Basic Event / Cyclic Group).
+// name/context-menu row, search predicates, the chat-channel combo
+// options, and the two full row drawers (Basic Event / Cyclic Group).
 //
 // addon_options.cpp (AddonOptions() itself) includes this and calls into
 // it directly for several things beyond just the row drawers (bulk icon
@@ -163,6 +163,15 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level);
 // (see EditModeState in maprender.h).
 //--------------------------------------------------------------------------------
 void DrawDragButton(EditTarget target, int index, const char* idSuffix);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BuildChatChannelOptions
+//--------------------------------------------------------------------------------
+// Fills labels/prefixes with the "Paste to" combo's entries, in matching
+// index order. Omits the Better Chat entry unless IsBetterChatAvailable()
+// (better_chat_link.h) is true.
+//--------------------------------------------------------------------------------
+void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const char*>& prefixes);
 
 //********************************************************************************
 // NameRowResult

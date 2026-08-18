@@ -11,6 +11,7 @@
 //--------------------------------------------------------------------------------
 
 #include "addon_options_helpers.h"
+#include "better_chat_link.h"
 #include "color_utils.h"
 #include "events_storage.h" //. GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot
 #include "events_tracking.h"
@@ -397,6 +398,37 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix)
         else
             ImGui::TextUnformatted("Click, then left-click-drag this marker\non the map to reposition it.");
         ImGui::EndTooltip();
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BuildChatChannelOptions
+//--------------------------------------------------------------------------------
+// Index 0 is the empty prefix (ChatChannelPrefix's "current chat"
+// default); the Better Chat entry stays last so dropping it is a single
+// tail check.
+//--------------------------------------------------------------------------------
+void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const char*>& prefixes)
+{
+    static const char* const kLabels[] = {
+        "Current chat (default)", "Say", "Party", "Squad",
+        "Guild (represented)", "Guild 1", "Guild 2", "Guild 3",
+        "Guild 4", "Guild 5", "Map", "Whisper (/w self)",
+        "Better Chat (/self)"
+    };
+    static const char* const kPrefixes[] = {
+        "", "/s ", "/p ", "/d ",
+        "/g ", "/g1 ", "/g2 ", "/g3 ",
+        "/g4 ", "/g5 ", "/m ", "/w ",
+        "/self "
+    };
+    constexpr int kCount = sizeof(kLabels) / sizeof(kLabels[0]);
+
+    for (int i = 0; i < kCount; i++)
+    {
+        if (std::string(kPrefixes[i]) == "/self " && !IsBetterChatAvailable()) continue;
+        labels.push_back(kLabels[i]);
+        prefixes.push_back(kPrefixes[i]);
     }
 }
 

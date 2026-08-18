@@ -371,30 +371,19 @@ void AddonOptions()
             }
             
             {
-                //_ Label/prefix pair, indexed together; index 0 stores an empty prefix (ChatChannelPrefix = "current chat").
-                static const char* const kChatChannelLabels[] = {
-                    "Current chat (default)", "Say", "Party", "Squad",
-                    "Guild (represented)", "Guild 1", "Guild 2", "Guild 3",
-                    "Guild 4", "Guild 5", "Map", "Whisper (/w self)",
-                    "Better Chat (/self)"
-                };
-                static const char* const kChatChannelPrefixes[] = {
-                    "", "/s ", "/p ", "/d ",
-                    "/g ", "/g1 ", "/g2 ", "/g3 ",
-                    "/g4 ", "/g5 ", "/m ", "/w ",
-                    "/self "
-                };
-                constexpr int kChatChannelCount = sizeof(kChatChannelLabels) / sizeof(kChatChannelLabels[0]);
+                std::vector<const char*> chatChannelLabels;
+                std::vector<const char*> chatChannelPrefixes;
+                BuildChatChannelOptions(chatChannelLabels, chatChannelPrefixes);
 
                 int chatChannelIndex = 0;
-                for (int ci = 0; ci < kChatChannelCount; ci++)
+                for (int ci = 0; ci < (int)chatChannelPrefixes.size(); ci++)
                 {
-                    if (ChatChannelPrefix == kChatChannelPrefixes[ci]) { chatChannelIndex = ci; break; }
+                    if (ChatChannelPrefix == chatChannelPrefixes[ci]) { chatChannelIndex = ci; break; }
                 }
 
                 ImGui::SetNextItemWidth(100.0f);
-                if (ImGui::Combo("Paste to", &chatChannelIndex, kChatChannelLabels, kChatChannelCount))
-                    ChatChannelPrefix = kChatChannelPrefixes[chatChannelIndex];
+                if (ImGui::Combo("Paste to", &chatChannelIndex, chatChannelLabels.data(), (int)chatChannelLabels.size()))
+                    ChatChannelPrefix = chatChannelPrefixes[chatChannelIndex];
 
                 Tooltip("Which chat channel a watchlist row/segment/toast click\n"
                         "pastes into, regardless of whatever channel is currently\n"
