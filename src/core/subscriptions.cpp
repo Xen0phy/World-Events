@@ -389,45 +389,106 @@ LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// BuildChatPasteMessage
+// BuildChatPasteMessage   (pairs with: PasteToChat)
+//--------------------------------------------------------------------------------
+// Builds "<name>: <chatCode>" (or just <name>) for a watchlist
+// row/segment/toast click. Unprefixed - PasteToChat applies
+// Settings::ChatChannelPrefix itself, since /w pastes the prefix and body
+// into two different input boxes rather than one concatenated string.
 //--------------------------------------------------------------------------------
 std::string BuildChatPasteMessage(const std::string& name, const std::string& chatCode)
 {
-    std::string body = chatCode.empty() ? name : (name + ": " + chatCode);
-    return ChatChannelPrefix + body;   //. empty prefix leaves body untouched
+    return chatCode.empty() ? name : (name + ": " + chatCode);
 }
 
-//_ Guards PasteToChat below against overlapping calls.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetMumbleCharacterName
+//--------------------------------------------------------------------------------
+// Mumble::Data::Identity (Mumble.h) is a UTF-16 JSON string, not a plain
+// name field - {"name":"...", "profession":N, ...}. Narrowed to UTF-8 to
+// parse with nlohmann_json, then narrowed again to the clipboard's ANSI
+// codepage so accented names survive CopyTextToClipboard's CF_TEXT write
+// the same as any other pasted segment. Returns empty on any failure:
+// MumbleLink not ready yet, malformed/empty identity, missing "name".
+//--------------------------------------------------------------------------------
+std::string GetMumbleCharacterName()
+{
+    if (!MumbleLink || MumbleLink->Identity[0] == L'\0')
+        return "";
+
+    int utf8Len = WideCharToMultiByte(CP_UTF8, 0, MumbleLink->Identity, -1, nullptr, 0, nullptr, nullptr);
+    if (utf8Len <= 0)
+        return "";
+    std::string utf8Identity(utf8Len - 1, '\0');   //. -1 drops the counted null terminator
+    WideCharToMultiByte(CP_UTF8, 0, MumbleLink->Identity, -1, utf8Identity.data(), utf8Len, nullptr, nullptr);
+
+    std::string name;
+    try { name = json::parse(utf8Identity).value("name", ""); }
+    catch (...) { return ""; }
+
+    if (name.empty())
+        return "";
+
+    int wideLen = MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, nullptr, 0);
+    if (wideLen <= 0)
+        return "";
+    std::wstring wideName(wideLen - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, wideName.data(), wideLen);
+
+    int ansiLen = WideCharToMultiByte(CP_ACP, 0, wideName.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (ansiLen <= 0)
+        return "";
+    std::string ansiName(ansiLen - 1, '\0');
+    WideCharToMultiByte(CP_ACP, 0, wideName.c_str(), -1, ansiName.data(), ansiLen, nullptr, nullptr);
+
+    return ansiName;
+}
+
+//_ Guards PasteSegmentsToChat below against overlapping calls.
 std::atomic<bool> send_in_progress{false};
 
+//********************************************************************************
+// ChatPasteSegment
+//--------------------------------------------------------------------------------
+// text        clipboard payload for this segment
+// tabAfter    press Tab after pasting, before moving to the next segment
+//--------------------------------------------------------------------------------
+// One clipboard-load-and-paste step in a PasteSegmentsToChat sequence.
+// Most channels need a single segment; /w's two-input-box layout needs
+// three (see PasteToChat).
+//--------------------------------------------------------------------------------
+struct ChatPasteSegment
+{
+    std::string text;
+    bool        tabAfter = false;
+};
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// PasteToChat
+// PasteSegmentsToChat   (pairs with: PasteToChat)
 //--------------------------------------------------------------------------------
 // Deliberately mixes two input mechanisms: Enter and 'V' go through
 // SendMessage (posts straight to the target window's queue), while Ctrl
-// goes through SendInput (injects into the real, system-wide input stream
-// that GetKeyState et al. read). Required for the third-party target app
-// this talks to - an all-SendInput and an all-SendMessage version both
-// failed to deliver a recognized Ctrl+V there. Do not unify this into one
-// mechanism without re-testing against that app: a "cleaner" version can
-// fail silently, with no input arriving and no error raised.
-//
-// Runs on a detached background thread guarded by BackgroundThreadGuard
-// (background_threads.h) so AddonUnload can wait for it to finish rather
-// than risk the DLL unloading mid-sequence; IsShuttingDown() is checked
-// between steps so it can bail early, releasing Ctrl first if it was
-// already pressed down.
+// goes through SendInput (the real, system-wide input stream GetKeyState
+// reads) - required for the third-party target app this talks to, since
+// an all-SendInput or all-SendMessage version both failed to deliver a
+// recognized Ctrl+V there. Runs on a detached background thread guarded
+// by BackgroundThreadGuard (background_threads.h) so AddonUnload can wait
+// for it to finish; IsShuttingDown() is checked between steps so it can
+// bail early, releasing Ctrl first if it was already held.
 //--------------------------------------------------------------------------------
-void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
+void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::milliseconds delay_ms)
 {
+    if (segments.empty())
+        return;
+
     bool expected = false;
     if (!send_in_progress.compare_exchange_strong(expected, true))
         return;   //. already sending, ignore this click
 
     HWND tool_handle = GetForegroundWindow();
-    CopyTextToClipboard(message);
+    CopyTextToClipboard(segments.front().text);
     std::thread(
-        [delay_ms, tool_handle]()
+        [segments = std::move(segments), delay_ms, tool_handle]()
         {
             BackgroundThreadGuard threadGuard;
 
@@ -444,33 +505,48 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
                 std::this_thread::sleep_for(delay_ms);
             }
 
-            if (IsShuttingDown()) { send_in_progress.store(false); return; }
-
-            INPUT in{};
-            in.type = INPUT_KEYBOARD;
-            in.ki.wVk = VK_CONTROL;
-            SendInput(1, &in, sizeof(INPUT));   //. Ctrl down
-
-            std::this_thread::sleep_for(delay_ms);
-
-            if (IsShuttingDown())
+            for (size_t i = 0; i < segments.size(); i++)
             {
+                if (IsShuttingDown()) { send_in_progress.store(false); return; }
+
+                if (i > 0)
+                    CopyTextToClipboard(segments[i].text);   //. segment 0 was already loaded before the thread started
+
+                INPUT in{};
+                in.type = INPUT_KEYBOARD;
+                in.ki.wVk = VK_CONTROL;
+                SendInput(1, &in, sizeof(INPUT));   //. Ctrl down
+
+                std::this_thread::sleep_for(delay_ms);
+
+                if (IsShuttingDown())
+                {
+                    in.ki.dwFlags = KEYEVENTF_KEYUP;
+                    SendInput(1, &in, sizeof(INPUT));   //. release Ctrl before bailing
+                    send_in_progress.store(false);
+                    return;
+                }
+
+                //_ WM_PASTE was tried here directly but doesn't reliably
+                // reach the third-party target app - hence Ctrl+V key events.
+                SendMessage(tool_handle, WM_KEYDOWN, 'V', get_l_param('V', true));
+                SendMessage(tool_handle, WM_KEYUP, 'V', get_l_param('V', false));
+                std::this_thread::sleep_for(delay_ms);
+
                 in.ki.dwFlags = KEYEVENTF_KEYUP;
-                SendInput(1, &in, sizeof(INPUT));   //. release Ctrl before bailing
-                send_in_progress.store(false);
-                return;
+                SendInput(1, &in, sizeof(INPUT));   //. Ctrl up
+
+                std::this_thread::sleep_for(delay_ms);
+
+                if (segments[i].tabAfter)
+                {
+                    if (IsShuttingDown()) { send_in_progress.store(false); return; }
+
+                    SendMessage(tool_handle, WM_KEYDOWN, VK_TAB, get_l_param(VK_TAB, true));
+                    SendMessage(tool_handle, WM_KEYUP, VK_TAB, get_l_param(VK_TAB, false));
+                    std::this_thread::sleep_for(delay_ms);
+                }
             }
-
-            //_ WM_PASTE was tried here directly but doesn't reliably reach
-            // the third-party target app - hence the raw Ctrl+V key events.
-            SendMessage(tool_handle, WM_KEYDOWN, 'V', get_l_param('V', true));
-            SendMessage(tool_handle, WM_KEYUP, 'V', get_l_param('V', false));
-            std::this_thread::sleep_for(delay_ms);
-
-            in.ki.dwFlags = KEYEVENTF_KEYUP;
-            SendInput(1, &in, sizeof(INPUT));   //. Ctrl up
-
-            std::this_thread::sleep_for(delay_ms);
 
             if (IsShuttingDown()) { send_in_progress.store(false); return; }
 
@@ -482,4 +558,38 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
         }
     )
     .detach();
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// PasteToChat   (pairs with: BuildChatPasteMessage, PasteSegmentsToChat)
+//--------------------------------------------------------------------------------
+// Applies Settings::ChatChannelPrefix to message and hands it to
+// PasteSegmentsToChat. Every prefix but "/w " is one segment: prefix and
+// body concatenated, pasted once. "/w " needs GW2's own whisper box,
+// which takes the target name and the message in two separate fields
+// reached by pressing Tab between them, so that case pastes three
+// segments instead - "/w ", the Mumble-reported character name, then
+// message - with Tab after the name. If the character name can't be read
+// yet, the whisper is dropped rather than sent to whatever box currently
+// has focus.
+//--------------------------------------------------------------------------------
+void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
+{
+    if (ChatChannelPrefix == "/w ")
+    {
+        std::string charName = GetMumbleCharacterName();
+        if (charName.empty())
+            return;
+
+        PasteSegmentsToChat(
+            {
+                { "/w ",    false },
+                { charName, true  },
+                { message,  false }
+            },
+            delay_ms);
+        return;
+    }
+
+    PasteSegmentsToChat({ { ChatChannelPrefix + message, false } }, delay_ms);
 }

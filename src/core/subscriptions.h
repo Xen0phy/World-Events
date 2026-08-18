@@ -162,15 +162,16 @@ bool LoadSubscriptionsData(const std::string& addonDir);
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PasteToChat / BuildChatPasteMessage
 //--------------------------------------------------------------------------------
-// PasteToChat sends `message` to the focused window via Enter -> Ctrl+V ->
-// Enter on a detached background thread; send_in_progress guards against
-// overlapping calls.
+// BuildChatPasteMessage builds the unprefixed body for a watchlist
+// row/segment/toast click - "<name>: <chatCode>" (or just <name>). Shared
+// by subscriptions_window.cpp, subscriptions_bar.cpp, and
+// subscriptions_notification.cpp.
 //
-// BuildChatPasteMessage builds that text for a watchlist row/segment/toast
-// click - "<name>: <chatCode>" (or just <name>) - prefixed with the user's
-// configured channel command (Settings::ChatChannelPrefix) so it lands in
-// the right channel. Shared by subscriptions_window.cpp,
-// subscriptions_bar.cpp, and subscriptions_notification.cpp.
+// PasteToChat sends that body to the focused window, prefixed with the
+// user's configured channel command (Settings::ChatChannelPrefix), via
+// Enter -> Ctrl+V -> Enter on a detached background thread;
+// send_in_progress guards against overlapping calls. Whisper
+// (ChatChannelPrefix == "/w ") is the exception: see subscriptions.cpp.
 //--------------------------------------------------------------------------------
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms);
 std::string BuildChatPasteMessage(const std::string& name, const std::string& chatCode);
