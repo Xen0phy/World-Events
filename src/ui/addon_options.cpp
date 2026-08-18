@@ -4,23 +4,23 @@
 // AddonOptions()   draws the World Events section of the Nexus options panel
 //--------------------------------------------------------------------------------
 // Nexus UI callback - draws into a panel Nexus owns, not a standalone window.
-// Widgets write directly into the global settings (settings.h /
-// settings_table.h) or into g_Events / g_CyclicGroups / g_BasicCategories /
-// g_CyclicCategories. There is no explicit "Save" button: everything is
-// written to disk on AddonUnload (see addon.cpp), so edits here just live
-// in memory until the addon (or the game) closes.
+// Widgets write directly into the global settings (settings.h / settings_table.h)
+// or into g_Events / g_CyclicGroups / g_BasicCategories / g_CyclicCategories.
+// There is no explicit "Save" button: everything is writtento disk on AddonUnload
+// (see addon.cpp), so edits here just live in memory until the addon
+// (or the game) closes.
 //
-// Covers both the flat scalar settings (overlay visibility, ring radius/
-// thickness, entry/exit window) and full editing of individual events,
-// cyclic groups/slots, and categories - creating, renaming, deleting,
-// recoloring, drag-and-drop categorization, and icon assignment.
+// Covers all the flat scalar settings (overlay visibility, ring radius/thickness,
+// entry/exit window) and full editing of individual events cyclic groups/slots,
+// and categories - creating, renaming, deleting, recoloring, drag-and-drop
+// categorization, and icon assignment.
 //
 // The widget-drawing helpers themselves (scoped-disable, period widget,
 // icon/color pickers, duplicate-name checks, drag-and-drop plumbing, the
-// notify-level control, the shared name/context-menu row, search
-// predicates, and the two full row drawers) live in
-// addon_options_helpers.h/.cpp - this file is just AddonOptions() itself,
-// assembling those pieces into the panel layout.
+// notify-level control, the shared name/context-menu row, search predicates,
+// and the two full row drawers) live in addon_options_helpers.h/.cpp - this
+// file is just AddonOptions() itself, assembling those pieces into the panel
+// layout.
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
@@ -46,13 +46,12 @@
 // AddonOptions
 //--------------------------------------------------------------------------------
 // Laid out as three stacked BeginTable/EndTable pairs plus two full-width
-// CollapsingHeaders (one wrapping Table 2+3, one nested around just the
-// search box and Table 3) - a CollapsingHeader clips to a single table
-// column, so it can't be drawn inside either table. List
-// mutations (add/remove event, group, category) are captured as bools
-// during the row loop and applied afterward, to avoid invalidating
-// indices mid-iteration. One search box filters both the Basic and
-// Cyclic trees at once.
+// CollapsingHeaders (one wrapping Table 2+3, one nested around just the search
+// box and Table 3) - a CollapsingHeader clips to a single table column, so it
+// can't be drawn inside either table. List mutations (add/remove event, group,
+// category) are captured as bools during the row loop and applied afterward, to
+// avoid invalidating indices mid-iteration. One search box filters both the
+// Basic and Cyclic trees at once.
 //--------------------------------------------------------------------------------
 void AddonOptions()
 {
@@ -65,14 +64,12 @@ void AddonOptions()
     ImGui::SameLine();
     if constexpr (ShowDebug)
     {
-        //_ "Render" is AddonRender cost alone (map rings/bar/window/
-        // notifications); "Options UI" is this panel's own per-frame cost.
+        //_ "Render" = AddonRender's own cost (rings/bar/window/notify); "Options UI" = this panel's per-frame cost.
         ImGui::TextDisabled("Render: %.3f ms avg (1s)", g_AvgRenderTimeMs);
         ImGui::SameLine();
         ImGui::TextDisabled("| Options UI: %.3f ms avg (1s)", g_AvgOptionsRenderTimeMs);
 
-        //_ Per-view Data (cache refresh/adaptation) vs Draw (actual pixel
-        // work) split, so "why is view X slow" maps to one number.
+        //_ Per-view Data (cache refresh) vs Draw (pixel work) split, so "why is view X slow" maps to one number.
         ImGui::TextDisabled("Bar: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsBarDataMs, g_AvgSubsBarDrawMs);
         ImGui::SameLine();
         ImGui::TextDisabled("| Window: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsWindowDataMs, g_AvgSubsWindowDrawMs);
@@ -106,8 +103,7 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
 
-    //_ Table 1 - Subscriptions, always visible above the collapsing header.
-    // Split out because CollapsingHeader can't span table columns.
+    //_ Table 1 - Subscriptions, always visible; split out since CollapsingHeader can't span table columns.
     if (ImGui::BeginTable("##subs_table", 2, ImGuiTableFlags_SizingStretchSame))
     {
         ImGui::TableNextRow();
@@ -115,8 +111,7 @@ void AddonOptions()
         //_ Column 0: Subscriptions window, then Notification popups
         ImGui::TableSetColumnIndex(0);
 
-        //_ Watchlist window toggle only opens/closes the window; it doesn't
-        // affect which events are subscribed (that's events.json data).
+        //_ Watchlist window toggle only opens/closes the window, not which events are subscribed (events.json data).
         ImGui::Checkbox("Show subscriptions window", &ShowSubscriptionsWindow);
         DisabledBlock(!ShowSubscriptionsWindow)
         {
@@ -127,8 +122,7 @@ void AddonOptions()
             ImGui::Dummy(dummySquare);
             ImGui::SameLine();
 
-            //_ RGB only (feeds ImGui::TextColored, not a tinted dot/icon
-            // like BasicEventColor* below, which need an alpha bar too).
+            //_ RGB only (feeds TextColored), not a tinted dot/icon like BasicEventColor* below, which need alpha.
             ImGui::ColorEdit3("Active##sub_color_active", SubscriptionsActiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
             ImGui::SameLine();
@@ -137,8 +131,7 @@ void AddonOptions()
 
         ImGui::Dummy(dummySquare);
 
-        //_ Third, independent view of the same subscription data (toast
-        // popups); not gated by window/bar visibility, so it can stand alone.
+        //_ Third, independent view of the same subscription data (toast popups); not gated by window/bar visibility.
         ImGui::Checkbox("Enable notification popups", &NotificationsEnabled);
         Tooltip("Pops up a small toast in the lower-right corner for events\n"
                 "you have notifications enabled for, whether or not the\n"
@@ -173,13 +166,11 @@ void AddonOptions()
             Tooltip("How long a popup stays fully visible before it fades out.\n"
                     "Hovering a popup pauses its timer.");
 
-            //_ Single .wav file, picked from "<addon dir>/sounds"; which
-            // events actually play it is each row's own notify level (3).
+            //_ Single .wav file, picked from "<addon dir>/sounds"; which events play it is each row's notify level.
             {
                 const std::vector<std::string>& soundFiles = GetNotificationSoundFilenames();
 
-                //_ Reuses DrawSpeakerIcon (notify level 3's icon) as a
-                // marker that this row is about the notification sound.
+                //_ Reuses DrawSpeakerIcon (notify level 3's icon) to mark this row as about the notification sound.
                 {
                     float sq = ImGui::GetFrameHeight();
                     ImVec2 rmin = ImGui::GetCursorScreenPos();
@@ -230,8 +221,7 @@ void AddonOptions()
         //_ Column 1: Subscriptions bar
         ImGui::TableSetColumnIndex(1);
 
-        //_ Second, alternate view of the subscription data: a thin animated
-        // line pinned to the screen edge, not a window (no titlebar).
+        //_ Second, alternate view of subscription data: a thin animated line pinned to the screen edge, no titlebar.
         ImGui::Checkbox("Show subscriptions bar", &ShowSubscriptionsBar);
 
         DisabledBlock(!ShowSubscriptionsBar)
@@ -258,8 +248,7 @@ void AddonOptions()
             ImGui::SetNextItemWidth(50);
             if (ImGui::InputInt("Pop-out height (px)", &SubscriptionsBarMaxDropPx, 0, 0))
             {
-                //_ Floored at 8, not 0: subscriptions_bar.cpp derives the
-                // pill's corner radius from half this value.
+                //_ Floored at 8, not 0: subscriptions_bar.cpp derives the pill's corner radius from half this value.
                 if (SubscriptionsBarMaxDropPx < 8)     SubscriptionsBarMaxDropPx = 8;
                 if (SubscriptionsBarMaxDropPx > 300)   SubscriptionsBarMaxDropPx = 300;
             }
@@ -272,8 +261,7 @@ void AddonOptions()
             ImGui::SetNextItemWidth(50);
             if (ImGui::InputInt("Pop-out delay (ms)", &SubscriptionsBarHoverDelayMs, 0, 0))
             {
-                //_ Clamp after the fact rather than reject, since InputInt
-                // allows transient out-of-range input. 0 is valid (disabled).
+                //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
                 if (SubscriptionsBarHoverDelayMs < 0)    SubscriptionsBarHoverDelayMs = 0;
                 if (SubscriptionsBarHoverDelayMs > 5000) SubscriptionsBarHoverDelayMs = 5000;
             }
@@ -332,8 +320,7 @@ void AddonOptions()
                     "instead of from the line itself, so the popped-out\n"
                     "block clears your UI.");
             
-            //_ Live preview, shown only while one of the three fields above
-            // is focused; mirrors subscriptions_bar.cpp's own anchor math.
+            //_ Live preview, shown only while one of the three fields above is focused; mirrors subscriptions_bar.cpp's anchor math.
             if (leftActive || rightActive || heightActive)
             {
                 ImDrawList* dl = ImGui::GetForegroundDrawList();
@@ -362,8 +349,7 @@ void AddonOptions()
 
     if (ImGui::CollapsingHeader("Events Settings (Basic|Cyclic)", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        //_ Table 2 - Search/API key (Row 1) and section controls (Row 2);
-        // exists only while the header above is expanded.
+        //_ Table 2 - Search/API key (Row 1) and section controls (Row 2); exists only while the header is expanded.
         if (ImGui::BeginTable("##world_events_table", 2, ImGuiTableFlags_SizingStretchSame))
         {
             //_ Row 1 - Search/Paste (col 0), API key/tracking (col 1)
@@ -385,17 +371,18 @@ void AddonOptions()
             }
             
             {
-                //_ Label/prefix pair, indexed together; index 0 stores an
-                // empty prefix (ChatChannelPrefix), i.e. "current chat".
+                //_ Label/prefix pair, indexed together; index 0 stores an empty prefix (ChatChannelPrefix = "current chat").
                 static const char* const kChatChannelLabels[] = {
                     "Current chat (default)", "Say", "Party", "Squad",
                     "Guild (represented)", "Guild 1", "Guild 2", "Guild 3",
-                    "Guild 4", "Guild 5", "Map"
+                    "Guild 4", "Guild 5", "Map", "Whisper (/w self)",
+                    "Better Chat (/self)"
                 };
                 static const char* const kChatChannelPrefixes[] = {
                     "", "/s ", "/p ", "/d ",
                     "/g ", "/g1 ", "/g2 ", "/g3 ",
-                    "/g4 ", "/g5 ", "/m "
+                    "/g4 ", "/g5 ", "/m ", "/w ",
+                    "/self "
                 };
                 constexpr int kChatChannelCount = sizeof(kChatChannelLabels) / sizeof(kChatChannelLabels[0]);
 
@@ -419,8 +406,7 @@ void AddonOptions()
             
             ImGui::Dummy(dummySquare);
             
-            //_ Zoom-based marker scaling; disabled by default keeps the old
-            // fixed-size behavior, this just makes it optional and tunable.
+            //_ Zoom-based marker scaling; disabled by default keeps the old fixed-size behavior, just optional now.
             {
                 ImGui::Checkbox("Grow markers when zooming in##basic_zoom_scaling_enabled", &BasicEventZoomScalingEnabled);
     
@@ -438,8 +424,7 @@ void AddonOptions()
             }
 
             ImGui::TableSetColumnIndex(1);
-            //_ Not gated by window/bar/notifications visibility: this key
-            // drives auto-hiding completed content from all three views.
+            //_ Not gated by window/bar/notifications visibility: drives auto-hiding completed content in all three.
             ImGui::TextUnformatted("GW2 API key");
             ImGui::SameLine();
             ImGui::TextDisabled("Can take up to 5min to take effect.");
@@ -492,8 +477,7 @@ void AddonOptions()
                     break;
             }
 
-            //_ Master switch: drives whether any of the three subscription
-            // views auto-surfaces this week's Wizard's Vault targets.
+            //_ Master switch: drives whether any of the three subscription views auto-surfaces this week's Vault targets.
             ImGui::Checkbox("Auto-track weekly Wizard's Vault targets", &WeeklyAutoTrackEnabled);
             Tooltip("When on (default), the subscriptions window, distribution\n"
                     "line, and notification popups all automatically surface any\n"
@@ -513,8 +497,7 @@ void AddonOptions()
             
             ImGui::Dummy(dummySquare);
 
-            //_ Manual counterpart to the API-based hiding above; covers
-            // everything the API doesn't, with or without an API key set.
+            //_ Manual counterpart to the API-based hiding above; covers everything the API doesn't, key or no key.
             static bool unlockMarkers = false;
             ImGui::Checkbox("##lock_markers", &unlockMarkers);
             Tooltip("Right-click any row in the watchlist window, segment on the\n"
@@ -538,8 +521,7 @@ void AddonOptions()
             ImGui::Separator();
             ImGui::Spacing();
 
-            //_ Only affects upcoming Basic Events (active always show); not
-            // offered for cyclic groups (see BasicEventTimeFilterEnabled).
+            //_ Only affects upcoming Basic Events (active always show); not offered for cyclic groups.
             {
                 int mins = BasicEventTimeFilterMinutes;
                 int h    = mins / 60;
@@ -566,8 +548,7 @@ void AddonOptions()
                 }
             }
 
-            //_ One shared color set for every Basic Event (not per-event),
-            // matching the active/soon/waiting dot and icon-tint states.
+            //_ One shared color set for every Basic Event, matching the active/soon/waiting dot and icon-tint states.
             {
                 ImGui::ColorEdit4("Active##basic_color_active", BasicEventColorActive, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
@@ -578,8 +559,7 @@ void AddonOptions()
                 ImGui::ColorEdit4("Waiting##basic_color_waiting", BasicEventColorWaiting, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
             }
 
-            //_ Independent settings, not derived from one another - dot and
-            // icon sizes can differ freely relative to each other.
+            //_ Independent settings, not derived from one another - dot and icon sizes can differ freely.
             {
                 ImGui::SetNextItemWidth(50.0f);
                 ImGui::DragFloat("Dot radius##basic_dot_radius", &BasicEventDotRadius, 1.0f, 2.0f, 30.0f, "%.0f px");
@@ -622,9 +602,135 @@ void AddonOptions()
                 Tooltip("How long a finished event lingers before fading out.\n"
                         "Measured in degrees of the ring.");
 
+                ImGui::Checkbox("Fade past events##cyclic_past_fade_enabled", &CyclicPastFadeEnabled);
+                Tooltip("Fades the past window from full opacity at the hand\n"
+                        "down to transparent at its far edge. Turn off to keep\n"
+                        "it solid across the whole past window instead.");
+
                 ImGui::TextUnformatted("Hand");
                 ImGui::ColorEdit4("Color##cyclic_hand_color", CyclicHandColor, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-                Tooltip("Color of the fixed \"now\" hand at the top of every ring.");
+                Tooltip("Color of the fixed \"now\" hand at the top of every ring.\n"
+                        "Also tints the hand image below, if enabled.");
+                
+                ImGui::SameLine();
+                ImGui::Checkbox("Use image##cyclic_hand_image_enabled", &CyclicHandImageEnabled);
+                Tooltip("Draws an image instead of the plain hand tick. Like the\n"
+                        "Basic Event icons, the source image's RGB should be a\n"
+                        "neutral gray with the shape in the alpha channel.");
+
+                DisabledBlock(!CyclicHandImageEnabled)
+                {
+                    //_ Same source list/folder as the Basic Event icon picker and the Ring edge image below.
+                    const std::vector<std::string>& handIconFiles = GetEventIconFilenames();
+                    std::vector<const char*> handIconLabels;
+                    handIconLabels.push_back("None");
+                    for (const auto& fn : handIconFiles)
+                        handIconLabels.push_back(fn.c_str());
+
+                    int handIconIndex = 0;
+                    if (!CyclicHandImageFilename.empty())
+                        for (int k = 0; k < (int)handIconFiles.size(); k++)
+                            if (handIconFiles[k] == CyclicHandImageFilename)
+                                handIconIndex = k + 1;
+
+                    ImGui::SetNextItemWidth(100.0f);
+                    if (ImGui::Combo("##cyclic_hand_image_file", &handIconIndex, handIconLabels.data(), (int)handIconLabels.size()))
+                        CyclicHandImageFilename = (handIconIndex == 0) ? std::string() : handIconFiles[handIconIndex - 1];
+
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(50.0f);
+                    ImGui::DragFloat("Width##cyclic_hand_image_width", &CyclicHandImageWidth, 1.0f, 2.0f, 60.0f, "%.0f px");
+                    Tooltip("Length isn't separately adjustable - the image always\n"
+                            "spans exactly from the ring's inner edge to its outer\n"
+                            "edge, stretching automatically with Radius/Thickness.");
+                }
+
+                ImGui::Spacing();
+                ImGui::TextUnformatted("Ring edge image");
+                ImGui::Checkbox("##cyclic_ring_image_enabled", &CyclicRingImageEnabled);
+                Tooltip("Wraps an image around the ring's edge(s) instead of a\n"
+                        "plain line. The image should be wider than it is tall - it\n"
+                        "is stretched around exactly the portion of the circle\n"
+                        "shown by the Future/Past window above, and rescales with\n"
+                        "Radius/Thickness. Drop a .png/.jpg into this addon's\n"
+                        "\"textures\" folder to make it available below.");
+
+                DisabledBlock(!CyclicRingImageEnabled)
+                {
+                    //_ Same source list as the Basic Event icon picker (maprender.h); "None" replaces "Dot" - no fallback shape here.
+                    const std::vector<std::string>& iconFiles = GetEventIconFilenames();
+                    std::vector<const char*> iconLabels;
+                    iconLabels.push_back("None");
+                    for (const auto& fn : iconFiles)
+                        iconLabels.push_back(fn.c_str());
+
+                    int iconIndex = 0;
+                    if (!CyclicRingImageFilename.empty())
+                        for (int k = 0; k < (int)iconFiles.size(); k++)
+                            if (iconFiles[k] == CyclicRingImageFilename)
+                                iconIndex = k + 1;
+                                
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(100.0f);
+                    if (ImGui::Combo("Image##cyclic_ring_image_file", &iconIndex, iconLabels.data(), (int)iconLabels.size()))
+                        CyclicRingImageFilename = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
+
+                    //_ Its own row - the ONLY control over on-screen band thickness (CyclicRingImageThickness).
+                    ImGui::SetNextItemWidth(50.0f);
+                    ImGui::DragFloat("Thickness##cyclic_ring_image_thickness", &CyclicRingImageThickness, 0.5f, 1.0f, 80.0f, "%.1f px");
+                    Tooltip("On-screen thickness of the image band, centered on the\n"
+                            "edge it's drawn on. This is independent of the source\n"
+                            "image file's own pixel height - the image is always\n"
+                            "stretched to fill this value, so swapping in a\n"
+                            "shorter/taller source PNG has no effect on its own;\n"
+                            "drag this down to make the band thinner.");
+                            
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(50.0f);
+                    ImGui::DragFloat("Offset##cyclic_ring_image_offset", &CyclicRingImageOffset, 0.1f, -5.0f, 5.0f, "%.1f px");
+                    Tooltip("Nudges both copies radially outward from the ring's own\n"
+                            "fill - the outer copy moves further out, the inner copy\n"
+                            "further in - so they stay mirror-symmetric around the\n"
+                            "ring rather than one drifting relative to the other.\n"
+                            "Negative values pull both back in toward the ring instead.");
+
+                    //ImGui::Checkbox("Also draw on inner edge (flipped)##cyclic_ring_image_inner", &CyclicRingImageInnerEnabled);
+                    //Tooltip("The inner copy is mirrored on both axes (not just\n"
+                    //        "flipped top-to-bottom) so it doesn't read as an obvious\n"
+                    //        "duplicate of the outer one sitting right behind it.");
+                }
+
+                ImGui::Spacing();
+                ImGui::TextUnformatted("Fill texture");
+                ImGui::Checkbox("##cyclic_fill_image_enabled", &CyclicFillImageEnabled);
+                Tooltip("Lays an image over the ring's own plain-color fill (the\n"
+                        "track and slot arcs) to break it up with some texture or\n"
+                        "grain.");
+
+                DisabledBlock(!CyclicFillImageEnabled)
+                {
+                    //_ Same source list/folder as the other icon pickers above.
+                    const std::vector<std::string>& fillIconFiles = GetEventIconFilenames();
+                    std::vector<const char*> fillIconLabels;
+                    fillIconLabels.push_back("None");
+                    for (const auto& fn : fillIconFiles)
+                        fillIconLabels.push_back(fn.c_str());
+
+                    int fillIconIndex = 0;
+                    if (!CyclicFillImageFilename.empty())
+                        for (int k = 0; k < (int)fillIconFiles.size(); k++)
+                            if (fillIconFiles[k] == CyclicFillImageFilename)
+                                fillIconIndex = k + 1;
+                                
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(100.0f);
+                    if (ImGui::Combo("##cyclic_fill_image_file", &fillIconIndex, fillIconLabels.data(), (int)fillIconLabels.size()))
+                        CyclicFillImageFilename = (fillIconIndex == 0) ? std::string() : fillIconFiles[fillIconIndex - 1];
+                        
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(50.0f);
+                    ImGui::DragFloat("Opacity##cyclic_fill_image_opacity", &CyclicFillImageOpacity, 0.01f, 0.0f, 1.0f, "%.2f");
+                }
             }
             
             ImGui::EndTable();
@@ -633,11 +739,7 @@ void AddonOptions()
 
     if (ImGui::CollapsingHeader("Event Lists (Basic|Cyclic)", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        //_ Table 3 - Basic Events tree (col 0), Cyclic Events tree (col 1);
-        // split out so the search box below can filter both outside any column.
-
-        //_ Transient UI state (not persisted); filters both Basic and
-        // Cyclic trees at once - event name only for Basic, group+slot names for Cyclic.
+        //_ Transient UI state (not persisted); filters both trees - event name for Basic, group+slot for Cyclic.
         static char searchBuf[128] = "";
         ImGui::SetNextItemWidth(200.0f);
         ImGui::InputText("Search##global_search", searchBuf, sizeof(searchBuf));
@@ -653,6 +755,7 @@ void AddonOptions()
         ImGui::SameLine();
         ImGui::TextDisabled("(right-click an entry below for more options)");
 
+        //_ Table 3 - Basic Events tree (col 0), Cyclic Events tree (col 1); split out so search can filter both.
         if (ImGui::BeginTable("##world_events_data", 2, ImGuiTableFlags_SizingStretchSame))
         {
             //_ Row 3 - Basic Events tree (col 0), Cyclic Events tree (col 1)
@@ -664,9 +767,7 @@ void AddonOptions()
             ImGui::Separator();
             ImGui::Spacing();
 
-            //_ Basic Events header + add buttons; add/remove itself is
-            // deferred to after the tree loop below to avoid mid-loop
-            // index invalidation.
+            //_ Basic Events header + add buttons; add/remove is deferred until after the tree loop to avoid index invalidation.
             ImGui::TextUnformatted("Basic Events");
             MakeDropTarget(kBasicEventDragType, g_BasicCategories, -1);
             ImGui::SameLine();
@@ -679,8 +780,7 @@ void AddonOptions()
             ImGui::SameLine();
             bool pendingAddBasicCategory = ImGui::SmallButton("+##add_basic_category");
         
-            //_ Section-level bulk icon picker, applies to every Basic Event
-            // regardless of category; no per-category equivalent exists.
+            //_ Section-level bulk icon picker, applies to every Basic Event regardless of category; no per-category one.
             {
                 std::vector<int> allIndices(g_Events.size());
                 for (int bi = 0; bi < (int)g_Events.size(); bi++) allIndices[bi] = bi;
@@ -694,16 +794,13 @@ void AddonOptions()
 
             std::vector<bool> isCategorized(g_Events.size(), false);
 
-            //_ Category-aware draw order: each category's members draw
-            // first (nested, in g_BasicCategories order), then leftover
-            // events draw after as the uncategorized bucket.
+            //_ Category-aware draw order: each category's members draw first (nested), then leftovers uncategorized.
             for (int c = 0; c < (int)g_BasicCategories.size(); c++)
             {
                 Category& cat = g_BasicCategories[c];
                 ImGui::PushID(1000000 + c); //. offset clear of event indices
 
-                //_ Resolved once up front: reused by the bulk icon picker
-                // and by the membership loop below instead of re-searching.
+                //_ Resolved once up front: reused by the bulk icon picker and the membership loop instead of re-searching.
                 std::vector<int> memberIndices;
                 for (const std::string& memberName : cat.members)
                     for (int mi = 0; mi < (int)g_Events.size(); mi++)
@@ -716,8 +813,7 @@ void AddonOptions()
                         if (EventMatchesSearch(g_Events[mi], searchQueryLower))
                             categoryHasMatch = true;
 
-                //_ Set before TreeNode draws (SetNextItemOpen must be called
-                // first) - starts false, set below only when the node draws.
+                //_ Set before TreeNode draws (SetNextItemOpen must go first) - starts false, set only when it draws.
                 bool catOpen = false;
                 if (!searchActive || categoryHasMatch)
                 {
@@ -729,15 +825,12 @@ void AddonOptions()
                     MakeDropTarget(kBasicEventDragType, g_BasicCategories, c);
                     if (nameResult.newName != cat.name)
                     {
-                        //_ No rename-patching needed - members reference
-                        // categories by name in the other direction.
+                        //_ No rename-patching needed - members reference categories by name in the other direction.
                         cat.name = nameResult.newName;
                     }
                 }
 
-                //_ Bookkeeping (isCategorized) runs unconditionally even
-                // when catOpen is false, so a folded category doesn't leak
-                // its members into the uncategorized pass below.
+                //_ Bookkeeping (isCategorized) runs even when catOpen is false, so a folded category can't leak members.
                 for (int mi : memberIndices)
                 {
                     isCategorized[mi] = true;
@@ -798,8 +891,7 @@ void AddonOptions()
             ImGui::Separator();
             ImGui::Spacing();
         
-            //_ Cyclic Events header + add buttons; same deferred add/remove
-            // pattern as Basic Events above.
+            //_ Cyclic Events header + add buttons; same deferred add/remove pattern as Basic Events above.
             ImGui::TextUnformatted("Cyclic Events");
             MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, -1); //. drop here to uncategorize
             ImGui::SameLine();
@@ -846,8 +938,7 @@ void AddonOptions()
                         cat.name = nameResult.newName;
                 }
 
-                //_ Same unconditional-bookkeeping/gated-draw split as Basic
-                // Events above.
+                //_ Same unconditional-bookkeeping/gated-draw split as Basic Events above.
                 for (const std::string& memberName : cat.members)
                 {
                     for (int i = 0; i < (int)g_CyclicGroups.size(); i++)

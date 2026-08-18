@@ -15,15 +15,14 @@
 #include "events_categories.h"
 #include <optional>
 
-//_ Coords, most of which waere taken directly from Sognus's World Bosses data.
+//_ Coords, most of which were taken directly from Sognus's World Bosses data.
 std::vector<WorldEvent> g_Events =
 {
     //_ Instanced
     {"Outer Nayos",                      24046.0f, 22754.0f, false, m10, "[&BB8OAAA=]",  true, "Convergence.png", {}, MIN(180),       m90},
     {"Mount Balrior",                    43095.0f, 22672.0f, false, m10, "[&BK4OAAA=]",  true, "Convergence.png", {}, MIN(180),         0},
 
-    //_ Core bosses - trailing string on each row is that boss's
-    // /v2/worldbosses id (see WorldEvent::apiWorldBossId, events.h).
+    //_ Core bosses; trailing string per row is that boss's apiWorldBossId.
     {"Admiral Taidha Covington",         48872.0f, 33548.0f, false, m15, "[&BKgBAAA=]",  true, "WorldBoss.png",   {}, MIN(180),         0, "admiral_taidha_covington"},
     {"Claw of Jormag",                   56032.0f, 25417.0f, false, m15, "[&BHoCAAA=]",  true, "WorldBoss.png",   {}, MIN(180), MIN( 150), "claw_of_jormag"},
     {"Fire Elemental",                   40346.0f, 33755.0f, false, m15, "[&BEcAAAA=]",  true, "WorldBoss.png",   {},     m120,       m45, "fire_elemental"},
@@ -59,8 +58,7 @@ std::vector<WorldEvent> g_Events =
         MIN(1200)}, //. 20:00
         0, 0, "triple_trouble_wurm"},
 
-    //_ Ley Line Anomaly - one chest/day no matter which location you tag,
-    // so all three share a doneGroup (see WorldEvent::doneGroup, events.h).
+    //_ Ley Line Anomaly; one chest/day, so all three share a doneGroup.
     {"Ley Line Anomaly (Timberline)",    52914.0f, 35729.0f,  false, m20, "[&BEwCAAA=]",  true, "EventBoss.png",   {}, MIN(360),      m20, "", "Ley Line Anomaly"},
     {"Ley Line Anomaly (Iron Marches)",  60822.0f, 28530.0f,  false, m20, "[&BOcBAAA=]",  true, "EventBoss.png",   {}, MIN(360), MIN(140), "", "Ley Line Anomaly"},
     {"Ley Line Anomaly (Gendarran)",     48365.0f, 29970.0f,  false, m20, "[&BOQAAAA=]",  true, "EventBoss.png",   {}, MIN(360), MIN(260), "", "Ley Line Anomaly"},
@@ -89,8 +87,7 @@ std::vector<WorldEvent> g_Events =
     {"Dragon Bash (Snowden)",            52475.0f, 28935.0f,  false,  m5, "[&BL4AAAA=]", false,  "Festival.png",   {},      m60,      m45},
 };
 
-//_ Compiled-in category defaults, one per group above; see CategoryDefault
-// in events_categories.h for the merge/edit behavior.
+//_ Compiled-in category defaults, one per group above (CategoryDefault).
 std::vector<CategoryDefault> g_DefaultBasicCategories =
 {
     {"Instanced", {

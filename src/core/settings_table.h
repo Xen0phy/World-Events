@@ -40,7 +40,7 @@
 // site) get a normal std::string field; SaveSettings/LoadSettings define
 // their own SETTING_SECRET to encrypt/decrypt at the point they'd
 // otherwise write/parse the raw value. Kept as a real separate macro
-// rather than a runtime branch inside SETTING so a non-string SETTING
+// instead of a runtime branch inside SETTING, so a non-string SETTING
 // never has to type-check the encrypt/decrypt branch at all.
 //--------------------------------------------------------------------------------
 #ifndef SETTING_SECRET
@@ -52,7 +52,7 @@
 //--------------------------------------------------------------------------------
 // SETTING_ARRAY is SETTING for a fixed-size float[N] instead of one scalar
 // - currently only colors (N=4: R,G,B,A in [0,1], the layout
-// ImGui::ColorEdit3/4 read/write directly). Generic on N rather than
+// ImGui::ColorEdit3/4 read/write directly). Generic on N instead of
 // hardcoding "color" in case a future setting needs some other float
 // tuple.
 //
@@ -86,6 +86,24 @@ SETTING(Cyclic, CyclicThickness,     float, 20.0f)
 SETTING_ARRAY(Cyclic, CyclicHandColor, 4, ARR(1.000f, 0.196f, 0.196f, 0.706f))
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// CyclicHandImageEnabled / CyclicHandImageFilename / CyclicHandImageWidth
+//--------------------------------------------------------------------------------
+// Optional image swapped in for the plain 2px "now" hand tick (HAND_DEG,
+// cyclicrender.cpp), resolved/cached like a Basic Event icon - shares
+// that folder and icon-picker dropdown. Same neutral-gray-RGB-plus-alpha
+// convention as a Basic Event icon: recolored at draw time via
+// CyclicHandColor as a multiplicative tint, so there's no separate *Tint
+// setting here. Drawn as a straight quad anchored at the ring's inner
+// edge, always pointing outward along the fixed HAND_DEG direction (no
+// rotation math needed); its length always equals the ring's own
+// THICKNESS. CyclicHandImageWidth is the quad's width, pre-zoom px,
+// scaled like CyclicRadius/CyclicThickness.
+//--------------------------------------------------------------------------------
+SETTING(Cyclic, CyclicHandImageEnabled,  bool,        true)
+SETTING(Cyclic, CyclicHandImageFilename, std::string, std::string())
+SETTING(Cyclic, CyclicHandImageWidth,    float,       4.0f)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CyclicMaxFutureDeg / CyclicMaxPastDeg
 //--------------------------------------------------------------------------------
 // Stored as DEGREES, not seconds - period-independent, so 270 deg means
@@ -96,6 +114,55 @@ SETTING_ARRAY(Cyclic, CyclicHandColor, 4, ARR(1.000f, 0.196f, 0.196f, 0.706f))
 //--------------------------------------------------------------------------------
 SETTING(Cyclic, CyclicMaxFutureDeg,  float, 270.0f)
 SETTING(Cyclic, CyclicMaxPastDeg,    float,  90.0f)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// CyclicPastFadeEnabled
+//--------------------------------------------------------------------------------
+// Whether the past window (CyclicMaxPastDeg above) fades from full opacity at the
+// hand down to transparent at its far edge, or stays solid across the whole
+// window instead. Purely cosmetic - CyclicMaxPastDeg still controls how far the
+// past extends either way; this only toggles the alphaFrom/alphaTo gradient
+// DrawArc applies to it (see cyclicrender.cpp's track and per-slot past-portion
+// DrawArc calls).
+//--------------------------------------------------------------------------------
+SETTING(Cyclic, CyclicPastFadeEnabled, bool, true)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// CyclicRingImageEnabled / CyclicRingImageFilename / CyclicRingImageThickness / CyclicRingImageOffset / CyclicRingImageInnerEnabled / CyclicRingImageTint
+//--------------------------------------------------------------------------------
+// Optional decorative band wrapped around a cyclic ring's edge(s) (outer,
+// and inner too if CyclicRingImageInnerEnabled - cyclicrender.cpp's
+// DrawArcImage), stretched (not tiled) across the drawn ARC_FROM->ARC_TO
+// span, so it follows CyclicMaxFutureDeg/CyclicMaxPastDeg and
+// CyclicRadius/CyclicThickness automatically. Thickness is the on-screen
+// px (pre-zoom, centered on the edge radius) the source image is
+// stretched to fill, independent of the source file's own resolution.
+// Filename resolves like a Basic Event icon (shared folder/dropdown).
+// InnerEnabled draws a V-flipped mirrored copy on the inner edge; Offset
+// nudges both copies symmetrically away from the ring's own fill.
+//--------------------------------------------------------------------------------
+SETTING(Cyclic, CyclicRingImageEnabled,      bool,        true)
+SETTING(Cyclic, CyclicRingImageFilename,     std::string, std::string())
+SETTING(Cyclic, CyclicRingImageThickness,    float,        9.0f)
+SETTING(Cyclic, CyclicRingImageOffset,       float,        0.0f)
+SETTING(Cyclic, CyclicRingImageInnerEnabled, bool,        true)
+SETTING_ARRAY(Cyclic, CyclicRingImageTint, 4, ARR(1.000f, 0.196f, 0.196f, 0.706f))
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// CyclicFillImageEnabled / CyclicFillImageFilename / CyclicFillImageOpacity
+//--------------------------------------------------------------------------------
+// Optional decal laid over a cyclic ring's own fill (cyclicrender.cpp's
+// DrawArcTextureOverlay), to add texture/grain. Unlike CyclicRingImage*
+// (wrapped around the ring edge), this is projected in screen space,
+// centered on the ring and scaling with it (Radius/Thickness/zoom).
+// Clipped to the same drawn ARC_FROM->ARC_TO span as the track/arcs. No
+// *Tint here (unlike CyclicRingImageTint) - meant to read as texture on
+// top of each slot's own color; Opacity is the only adjustment, a plain
+// 0..1 alpha multiplier on the source image's own alpha.
+//--------------------------------------------------------------------------------
+SETTING(Cyclic, CyclicFillImageEnabled,  bool,        true)
+SETTING(Cyclic, CyclicFillImageFilename, std::string, std::string())
+SETTING(Cyclic, CyclicFillImageOpacity,  float,       0.1f)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [BasicEvents]
@@ -156,12 +223,12 @@ SETTING(BasicEvents, BasicEventZoomScaleMaxObserved, float, -1.0f)
 //--------------------------------------------------------------------------------
 // Only show upcoming Basic Events starting within the next N minutes;
 // currently-active events always show regardless. Minutes, in 10-minute
-// steps up to 360 (6h); a separate enabled flag gates the filter rather
-// than using 0 as an "off" sentinel, since 0 is also a theoretically
+// steps up to 360 (6h); a separate enabled flag gates the filter instead
+// of using 0 as an "off" sentinel, since 0 is also a theoretically
 // valid window value. Deliberately NOT applied to cyclic groups - see
 // RenderCyclicGroups in cyclicrender.cpp: a cyclic group's ring already
 // shows its own rolling window per slot, and a group-level "hide the
-// whole ring" filter would conflict with that rather than compose.
+// whole ring" filter would conflict with that instead of composing.
 //--------------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventTimeFilterEnabled,    bool, false)
 SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
@@ -173,17 +240,13 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 // DisableWindowWhenCompetitive / DisableBarWhenCompetitive / DisableNotifyWhenCompetitive
 //--------------------------------------------------------------------------------
 // Per-view kill-switches for the three subscriptions views (window/bar/
-// toast) while Mumble reports Context.IsCompetitive - i.e. the player is
-// on a PvP or WvW map. Checked once per frame in AddonRender (see
-// addon.cpp); doesn't touch the underlying subscription data, only
-// whether that view gets drawn. The options panel's combined "Disable
-// overlay in PvP/WvW" checkbox is a derived AND of these three, not a
-// separate stored setting - it lets players keep just one view (e.g. the
-// toast) active in competitive modes. No equivalent setting exists for
-// the map overlay (events/cyclic rings): those are tied to open-world
-// MapIDs and never have anything to draw on a PvP/WvW map regardless.
-// Default true - the overlay is aimed at open-world meta events and has
-// no real use case in competitive modes.
+// toast) while Mumble reports Context.IsCompetitive (PvP/WvW). Checked
+// once per frame in AddonRender (addon.cpp); doesn't touch the underlying
+// subscription data, only whether that view gets drawn. The options
+// panel's combined "Disable overlay in PvP/WvW" checkbox is a derived AND
+// of these three, not a separate stored setting. No equivalent exists for
+// the map overlay - those markers are open-world-only regardless. Default
+// true: the overlay targets open-world meta events.
 //--------------------------------------------------------------------------------
 SETTING(Subscriptions, DisableWindowWhenCompetitive, bool, true)
 SETTING(Subscriptions, DisableBarWhenCompetitive,    bool, true)
@@ -247,16 +310,13 @@ SETTING(Subscriptions, SubscriptionsBarHoverDelayMs, int, 500)
 // SubscriptionsBarUnsafeLeftPx / SubscriptionsBarUnsafeRightPx / SubscriptionsBarUnsafeHeightPx
 //--------------------------------------------------------------------------------
 // GW2's own UI (party/buffs top-left, minimap/compass top-right) leaves
-// only ~8px of free space right under the top edge there, not enough for
-// a dropped block's label; the wide middle strip has plenty, so the drop
-// only needs to move for segments whose x-range falls inside these edge
-// margins (see subscriptions_bar.cpp's SegmentOverlapsUnsafeZone).
-//
-// Left/Right are each measured inward from their own screen edge and are
-// independent, since GW2's left/right top UI blocks differ in width (0
-// disables a zone individually, dropping straight down there). HeightPx
-// is how tall that corner UI is, in px, that the drop needs to clear -
-// one shared value for both corners, not per-side.
+// only ~8px of free space under the top edge, not enough for a dropped
+// block's label; drops only move for segments whose x-range falls inside
+// these edge margins (subscriptions_bar.cpp's SegmentOverlapsUnsafeZone).
+// Left/Right are measured inward from their own screen edge and are
+// independent, since GW2's blocks differ in width (0 disables a zone,
+// dropping straight down there). HeightPx is that corner UI's height in
+// px that the drop needs to clear - one shared value for both corners.
 //--------------------------------------------------------------------------------
 SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,   int, 0)
 SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx,  int, 0)
@@ -292,16 +352,12 @@ SETTING(Subscriptions, SubscriptionsBarHideActive, bool, false)
 //--------------------------------------------------------------------------------
 // Text colors for the watchlist window's two highlighted states: an
 // active row, and one starting within 15 minutes ("soon" - same 900s
-// threshold as BasicEventColorSoon, reused rather than adding a second
-// configurable window). Rows that are neither use the window's normal
-// text color, so there's no separate "waiting" setting the way map
-// markers have.
-//
-// Stored as RGBA like the map's BasicEventColor* settings, but the 4th
-// component (alpha) is unused: this feeds ImGui::TextColored directly, so
-// the options-panel picker is a ColorEdit3 (RGB only). The unused slot is
-// still stored so ToImVec4/ToImVec4Opaque (color_utils.h) can stay one
-// shared helper for every color setting.
+// threshold as BasicEventColorSoon, reused instead of a second setting).
+// Rows that are neither use the window's normal text color - no separate
+// "waiting" setting the way map markers have. Stored as RGBA like the
+// map's BasicEventColor* settings, but alpha is unused (feeds
+// ImGui::TextColored directly, so the picker is ColorEdit3); still stored
+// so ToImVec4/ToImVec4Opaque (color_utils.h) stays one shared helper.
 //--------------------------------------------------------------------------------
 SETTING_ARRAY(Subscriptions, SubscriptionsActiveColor, 4, ARR(0.400f, 1.000f, 0.400f, 1.000f)) //. light green, was 0x66FF66FFu
 SETTING_ARRAY(Subscriptions, SubscriptionsSoonColor,   4, ARR(1.000f, 0.549f, 0.000f, 1.000f)) //. matches BasicEventColorSoon's RGB
@@ -312,39 +368,29 @@ SETTING_ARRAY(Subscriptions, SubscriptionsSoonColor,   4, ARR(1.000f, 0.549f, 0.
 // Master switch for the "auto-tracked weekly Wizard's Vault target"
 // overlay shared by all three subscription views. When true (default),
 // any Basic Event/Cyclic slot that's an active-and-incomplete target of
-// THIS WEEK's Vault rotation (weekly_vault.h) is surfaced in all three
-// views even if the user never manually subscribed to it. When false,
-// each view falls back to showing only g_SubscribedBasicEvents/
-// g_SubscribedCyclicSlots, as if weekly_vault.h didn't exist.
-//
-// Does NOT touch the small red "counts toward this week's Vault
-// objective" marker drawn on a row that IS manually subscribed - that's
-// just an informational tag on something the user already chose to
-// track, so it keeps showing regardless of this setting.
+// THIS WEEK's Vault rotation (weekly_vault.h) is surfaced even if never
+// manually subscribed; when false, each view falls back to showing only
+// g_SubscribedBasicEvents/g_SubscribedCyclicSlots. Does NOT touch the
+// small red "counts toward this week's Vault objective" marker on a
+// manually-subscribed row - that tag keeps showing regardless.
 //--------------------------------------------------------------------------------
 SETTING(Subscriptions, WeeklyAutoTrackEnabled, bool, true)
 
-//_ Default color for the weekly-target marker on the bar/window/toast
-// border (alpha suppressed for visibility); red by default, was 0xFF2828FFu.
+//_ Default weekly-target marker color for the bar/window/toast border (alpha suppressed); red, was 0xFF2828FFu.
 SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f, 1.000f))
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Gw2ApiKey
 //--------------------------------------------------------------------------------
-// GW2 API key (needs at minimum the "progression" permission), used ONLY
-// to call GET /v2/account/worldbosses (gw2_api.h/.cpp). Drives
-// automatically hiding a subscribed Core Boss from the Subscriptions
-// window/bar once the account has already killed it since the last UTC
-// daily reset. Empty = feature off, nothing hidden, no requests made (see
-// PollGw2Api's early-out).
-//
-// This global always holds the PLAINTEXT key at runtime (what
-// gw2_api.cpp sends over HTTPS). On disk it's AES-256-GCM-encrypted, with
-// the master key in a separate "apikey.key" file next to settings.ini -
-// see apikey_crypto.h/.cpp for the scheme, and settings.cpp for where
-// this key is special-cased out of the generic write/parse path every
-// other setting uses. Pre-encryption settings.ini files (plaintext key)
-// still load fine and get re-saved encrypted automatically.
+// GW2 API key (needs the "progression" permission), used ONLY to call
+// GET /v2/account/worldbosses (gw2_api.h/.cpp) - drives auto-hiding a
+// subscribed Core Boss once the account has killed it since the last UTC
+// reset. Empty = feature off, no requests made (PollGw2Api's early-out).
+// Always holds the PLAINTEXT key at runtime; on disk it's AES-256-GCM-
+// encrypted with the master key in a separate "apikey.key" file (see
+// apikey_crypto.h/.cpp), special-cased out of the generic write/parse
+// path in settings.cpp. Pre-encryption plaintext files still load fine
+// and get re-saved encrypted automatically.
 //--------------------------------------------------------------------------------
 SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
@@ -360,7 +406,7 @@ SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 // row/segment/popup is clicked. Shared by all three subscription views,
 // since they all paste through the same PasteToChat helper - not
 // "Subscriptions"-scoped itself, since chat-paste timing is a general
-// input-simulation concern rather than a display preference, though it
+// input-simulation concern, not a display preference, though it
 // currently has no other caller.
 //--------------------------------------------------------------------------------
 SETTING(System, delayMilliseconds, int, 20)
@@ -373,7 +419,7 @@ SETTING(System, delayMilliseconds, int, 20)
 // a specific chat channel regardless of which tab has keyboard focus.
 // Empty (default) pastes exactly as before. One value covers all three
 // subscription views (same reasoning as delayMilliseconds above), stored
-// as the literal command text (e.g. "/p ") rather than an enum index, so
+// as the literal command text (e.g. "/p ") instead of an enum index, so
 // the options-panel Combo (addon_options.cpp) is the only place that
 // needs the full label<->command mapping.
 //--------------------------------------------------------------------------------
@@ -415,8 +461,7 @@ SETTING(Notifications, NotificationLeadMinutes, int, 5)
 //--------------------------------------------------------------------------------
 SETTING(Notifications, NotificationOnStart, bool, false)
 
-//_ How long a popup stays fully visible before fading, in seconds -
-// purely cosmetic, no bearing on whether/when a popup fires.
+//_ How long a popup stays fully visible before fading (seconds) - purely cosmetic, doesn't affect firing.
 SETTING(Notifications, NotificationDisplaySeconds, int, 10)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

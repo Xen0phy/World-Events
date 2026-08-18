@@ -16,9 +16,7 @@
 #include "events_categories.h"
 #include <optional>
 
-//_ Each COL_* is the RGBA float tuple ColorSet::base actually stores (see
-// events.h); the trailing hex comment is only the original color-picker
-// value, kept for reference if a future edit wants to reason in hex.
+//_ RGBA tuple ColorSet::base stores; trailing hex is the original picker value.
 const ColorSet COL_LWS2 { ImVec4(0.443f, 0.373f, 0.094f, 1.000f) }; //. 0x715F18FF
 const ColorSet COL_HOT  { ImVec4(0.400f, 0.443f, 0.094f, 1.000f) }; //. 0x667118FF
 const ColorSet COL_LWS3 { ImVec4(0.322f, 0.463f, 0.231f, 1.000f) }; //. 0x52763BFF
@@ -31,8 +29,7 @@ const ColorSet COL_JW   { ImVec4(0.094f, 0.204f, 0.494f, 1.000f) }; //. 0x18347E
 const ColorSet COL_VOE  { ImVec4(0.671f, 0.251f, 0.102f, 1.000f) }; //. 0xAB401AFF
 const ColorSet COL_FEST { ImVec4(1.000f, 1.000f, 1.000f, 1.000f) }; //. 0xFFFFFFFF
 
-//_ Each group is its own 2h cycle of sequential events; offsets are
-// seconds from UTC midnight of each event's first occurrence.
+//_ Each group is a 2h cycle of events; offsets are seconds from UTC midnight.
 std::vector<CyclicGroup> g_CyclicGroups =
 {
     //_ Instanced
@@ -67,8 +64,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
             {"Crash Site",         0,    m40,  ColorTier::Tertiary, "[&BIAHAAA=]" },
             {"Sandstorm",        m40,    m20,   ColorTier::Primary, "[&BIAHAAA=]" },
     
-            //_ Crash Site detail - Group A: fires at 0/15/30 within the 40-min
-            // Crash Site window.
+            //_ Crash Site Group A: fires at 0/15/30 within the 40-min window.
             {"Tendril A",          0,     m5, ColorTier::Secondary, "[&BIAHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
             {"Race",               0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
             {"Moa",                0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
@@ -88,8 +84,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
             {"Vine Bridge",        0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
             {"Collect Beetles",    0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
     
-            //_ Crash Site detail - Group C: fires at 10/25 only (40 is
-            // Sandstorm, so no third occurrence).
+            //_ Crash Site Group C: fires at 10/25 only (40 is Sandstorm).
             {"Basket",             0,     m5, ColorTier::Secondary, "[&BIAHAAA=]", false, 1,                               {}, true,     {m10, m25} },
             {"Town",               0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1,                               {}, true,     {m10, m25} },
             {"North Mine",         0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1,                               {}, true,     {m10, m25} },
@@ -329,8 +324,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
     },
 };
 
-//_ Same idea as g_DefaultBasicCategories (events_basic.cpp) - one entry
-// per expansion banner above, for the Cyclic Group list instead.
+//_ Same idea as g_DefaultBasicCategories (events_basic.cpp), per banner.
 std::vector<CategoryDefault> g_DefaultCyclicCategories =
 {
     {"Living World", {
@@ -383,9 +377,7 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
     }},
 };
 
-//_ One-time-pushed Slot corrections; see SlotOverride (events.h) for what
-// this does and why EVENTS_DATA_VERSION must be bumped alongside any
-// entry added here.
+//_ One-time Slot corrections; see SlotOverride (events.h), EVENTS_DATA_VERSION.
 std::vector<SlotOverride> g_SlotOverrides =
 {
     {"Verdant Brink",  "Night Enemy", m105, std::nullopt},

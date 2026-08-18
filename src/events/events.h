@@ -25,8 +25,8 @@
 // LoadEventsData/LoadCategoriesData (see MergeByKey's comment in
 // events_storage.cpp), and is shared by events/cyclicGroups/categories,
 // since all three live under one "data_version" key in events.json.
-// int64_t rather than int: the HHmm-precision form (e.g. 202607051350)
-// exceeds INT32_MAX and would silently wrap.
+// int64_t, not int: the HHmm-precision form (e.g. 202607051350) exceeds
+// INT32_MAX and would silently wrap.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -50,43 +50,25 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608120914;
 // isVarying      true = irregular schedule (see varyingTimes), false = periodic
 // duration       seconds the event stays active
 // chatCode       optional GW2 chat/map code; empty = unset
-// shown          map-overlay visibility only; doesn't affect Subscriptions
-// iconTexture    optional user icon filename; empty = plain dot
+// shown          map-overlay visibility only, opt-out (default true);
+//                doesn't affect Subscriptions, which are opt-in separately
+// iconTexture    optional user icon filename; empty = plain dot; must be
+//                neutral-gray RGB+alpha, recolored via tint (maprender.cpp)
 // varyingTimes   isVarying only: sorted seconds-from-UTC-midnight starts
 // period/offset  isVarying=false only: seconds per cycle / first-start offset
-// apiWorldBossId /v2/worldbosses id; empty = no API "done today" signal
-// doneGroup      shared manual "done today" key; empty = event's own name
+// apiWorldBossId /v2/worldbosses id; empty = no API "done today" signal,
+//                unset for all but the 13 classic Tyria world bosses
+// doneGroup      shared "done today" key (events_tracking.h); rows sharing
+//                a reward (e.g. Ley Line Anomaly) share one value
 //--------------------------------------------------------------------------------
 // One "Basic Event": a single map dot with its own schedule, either
 // periodic (period/offset) or irregular (isVarying + varyingTimes).
 //
 // chatCode/shown/iconTexture/apiWorldBossId/doneGroup are appended in this
-// exact order, deliberately last-to-first by how rarely each is set: the
-// list below is built with positional aggregate init (events_basic.cpp),
-// so each field's position determines how many trailing values a
-// compiled-in row must supply. shown defaults to true (opt-out, unlike the
-// Subscriptions bar/window, which are opt-in separately); chatCode/
-// iconTexture default to "" meaning unset/plain-dot; apiWorldBossId
-// default "" means no API "done today" signal, which is correct for
-// everything except the 13 classic Tyria world bosses the public API
-// covers (see gw2_api.h) - not a TODO.
-//
-// doneGroup exists for cases like the Ley Line Anomaly: three separate
-// WorldEvent rows (Timberline/Iron Marches/Gendarran), one per possible
-// spawn location, but only one chest per day no matter which location you
-// actually finish it at. Give all rows that share a daily reward the same
-// doneGroup string (any stable value works, e.g. "Ley Line Anomaly") and
-// marking any one of them "done today" (events_tracking.h) marks them all.
-// Rows that don't set it just default to "", which events_tracking.cpp
-// treats as "this event's own name is its group" - i.e. ungrouped,
-// unaffected. Like apiWorldBossId, this is compiled-in-only: not written
-// to events.json, restamped by name after every load (events_storage.cpp)
-// the same way apiWorldBossId is, so user edits/renames of copies can't
-// silently detach a row from its group.
-//
-// iconTexture, when set, must be a neutral-gray RGB + alpha source image -
-// it's recolored at draw time via multiplicative tint (maprender.cpp),
-// which only works correctly on gray source art.
+// exact order, last-to-first by how rarely each is set: the list below is
+// built with positional aggregate init (events_basic.cpp), so each
+// field's position determines how many trailing values a compiled-in row
+// must supply.
 //--------------------------------------------------------------------------------
 struct WorldEvent
 {
@@ -142,30 +124,20 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 // period            seconds per full cycle
 // colors            base palette; slots pick a shade by tier (see ColorTier)
 // slots             the group's Slot occurrences (see CyclicGroup::Slot)
-// idleColor         optional override for the idle/background track color
-// shown             hides the ENTIRE ring; see Slot::shown for per-slot
-// apiMapChestId     /v2/mapchests id; empty = no API "done today" signal
+// idleColor         optional track-color override; defaults to
+//                   colors.ter() (already dimmest) when unset
+// shown             hides the ENTIRE ring (track + every slot); see
+//                   Slot::shown to hide just one slot's arc instead
+// apiMapChestId     /v2/mapchests id, GROUP-level not per-slot; empty =
+//                   no API "done today" signal
 //--------------------------------------------------------------------------------
-// One per-map cyclic ring: a repeating `period`-second cycle containing one
-// or more Slots, each occupying a fixed offset/duration within it.
+// One per-map cyclic ring: a repeating `period`-second cycle containing
+// one or more Slots, each occupying a fixed offset/duration within it.
 //
-// idleColor defaults to colors.ter() (already the dimmest shade) when
-// unset; set it explicitly only when even ter() looks too close to a
-// slot's own color for a single-slot group.
-//
-// shown hides the whole ring (track + every slot) as if the group didn't
-// exist this frame; Slot::shown instead hides just that one slot's arc,
-// leaving the rest of the ring visible.
-//
-// apiMapChestId is GROUP-level, not per-slot (unlike WorldEvent's
-// apiWorldBossId, which is per-event): each of the 8 maps /v2/mapchests
-// covers grants its one chest from whichever slot represents that map's
-// climactic meta step (or, for The Desolation/Domain of Vabbi, from more
-// than one slot sharing a daily limit) - so "done today" belongs to the
-// whole ring. Checked once per group in subscriptions_window.cpp/
-// subscriptions_bar.cpp. Every group without an API-visible signal (LLA,
-// invasions, fractal incursions, convergences, and maps mapchests doesn't
-// cover) simply leaves this empty - the correct/only option, not a TODO.
+// apiMapChestId is checked once per group in subscriptions_window.cpp/
+// subscriptions_bar.cpp. Groups without an API-visible signal - LLA,
+// invasions, fractal incursions, convergences, and maps mapchests
+// doesn't cover - simply leave it empty.
 //--------------------------------------------------------------------------------
 struct CyclicGroup
 {
@@ -254,19 +226,14 @@ extern std::vector<CyclicGroup> g_CyclicGroups;
 // groupName/slotName   must match CyclicGroup::name / Slot::name exactly
 // offset/duration      one-time-pushed onto the matching Slot when set
 //--------------------------------------------------------------------------------
-// Same purpose and same version gate as CategoryDefaultMember::offset/
-// duration (events_categories.h) - a one-time, version-gated correction
-// applied on top of whatever's on disk - but at Slot granularity, since a
-// Slot's own fields aren't reachable through the group-level category
-// mechanism (CyclicGroup categories key by group name, and CyclicGroup
-// itself has no offset/duration of its own - only its slots do).
+// Same purpose and version gate as CategoryDefaultMember::offset/duration
+// (events_categories.h), but at Slot granularity, since a Slot's own
+// fields aren't reachable through the group-level category mechanism.
 //
-// Applied by ApplySlotOverrides in events_storage.cpp, right after
+// Applied by ApplySlotOverrides (events_storage.cpp) right after
 // MergeGroups, gated the same way as ApplyCategoryOffsetOverrides: runs
-// once, only while the saved file predates EVENTS_DATA_VERSION. As with
-// the Category overrides, EVENTS_DATA_VERSION must be bumped whenever an
-// entry is added here, or an already-current local file never re-enters
-// the gate and the fix never reaches it.
+// once while the saved file predates EVENTS_DATA_VERSION, which must be
+// bumped whenever an entry is added here.
 //--------------------------------------------------------------------------------
 struct SlotOverride
 {
@@ -276,8 +243,7 @@ struct SlotOverride
     std::optional<int> duration;
 };
 
-//_ Populated in events_cyclic.cpp, consumed by ApplySlotOverrides
-// (events_storage.cpp).
+//_ Populated in events_cyclic.cpp; consumed by ApplySlotOverrides.
 extern std::vector<SlotOverride> g_SlotOverrides;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -288,8 +254,7 @@ extern std::vector<SlotOverride> g_SlotOverrides;
 //--------------------------------------------------------------------------------
 constexpr int MIN(int minutes) { return minutes * 60; }
 
-//_ Precomputed minute->second constants for the table literals below
-// (m85/m110 skipped - unused).
+//_ Precomputed minute->second constants for the table below (m85/m110 unused).
 constexpr int   m5=MIN(  5),  m10=MIN( 10),  m15=MIN( 15),  m20=MIN( 20),
                m25=MIN( 25),  m30=MIN( 30),  m35=MIN( 35),  m40=MIN( 40),
                m45=MIN( 45),  m50=MIN( 50),  m55=MIN( 55),  m60=MIN( 60),

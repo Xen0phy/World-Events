@@ -3,6 +3,8 @@
 //--------------------------------------------------------------------------------
 // EventIconEntry/s_iconCache   per-filename cache of loaded icon textures
 // GetOrRequestEventIcon         returns/kicks off the load for one icon
+//                               (public - also used by cyclicrender.cpp's
+//                               ring-image overlay, see maprender.h)
 // GetSecondsUntilEventStart/GetSecondsUntilEventEnd/IsEventActive
 //                               Basic Event schedule queries (see maprender.h)
 // GetEventZoomSizeMultiplier   current zoom-based marker size multiplier
@@ -12,34 +14,25 @@
 // RenderMapEvents               draws all Basic Events onto the open world map
 //--------------------------------------------------------------------------------
 // Icon textures are optional, per-event, and either user-supplied or bundled
-// default. Scans a "textures" folder under the addon's own directory, loads
-// on demand via Nexus's async Textures_LoadFromFile (never
-// Textures_GetOrCreateFromFile, which can hand back a Texture_t* whose
-// ->Resource is still null while the file decodes in the background, with no
-// signal for when it becomes ready), and caches the result by filename - an
-// arbitrary number of DIFFERENT events can each reference a different icon
-// filename, so this needs a cache keyed by filename, not a fixed slot.
+// default. Scans a "textures" folder under the addon's own directory and loads on
+// demand via Nexus's async Textures_LoadFromFile - never
+// Textures_GetOrCreateFromFile, which can return a Texture_t* whose ->Resource is
+// still null while the file decodes in the background, with no ready signal.
+// Results are cached by filename, since multiple events can share an icon.
 //
-// A small set of default icons ships compiled into the dll itself (see
-// events_icons.h / s_defaultIcons below), loaded via Textures_LoadFromMemory
-// instead of LoadFromFile so no files need to exist on disk for these to
-// work out of the box. Disk is always checked FIRST for a given filename -
-// see GetOrRequestEventIcon - so a user can still override/reskin a bundled
-// icon by dropping a same-named file into their own textures/ folder.
+// A small set of default icons is compiled into the dll (see events_icons.h /
+// s_defaultIcons below) and loaded via Textures_LoadFromMemory instead of
+// LoadFromFile, so no files need to exist on disk out of the box. Disk is checked
+// first for a given filename (see GetOrRequestEventIcon), so a user can override
+// a bundled icon by dropping a same-named file into their own textures/ folder.
 //
-// AUTHORING REQUIREMENT: because the icon is recolored at draw time via a
-// multiplicative tint (ImDrawList::AddImage's `col` parameter multiplies
-// every pixel's RGB/A by the tint color), the source image's RGB needs to
-// already be a NEUTRAL GRAY (not necessarily pure white - any gray works,
-// preserving relative shading/"shadows" within the icon) with the actual
-// icon shape carried in the alpha channel. A full-color icon will tint
-// unpredictably rather than cleanly recolor, since multiplying non-gray RGB
-// by a tint shifts its hue instead of replacing it. This addon does NOT
-// desaturate arbitrary images automatically - that would need a real image
-// decoder (e.g. stb_image) to get at raw pixels before upload, which is
-// more than this addon's scope calls for; the user is expected to prepare a
-// gray/alpha icon themselves (e.g. desaturate + add a layer mask in any
-// image editor) before dropping it in the textures folder.
+// AUTHORING REQUIREMENT: the icon is recolored at draw time via a multiplicative
+// tint (ImDrawList::AddImage's `col` parameter multiplies each pixel's RGB/A by
+// the tint color), so the source image's RGB must be a NEUTRAL GRAY (any gray
+// works, preserving relative shading) with the icon shape carried in the alpha
+// channel. A full-color icon shifts hue instead of recoloring cleanly. This addon
+// does not desaturate images automatically; users must prepare a gray/alpha icon
+// themselves before adding it to the textures folder.
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
@@ -73,9 +66,7 @@ struct EventIconEntry
     bool        requested   = false;
 };
 
-//_ Guards s_iconCache: Nexus's texture-load callback (OnEventIconReceived)
-// runs on a background thread while GetOrRequestEventIcon reads/inserts
-// from the render thread - unsynchronized, that's a real race.
+//_ Guards s_iconCache: loaded on a background thread, read on the render thread.
 static std::mutex s_iconCacheMutex;
 static std::unordered_map<std::string, EventIconEntry> s_iconCache;
 
@@ -89,8 +80,8 @@ static bool s_iconFilenamesScanned = false;
 // data    raw PNG bytes (see events_icons.h)
 // size    byte length of `data`
 //--------------------------------------------------------------------------------
-// One entry per bundled icon (s_defaultIcons below). Only consulted when
-// nothing matching `name` exists on disk, see GetOrRequestEventIcon
+// One entry per bundled icon (s_defaultIcons below). Only consulted when nothing
+// matching `name` exists on disk, see GetOrRequestEventIcon
 //--------------------------------------------------------------------------------
 struct DefaultIconEntry
 {
@@ -123,9 +114,9 @@ static const DefaultIconEntry* FindDefaultIcon(const std::string& filename)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ScanEventIconFiles   (pairs with: GetEventIconFilenames)
 //--------------------------------------------------------------------------------
-// Scan (or re-scan) "<addon dir>/textures" and rebuild s_iconFilenames.
-// Call this to refresh after the user adds new files - there's no
-// automatic filesystem-watching.
+// Scan (or re-scan) "<addon dir>/textures" and rebuild s_iconFilenames. Call this
+// to refresh after the user adds new files - there's no automatic
+// filesystem-watching.
 //
 // Also merges in the bundled default icon names, see GetOrRequestEventIcon.
 //--------------------------------------------------------------------------------
@@ -179,24 +170,22 @@ static void OnEventIconReceived(const char* aIdentifier, Texture_t* aTexture)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetOrRequestEventIcon
 //--------------------------------------------------------------------------------
-// Returns the loaded Texture_t* for this filename, or nullptr if it's not
-// loaded yet (including: load not yet requested, in which case this also
-// kicks off an async request).
+// Returns the loaded Texture_t* for this filename, or nullptr if it's not loaded
+// yet (including: load not yet requested, in which case this also kicks off an
+// async request).
 //
-// DISK FIRST: if a file by this name exists under <addonDir>/textures,
-// it's loaded from there exactly as before, even if the same name also
-// exists in s_defaultIcons - this is what lets a user override/reskin a
-// bundled icon just by dropping a same-named file, no rebuild needed.
-// Only when nothing matches on disk does this fall back to the bundled
-// table via Textures_LoadFromMemory instead of Textures_LoadFromFile.
+// DISK FIRST: if a file by this name exists under <addonDir>/textures, it's
+// loaded from there exactly as before, even if the same name also exists in
+// s_defaultIcons - this is what lets a user override/reskin a bundled icon just
+// by dropping a same-named file, no rebuild needed. Only when nothing matches on
+// disk does this fall back to the bundled table via Textures_LoadFromMemory
+// instead of Textures_LoadFromFile.
 //--------------------------------------------------------------------------------
-static Texture_t* GetOrRequestEventIcon(const std::string& filename)
+Texture_t* GetOrRequestEventIcon(const std::string& filename)
 {
     if (filename.empty()) return nullptr;
 
-    //_ Only the cache lookup/insert itself needs to be under the lock -
-    // the actual load dispatch below talks to Nexus and shouldn't happen
-    // while holding it.
+    //_ Only the lookup/insert needs the lock; dispatch below runs outside it.
     bool needsRequest = false;
     {
         std::lock_guard<std::mutex> lock(s_iconCacheMutex);
@@ -216,8 +205,7 @@ static Texture_t* GetOrRequestEventIcon(const std::string& filename)
     {
         std::string fullPath = g_AddonDir + "\\textures\\" + filename;
 
-        //_ Identifier must be unique per filename so OnEventIconReceived
-        // can route the callback back to the right cache entry
+        //_ Identifier must be unique so OnEventIconReceived can route it back.
         std::error_code ec;
         if (std::filesystem::exists(fullPath, ec))
         {
@@ -225,8 +213,7 @@ static Texture_t* GetOrRequestEventIcon(const std::string& filename)
         }
         else if (const DefaultIconEntry* bundled = FindDefaultIcon(filename))
         {
-            //_ aData is a non-const void* in the Nexus signature even
-            // though this call only reads/decodes it
+            //_ aData is non-const in the Nexus signature though this only reads it.
             APIDefs->Textures_LoadFromMemory(filename.c_str(), (void*)bundled->data, bundled->size, OnEventIconReceived);
         }
     }
@@ -275,8 +262,8 @@ int GetSecondsUntilEventStart(const WorldEvent& ev, time_t now)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetSecondsUntilEventEnd   (group: GetSecondsUntilEventStart, IsEventActive)
 //--------------------------------------------------------------------------------
-// Returns how many seconds until the current active window closes.
-// Only meaningful when IsEventActive() is true.
+// Returns how many seconds until the current active window closes. Only
+// meaningful when IsEventActive() is true.
 //--------------------------------------------------------------------------------
 int GetSecondsUntilEventEnd(const WorldEvent& ev, time_t now)
 {
@@ -290,8 +277,7 @@ int GetSecondsUntilEventEnd(const WorldEvent& ev, time_t now)
         return 0;
     }
 
-    //_ Periodic: phase is how far into the cycle we are, duration - phase
-    // is the time left.
+    //_ Periodic: duration minus phase-into-cycle is the time left.
     int phase = (((int)(now % ev.period) - ev.offset) % ev.period + ev.period) % ev.period;
     return ev.duration - phase;
 }
@@ -301,9 +287,9 @@ int GetSecondsUntilEventEnd(const WorldEvent& ev, time_t now)
 //--------------------------------------------------------------------------------
 // Returns true if the event is currently running.
 //
-// For varying events, checks directly whether now falls inside any active
-// window. For periodic events, checks whether we are within the duration
-// window at the start of the current cycle.
+// For varying events, checks directly whether now falls inside any active window.
+// For periodic events, checks whether we are within the duration window at the
+// start of the current cycle.
 //--------------------------------------------------------------------------------
 bool IsEventActive(const WorldEvent& ev, time_t now)
 {
@@ -325,15 +311,15 @@ bool IsEventActive(const WorldEvent& ev, time_t now)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetZoomPercent
 //--------------------------------------------------------------------------------
-// Returns how "zoomed in" the full-screen map currently is, as 0-100.
-// Mumble's Compass.Scale (continent units/pixel) gets SMALLER as you zoom
-// in, but has no fixed documented min/max - it varies with screen
-// resolution/UI scaling and, to a lesser extent, the current map. Rather
-// than hardcode a guessed range, we track the smallest/largest
-// Compass.Scale values actually observed and interpolate within that: the
-// scale self-calibrates the first time the user zooms fully in and out,
-// and (backed by BasicEventZoomScaleMinObserved/MaxObserved in
-// settings_table.h, not a local static) stays calibrated across restarts.
+// Returns how "zoomed in" the full-screen map currently is, as 0-100. Mumble's
+// Compass.Scale (continent units/pixel) gets SMALLER as you zoom in, but has no
+// fixed documented min/max - it varies with screen resolution/UI scaling and, to
+// a lesser extent, the current map. Instead of hardcoding a guessed range, this
+// tracks the smallest/largest Compass.Scale values actually observed and
+// interpolates within that: the scale self-calibrates the first time the user
+// zooms fully in and out, and (backed by
+// BasicEventZoomScaleMinObserved/MaxObserved in settings_table.h, not a local
+// static) stays calibrated across restarts.
 //--------------------------------------------------------------------------------
 static float GetZoomPercent(float scale)
 {
@@ -358,9 +344,9 @@ static float GetZoomPercent(float scale)
 // GetEventZoomSizeMultiplier
 //--------------------------------------------------------------------------------
 // Markers stay at 1.0x from 0% zoom up to BasicEventZoomStartPct, then grow
-// linearly to BasicEventZoomMaxMultiplier at 100% zoom. Declared in
-// maprender.h (not static) so cyclicrender.cpp can reuse the exact same
-// curve for cyclic group rings instead of duplicating this logic.
+// linearly to BasicEventZoomMaxMultiplier at 100% zoom. Declared in maprender.h
+// (not static) so cyclicrender.cpp can reuse the exact same curve for cyclic
+// group rings instead of duplicating this logic.
 //--------------------------------------------------------------------------------
 float GetEventZoomSizeMultiplier()
 {
@@ -393,8 +379,7 @@ ImVec2 ContinentToScreen(float cx, float cy)
 {
     const auto& compass = MumbleLink->Context.Compass;
 
-    //_ Screen position that Compass.Center maps to.
-    // For the full-screen map this is the window center.
+    //_ Screen position Compass.Center maps to - the window center here.
     float screenCX = NexusLink->Width  * 0.5f;
     float screenCY = NexusLink->Height * 0.5f;
 
@@ -411,9 +396,9 @@ ImVec2 ContinentToScreen(float cx, float cy)
 // ScreenToContinent   (pairs with: ContinentToScreen)
 //--------------------------------------------------------------------------------
 // Exact inverse of ContinentToScreen, used while drag-editing a marker's
-// position: each frame the dragged marker's new screen position (mouse pos
-// + the original click offset, see EditTarget handling below) needs to be
-// converted back to a continent coordinate to store in continentX/Y.
+// position: each frame the dragged marker's new screen position (mouse pos + the
+// original click offset, see EditTarget handling below) needs to be converted
+// back to a continent coordinate to store in continentX/Y.
 //--------------------------------------------------------------------------------
 ImVec2 ScreenToContinent(ImVec2 screenPos)
 {
@@ -445,19 +430,16 @@ void ClearEditMode()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderMapEvents
 //--------------------------------------------------------------------------------
-// Draws a dot/icon for each event in g_Events. Size is normally fixed in
-// pixels regardless of map zoom (zoom is already baked into Compass.Scale,
-// which we only use to position the center) - but if BasicEventZoomScaling
-// is enabled, markers additionally grow as the map is zoomed in past
-// BasicEventZoomStartPct, up to BasicEventZoomMaxMultiplier at 100% zoom.
-// See GetZoomPercent()/GetEventZoomSizeMultiplier() above.
+// Draws a dot/icon for each event in g_Events. Size is fixed in pixels regardless
+// of zoom (Compass.Scale only positions the center) unless BasicEventZoomScaling
+// is enabled, in which case markers grow past BasicEventZoomStartPct up to
+// BasicEventZoomMaxMultiplier at 100% zoom (see
+// GetZoomPercent/GetEventZoomSizeMultiplier above).
 //
-// The full-screen overlay window below always keeps NoMouseInputs, so it
-// never blocks map-dragging. Drag capture for whichever one marker is
-// armed (see EditModeState in maprender.h) is instead handled per-marker
-// by DrawDragAnchor's small anchor window, recreated every frame at the
-// marker's position - it stays armed across multiple press-drag-release
-// cycles, until the panel's "Drag"/"Stop" button disarms it.
+// The overlay window keeps NoMouseInputs so it never blocks map-dragging; drag
+// capture for the armed marker (EditModeState, maprender.h) is handled per-marker
+// by DrawDragAnchor's anchor window, recreated each frame at the marker's
+// position and staying armed across drag cycles until "Drag"/"Stop" disarms it.
 //--------------------------------------------------------------------------------
 void RenderMapEvents()
 {
@@ -489,38 +471,33 @@ void RenderMapEvents()
  
         ImVec2 pos = ContinentToScreen(ev.continentX, ev.continentY);
  
-        //_ Off-screen culling, skipped while being dragged - a fast drag
-        // can momentarily push the cursor outside this margin.
+        //_ Off-screen culling, skipped while dragging - a fast drag can exceed this margin.
         if (!isBeingEdited)
         {
             if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
             if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
         }
  
-        //_ Map-only hide; doesn't touch the Subscriptions bar/window.
-        // Exempted while being dragged.
+        //_ Map-only hide, exempted while dragging; doesn't touch the Subscriptions bar.
         if (!isBeingEdited && !ev.shown)
             continue;
  
         bool active = IsEventActive(ev, now);
         int  secs   = GetSecondsUntilEventStart(ev, now);
  
-        //_ Upcoming events show only within the configured window; secs<0
-        // (no timer data) and the currently-edited marker are exempt.
+        //_ Upcoming events show only within the window; secs<0 and the edited marker exempt.
         if (!isBeingEdited && BasicEventTimeFilterEnabled && !active && secs >= 0 &&
             secs > BasicEventTimeFilterMinutes * 60)
             continue;
  
-        //_ Plain user RGBA floats (settings_table.h/color_utils.h); alpha
-        // comes straight from the swatch, no separate hardcoded alpha.
+        //_ Plain user RGBA floats (settings_table.h); alpha comes from the swatch.
         ImU32 colFill = active                    ? ColorU32(BasicEventColorActive)
                       : (secs >= 0 && secs < 900) ? ColorU32(BasicEventColorSoon)
                       :                              ColorU32(BasicEventColorWaiting);
  
         Texture_t* icon = ev.iconTexture.empty() ? nullptr : GetOrRequestEventIcon(ev.iconTexture);
  
-        //_ Tracks whichever size is actually drawn (icon vs dot differ),
-        // so the hover/tooltip rect matches what's on screen.
+        //_ Tracks the drawn size (icon vs dot differ) so hover matches what's on screen.
         float hoverHalfExtent;
  
         if (icon && icon->Resource)
@@ -531,8 +508,7 @@ void RenderMapEvents()
                 ImVec2(pos.x - halfW, pos.y - halfH),
                 ImVec2(pos.x + halfW, pos.y + halfH),
                 ImVec2(0, 0), ImVec2(1, 1), colFill);
-            //_ width is usually the dominant dimension for icon art;
-            // close enough for a hover box.
+            //_ Width is usually icon art's dominant dimension; close enough for hover.
             hoverHalfExtent = halfW;
         }
         else
@@ -543,8 +519,7 @@ void RenderMapEvents()
             hoverHalfExtent = radius;
         }
  
-        //_ Pulsing ring on the marker armed for drag-to-reposition.
-        // Shared with RenderCyclicGroups - see overlay/map_shared.h.
+        //_ Pulsing ring on the armed marker; shared with RenderCyclicGroups (map_shared.h).
         if (isBeingEdited)
             DrawEditPulseRing(dl, pos, hoverHalfExtent);
  
@@ -552,8 +527,7 @@ void RenderMapEvents()
             {pos.x - hoverHalfExtent, pos.y - hoverHalfExtent},
             {pos.x + hoverHalfExtent, pos.y + hoverHalfExtent});
  
-        //_ See DrawDragAnchor's comment (map_shared.h) and the function
-        // header above for the drag-capture architecture.
+        //_ Drag-capture architecture: see DrawDragAnchor (map_shared.h) and header above.
         if (isBeingEdited)
             DrawDragAnchor("##we_drag_anchor", i, pos, hoverHalfExtent,
                 &ev.continentX, &ev.continentY);

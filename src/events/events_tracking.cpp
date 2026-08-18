@@ -35,16 +35,15 @@ uint64_t GetDoneMarkersGeneration() { return s_doneMarkersGeneration; }
 // CurrentUtcDay
 //--------------------------------------------------------------------------------
 // Same one-line derivation as gw2_api.cpp's CurrentUtcDay() - duplicated
-// locally rather than shared for a single division; see that file's
-// comment for why floor-dividing Unix time needs no timezone handling.
+// locally, not shared, for a single division; see that file's comment for
+// why floor-dividing Unix time needs no timezone handling.
 //--------------------------------------------------------------------------------
 static long long CurrentUtcDay()
 {
     return (long long)(time(nullptr) / 86400);
 }
 
-//_ -1 = never loaded/saved; the first check of the day then treats that
-// as stale and clears (a no-op - vectors start empty), no separate flag.
+//_ -1 = never loaded/saved; first check clears it as stale (harmless no-op).
 static long long s_DoneTodayUtcDay = -1;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -87,7 +86,7 @@ static std::string ResolveBasicDoneKey(const std::string& eventName)
         if (ev.name != eventName) continue;
         return ev.doneGroup.empty() ? eventName : ev.doneGroup;
     }
-    return eventName; //. unknown name (e.g. stale data) - fall back to itself
+    return eventName; //. stale/unknown name - unchanged
 }
 
 bool IsBasicEventMarkedDoneToday(const std::string& eventName)
@@ -130,9 +129,7 @@ void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key)
 
 void ClearAllDoneMarkers()
 {
-    //_ Deliberately leaves s_DoneTodayUtcDay untouched - a manual reset,
-    // not a day rollover, so the next natural rollover still happens on
-    // schedule.
+    //_ Leaves s_DoneTodayUtcDay untouched - a manual reset, not a rollover.
     s_DoneTodayBasicEvents.clear();
     s_DoneTodayCyclicSlots.clear();
     s_doneMarkersGeneration++;
@@ -170,8 +167,7 @@ bool SaveDailyTrackingData(const std::string& addonDir)
     {
         std::string filepath = addonDir + "\\events.json";
 
-        //_ Read-modify-write, same reason as SaveSubscriptionsData - avoids
-        // clobbering the file's other keys (events/categories/subscriptions).
+        //_ Read-modify-write - avoids clobbering the other JSON keys.
         json j;
         {
             std::ifstream in(filepath);
@@ -211,8 +207,7 @@ bool LoadDailyTrackingData(const std::string& addonDir)
 
         long long storedDay = j.value("doneTodayUtcDay", (long long)-1);
 
-        //_ Stale marks (addon closed across a reset) are skipped entirely -
-        // s_DoneTodayUtcDay stays -1, so RollOverIfNewUtcDay() finds a clean day.
+        //_ Stale marks (old UTC day) are skipped, leaving a clean day.
         if (storedDay != CurrentUtcDay())
             return true;
 
