@@ -22,9 +22,9 @@
 // mappingTitle   best-effort label for the matched weekly objective
 // complete       whether that objective is already done this week
 //--------------------------------------------------------------------------------
-// Private to this file: which mapping (if any) a Basic Event/Cyclic slot
-// counts toward this week, and whether it's complete. Only used while
-// building s_resolved - callers outside this file only ever need
+// Private to this file: which mapping (if any) a Basic Event/Cyclic slot counts
+// toward this week, and whether it's complete. Only used while building
+// s_resolved - callers outside this file only ever need
 // ResolvedSubscription::isWeeklyTarget, never the raw mapping data.
 //--------------------------------------------------------------------------------
 namespace
@@ -56,10 +56,10 @@ static time_t s_lastRebuildWallClock = 0;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetCurrentWeeklyResetEpoch
 //--------------------------------------------------------------------------------
-// Weekly Wizard's Vault objectives reset every Monday at 07:30 UTC. Returns
-// the epoch time of the most recent such reset at or before `now` - i.e.
-// the start of the CURRENT weekly period, so two `now` values in the same
-// weekly period always compare equal.
+// Weekly Wizard's Vault objectives reset every Monday at 07:30 UTC. Returns the
+// epoch time of the most recent such reset at or before `now` - i.e. the start of
+// the CURRENT weekly period, so two `now` values in the same weekly period always
+// compare equal.
 //--------------------------------------------------------------------------------
 static time_t GetCurrentWeeklyResetEpoch(time_t now)
 {
@@ -93,12 +93,12 @@ static time_t GetCurrentWeeklyResetEpoch(time_t now)
 // RebuildWeeklyCache
 //--------------------------------------------------------------------------------
 // Populates s_weeklyCache by asking weekly_vault.h's own matching functions
-// (IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget) which Basic Events/
-// Cyclic slots are live weekly targets, rather than duplicating that logic
-// here. Basic: every Core Boss is checked, the whole candidate set. Cyclic:
-// only slots referenced by g_CyclicWeeklyObjectives are walked, resolving
-// each target's slot NAME to the stable slot OFFSET against g_CyclicGroups.
-// Only called from a full rebuild, never per-frame.
+// (IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget) which Basic Events/ Cyclic
+// slots are live weekly targets, rather than duplicating that logic here. Basic:
+// every Core Boss is checked, the whole candidate set. Cyclic: only slots
+// referenced by g_CyclicWeeklyObjectives are walked, resolving each target's slot
+// NAME to the stable slot OFFSET against g_CyclicGroups. Only called from a full
+// rebuild, never per-frame.
 //--------------------------------------------------------------------------------
 static void RebuildWeeklyCache()
 {
@@ -142,11 +142,11 @@ static void RebuildWeeklyCache()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ResolveBasic / ResolveCyclic
 //--------------------------------------------------------------------------------
-// Build one ResolvedSubscription from a WorldEvent / (CyclicGroup, Slot)
-// pair - the one place doneToday/isWeeklyTarget/schedule-field-copying
-// logic lives, shared by the manual-subscription pass and the auto-tracked
-// weekly pass below (mirrors how subscriptions_bar.cpp's AddBasicSegment/
-// AddCyclicSegment split their own equivalent).
+// Build one ResolvedSubscription from a WorldEvent / (CyclicGroup, Slot) pair -
+// the one place doneToday/isWeeklyTarget/schedule-field-copying logic lives,
+// shared by the manual-subscription pass and the auto-tracked weekly pass below
+// (mirrors how subscriptions_bar.cpp's AddBasicSegment/ AddCyclicSegment split
+// their own equivalent).
 //--------------------------------------------------------------------------------
 static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubscribed)
 {
@@ -209,10 +209,10 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RebuildResolvedSubscriptions
 //--------------------------------------------------------------------------------
-// The one place that walks g_SubscribedBasicEvents/g_SubscribedCyclicSlots
-// and (when WeeklyAutoTrackEnabled) s_weeklyCache to build the full
-// resolved list - called once per rebuild, shared by all three UI files,
-// instead of three independent copies of this same walk every frame.
+// The one place that walks g_SubscribedBasicEvents/g_SubscribedCyclicSlots and
+// (when WeeklyAutoTrackEnabled) s_weeklyCache to build the full resolved list -
+// called once per rebuild, shared by all three UI files, instead of three
+// independent copies of this same walk every frame.
 //--------------------------------------------------------------------------------
 static void RebuildResolvedSubscriptions()
 {
@@ -332,12 +332,11 @@ const std::vector<ResolvedSubscription>& GetResolvedSubscriptions()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetSubscriptionActiveState
 //--------------------------------------------------------------------------------
-// Four branches: varying-schedule Basic Events (walk the sorted start
-// times), periodic (non-varying) Basic Events, varying-schedule Cyclic
-// slots (same walk, scoped to the group's period instead of a day), and
-// periodic (non-varying) Cyclic slots (checks every repeat within the
-// period, since a slot can recur more than once). All four return early
-// once an active occurrence is found.
+// Four branches: varying-schedule Basic Events (walk the sorted start times),
+// periodic (non-varying) Basic Events, varying-schedule Cyclic slots (same walk,
+// scoped to the group's period instead of a day), and periodic (non-varying)
+// Cyclic slots (checks every repeat within the period, since a slot can recur
+// more than once). All four return early once an active occurrence is found.
 //--------------------------------------------------------------------------------
 SubscriptionActiveState GetSubscriptionActiveState(const ResolvedSubscription& sub, time_t now)
 {

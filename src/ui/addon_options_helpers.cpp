@@ -1,13 +1,12 @@
 //################################################################################
 // addon_options_helpers.cpp
 //--------------------------------------------------------------------------------
-// Implementations for everything declared in addon_options_helpers.h -
-// the scoped-disable helper, period widget, bulk icon picker, color
-// conversion, duplicate-name checks, drag-and-drop plumbing, hand-drawn
-// glyphs, the notify-level control, the shared name/context-menu row,
-// search predicates, and the two full row drawers (Basic Event / Cyclic
-// Group). See addon_options.cpp for the panel that assembles these into
-// the actual Nexus options UI.
+// Implementations for everything declared in addon_options_helpers.h - the
+// scoped-disable helper, period widget, bulk icon picker, color conversion,
+// duplicate-name checks, drag-and-drop plumbing, hand-drawn glyphs, the notify-
+// level control, the shared name/context-menu row, search predicates, and the two
+// full row drawers (Basic Event / Cyclic Group). See addon_options.cpp for the
+// panel that assembles these into the actual Nexus options UI.
 //--------------------------------------------------------------------------------
 
 #include "addon_options_helpers.h"
@@ -41,13 +40,13 @@ ImGuiScopedDisabled::~ImGuiScopedDisabled()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PeriodSecondsToHours / DrawPeriodHoursDragInt
 //--------------------------------------------------------------------------------
-// Whole hours only, 1-12h: no GW2 event/chain runs on anything but a
-// whole-hour cycle, and a DragInt (rather than a Combo over a fixed
-// label array) leaves room to raise the cap later without code changes.
+// Whole hours only, 1-12h: no GW2 event/chain runs on anything but a whole-hour
+// cycle, and a DragInt (rather than a Combo over a fixed label array) leaves room
+// to raise the cap later without code changes.
 //
-// PeriodSecondsToHours clamps to [kMinPeriodHours, kMaxPeriodHours],
-// snapping any out-of-range or non-whole-hour value (e.g. from a
-// hand-edited JSON file) to the nearest valid hour.
+// PeriodSecondsToHours clamps to [kMinPeriodHours, kMaxPeriodHours], snapping any
+// out-of-range or non-whole-hour value (e.g. from a hand-edited JSON file) to the
+// nearest valid hour.
 //--------------------------------------------------------------------------------
 int PeriodSecondsToHours(int periodSeconds)
 {
@@ -73,13 +72,12 @@ void DrawPeriodHoursDragInt(int* periodSeconds)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBulkIconPicker
 //--------------------------------------------------------------------------------
-// Display state before the user touches it: if every target already
-// shares the exact same iconTexture (including "all empty", i.e. all
-// using the plain dot), that shared value is shown selected. If they
-// disagree, a "(mixed)" entry is shown instead - purely a status display,
-// not a real choice: selecting any OTHER entry applies that choice to
-// every target, and "(mixed)" naturally drops out of the list once the
-// state resolves to non-mixed.
+// Display state before the user touches it: if every target already shares the
+// exact same iconTexture (including "all empty", i.e. all using the plain dot),
+// that shared value is shown selected. If they disagree, a "(mixed)" entry is
+// shown instead - purely a status display, not a real choice: selecting any OTHER
+// entry applies that choice to every target, and "(mixed)" naturally drops out of
+// the list once the state resolves to non-mixed.
 //--------------------------------------------------------------------------------
 void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices)
 {
@@ -120,10 +118,10 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsDuplicateEventName / IsDuplicateGroupName / IsDuplicateSlotKey
 //--------------------------------------------------------------------------------
-// Match the merge keys from events_storage.cpp: groups/events/slots all
-// by name alone (GroupKey/EventKey/SlotKey) - for slots this means unique
-// WITHIN the group, not globally. selfIndex excludes the entry being
-// checked from its own comparison.
+// Match the merge keys from events_storage.cpp: groups/events/slots all by name
+// alone (GroupKey/EventKey/SlotKey) - for slots this means unique WITHIN the
+// group, not globally. selfIndex excludes the entry being checked from its own
+// comparison.
 //--------------------------------------------------------------------------------
 bool IsDuplicateEventName(const std::vector<WorldEvent>& events, int selfIndex)
 {
@@ -170,9 +168,9 @@ void DrawDuplicateWarning()
 // name   fixed-size copy of the dragged item's current name
 //--------------------------------------------------------------------------------
 // SetDragDropPayload copies a fixed-size raw blob - it has no idea about
-// std::string, so the payload is a small POD struct with a fixed char[]
-// buffer, matching the same nameBuf convention already used throughout
-// this file for ImGui::InputText.
+// std::string, so the payload is a small POD struct with a fixed char[] buffer,
+// matching the same nameBuf convention already used throughout this file for
+// ImGui::InputText.
 //--------------------------------------------------------------------------------
 struct DragPayload
 {
@@ -187,12 +185,12 @@ const char* const kCyclicGroupDragType = "WE_DRAG_CYCLIC_GROUP";
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MakeDragSource / MakeDropTarget
 //--------------------------------------------------------------------------------
-// MakeDragSource: call right after the widget being dragged (e.g. a
-// row's TreeNode). itemName is the event/group name to move on drop.
+// MakeDragSource: call right after the widget being dragged (e.g. a row's
+// TreeNode). itemName is the event/group name to move on drop.
 //
-// MakeDropTarget: call right after the widget accepting a drop (a
-// category header, or "drop here to uncategorize"). Performs the
-// MoveCategoryMember() call itself; the bool return is informational.
+// MakeDropTarget: call right after the widget accepting a drop (a category
+// header, or "drop here to uncategorize"). Performs the MoveCategoryMember() call
+// itself; the bool return is informational.
 //--------------------------------------------------------------------------------
 void MakeDragSource(const char* dragType, const std::string& itemName)
 {
@@ -225,11 +223,11 @@ bool MakeDropTarget(const char* dragType, std::vector<Category>& categories, int
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawSubscribeCheckbox
 //--------------------------------------------------------------------------------
-// Meant to sit immediately before a TreeNode call, on the same line
-// (SameLine), producing "[x] > TreeNode". A plain ImGui::Checkbox is
-// noticeably taller than a TreeNode arrow, so FramePadding is zeroed
-// just for this one call to match the arrow's height. Returns true if
-// toggled this frame, same contract as ImGui::Checkbox itself.
+// Meant to sit immediately before a TreeNode call, on the same line (SameLine),
+// producing "[x] > TreeNode". A plain ImGui::Checkbox is noticeably taller than a
+// TreeNode arrow, so FramePadding is zeroed just for this one call to match the
+// arrow's height. Returns true if toggled this frame, same contract as
+// ImGui::Checkbox itself.
 //--------------------------------------------------------------------------------
 bool DrawSubscribeCheckbox(const char* label, bool& value)
 {
@@ -242,11 +240,10 @@ bool DrawSubscribeCheckbox(const char* label, bool& value)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBellIcon / DrawSpeakerIcon
 //--------------------------------------------------------------------------------
-// Hand-drawn glyphs via ImDrawList primitives - no bell/speaker glyph in
-// the base font. `center` is the visual center, `size` roughly the full
-// height in pixels; both authored in the same 24-unit box (s = size/24).
-// DrawSpeakerIcon doubles as level 3's icon below and as a standalone
-// label next to the sound-file picker.
+// Hand-drawn glyphs via ImDrawList primitives - no bell/speaker glyph in the base
+// font. `center` is the visual center, `size` roughly the full height in pixels;
+// both authored in the same 24-unit box (s = size/24). DrawSpeakerIcon doubles as
+// level 3's icon below and as a standalone label next to the sound-file picker.
 //--------------------------------------------------------------------------------
 void DrawBellIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
 {
@@ -292,15 +289,14 @@ void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNotifyLevelIcon
 //--------------------------------------------------------------------------------
-// 4-way control: level 0 unsubscribed ("+"), 1 subscribed/silent (bell),
-// 2 +toast ("-"), 3 +toast+sound (speaker) - see GetBasicEventNotifyLevel
-// in subscriptions.h. Left-click advances one level, wrapping 3 -> 0;
-// jumping to any level directly is in DrawNameAndContextMenu's right-click
-// menu instead.
+// 4-way control: level 0 unsubscribed ("+"), 1 subscribed/silent (bell), 2 +toast
+// ("-"), 3 +toast+sound (speaker) - see GetBasicEventNotifyLevel in
+// subscriptions.h. Left-click advances one level, wrapping 3 -> 0; jumping to any
+// level directly is in DrawNameAndContextMenu's right-click menu instead.
 //
-// Manual hit-test + ImDrawList (not a real widget), sized to
-// GetFrameHeight() to match the tree arrow. Returns the level to apply
-// this frame - unchanged unless this click just advanced it.
+// Manual hit-test + ImDrawList (not a real widget), sized to GetFrameHeight() to
+// match the tree arrow. Returns the level to apply this frame - unchanged unless
+// this click just advanced it.
 //--------------------------------------------------------------------------------
 int DrawNotifyLevelIcon(const char* idSuffix, int level)
 {
@@ -368,12 +364,12 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawDragButton
 //--------------------------------------------------------------------------------
-// Small button placed next to the Location field that arms/disarms
-// map-drag edit mode for one Basic Event or Cyclic Group (see EditModeState
-// in maprender.h). Reads "Drag" when this row isn't the one currently being
-// edited, and "Stop" when it is - clicking it toggles. A hovered tooltip
-// explains the interaction either way, since "Drag"/"Stop" alone doesn't
-// say WHERE to actually drag it (the marker on the map, not this button).
+// Small button placed next to the Location field that arms/disarms map-drag edit
+// mode for one Basic Event or Cyclic Group (see EditModeState in maprender.h).
+// Reads "Drag" when this row isn't the one currently being edited, and "Stop"
+// when it is - clicking it toggles. A hovered tooltip explains the interaction
+// either way, since "Drag"/"Stop" alone doesn't say WHERE to actually drag it
+// (the marker on the map, not this button).
 //--------------------------------------------------------------------------------
 void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 {
@@ -404,9 +400,8 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // BuildChatChannelOptions
 //--------------------------------------------------------------------------------
-// Index 0 is the empty prefix (ChatChannelPrefix's "current chat"
-// default); the Better Chat entry stays last so dropping it is a single
-// tail check.
+// Index 0 is the empty prefix (ChatChannelPrefix's "current chat" default); the
+// Better Chat entry stays last so dropping it is a single tail check.
 //--------------------------------------------------------------------------------
 void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const char*>& prefixes)
 {
@@ -435,23 +430,23 @@ void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNameAndContextMenu
 //--------------------------------------------------------------------------------
-// Shared expand/collapse + name + right-click row, used by Basic Events,
-// Cyclic Groups, Cyclic slots, and both category lists. Right-click always
-// offers Edit name / Delete; toggleDone, notifyLevel/setNotifyLevel, and
-// resetToDefault add optional entries, left null/-1 where not applicable
-// (e.g. categories pass none of them - no "Reset" for those).
+// Shared expand/collapse + name + right-click row, used by Basic Events, Cyclic
+// Groups, Cyclic slots, and both category lists. Right-click always offers Edit
+// name / Delete; toggleDone, notifyLevel/setNotifyLevel, and resetToDefault add
+// optional entries, left null/-1 where not applicable (e.g. categories pass none
+// of them - no "Reset" for those).
 //
-// resetToDefault, when non-null, adds "Reset" between Edit name and
-// Delete; resetAvailable (only meaningful together with resetToDefault)
-// greys it out for entries with no compiled-in default to reset to (see
-// GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot in
-// events_storage.h) rather than hiding the entry outright, so its
-// position in the menu stays predictable either way.
+// resetToDefault, when non-null, adds "Reset" between Edit name and Delete;
+// resetAvailable (only meaningful together with resetToDefault) greys it out for
+// entries with no compiled-in default to reset to (see
+// GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot in events_storage.h)
+// rather than hiding the entry outright, so its position in the menu stays
+// predictable either way.
 //
-// editBuffers is the caller's own edit-in-progress map, keyed by editKey
-// (kept separate from removeIndex since slots share one map across
-// groups - see DrawCyclicGroupRow). Returns {open, newName}; sets
-// pendingRemoveIndex = removeIndex on Delete.
+// editBuffers is the caller's own edit-in-progress map, keyed by editKey (kept
+// separate from removeIndex since slots share one map across groups - see
+// DrawCyclicGroupRow). Returns {open, newName}; sets pendingRemoveIndex =
+// removeIndex on Delete.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType, const char* autoTag, std::function<void()> toggleDone,
     int notifyLevel, std::function<void(int)> setNotifyLevel, std::function<void()> resetToDefault, bool resetAvailable)
@@ -536,13 +531,12 @@ NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int re
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ContainsCaseInsensitive / EventMatchesSearch / GroupMatchesSearch
 //--------------------------------------------------------------------------------
-// One shared query filters both Basic Events and Cyclic Events at once -
-// a single search box, not two.
+// One shared query filters both Basic Events and Cyclic Events at once - a single
+// search box, not two.
 //
-// Matching is case-insensitive substring, and for Cyclic Events checks
-// BOTH the group's own name AND every one of its slot names - so typing
-// "Crash Site" finds Dry Top even though "Dry Top" itself doesn't contain
-// that text.
+// Matching is case-insensitive substring, and for Cyclic Events checks BOTH the
+// group's own name AND every one of its slot names - so typing "Crash Site" finds
+// Dry Top even though "Dry Top" itself doesn't contain that text.
 //--------------------------------------------------------------------------------
 bool ContainsCaseInsensitive(const std::string& haystack, const std::string& needleLower)
 {
@@ -569,12 +563,11 @@ bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBasicEventRow   (pairs with: DrawCyclicGroupRow)
 //--------------------------------------------------------------------------------
-// Draws one g_Events[i] row in full - extracted out of the main loop so
-// both the "uncategorized" pass and each category's "members" pass can
-// call the same drawing code. PushID/PopID is the CALLER's responsibility
-// (the same index is drawn from different places depending on category
-// membership). Sets pendingRemoveIndex = i on remove; does not modify
-// g_Events directly.
+// Draws one g_Events[i] row in full - extracted out of the main loop so both the
+// "uncategorized" pass and each category's "members" pass can call the same
+// drawing code. PushID/PopID is the CALLER's responsibility (the same index is
+// drawn from different places depending on category membership). Sets
+// pendingRemoveIndex = i on remove; does not modify g_Events directly.
 //--------------------------------------------------------------------------------
 void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 {
@@ -753,15 +746,15 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 // DrawCyclicGroupRow   (pairs with: DrawBasicEventRow)
 //--------------------------------------------------------------------------------
 // Draws one g_CyclicGroups[i] row in full (header, name, location, period,
-// colors, idle-color override, and the nested per-slot list) - extracted
-// the same way as DrawBasicEventRow, so both the "uncategorized" pass and
-// each category's "members" pass can call the identical drawing code.
+// colors, idle-color override, and the nested per-slot list) - extracted the same
+// way as DrawBasicEventRow, so both the "uncategorized" pass and each category's
+// "members" pass can call the identical drawing code.
 //
 // PushID/PopID for this row are the CALLER's responsibility, same as
 // DrawBasicEventRow.
 //
-// Sets pendingRemoveGroupIndex = i if this row's remove button was
-// clicked this frame; does not modify g_CyclicGroups directly.
+// Sets pendingRemoveGroupIndex = i if this row's remove button was clicked this
+// frame; does not modify g_CyclicGroups directly.
 //--------------------------------------------------------------------------------
 void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 {

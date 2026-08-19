@@ -113,8 +113,8 @@ void RenderMapEvents();
 //--------------------------------------------------------------------------------
 // Returns the sorted list of PNG/JPG filenames found in the addon's textures/
 // folder, for the options panel's icon-picker dropdown. Call ScanEventIconFiles()
-// to refresh after the user adds new files - there's no automatic
-// filesystem-watching.
+// to refresh after the user adds new files - there's no automatic filesystem-
+// watching.
 //--------------------------------------------------------------------------------
 const std::vector<std::string>& GetEventIconFilenames();
 void ScanEventIconFiles();

@@ -30,9 +30,9 @@ namespace
     // Base64Encode / Base64Decode
     //--------------------------------------------------------------------------------
     // Minimal base64 codec - avoids pulling in crypt32 just for
-    // CryptBinaryToString/CryptStringToBinary. Decode returns false on any
-    // malformed input (bad length, invalid character, etc.) - callers
-    // treat that as "not one of our blobs".
+    // CryptBinaryToString/CryptStringToBinary. Decode returns false on any malformed
+    // input (bad length, invalid character, etc.) - callers treat that as "not one of
+    // our blobs".
     //--------------------------------------------------------------------------------
     std::string Base64Encode(const std::vector<uint8_t>& data)
     {
@@ -116,9 +116,9 @@ namespace
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // LoadOrCreateMasterKey
     //--------------------------------------------------------------------------------
-    // Loads "<addonDir>\apikey.key" (32 raw bytes) if present and the
-    // right size, otherwise generates one via BCryptGenRandom. Kept
-    // separate from settings.ini on purpose (see apikey_crypto.h).
+    // Loads "<addonDir>\apikey.key" (32 raw bytes) if present and the right size,
+    // otherwise generates one via BCryptGenRandom. Kept separate from settings.ini on
+    // purpose (see apikey_crypto.h).
     //--------------------------------------------------------------------------------
     bool LoadOrCreateMasterKey(const std::string& addonDir, std::vector<uint8_t>& outKey)
     {
@@ -170,8 +170,8 @@ namespace
     // hAlg   BCrypt algorithm provider handle
     // hKey   BCrypt symmetric key handle
     //--------------------------------------------------------------------------------
-    // AES-256-GCM via BCrypt. Blob layout: nonce(12) || tag(16) || ciphertext.
-    // Open() sets up the provider/key pair; the destructor tears both down.
+    // AES-256-GCM via BCrypt. Blob layout: nonce(12) || tag(16) || ciphertext. Open()
+    // sets up the provider/key pair; the destructor tears both down.
     //--------------------------------------------------------------------------------
     struct AesGcm
     {

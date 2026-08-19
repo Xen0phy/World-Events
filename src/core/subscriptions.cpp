@@ -1,16 +1,16 @@
 //################################################################################
 // subscriptions.cpp
 //--------------------------------------------------------------------------------
-// Storage and JSON persistence for the user's subscribed-events watchlist
-// (see subscriptions.h). No compiled-in defaults to merge against - like
+// Storage and JSON persistence for the user's subscribed-events watchlist (see
+// subscriptions.h). No compiled-in defaults to merge against - like
 // events_categories.cpp, loading just replaces whatever's in memory with
 // whatever's on disk. Persisted in events.json alongside "events"/
-// "cyclicGroups"/"basicCategories"/"cyclicCategories", as six more
-// top-level keys.
+// "cyclicGroups"/"basicCategories"/"cyclicCategories", as six more top-level
+// keys.
 //
 // The chat-paste helpers (PasteToChat, BuildChatPasteMessage,
-// CopyTextToClipboard) also live here, alongside the watchlist storage
-// that feeds them.
+// CopyTextToClipboard) also live here, alongside the watchlist storage that feeds
+// them.
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
@@ -66,8 +66,8 @@ void ToggleBasicEventSubscription(const std::string& eventName)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenameSubscribedBasicEvent
 //--------------------------------------------------------------------------------
-// Patches every occurrence in each list, not just the first, in case of a
-// prior data inconsistency; see subscriptions.h for what gets patched.
+// Patches every occurrence in each list, not just the first, in case of a prior
+// data inconsistency; see subscriptions.h for what gets patched.
 //--------------------------------------------------------------------------------
 void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName)
 {
@@ -154,9 +154,8 @@ bool IsCyclicSlotSoundEnabled(const CyclicSubscriptionKey& key)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SetMembership
 //--------------------------------------------------------------------------------
-// Makes membership of `value` in `list` match `want`, adding/erasing as
-// needed. Local to this file; shared by the two Set...NotifyLevel
-// functions below.
+// Makes membership of `value` in `list` match `want`, adding/erasing as needed.
+// Local to this file; shared by the two Set...NotifyLevel functions below.
 //--------------------------------------------------------------------------------
 template <typename T>
 static void SetMembership(std::vector<T>& list, const T& value, bool want)
@@ -173,8 +172,8 @@ static void SetMembership(std::vector<T>& list, const T& value, bool want)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetBasicEventNotifyLevel / SetBasicEventNotifyLevel
 //--------------------------------------------------------------------------------
-// Derives/sets the ladder described in subscriptions.h. Set clamps level to
-// 0..3, then brings subscribed/toast/sound into agreement via
+// Derives/sets the ladder described in subscriptions.h. Set clamps level to 0..3,
+// then brings subscribed/toast/sound into agreement via
 // ToggleBasicEventSubscription (bumps the generation) and SetMembership.
 //--------------------------------------------------------------------------------
 int GetBasicEventNotifyLevel(const std::string& eventName)
@@ -201,8 +200,8 @@ void SetBasicEventNotifyLevel(const std::string& eventName, int level)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetCyclicSlotNotifyLevel / SetCyclicSlotNotifyLevel
 //--------------------------------------------------------------------------------
-// Same logic as GetBasicEventNotifyLevel/SetBasicEventNotifyLevel, for
-// Cyclic slots.
+// Same logic as GetBasicEventNotifyLevel/SetBasicEventNotifyLevel, for Cyclic
+// slots.
 //--------------------------------------------------------------------------------
 int GetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key)
 {
@@ -247,13 +246,13 @@ static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveSubscriptionsData / LoadSubscriptionsData
 //--------------------------------------------------------------------------------
-// Save reads the existing events.json first (same pattern as
-// SaveCategoriesData) so this only adds/updates the six subscription keys
-// without clobbering the rest of the file.
+// Save reads the existing events.json first (same pattern as SaveCategoriesData)
+// so this only adds/updates the six subscription keys without clobbering the rest
+// of the file.
 //
-// Load defaults any missing key to empty via .value(...), so an
-// events.json from before this feature existed loads with every
-// subscription non-toast/non-sound rather than opting in silently.
+// Load defaults any missing key to empty via .value(...), so an events.json from
+// before this feature existed loads with every subscription non-toast/non-sound
+// rather than opting in silently.
 //--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir)
 {
@@ -340,8 +339,8 @@ bool LoadSubscriptionsData(const std::string& addonDir)
 // CopyTextToClipboard
 //--------------------------------------------------------------------------------
 // Plain Win32 clipboard write. No synthetic keystrokes, no window-handle
-// targeting, nothing sent to the game process - this only touches the
-// shared OS clipboard, same as any other app's "Copy" button.
+// targeting, nothing sent to the game process - this only touches the shared OS
+// clipboard, same as any other app's "Copy" button.
 //--------------------------------------------------------------------------------
 bool CopyTextToClipboard(const std::string& text)
 {
@@ -370,9 +369,9 @@ bool CopyTextToClipboard(const std::string& text)
 // get_l_param
 //--------------------------------------------------------------------------------
 // Builds the LPARAM Windows expects for a synthesized WM_KEYDOWN/WM_KEYUP
-// message: scan code in bits 16-23, repeat/previous-state and transition-
-// state flags in the high bits. See MSDN's WM_KEYDOWN/WM_KEYUP docs for the
-// full bit layout.
+// message: scan code in bits 16-23, repeat/previous-state and transition- state
+// flags in the high bits. See MSDN's WM_KEYDOWN/WM_KEYUP docs for the full bit
+// layout.
 //--------------------------------------------------------------------------------
 LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
 {
@@ -391,10 +390,10 @@ LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // BuildChatPasteMessage   (pairs with: PasteToChat)
 //--------------------------------------------------------------------------------
-// Builds "<name>: <chatCode>" (or just <name>) for a watchlist
-// row/segment/toast click. Unprefixed - PasteToChat applies
-// Settings::ChatChannelPrefix itself, since /w pastes the prefix and body
-// into two different input boxes rather than one concatenated string.
+// Builds "<name>: <chatCode>" (or just <name>) for a watchlist row/segment/toast
+// click. Unprefixed - PasteToChat applies Settings::ChatChannelPrefix itself,
+// since /w pastes the prefix and body into two different input boxes rather than
+// one concatenated string.
 //--------------------------------------------------------------------------------
 std::string BuildChatPasteMessage(const std::string& name, const std::string& chatCode)
 {
@@ -404,12 +403,12 @@ std::string BuildChatPasteMessage(const std::string& name, const std::string& ch
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetMumbleCharacterName
 //--------------------------------------------------------------------------------
-// Mumble::Data::Identity (Mumble.h) is a UTF-16 JSON string, not a plain
-// name field - {"name":"...", "profession":N, ...}. Narrowed to UTF-8 to
-// parse with nlohmann_json, then narrowed again to the clipboard's ANSI
-// codepage so accented names survive CopyTextToClipboard's CF_TEXT write
-// the same as any other pasted segment. Returns empty on any failure:
-// MumbleLink not ready yet, malformed/empty identity, missing "name".
+// Mumble::Data::Identity (Mumble.h) is a UTF-16 JSON string, not a plain name
+// field - {"name":"...", "profession":N, ...}. Narrowed to UTF-8 to parse with
+// nlohmann_json, then narrowed again to the clipboard's ANSI codepage so accented
+// names survive CopyTextToClipboard's CF_TEXT write the same as any other pasted
+// segment. Returns empty on any failure: MumbleLink not ready yet,
+// malformed/empty identity, missing "name".
 //--------------------------------------------------------------------------------
 std::string GetMumbleCharacterName()
 {
@@ -453,9 +452,9 @@ std::atomic<bool> send_in_progress{false};
 // text        clipboard payload for this segment
 // tabAfter    press Tab after pasting, before moving to the next segment
 //--------------------------------------------------------------------------------
-// One clipboard-load-and-paste step in a PasteSegmentsToChat sequence.
-// Most channels need a single segment; /w's two-input-box layout needs
-// three (see PasteToChat).
+// One clipboard-load-and-paste step in a PasteSegmentsToChat sequence. Most
+// channels need a single segment; /w's two-input-box layout needs three (see
+// PasteToChat).
 //--------------------------------------------------------------------------------
 struct ChatPasteSegment
 {
@@ -466,15 +465,15 @@ struct ChatPasteSegment
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PasteSegmentsToChat   (pairs with: PasteToChat)
 //--------------------------------------------------------------------------------
-// Deliberately mixes two input mechanisms: Enter and 'V' go through
-// SendMessage (posts straight to the target window's queue), while Ctrl
-// goes through SendInput (the real, system-wide input stream GetKeyState
-// reads) - required for the third-party target app this talks to, since
-// an all-SendInput or all-SendMessage version both failed to deliver a
-// recognized Ctrl+V there. Runs on a detached background thread guarded
-// by BackgroundThreadGuard (background_threads.h) so AddonUnload can wait
-// for it to finish; IsShuttingDown() is checked between steps so it can
-// bail early, releasing Ctrl first if it was already held.
+// Deliberately mixes two input mechanisms: Enter and 'V' go through SendMessage
+// (posts straight to the target window's queue), while Ctrl goes through
+// SendInput (the real, system-wide input stream GetKeyState reads) - required for
+// the third-party target app this talks to, since an all-SendInput or all-
+// SendMessage version both failed to deliver a recognized Ctrl+V there. Runs on a
+// detached background thread guarded by BackgroundThreadGuard
+// (background_threads.h) so AddonUnload can wait for it to finish;
+// IsShuttingDown() is checked between steps so it can bail early, releasing Ctrl
+// first if it was already held.
 //--------------------------------------------------------------------------------
 void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::milliseconds delay_ms)
 {
@@ -564,14 +563,13 @@ void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::mi
 // PasteToChat   (pairs with: BuildChatPasteMessage, PasteSegmentsToChat)
 //--------------------------------------------------------------------------------
 // Applies Settings::ChatChannelPrefix to message and hands it to
-// PasteSegmentsToChat. Every prefix but "/w " is one segment: prefix and
-// body concatenated, pasted once. "/w " needs GW2's own whisper box,
-// which takes the target name and the message in two separate fields
-// reached by pressing Tab between them, so that case pastes three
-// segments instead - "/w ", the Mumble-reported character name, then
-// message - with Tab after the name. If the character name can't be read
-// yet, the whisper is dropped rather than sent to whatever box currently
-// has focus.
+// PasteSegmentsToChat. Every prefix but "/w " is one segment: prefix and body
+// concatenated, pasted once. "/w " needs GW2's own whisper box, which takes the
+// target name and the message in two separate fields reached by pressing Tab
+// between them, so that case pastes three segments instead - "/w ", the Mumble-
+// reported character name, then message - with Tab after the name. If the
+// character name can't be read yet, the whisper is dropped rather than sent to
+// whatever box currently has focus.
 //--------------------------------------------------------------------------------
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 {

@@ -1,8 +1,8 @@
 //################################################################################
 // map_shared.cpp
 //--------------------------------------------------------------------------------
-// See map_shared.h for the shared-between-maprender/cyclicrender rationale
-// for both functions below.
+// See map_shared.h for the shared-between-maprender/cyclicrender rationale for
+// both functions below.
 //--------------------------------------------------------------------------------
 
 #include "map_shared.h"

@@ -6,10 +6,9 @@
 // g_DefaultCyclicCategories   compiled-in category defaults for the roster
 //                             above (see CategoryDefault, events_categories.h)
 //--------------------------------------------------------------------------------
-// Hand-written data only - no logic. Groups are grouped by comment banner,
-// one per expansion, matching g_DefaultCyclicCategories one-for-one below
-// (Eye of the North is filed under Icebrood Saga there, not Instanced -
-// see that list).
+// Hand-written data only - no logic. Groups are grouped by comment banner, one
+// per expansion, matching g_DefaultCyclicCategories one-for-one below (Eye of the
+// North is filed under Icebrood Saga there, not Instanced - see that list).
 //--------------------------------------------------------------------------------
 
 #include "events.h"

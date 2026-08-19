@@ -1,12 +1,12 @@
 //################################################################################
 // addon.cpp
 //--------------------------------------------------------------------------------
-// Nexus addon entry point: AddonLoad/AddonUnload (registered via
-// GetAddonDef below) and AddonRender, the per-frame render callback that
-// drives everything else (subscriptions views, map overlays).
+// Nexus addon entry point: AddonLoad/AddonUnload (registered via GetAddonDef
+// below) and AddonRender, the per-frame render callback that drives everything
+// else (subscriptions views, map overlays).
 //
-// See SaveAllData below for the on-disk save-ordering rule shared by
-// AddonLoad and AddonUnload.
+// See SaveAllData below for the on-disk save-ordering rule shared by AddonLoad
+// and AddonUnload.
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
@@ -45,16 +45,16 @@ float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 // SaveAllData
 //--------------------------------------------------------------------------------
 // Writes every on-disk JSON file this addon owns, in the one order that's
-// actually safe: events first, then categories/subscriptions/tracking,
-// since those three reference g_Events/g_CyclicGroups by name (see
-// events_categories.h, subscriptions.h, events_tracking.h) and need
-// events.json's own keys to already reflect the final merged state.
+// actually safe: events first, then categories/subscriptions/tracking, since
+// those three reference g_Events/g_CyclicGroups by name (see events_categories.h,
+// subscriptions.h, events_tracking.h) and need events.json's own keys to already
+// reflect the final merged state.
 //
-// Called from both AddonLoad (to persist merged defaults+disk state on
-// first write) and AddonUnload, kept as one function so this ordering
-// rule can't drift out of sync between the two callers. settings.ini is
-// deliberately NOT included here - SaveSettings has no such ordering
-// dependency and is only ever called from AddonUnload.
+// Called from both AddonLoad (to persist merged defaults+disk state on first
+// write) and AddonUnload, kept as one function so this ordering rule can't drift
+// out of sync between the two callers. settings.ini is deliberately NOT included
+// here - SaveSettings has no such ordering dependency and is only ever called
+// from AddonUnload.
 //--------------------------------------------------------------------------------
 static void SaveAllData(const std::string& addonDir)
 {
@@ -67,14 +67,13 @@ static void SaveAllData(const std::string& addonDir)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ResetAllDataToDefaults
 //--------------------------------------------------------------------------------
-// Deletes events.json, then rebuilds g_Events/g_CyclicGroups from the
-// compiled-in snapshot (ResetEventsToDefaults - a plain reload can't do
-// this, since it would merge from the current, already-edited globals),
-// reloads categories with the file gone (resolves to compiled-in
-// defaults, same as AddonLoad's first-ever run), and explicitly clears
-// subscriptions/done-today markers (see the note below on why reloading
-// those two instead wouldn't actually clear them). SaveAllData then
-// writes all of that back out as a fresh file.
+// Deletes events.json, then rebuilds g_Events/g_CyclicGroups from the compiled-in
+// snapshot (ResetEventsToDefaults - a plain reload can't do this, since it would
+// merge from the current, already-edited globals), reloads categories with the
+// file gone (resolves to compiled-in defaults, same as AddonLoad's first-ever
+// run), and explicitly clears subscriptions/done-today markers (see the note
+// below on why reloading those two instead wouldn't actually clear them).
+// SaveAllData then writes all of that back out as a fresh file.
 //--------------------------------------------------------------------------------
 bool ResetAllDataToDefaults()
 {
@@ -98,12 +97,12 @@ bool ResetAllDataToDefaults()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonLoad
 //--------------------------------------------------------------------------------
-// Nexus calls this once, synchronously, before the addon does anything
-// else. Order matters below: ImGui context first (nothing can render
-// without it), then the four Load*Data calls (see each callee for the
-// merge-with-compiled-defaults story), then SaveAllData to persist that
-// merged state, then the render callbacks are registered last so nothing
-// can render before setup has actually finished.
+// Nexus calls this once, synchronously, before the addon does anything else.
+// Order matters below: ImGui context first (nothing can render without it), then
+// the four Load*Data calls (see each callee for the merge-with-compiled-defaults
+// story), then SaveAllData to persist that merged state, then the render
+// callbacks are registered last so nothing can render before setup has actually
+// finished.
 //--------------------------------------------------------------------------------
 void AddonLoad(AddonAPI_t* aAPI)
 {
@@ -153,11 +152,10 @@ void AddonLoad(AddonAPI_t* aAPI)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonUnload
 //--------------------------------------------------------------------------------
-// Deregisters render callbacks first so no new frame can start using
-// data this is about to tear down, then waits (briefly, bounded) for any
-// in-flight background thread before this DLL is unloaded out from under
-// it, then persists everything and frees heap memory now, while the CRT
-// is still intact.
+// Deregisters render callbacks first so no new frame can start using data this is
+// about to tear down, then waits (briefly, bounded) for any in-flight background
+// thread before this DLL is unloaded out from under it, then persists everything
+// and frees heap memory now, while the CRT is still intact.
 //--------------------------------------------------------------------------------
 void AddonUnload()
 {
@@ -197,10 +195,10 @@ void AddonUnload()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonRender
 //--------------------------------------------------------------------------------
-// Per-frame render callback (RT_Render). Subscriptions views render
-// whenever gameplay is active; map-only overlays (world markers, cyclic
-// rings) additionally require the full-screen map to be open - see the
-// early-outs below for exactly where that split happens.
+// Per-frame render callback (RT_Render). Subscriptions views render whenever
+// gameplay is active; map-only overlays (world markers, cyclic rings)
+// additionally require the full-screen map to be open - see the early-outs below
+// for exactly where that split happens.
 //--------------------------------------------------------------------------------
 void AddonRender()
 {
@@ -257,8 +255,8 @@ void AddonRender()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetAddonDef
 //--------------------------------------------------------------------------------
-// Required Nexus export; returns the static AddonDefinition_t Nexus reads
-// once at load to get metadata and the Load/Unload function pointers.
+// Required Nexus export; returns the static AddonDefinition_t Nexus reads once at
+// load to get metadata and the Load/Unload function pointers.
 //--------------------------------------------------------------------------------
 extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef()
 {

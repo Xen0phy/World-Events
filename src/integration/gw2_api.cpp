@@ -59,9 +59,8 @@ static std::atomic<long long> s_lastFetchAttemptUnixTime{0};
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CurrentUtcDay
 //--------------------------------------------------------------------------------
-// Real daily reset is UTC midnight, so a plain floor-division day number
-// on Unix time (also UTC-based) lines up with it exactly - no timezone
-// conversion needed.
+// Real daily reset is UTC midnight, so a plain floor-division day number on Unix
+// time (also UTC-based) lines up with it exactly - no timezone conversion needed.
 //--------------------------------------------------------------------------------
 static long long CurrentUtcDay()
 {
@@ -71,10 +70,10 @@ static long long CurrentUtcDay()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AsciiLower
 //--------------------------------------------------------------------------------
-// ASCII-only lowercase, used solely for matching Wizard's Vault objective
-// titles case-insensitively (see s_weeklyObjectiveComplete/
-// GetWeeklyObjectiveState below). Every title observed so far is plain
-// ASCII English, so no locale/UTF-8 handling is needed here.
+// ASCII-only lowercase, used solely for matching Wizard's Vault objective titles
+// case-insensitively (see s_weeklyObjectiveComplete/ GetWeeklyObjectiveState
+// below). Every title observed so far is plain ASCII English, so no locale/UTF-8
+// handling is needed here.
 //--------------------------------------------------------------------------------
 static std::string AsciiLower(const std::string& s)
 {
@@ -98,17 +97,17 @@ static HINTERNET  s_activeRequest = nullptr;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CancelInFlightHttpRequest
 //--------------------------------------------------------------------------------
-// WinHTTP's documented way to cancel a blocked synchronous call is to
-// close the handle from a different thread - the blocked call then
-// returns (with an error) instead of running out its timeout. Registered
-// as a shutdown hook (see background_threads.h), this closes whichever
-// s_active* handles HttpsGetJson currently has open, from the main/render
-// thread during AddonUnload, so the fetch thread's blocking call returns
-// almost immediately instead of waiting out the full timeout.
+// WinHTTP's documented way to cancel a blocked synchronous call is to close the
+// handle from a different thread - the blocked call then returns (with an error)
+// instead of running out its timeout. Registered as a shutdown hook (see
+// background_threads.h), this closes whichever s_active* handles HttpsGetJson
+// currently has open, from the main/render thread during AddonUnload, so the
+// fetch thread's blocking call returns almost immediately instead of waiting out
+// the full timeout.
 //
-// s_activeHandlesMutex serializes every close so a handle is never closed
-// twice from two threads at once - whichever close gets the lock first
-// "wins"; the other sees the slot already nulled and skips it.
+// s_activeHandlesMutex serializes every close so a handle is never closed twice
+// from two threads at once - whichever close gets the lock first "wins"; the
+// other sees the slot already nulled and skips it.
 //--------------------------------------------------------------------------------
 static void CancelInFlightHttpRequest()
 {
@@ -126,14 +125,13 @@ static bool s_cancelHookRegistered = (RegisterShutdownHook(CancelInFlightHttpReq
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // HttpsGetJson
 //--------------------------------------------------------------------------------
-// Synchronous HTTPS GET against `host`+`path`, with an "Authorization:
-// Bearer <token>" header. Always called from the background fetch thread.
-// Returns false only on a transport-level failure; a non-200 status is
-// still reported via outStatusCode with outBody left as whatever the
-// server sent, which the caller inspects to distinguish "bad key"
-// (401/403) from other errors. Tracks its open handles in s_active*
-// under s_activeHandlesMutex so CancelInFlightHttpRequest can force-close
-// them from another thread.
+// Synchronous HTTPS GET against `host`+`path`, with an "Authorization: Bearer
+// <token>" header. Always called from the background fetch thread. Returns false
+// only on a transport-level failure; a non-200 status is still reported via
+// outStatusCode with outBody left as whatever the server sent, which the caller
+// inspects to distinguish "bad key" (401/403) from other errors. Tracks its open
+// handles in s_active* under s_activeHandlesMutex so CancelInFlightHttpRequest
+// can force-close them from another thread.
 //--------------------------------------------------------------------------------
 static bool HttpsGetJson(const wchar_t* host, const wchar_t* path,
                           const std::string& bearerToken,
@@ -223,14 +221,14 @@ static bool HttpsGetJson(const wchar_t* host, const wchar_t* path,
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PollGw2Api
 //--------------------------------------------------------------------------------
-// Fetches worldbosses, then mapchests, then wizardsvault/weekly, in that
-// order, from a detached background thread (see gw2_api.h for the public
-// contract). Either of the first two failing hard-fails the whole poll
-// without touching either cached set (stale-over-wrong); the third is a
-// soft failure, since a differently-scoped key or an ArenaNet-side change
-// to just that endpoint must not take down the two already-working daily
-// checks. IsShuttingDown() is checked between calls so an addon unload
-// doesn't have to wait out a call it no longer needs the result of.
+// Fetches worldbosses, then mapchests, then wizardsvault/weekly, in that order,
+// from a detached background thread (see gw2_api.h for the public contract).
+// Either of the first two failing hard-fails the whole poll without touching
+// either cached set (stale-over-wrong); the third is a soft failure, since a
+// differently-scoped key or an ArenaNet-side change to just that endpoint must
+// not take down the two already-working daily checks. IsShuttingDown() is checked
+// between calls so an addon unload doesn't have to wait out a call it no longer
+// needs the result of.
 //--------------------------------------------------------------------------------
 void PollGw2Api()
 {

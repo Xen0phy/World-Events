@@ -7,36 +7,36 @@
 // DrawAndExpirePopups      draws/ages/dismisses the popup stack
 // RenderSubscriptionsNotifications   public entry point, called once per frame
 //--------------------------------------------------------------------------------
-// Toast-style popup notifications for subscribed Basic Events / Cyclic
-// slots, plus auto-tracked active-and-incomplete weekly Wizard's Vault
-// targets (weekly_vault.h) not already manually subscribed. A fourth view
-// of the same subscription data as subscriptions_window.cpp /
-// subscriptions_bar.cpp - see subscriptions.h.
+// Toast-style popup notifications for subscribed Basic Events / Cyclic slots,
+// plus auto-tracked active-and-incomplete weekly Wizard's Vault targets
+// (weekly_vault.h) not already manually subscribed. A fourth view of the same
+// subscription data as subscriptions_window.cpp / subscriptions_bar.cpp - see
+// subscriptions.h.
 //
 // Two independent popups per notifiable occurrence: "starting soon"
-// (NotificationLeadMinutes before it starts) and "now active" (the instant
-// it starts), both gated behind NotificationsEnabled (settings_table.h)
-// and, for manually subscribed items, a per-event opt-in
-// (IsBasicEventToastEnabled/IsCyclicSlotToastEnabled, subscriptions.h) -
-// most subscriptions default to no toast, since a big watchlist usually
-// means only a handful of entries should actually interrupt. A
-// weekly-auto-track-only candidate is unaffected by that per-event flag
-// and keeps its long-standing master-switch-only behavior.
+// (NotificationLeadMinutes before it starts) and "now active" (the instant it
+// starts), both gated behind NotificationsEnabled (settings_table.h) and, for
+// manually subscribed items, a per-event opt-in
+// (IsBasicEventToastEnabled/IsCyclicSlotToastEnabled, subscriptions.h) - most
+// subscriptions default to no toast, since a big watchlist usually means only a
+// handful of entries should actually interrupt. A weekly-auto-track-only
+// candidate is unaffected by that per-event flag and keeps its long-standing
+// master-switch-only behavior.
 //
-// A manually subscribed item may also opt into a notification sound (level
-// 3 of the same ladder - IsBasicEventSoundEnabled/IsCyclicSlotSoundEnabled,
+// A manually subscribed item may also opt into a notification sound (level 3 of
+// the same ladder - IsBasicEventSoundEnabled/IsCyclicSlotSoundEnabled,
 // subscriptions.h), played via PlayNotificationSound(NotificationSoundFile)
-// (notify_sound.h) alongside whichever popup fired; sound always implies
-// toast, so soundEnabled is only ever checked right alongside a toastEnabled
-// gate, never on its own. The weekly auto-track pass is separately gated
-// behind WeeklyAutoTrackEnabled (settings_table.h), the same switch the
-// window/bar's own auto-track passes share; a weekly popup additionally
-// gets a thin red border, matching the window's red dot / bar's red dot.
+// (notify_sound.h) alongside whichever popup fired; sound always implies toast,
+// so soundEnabled is only ever checked right alongside a toastEnabled gate, never
+// on its own. The weekly auto-track pass is separately gated behind
+// WeeklyAutoTrackEnabled (settings_table.h), the same switch the window/bar's own
+// auto-track passes share; a weekly popup additionally gets a thin red border,
+// matching the window's red dot / bar's red dot.
 //
-// Popups stack in the lower-right corner, newest closest to the corner,
-// auto-dismissing after NotificationDisplaySeconds (plus a short fade), and
-// paste the same "<name>: <chatCode>" text via PasteToChat on click as a
-// row in the watchlist window / a segment on the distribution bar.
+// Popups stack in the lower-right corner, newest closest to the corner, auto-
+// dismissing after NotificationDisplaySeconds (plus a short fade), and paste the
+// same "<name>: <chatCode>" text via PasteToChat on click as a row in the
+// watchlist window / a segment on the distribution bar.
 //--------------------------------------------------------------------------------
 
 #include "addon.h" //. SubsNotifyDataTimer/SubsNotifyDrawTimer - see their comment in addon.h
@@ -96,16 +96,16 @@ static constexpr int kMaxVisiblePopups = 4;
 // isBasic, basicName, cyclicKey   identity for the right-click "Mark done
 //                for today" menu, mirroring Candidate's own copy
 //--------------------------------------------------------------------------------
-// While the mouse hovers a popup, DrawAndExpirePopups nudges spawnedAtMs
-// forward frame-by-frame instead of letting it age, so a popup the user is
-// actively reading/about to click can't expire out from under the cursor.
-// isWeekly draws an additional thin red border, the same "counts toward
-// this week's Wizard's Vault objective" marker the window's red dot /
-// bar's red dot convey elsewhere; purely visual, no effect on click/dismiss.
-// color is a plain ImVec4 rather than a packed RGBA + separate alpha
-// override: applying the fade is just `c.w *= alpha` at the one call site
-// that needs it (ThemeColorU32/FadeU32, color_utils.h, shared with
-// subscriptions_bar.cpp), no conversion helper required.
+// While the mouse hovers a popup, DrawAndExpirePopups nudges spawnedAtMs forward
+// frame-by-frame instead of letting it age, so a popup the user is actively
+// reading/about to click can't expire out from under the cursor. isWeekly draws
+// an additional thin red border, the same "counts toward this week's Wizard's
+// Vault objective" marker the window's red dot / bar's red dot convey elsewhere;
+// purely visual, no effect on click/dismiss. color is a plain ImVec4 rather than
+// a packed RGBA + separate alpha override: applying the fade is just `c.w *=
+// alpha` at the one call site that needs it (ThemeColorU32/FadeU32,
+// color_utils.h, shared with subscriptions_bar.cpp), no conversion helper
+// required.
 //--------------------------------------------------------------------------------
 struct Popup
 {
@@ -127,9 +127,9 @@ static std::vector<Popup> s_popups;   //. active/fading toast stack
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SpawnPopup
 //--------------------------------------------------------------------------------
-// Builds and pushes one new Popup. Drops the OLDEST entry rather than
-// refusing the new one if this exceeds kMaxVisiblePopups - the new arrival
-// is by definition the most time-sensitive popup right now.
+// Builds and pushes one new Popup. Drops the OLDEST entry rather than refusing
+// the new one if this exceeds kMaxVisiblePopups - the new arrival is by
+// definition the most time-sensitive popup right now.
 //--------------------------------------------------------------------------------
 static void SpawnPopup(const std::string& key, const std::string& name, const std::string& chatCode,
                         const std::string& message, const ImVec4& color, bool isWeekly,
@@ -162,23 +162,22 @@ static void SpawnPopup(const std::string& key, const std::string& name, const st
 // lastSeenGeneration    bumped to s_notifyGeneration each frame this key
 //                       is still a candidate; stale entries get pruned
 //--------------------------------------------------------------------------------
-// One entry per subscribed occurrence, keyed the same way LineSegment::key
-// is built in subscriptions_bar.cpp ("Basic:<name>" / "Cyclic:<group>:
-// <offset>"), so state stays stable across frames regardless of row order.
-// The active-edge (false -> true) fires the "now active" popup; the
-// inactive-edge (true -> false) re-arms leadFired for the NEXT occurrence
-// of a repeating slot/varying event.
+// One entry per subscribed occurrence, keyed the same way LineSegment::key is
+// built in subscriptions_bar.cpp ("Basic:<name>" / "Cyclic:<group>: <offset>"),
+// so state stays stable across frames regardless of row order. The active-edge
+// (false -> true) fires the "now active" popup; the inactive-edge (true -> false)
+// re-arms leadFired for the NEXT occurrence of a repeating slot/varying event.
 //
 // lastSeenGeneration replaces an earlier approach that rebuilt a
-// std::vector<std::string> of every seen key each frame and linear-searched
-// it per entry to prune (O(n^2)); bumping a counter and comparing integers
-// is O(n) with no string work involved.
+// std::vector<std::string> of every seen key each frame and linear-searched it
+// per entry to prune (O(n^2)); bumping a counter and comparing integers is O(n)
+// with no string work involved.
 //
-// NOTE: a subscription's very first frame (addon just loaded, or the user
-// just subscribed) always starts from wasActive=false/leadFired=false. If
-// that occurrence is already active on that first frame, this reads as a
-// false "just started" edge and fires an on-start popup for something that
-// may have been running a while - an accepted, minor edge case.
+// NOTE: a subscription's very first frame (addon just loaded, or the user just
+// subscribed) always starts from wasActive=false/leadFired=false. If that
+// occurrence is already active on that first frame, this reads as a false "just
+// started" edge and fires an on-start popup for something that may have been
+// running a while - an accepted, minor edge case.
 //--------------------------------------------------------------------------------
 struct NotifyState
 {
@@ -201,20 +200,19 @@ static uint64_t s_notifyGeneration = 0;   //. frame counter, see NotifyState::la
 // isBasic, basicName, cyclicKey   identity for the right-click "Mark done
 //                             for today" menu, carried into the spawned Popup
 //--------------------------------------------------------------------------------
-// One notifiable Basic Event or Cyclic slot's current timing, collected
-// fresh every frame - mirrors the row/segment-building loops in
-// subscriptions_window.cpp/subscriptions_bar.cpp, over the same two
-// sources those views cover: manually subscribed entries (always
-// included), and auto-tracked active-and-incomplete weekly Wizard's Vault
-// targets (weekly_vault.h) not already manually subscribed, included only
-// while WeeklyAutoTrackEnabled is true.
+// One notifiable Basic Event or Cyclic slot's current timing, collected fresh
+// every frame - mirrors the row/segment-building loops in
+// subscriptions_window.cpp/subscriptions_bar.cpp, over the same two sources those
+// views cover: manually subscribed entries (always included), and auto-tracked
+// active-and-incomplete weekly Wizard's Vault targets (weekly_vault.h) not
+// already manually subscribed, included only while WeeklyAutoTrackEnabled is
+// true.
 //
-// toastEnabled/soundEnabled (subscriptions.h's "notify level" ladder) are
-// only meaningful for manually subscribed items; a weekly-auto-track-only
-// candidate isn't in either opt-in list, so it defaults to its long-
-// standing toast-only-unconditional behavior (toastEnabled=true,
-// soundEnabled=false) rather than gaining or losing behavior it never
-// opted into.
+// toastEnabled/soundEnabled (subscriptions.h's "notify level" ladder) are only
+// meaningful for manually subscribed items; a weekly-auto-track-only candidate
+// isn't in either opt-in list, so it defaults to its long- standing toast-only-
+// unconditional behavior (toastEnabled=true, soundEnabled=false) rather than
+// gaining or losing behavior it never opted into.
 //--------------------------------------------------------------------------------
 struct Candidate
 {
@@ -236,12 +234,11 @@ struct Candidate
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CollectCandidates   (pairs with: UpdateNotifyStates)
 //--------------------------------------------------------------------------------
-// Builds one Candidate per resolved subscription (subscriptions_cache.h)
-// with usable timing data. All "what's subscribed/auto-tracked, is it done
-// today, is it a weekly target" derivation lives in
-// subscriptions_cache.cpp, shared with subscriptions_window.cpp/
-// subscriptions_bar.cpp - this just adapts the shared, resolved list into
-// this file's own Candidate shape.
+// Builds one Candidate per resolved subscription (subscriptions_cache.h) with
+// usable timing data. All "what's subscribed/auto-tracked, is it done today, is
+// it a weekly target" derivation lives in subscriptions_cache.cpp, shared with
+// subscriptions_window.cpp/ subscriptions_bar.cpp - this just adapts the shared,
+// resolved list into this file's own Candidate shape.
 //--------------------------------------------------------------------------------
 static void CollectCandidates(std::vector<Candidate>& out, time_t now)
 {
@@ -279,11 +276,11 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // UpdateNotifyStates   (pairs with: CollectCandidates)
 //--------------------------------------------------------------------------------
-// Walks this frame's candidates against s_notifyStates, firing popups on
-// the edges described in NotifyState's comment above. Also prunes
-// s_notifyStates of any key not seen this frame (e.g. the subscription was
-// removed, or the underlying event/slot was deleted), so the map doesn't
-// grow forever across a long play session as subscriptions come and go.
+// Walks this frame's candidates against s_notifyStates, firing popups on the
+// edges described in NotifyState's comment above. Also prunes s_notifyStates of
+// any key not seen this frame (e.g. the subscription was removed, or the
+// underlying event/slot was deleted), so the map doesn't grow forever across a
+// long play session as subscriptions come and go.
 //--------------------------------------------------------------------------------
 static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
 {
@@ -353,18 +350,16 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawAndExpirePopups
 //--------------------------------------------------------------------------------
-// Draws every entry in s_popups stacked in the lower-right corner (newest
-// closest to the corner), ages/fades them out, handles hover-pause and
-// click-to-paste-and-dismiss, and removes anything that has finished
-// fading.
+// Draws every entry in s_popups stacked in the lower-right corner (newest closest
+// to the corner), ages/fades them out, handles hover-pause and click-to-paste-
+// and-dismiss, and removes anything that has finished fading.
 //
 // Uses the background draw list (same choice as RenderCyclicGroups in
-// cyclicrender.cpp), so regular ImGui content - the right-click "Mark
-// done" popup, the isWeekly hover tooltip - composites on top of the toast
-// instead of under it; the toast still sits above the game world either
-// way. Each popup's hit-test window is keyed by its stable p.key rather
-// than loop index, since the index shifts whenever an earlier popup in
-// the stack is erased.
+// cyclicrender.cpp), so regular ImGui content - the right-click "Mark done"
+// popup, the isWeekly hover tooltip - composites on top of the toast instead of
+// under it; the toast still sits above the game world either way. Each popup's
+// hit-test window is keyed by its stable p.key rather than loop index, since the
+// index shifts whenever an earlier popup in the stack is erased.
 //--------------------------------------------------------------------------------
 static void DrawAndExpirePopups()
 {
@@ -513,13 +508,13 @@ static void DrawAndExpirePopups()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderSubscriptionsNotifications
 //--------------------------------------------------------------------------------
-// Collects candidates, updates the notify state machine, and draws/ages
-// the popup stack. If NotificationsEnabled is false, returns immediately
-// without clearing s_notifyStates/s_popups - a user toggling the feature
-// off and back on mid-session shouldn't lose already-fired-this-occurrence
-// bookkeeping, and any popup already on screen simply stops being drawn/
-// aged until re-enabled, matching ShowSubscriptionsWindow/Bar's own
-// behavior of leaving their underlying data untouched while hidden.
+// Collects candidates, updates the notify state machine, and draws/ages the popup
+// stack. If NotificationsEnabled is false, returns immediately without clearing
+// s_notifyStates/s_popups - a user toggling the feature off and back on mid-
+// session shouldn't lose already-fired-this-occurrence bookkeeping, and any popup
+// already on screen simply stops being drawn/ aged until re-enabled, matching
+// ShowSubscriptionsWindow/Bar's own behavior of leaving their underlying data
+// untouched while hidden.
 //--------------------------------------------------------------------------------
 void RenderSubscriptionsNotifications()
 {

@@ -4,10 +4,9 @@
 // DrawIconWhitenerButton() / DrawIconWhitenerPopup()   whitener popup UI
 //--------------------------------------------------------------------------------
 // Implements the popup described in icon_whitener.h using the Windows Imaging
-// Component (WIC) - no extra files/libraries needed beyond wincodec.h
-// (mingw-w64) and -lwindowscodecs -lole32 in the linker flags. See
-// ProcessPixels for the desaturate+normalize pipeline and DoConvert for the
-// WIC load/save sequence.
+// Component (WIC) - no extra files/libraries needed beyond wincodec.h (mingw-w64)
+// and -lwindowscodecs -lole32 in the linker flags. See ProcessPixels for the
+// desaturate+normalize pipeline and DoConvert for the WIC load/save sequence.
 //--------------------------------------------------------------------------------
 
 #include "addon.h"          //. g_AddonDir
@@ -29,8 +28,8 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // (anonymous namespace)
 //--------------------------------------------------------------------------------
-// Internal state and helpers for the whitener popup - not part of the public
-// API (see icon_whitener.h).
+// Internal state and helpers for the whitener popup - not part of the public API
+// (see icon_whitener.h).
 //--------------------------------------------------------------------------------
 namespace {
 
@@ -42,10 +41,10 @@ static bool        s_statusIsError = false;   //. true if s_statusMessage is an 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ProcessPixels
 //--------------------------------------------------------------------------------
-// Desaturates to luminance then normalizes so the brightest pixel becomes
-// white, in a single pass over the buffer (see file header for the pipeline
-// rationale). WIC decodes to GUID_WICPixelFormat32bppBGRA - byte order is
-// B G R A; alpha is untouched.
+// Desaturates to luminance then normalizes so the brightest pixel becomes white,
+// in a single pass over the buffer (see file header for the pipeline rationale).
+// WIC decodes to GUID_WICPixelFormat32bppBGRA - byte order is B G R A; alpha is
+// untouched.
 //--------------------------------------------------------------------------------
 static void ProcessPixels(UINT w, UINT h, BYTE* px)
 {
@@ -94,8 +93,8 @@ static void ProcessPixels(UINT w, UINT h, BYTE* px)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ToWide
 //--------------------------------------------------------------------------------
-// Converts a UTF-8 string to null-terminated wide string, as required by the
-// WIC filename APIs.
+// Converts a UTF-8 string to null-terminated wide string, as required by the WIC
+// filename APIs.
 //--------------------------------------------------------------------------------
 static std::wstring ToWide(const std::string& s)
 {

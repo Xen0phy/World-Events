@@ -8,18 +8,17 @@
 // g_FestivalIconData / g_FestivalIconData_size         festival icon (PNG)
 // g_WorldBossIconData / g_WorldBossIconData_size       world-boss icon (PNG)
 //--------------------------------------------------------------------------------
-// The addon's bundled default map-overlay icons, compiled directly into the
-// dll as raw PNG byte arrays rather than shipped as loose files, so a
-// working icon set exists with nothing needing to be on disk - see
-// maprender.cpp's s_defaultIcons / Textures_LoadFromMemory, which is the
-// only consumer. Each array is immediately followed by a matching _size
-// constant giving its byte length; the two are always used as a pair (see
-// DefaultIconEntry in maprender.cpp).
+// The addon's bundled default map-overlay icons, compiled directly into the dll
+// as raw PNG byte arrays rather than shipped as loose files, so a working icon
+// set exists with nothing needing to be on disk - see maprender.cpp's
+// s_defaultIcons / Textures_LoadFromMemory, which is the only consumer. Each
+// array is immediately followed by a matching _size constant giving its byte
+// length; the two are always used as a pair (see DefaultIconEntry in
+// maprender.cpp).
 //
-// Source images must already be neutral-gray RGB + alpha, per
-// maprender.cpp's authoring requirement for tintable icons - this file only
-// stores the already-converted bytes, it doesn't perform or verify that
-// conversion itself.
+// Source images must already be neutral-gray RGB + alpha, per maprender.cpp's
+// authoring requirement for tintable icons - this file only stores the already-
+// converted bytes, it doesn't perform or verify that conversion itself.
 //--------------------------------------------------------------------------------
 
 #pragma once

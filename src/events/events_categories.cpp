@@ -1,17 +1,16 @@
 //################################################################################
 // events_categories.cpp
 //--------------------------------------------------------------------------------
-// Storage and JSON persistence for category groupings (see
-// events_categories.h for the Category/CategoryDefault types). Categories
-// come from compiled-in defaults (g_Default*Categories, written by hand in
-// events_basic.cpp/events_cyclic.cpp) merged with user-created ones from
-// the options-panel drag-and-drop UI, keyed by name (see
-// MergeCategoryDefaults below).
+// Storage and JSON persistence for category groupings (see events_categories.h
+// for the Category/CategoryDefault types). Categories come from compiled-in
+// defaults (g_Default*Categories, written by hand in
+// events_basic.cpp/events_cyclic.cpp) merged with user-created ones from the
+// options-panel drag-and-drop UI, keyed by name (see MergeCategoryDefaults
+// below).
 //
-// Persisted in events.json alongside "events"/"cyclicGroups", as two
-// sibling arrays "basicCategories"/"cyclicCategories" - the existing
-// arrays are never touched; categories only reference names that live
-// there.
+// Persisted in events.json alongside "events"/"cyclicGroups", as two sibling
+// arrays "basicCategories"/"cyclicCategories" - the existing arrays are never
+// touched; categories only reference names that live there.
 //--------------------------------------------------------------------------------
 
 #include "events.h"   //. EVENTS_DATA_VERSION
@@ -67,8 +66,8 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 // SerializeCategoryList / DeserializeCategoryList
 //--------------------------------------------------------------------------------
 // Category <-> json conversion; the List variants just map the single-item
-// versions over a json array. DeserializeCategory defaults a missing name
-// to "Unnamed Category" and a missing members array to empty.
+// versions over a json array. DeserializeCategory defaults a missing name to
+// "Unnamed Category" and a missing members array to empty.
 //--------------------------------------------------------------------------------
 static json SerializeCategory(const Category& cat)
 {
@@ -107,8 +106,8 @@ static std::vector<Category> DeserializeCategoryList(const json& arr)
 // CategoryDefaultToCategory
 //--------------------------------------------------------------------------------
 // Converts a compiled-in default down to a runtime Category (dropping the
-// `forced` flag) so it can be used directly when no JSON version exists
-// yet to win instead.
+// `forced` flag) so it can be used directly when no JSON version exists yet to
+// win instead.
 //--------------------------------------------------------------------------------
 static Category CategoryDefaultToCategory(const CategoryDefault& def)
 {
@@ -122,14 +121,13 @@ static Category CategoryDefaultToCategory(const CategoryDefault& def)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MergeCategoryDefaults
 //--------------------------------------------------------------------------------
-// Same idea as MergeByKey in events_storage.cpp, keyed by category name -
-// but a Category's only content is its member list, so "JSON wins" is the
-// whole merge for a matched name, not just a starting point.
+// Same idea as MergeByKey in events_storage.cpp, keyed by category name - but a
+// Category's only content is its member list, so "JSON wins" is the whole merge
+// for a matched name, not just a starting point.
 //
-// Name in both: keep the JSON category as-is. Name only in defaults: added
-// only when resurrectMissingDefaults is true (an up-to-date file treats a
-// missing default as user-deleted, not new). Name only in JSON: always
-// kept.
+// Name in both: keep the JSON category as-is. Name only in defaults: added only
+// when resurrectMissingDefaults is true (an up-to-date file treats a missing
+// default as user-deleted, not new). Name only in JSON: always kept.
 //--------------------------------------------------------------------------------
 static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDefault>& defaults, const std::vector<Category>& loaded, bool resurrectMissingDefaults)
 {
@@ -166,10 +164,10 @@ static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDef
 // ForceCategoryMembership
 //--------------------------------------------------------------------------------
 // Implements CategoryDefaultMember::forced (see events_categories.h):
-// unconditionally places memberName into categoryName, removing it from
-// every other category first. Creates categoryName if it isn't in the
-// merged list yet (defensive; shouldn't normally happen). Only called once
-// the caller has confirmed the file predates EVENTS_DATA_VERSION.
+// unconditionally places memberName into categoryName, removing it from every
+// other category first. Creates categoryName if it isn't in the merged list yet
+// (defensive; shouldn't normally happen). Only called once the caller has
+// confirmed the file predates EVENTS_DATA_VERSION.
 //--------------------------------------------------------------------------------
 static void ForceCategoryMembership(std::vector<Category>& categories, const std::string& categoryName, const std::string& memberName)
 {

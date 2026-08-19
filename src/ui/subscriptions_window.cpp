@@ -4,15 +4,14 @@
 // DrawSubscriptionRow        draws one watchlist row (internal helper)
 // RenderSubscriptionsWindow  draws the standalone "Subscriptions" window
 //--------------------------------------------------------------------------------
-// Draws the standalone watchlist window: a unified, sorted list of rows
-// across both Basic Events and Cyclic slots, each row custom-drawn (not
+// Draws the standalone watchlist window: a unified, sorted list of rows across
+// both Basic Events and Cyclic slots, each row custom-drawn (not
 // ImGui::Selectable) for per-frame cost - see DrawSubscriptionRow.
 //
-// SubscriptionsActiveColor / SoonColor / WeeklyAutoTrackColor's alpha
-// component is deliberately ignored via ToImVec4Opaque (color_utils.h)
-// wherever those colors are used below: they feed straight into
-// ImGui::TextColored, which is plain text at a fixed opacity of 1.0, not a
-// translucency-capable draw.
+// SubscriptionsActiveColor / SoonColor / WeeklyAutoTrackColor's alpha component
+// is deliberately ignored via ToImVec4Opaque (color_utils.h) wherever those
+// colors are used below: they feed straight into ImGui::TextColored, which is
+// plain text at a fixed opacity of 1.0, not a translucency-capable draw.
 //--------------------------------------------------------------------------------
 
 #include "addon.h" //. SubsWindowDataTimer/SubsWindowDrawTimer - see their comment in addon.h
@@ -51,16 +50,15 @@ static std::string s_leftPressedKey;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawSubscriptionRow
 //--------------------------------------------------------------------------------
-// Draws one watchlist row: click copies "<name>: <chatCode>" to the
-// clipboard (or just "<name>" with no chat code yet), flashing a brief
-// highlight as confirmation. Rows are hand-drawn straight to the window's
-// draw list rather than one ImGui::Selectable each - a Selectable's ID
-// hashing and hover/click state machine, paid per row per frame, made this
-// window cost roughly 2x the subscription bar (subscriptions_bar.cpp) for
-// a visually simpler job. Left-click requires press and release on the
-// same row (Selectable's own gesture); right-click (open the "mark done"
-// popup) fires on mouse-down, matching the pre-rewrite IsItemClicked()
-// behavior exactly.
+// Draws one watchlist row: click copies "<name>: <chatCode>" to the clipboard (or
+// just "<name>" with no chat code yet), flashing a brief highlight as
+// confirmation. Rows are hand-drawn straight to the window's draw list rather
+// than one ImGui::Selectable each - a Selectable's ID hashing and hover/click
+// state machine, paid per row per frame, made this window cost roughly 2x the
+// subscription bar (subscriptions_bar.cpp) for a visually simpler job. Left-click
+// requires press and release on the same row (Selectable's own gesture); right-
+// click (open the "mark done" popup) fires on mouse-down, matching the pre-
+// rewrite IsItemClicked() behavior exactly.
 //--------------------------------------------------------------------------------
 static void DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs, bool isWeekly,
     bool isBasic, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey)
@@ -183,13 +181,13 @@ struct Row { std::string name; std::string chatCode; bool active; int secs; bool
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderSubscriptionsWindow
 //--------------------------------------------------------------------------------
-// Sortable, unified list of rows across both Basic Events and Cyclic slots,
-// so "what's coming up soonest" reads as one list rather than two sections
-// the user has to visually merge themselves - active entries first, then
-// soonest-upcoming, matching the sort already used for the per-group
-// tooltip in cyclicrender.cpp. isBasic/basicName/cyclicKey identify each
-// row for ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday - see the
-// right-click "Mark done for today" menu in DrawSubscriptionRow.
+// Sortable, unified list of rows across both Basic Events and Cyclic slots, so
+// "what's coming up soonest" reads as one list rather than two sections the user
+// has to visually merge themselves - active entries first, then soonest-upcoming,
+// matching the sort already used for the per-group tooltip in cyclicrender.cpp.
+// isBasic/basicName/cyclicKey identify each row for
+// ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday - see the right-click "Mark
+// done for today" menu in DrawSubscriptionRow.
 //--------------------------------------------------------------------------------
 void RenderSubscriptionsWindow()
 {

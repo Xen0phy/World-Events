@@ -21,9 +21,9 @@ static bool                     s_soundFilenamesScanned = false;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ToWide
 //--------------------------------------------------------------------------------
-// Same UTF-8 -> UTF-16 conversion as icon_whitener.cpp's ToWide - a plain
-// byte-widen isn't safe here, since an addon/GW2 install path can contain
-// non-ASCII characters and PlaySoundW needs real UTF-16.
+// Same UTF-8 -> UTF-16 conversion as icon_whitener.cpp's ToWide - a plain byte-
+// widen isn't safe here, since an addon/GW2 install path can contain non-ASCII
+// characters and PlaySoundW needs real UTF-16.
 //--------------------------------------------------------------------------------
 static std::wstring ToWide(const std::string& s)
 {
@@ -83,9 +83,9 @@ const std::vector<std::string>& GetNotificationSoundFilenames()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PlayNotificationSound
 //--------------------------------------------------------------------------------
-// See notify_sound.h for the full contract. SND_ASYNC keeps this
-// non-blocking on the render thread; SND_NODEFAULT stays silent on
-// failure instead of falling back to the generic Windows system sound.
+// See notify_sound.h for the full contract. SND_ASYNC keeps this non-blocking on
+// the render thread; SND_NODEFAULT stays silent on failure instead of falling
+// back to the generic Windows system sound.
 //--------------------------------------------------------------------------------
 void PlayNotificationSound(const std::string& filename)
 {

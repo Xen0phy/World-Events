@@ -1,14 +1,14 @@
 //################################################################################
 // events_tracking.cpp
 //--------------------------------------------------------------------------------
-// See events_tracking.h for scope/rationale. Storage and JSON persistence
-// for the manually-marked "done for today" flags.
+// See events_tracking.h for scope/rationale. Storage and JSON persistence for the
+// manually-marked "done for today" flags.
 //
-// Structurally mirrors subscriptions.cpp closely (same two-vector, same
-// key shape, same events.json read-modify-write pattern); the difference
-// is the stored UTC-day stamp and the lazy rollover check on every read,
-// which subscriptions.cpp has no equivalent of since a subscription
-// doesn't expire on its own.
+// Structurally mirrors subscriptions.cpp closely (same two-vector, same key
+// shape, same events.json read-modify-write pattern); the difference is the
+// stored UTC-day stamp and the lazy rollover check on every read, which
+// subscriptions.cpp has no equivalent of since a subscription doesn't expire on
+// its own.
 //--------------------------------------------------------------------------------
 
 #include "events_tracking.h"
@@ -34,9 +34,9 @@ uint64_t GetDoneMarkersGeneration() { return s_doneMarkersGeneration; }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CurrentUtcDay
 //--------------------------------------------------------------------------------
-// Same one-line derivation as gw2_api.cpp's CurrentUtcDay() - duplicated
-// locally, not shared, for a single division; see that file's comment for
-// why floor-dividing Unix time needs no timezone handling.
+// Same one-line derivation as gw2_api.cpp's CurrentUtcDay() - duplicated locally,
+// not shared, for a single division; see that file's comment for why floor-
+// dividing Unix time needs no timezone handling.
 //--------------------------------------------------------------------------------
 static long long CurrentUtcDay()
 {
@@ -49,10 +49,10 @@ static long long s_DoneTodayUtcDay = -1;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RollOverIfNewUtcDay
 //--------------------------------------------------------------------------------
-// Called at the top of every read/write entry point below. Cheap: just an
-// integer compare in the common case where the day hasn't rolled over. No
-// timer, no per-frame poll - checking lazily on access means no missed
-// frame can leave yesterday's marks visible past reset.
+// Called at the top of every read/write entry point below. Cheap: just an integer
+// compare in the common case where the day hasn't rolled over. No timer, no per-
+// frame poll - checking lazily on access means no missed frame can leave
+// yesterday's marks visible past reset.
 //--------------------------------------------------------------------------------
 static void RollOverIfNewUtcDay()
 {
@@ -68,16 +68,14 @@ static void RollOverIfNewUtcDay()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ResolveBasicDoneKey
 //--------------------------------------------------------------------------------
-// Maps a Basic Event's own name to the key its "done today" mark is
-// actually stored/looked-up under: g_Events[name].doneGroup if that event
-// has one set, else the name itself unchanged. See WorldEvent::doneGroup
-// (events.h) and this file's header comment for the Ley Line Anomaly case
-// this exists for.
+// Maps a Basic Event's own name to the key its "done today" mark is actually
+// stored/looked-up under: g_Events[name].doneGroup if that event has one set,
+// else the name itself unchanged. See WorldEvent::doneGroup (events.h) and this
+// file's header comment for the Ley Line Anomaly case this exists for.
 //
 // Plain linear scan over g_Events - same cost class as the lookups
-// GetDefaultEvent (events_storage.cpp) already does for the options panel,
-// and this runs on the same rare "user right-clicked a row" path, not
-// per-frame.
+// GetDefaultEvent (events_storage.cpp) already does for the options panel, and
+// this runs on the same rare "user right-clicked a row" path, not per-frame.
 //--------------------------------------------------------------------------------
 static std::string ResolveBasicDoneKey(const std::string& eventName)
 {

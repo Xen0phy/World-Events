@@ -51,14 +51,14 @@ extern float g_AvgOptionsRenderTimeMs;
 //--------------------------------------------------------------------------------
 // RAII scope timer, templated on WHICH global accumulator it feeds. Every
 // distinct template argument is a distinct type, so RenderTimer and
-// OptionsRenderTimer below each get their own destructor and therefore
-// their own function-local static accumulator state - instantiating both
-// never mixes their totals, unlike a single shared non-template timer
-// would if used at two call sites.
+// OptionsRenderTimer below each get their own destructor and therefore their own
+// function-local static accumulator state - instantiating both never mixes their
+// totals, unlike a single shared non-template timer would if used at two call
+// sites.
 //
 // if constexpr on ShowDebug means this compiles down to an empty
-// constructor/destructor when ShowDebug is false, so leaving these in
-// place has no runtime cost in a normal build.
+// constructor/destructor when ShowDebug is false, so leaving these in place has
+// no runtime cost in a normal build.
 //--------------------------------------------------------------------------------
 template <float& TargetAvg>
 struct ScopedRenderTimer
@@ -110,8 +110,8 @@ using SubsNotifyDrawTimer   = ScopedRenderTimer<g_AvgSubsNotifyDrawMs>;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonLoad / AddonUnload / AddonRender
 //--------------------------------------------------------------------------------
-// Nexus-required exports (see GetAddonDef in addon.cpp) - called on
-// load/unload and once per frame respectively.
+// Nexus-required exports (see GetAddonDef in addon.cpp) - called on load/unload
+// and once per frame respectively.
 //--------------------------------------------------------------------------------
 void AddonLoad  (AddonAPI_t* aAPI);
 void AddonUnload();
@@ -120,19 +120,18 @@ void AddonRender();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonOptions
 //--------------------------------------------------------------------------------
-// Options panel callback (RT_OptionsRender) - implemented in
-// addon_options.cpp, not addon.cpp.
+// Options panel callback (RT_OptionsRender) - implemented in addon_options.cpp,
+// not addon.cpp.
 //--------------------------------------------------------------------------------
 void AddonOptions();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ResetAllDataToDefaults
 //--------------------------------------------------------------------------------
-// "Default" button in the options panel's Events tab (addon_options.cpp):
-// deletes events.json outright and rebuilds every list it holds - events,
-// cyclicGroups, categories, subscriptions/toast/sound opt-ins, and daily
-// done-today markers - back to a clean compiled-in slate, then writes a
-// fresh file. Returns false if the on-disk delete failed (everything in
-// memory still gets reset either way).
+// "Default" button in the options panel's Events tab (addon_options.cpp): deletes
+// events.json outright and rebuilds every list it holds - events, cyclicGroups,
+// categories, subscriptions/toast/sound opt-ins, and daily done-today markers -
+// back to a clean compiled-in slate, then writes a fresh file. Returns false if
+// the on-disk delete failed (everything in memory still gets reset either way).
 //--------------------------------------------------------------------------------
 bool ResetAllDataToDefaults();
