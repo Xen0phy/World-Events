@@ -4,6 +4,7 @@
 
 #include "addon.h"
 #include "better_chat_link.h"
+#include "settings.h" //. BetterChatManualOverride
 
 void* BetterChatLink = nullptr;
 
@@ -20,5 +21,5 @@ void InitBetterChatLink()
 
 bool IsBetterChatAvailable()
 {
-    return BetterChatLink != nullptr;
+    return BetterChatLink != nullptr || BetterChatManualOverride;
 }

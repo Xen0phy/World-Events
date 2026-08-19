@@ -132,9 +132,9 @@ std::vector<CategoryDefault> g_DefaultBasicCategories =
     }},
     {"Festivals", {
         {"Your Mad King Says..."},
-        {"Dragon Bash (Wayfarer)"},
-        {"Dragon Bash (Dredgehaunt)"},
-        {"Dragon Bash (Lornar's)"},
-        {"Dragon Bash (Snowden)"},
+        {"Dragon Bash (Wayfarer)", true},
+        {"Dragon Bash (Dredgehaunt)", true},
+        {"Dragon Bash (Lornar's)", true},
+        {"Dragon Bash (Snowden)", true},
     }},
 };

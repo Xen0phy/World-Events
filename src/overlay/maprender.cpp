@@ -37,6 +37,7 @@
 
 #include "addon.h"
 #include "color_utils.h"
+#include "cyclic_icons.h"
 #include "events.h"
 #include "events_icons.h"
 #include "imgui.h"
@@ -98,6 +99,9 @@ static const DefaultIconEntry s_defaultIcons[] =
     { "EventMap.png",    g_EventMapIconData,    g_EventMapIconData_size },
     { "Festival.png",    g_FestivalIconData,    g_FestivalIconData_size },
     { "WorldBoss.png",   g_WorldBossIconData,   g_WorldBossIconData_size },
+    { "circle_hand.png", g_CyclicHandIconData,  g_CyclicHandIconData_size },
+    { "circle_edge.png", g_CyclicRingIconData,  g_CyclicRingIconData_size },
+    { "circle_bg.png",   g_CyclicFillIconData,  g_CyclicFillIconData_size },
 };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -115,8 +119,8 @@ static const DefaultIconEntry* FindDefaultIcon(const std::string& filename)
 // ScanEventIconFiles   (pairs with: GetEventIconFilenames)
 //--------------------------------------------------------------------------------
 // Scan (or re-scan) "<addon dir>/textures" and rebuild s_iconFilenames. Call this
-// to refresh after the user adds new files - there's no automatic
-// filesystem-watching.
+// to refresh after the user adds new files - there's no automatic filesystem-
+// watching.
 //
 // Also merges in the bundled default icon names, see GetOrRequestEventIcon.
 //--------------------------------------------------------------------------------

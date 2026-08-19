@@ -32,13 +32,30 @@ processed independently and the separator lines themselves are left
 untouched.
 
 Usage:
-    python3 tools/rewrap_comments.py [--root ROOT] [--dry-run]
+    python3 tools/rewrap_comments.py [--root ROOT] [--auto]
+    python3 tools/rewrap_comments.py [--auto] FILE [FILE ...]
+
+With no positional arguments, walks <root>/src and processes every .h/.cpp
+file found there. If one or more FILE arguments are given, only those
+specific files are processed instead (any extension is accepted in this
+mode, and --root is ignored).
+
+Review mode (default, no --auto):
+    Each box that actually needs rewrapping is shown as a diff, and the
+    script waits for a single keypress: Enter applies that box's change,
+    Esc skips it and leaves it untouched. A file is only written if at
+    least one box in it was applied.
+
+Automatic mode (--auto):
+    Every detected change is applied and every file with changes is
+    written, with no prompts at all.
 
 By default ROOT is the parent directory of wherever this script lives
 (i.e. it assumes the script is at <root>/tools/rewrap_comments.py).
 """
 
 import argparse
+import difflib
 import os
 import re
 import sys
@@ -92,17 +109,22 @@ def render_segment(indent, raw_lines, wrap_width):
     return out
 
 
-def process_lines(lines):
-    """Process a list of source lines. Returns (new_lines, num_boxes_changed)."""
-    out = []
+def find_chunks(lines):
+    """Split a list of source lines into chunks:
+      ('line', text)                         -- passthrough, non-box content
+      ('box', box_start, original, rewrapped) -- a well-formed box, with its
+                                                  original lines and its
+                                                  rewrapped replacement lines
+    box_start is the 0-based index of the box's first line, used for
+    reporting during interactive review."""
+    chunks = []
     i = 0
     n = len(lines)
-    changes = 0
 
     while i < n:
         m = DASH_LINE_RE.match(lines[i])
         if not m:
-            out.append(lines[i])
+            chunks.append(('line', lines[i]))
             i += 1
             continue
 
@@ -134,35 +156,127 @@ def process_lines(lines):
 
         if not well_formed:
             # No proper closing separator; leave the whole run untouched.
-            out.extend(lines[box_start:i])
+            for l in lines[box_start:i]:
+                chunks.append(('line', l))
             continue
 
+        original = lines[box_start:i]
+        rewrapped = []
         for idx, seg in enumerate(segments):
-            out.append(dash_lines[idx])
-            out.extend(render_segment(indent, seg, wrap_width))
-        out.append(dash_lines[-1])
-        changes += 1
+            rewrapped.append(dash_lines[idx])
+            rewrapped.extend(render_segment(indent, seg, wrap_width))
+        rewrapped.append(dash_lines[-1])
 
-    return out, changes
+        chunks.append(('box', box_start, original, rewrapped))
+
+    return chunks
 
 
-def process_file(path, dry_run=False):
+def get_key():
+    """Read a single keypress and classify it as 'enter', 'esc', or None
+    (anything else). Falls back to line-based input if no raw terminal is
+    available (e.g. stdin is piped/redirected)."""
+    if not sys.stdin.isatty():
+        line = sys.stdin.readline()
+        if line == '':  # EOF
+            return 'esc'
+        return 'enter'
+
+    try:
+        import termios
+        import tty
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    except (ImportError, AttributeError):
+        try:
+            import msvcrt
+            ch = msvcrt.getch().decode(errors='ignore')
+        except ImportError:
+            line = sys.stdin.readline()
+            return 'enter' if line else 'esc'
+
+    if ch in ('\r', '\n'):
+        return 'enter'
+    if ch == '\x1b':
+        return 'esc'
+    return None
+
+
+def review_box(path, box_start, original, rewrapped):
+    """Show a diff for one box and wait for the user to accept (Enter) or
+    skip (Esc) it. Returns True to apply the change, False to skip it."""
+    print(f'\n----- {path}:{box_start + 1} -----')
+    diff = difflib.unified_diff(original, rewrapped, lineterm='')
+    for line in diff:
+        print(line)
+    print('[Enter] apply   [Esc] skip ', end='', flush=True)
+
+    while True:
+        key = get_key()
+        print()
+        if key == 'enter':
+            return True
+        if key == 'esc':
+            return False
+        print('[Enter] apply   [Esc] skip ', end='', flush=True)
+
+
+def process_file(path, auto=False):
+    """Process one file.
+
+    auto=True  -- automatic mode: apply every detected change and write
+                  the file, with no prompts.
+    auto=False -- review mode: show a diff for each box that actually
+                  changes and let the user accept/skip it with a
+                  keypress; only write the file if something was
+                  applied.
+    """
     with open(path, 'r', encoding='utf-8') as f:
-        original = f.read()
+        original_text = f.read()
 
-    lines = original.splitlines()
-    new_lines, changes = process_lines(lines)
+    lines = original_text.splitlines()
+    chunks = find_chunks(lines)
+
+    out = []
+    changes = 0
+
+    for chunk in chunks:
+        if chunk[0] == 'line':
+            out.append(chunk[1])
+            continue
+
+        _, box_start, box_original, box_rewrapped = chunk
+
+        if box_original == box_rewrapped:
+            out.extend(box_original)
+            continue
+
+        if auto:
+            apply_change = True
+        else:
+            apply_change = review_box(path, box_start, box_original, box_rewrapped)
+
+        if apply_change:
+            out.extend(box_rewrapped)
+            changes += 1
+        else:
+            out.extend(box_original)
+
     if changes == 0:
         return 0
 
-    newline = '\r\n' if '\r\n' in original else '\n'
-    new_content = newline.join(new_lines)
-    if original.endswith('\n') and not new_content.endswith('\n'):
+    newline = '\r\n' if '\r\n' in original_text else '\n'
+    new_content = newline.join(out)
+    if original_text.endswith('\n') and not new_content.endswith('\n'):
         new_content += newline
 
-    if not dry_run:
-        with open(path, 'w', encoding='utf-8', newline='') as f:
-            f.write(new_content)
+    with open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(new_content)
 
     return changes
 
@@ -172,27 +286,45 @@ def main():
     default_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     parser.add_argument('--root', default=default_root,
                          help='project root (default: parent directory of this script, i.e. <root>/tools/..)')
-    parser.add_argument('--dry-run', action='store_true',
-                         help="report what would change without writing any files")
+    parser.add_argument('--auto', action='store_true',
+                         help="apply all detected changes automatically and write every "
+                              "file with changes, without prompting for each box "
+                              "(default is to review each box interactively)")
+    parser.add_argument('files', nargs='*', metavar='FILE',
+                         help='one or more specific files to process, instead of '
+                              'walking <root>/src. When given, --root is ignored '
+                              'and any file extension is accepted.')
     args = parser.parse_args()
-
-    src_dir = os.path.join(args.root, 'src')
-    if not os.path.isdir(src_dir):
-        print(f'error: {src_dir} does not exist', file=sys.stderr)
-        sys.exit(1)
 
     total_files = 0
     total_boxes = 0
-    for dirpath, _dirnames, filenames in os.walk(src_dir):
-        for fn in filenames:
-            if fn.endswith('.h') or fn.endswith('.cpp'):
-                fpath = os.path.join(dirpath, fn)
-                nchg = process_file(fpath, dry_run=args.dry_run)
-                if nchg:
-                    total_files += 1
-                    total_boxes += nchg
-                    prefix = '[dry-run] ' if args.dry_run else ''
-                    print(f'{prefix}{fpath}: {nchg} box(es) processed')
+    prefix = '[auto] ' if args.auto else ''
+
+    if args.files:
+        for fpath in args.files:
+            if not os.path.isfile(fpath):
+                print(f'error: {fpath} does not exist', file=sys.stderr)
+                sys.exit(1)
+            nchg = process_file(fpath, auto=args.auto)
+            if nchg:
+                total_files += 1
+                total_boxes += nchg
+                print(f'{prefix}{fpath}: {nchg} box(es) processed')
+    else:
+        src_dir = os.path.join(args.root, 'src')
+        if not os.path.isdir(src_dir):
+            print(f'error: {src_dir} does not exist', file=sys.stderr)
+            sys.exit(1)
+
+        for dirpath, _dirnames, filenames in os.walk(src_dir):
+            for fn in filenames:
+                if fn.endswith('.h') or fn.endswith('.cpp'):
+                    fpath = os.path.join(dirpath, fn)
+                    nchg = process_file(fpath, auto=args.auto)
+                    if nchg:
+                        total_files += 1
+                        total_boxes += nchg
+                        print(f'{prefix}{fpath}: {nchg} box(es) processed')
 
     print(f'\nDone. {total_boxes} box(es) processed in {total_files} file(s).')
 

@@ -7,8 +7,8 @@
 // Widgets write directly into the global settings (settings.h / settings_table.h)
 // or into g_Events / g_CyclicGroups / g_BasicCategories / g_CyclicCategories.
 // There is no explicit "Save" button: everything is writtento disk on AddonUnload
-// (see addon.cpp), so edits here just live in memory until the addon
-// (or the game) closes.
+// (see addon.cpp), so edits here just live in memory until the addon (or the
+// game) closes.
 //
 // Covers all the flat scalar settings (overlay visibility, ring radius/thickness,
 // entry/exit window) and full editing of individual events cyclic groups/slots,
@@ -16,15 +16,15 @@
 // categorization, and icon assignment.
 //
 // The widget-drawing helpers themselves (scoped-disable, period widget,
-// icon/color pickers, duplicate-name checks, drag-and-drop plumbing, the
-// notify-level control, the shared name/context-menu row, search predicates,
-// and the two full row drawers) live in addon_options_helpers.h/.cpp - this
-// file is just AddonOptions() itself, assembling those pieces into the panel
-// layout.
+// icon/color pickers, duplicate-name checks, drag-and-drop plumbing, the notify-
+// level control, the shared name/context-menu row, search predicates, and the two
+// full row drawers) live in addon_options_helpers.h/.cpp - this file is just
+// AddonOptions() itself, assembling those pieces into the panel layout.
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
 #include "addon_options_helpers.h"
+#include "better_chat_link.h"
 #include "build_info.h"
 #include "events.h"
 #include "events_categories.h"
@@ -50,8 +50,8 @@
 // box and Table 3) - a CollapsingHeader clips to a single table column, so it
 // can't be drawn inside either table. List mutations (add/remove event, group,
 // category) are captured as bools during the row loop and applied afterward, to
-// avoid invalidating indices mid-iteration. One search box filters both the
-// Basic and Cyclic trees at once.
+// avoid invalidating indices mid-iteration. One search box filters both the Basic
+// and Cyclic trees at once.
 //--------------------------------------------------------------------------------
 void AddonOptions()
 {
@@ -370,6 +370,16 @@ void AddonOptions()
                 ImGui::InputInt("Paste Delay", &delayMilliseconds, 0 , 0);
             }
             
+            if (BetterChatLink == nullptr)
+            {
+                if (ImGui::Checkbox("I have Better Chat installed and /self enabled##better_chat_manual_override", &BetterChatManualOverride)
+                    && BetterChatManualOverride)
+                    ChatChannelPrefix = "/self ";
+                Tooltip("Adds \"Better Chat (/self)\" to \"Paste to\" below and\n"
+                        "switches to it immediately, without waiting for Better\n"
+                        "Chat to announce itself to World Events.");
+            }
+
             {
                 std::vector<const char*> chatChannelLabels;
                 std::vector<const char*> chatChannelPrefixes;
@@ -682,11 +692,6 @@ void AddonOptions()
                             "further in - so they stay mirror-symmetric around the\n"
                             "ring rather than one drifting relative to the other.\n"
                             "Negative values pull both back in toward the ring instead.");
-
-                    //ImGui::Checkbox("Also draw on inner edge (flipped)##cyclic_ring_image_inner", &CyclicRingImageInnerEnabled);
-                    //Tooltip("The inner copy is mirrored on both axes (not just\n"
-                    //        "flipped top-to-bottom) so it doesn't read as an obvious\n"
-                    //        "duplicate of the outer one sitting right behind it.");
                 }
 
                 ImGui::Spacing();

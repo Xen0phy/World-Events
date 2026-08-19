@@ -8,25 +8,25 @@
 // MIN() / m5..m120         minute-to-seconds helpers used by events_basic.cpp/
 //                          events_cyclic.cpp
 //--------------------------------------------------------------------------------
-// Defines the data model for both event systems this addon tracks: one-off
-// "Basic Events" (world bosses, invasions, LLA, fractal incursions - single
-// WorldEvent entries, drawn as dots on the map) and "Cyclic Events" (per-map
-// metas that repeat on a fixed ring, e.g. Auric Basin's Challenges/Octovine/
-// Pylons - CyclicGroup entries, drawn as rings). Compiled-in data lives in
+// Defines the data model for both event systems this addon tracks: one-off "Basic
+// Events" (world bosses, invasions, LLA, fractal incursions - single WorldEvent
+// entries, drawn as dots on the map) and "Cyclic Events" (per-map metas that
+// repeat on a fixed ring, e.g. Auric Basin's Challenges/Octovine/ Pylons -
+// CyclicGroup entries, drawn as rings). Compiled-in data lives in
 // events_basic.cpp/events_cyclic.cpp; maprender.cpp/cyclicrender.cpp are the
 // respective renderers.
 //
-// EVENTS_DATA_VERSION is a YYYYMMDD(HHmm) int, bumped whenever EITHER the
-// on-disk SHAPE changes in a way old files can't fall through defaults for
-// (a field removed/renamed - a new optional field with a j.value() default
-// does NOT need a bump), OR the COMPILED-IN CONTENT changes (a group/event/
-// slot added, removed, or renamed, or a default category/forced membership
-// changed - see events_categories.h). It drives the merge behavior in
+// EVENTS_DATA_VERSION is a YYYYMMDD(HHmm) int, bumped whenever EITHER the on-disk
+// SHAPE changes in a way old files can't fall through defaults for (a field
+// removed/renamed - a new optional field with a j.value() default does NOT need a
+// bump), OR the COMPILED-IN CONTENT changes (a group/event/ slot added, removed,
+// or renamed, or a default category/forced membership changed - see
+// events_categories.h). It drives the merge behavior in
 // LoadEventsData/LoadCategoriesData (see MergeByKey's comment in
-// events_storage.cpp), and is shared by events/cyclicGroups/categories,
-// since all three live under one "data_version" key in events.json.
-// int64_t, not int: the HHmm-precision form (e.g. 202607051350) exceeds
-// INT32_MAX and would silently wrap.
+// events_storage.cpp), and is shared by events/cyclicGroups/categories, since all
+// three live under one "data_version" key in events.json. int64_t, not int: the
+// HHmm-precision form (e.g. 202607051350) exceeds INT32_MAX and would silently
+// wrap.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -40,7 +40,7 @@
 #include <vector>
 
 //_ YYYYMMDDHHmm, see file header for what this gates and when to bump it.
-constexpr int64_t EVENTS_DATA_VERSION = 202608120914;
+constexpr int64_t EVENTS_DATA_VERSION = 202608191056;
 
 //********************************************************************************
 // WorldEvent
@@ -61,14 +61,13 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608120914;
 // doneGroup      shared "done today" key (events_tracking.h); rows sharing
 //                a reward (e.g. Ley Line Anomaly) share one value
 //--------------------------------------------------------------------------------
-// One "Basic Event": a single map dot with its own schedule, either
-// periodic (period/offset) or irregular (isVarying + varyingTimes).
+// One "Basic Event": a single map dot with its own schedule, either periodic
+// (period/offset) or irregular (isVarying + varyingTimes).
 //
-// chatCode/shown/iconTexture/apiWorldBossId/doneGroup are appended in this
-// exact order, last-to-first by how rarely each is set: the list below is
-// built with positional aggregate init (events_basic.cpp), so each
-// field's position determines how many trailing values a compiled-in row
-// must supply.
+// chatCode/shown/iconTexture/apiWorldBossId/doneGroup are appended in this exact
+// order, last-to-first by how rarely each is set: the list below is built with
+// positional aggregate init (events_basic.cpp), so each field's position
+// determines how many trailing values a compiled-in row must supply.
 //--------------------------------------------------------------------------------
 struct WorldEvent
 {
@@ -96,8 +95,8 @@ extern std::vector<WorldEvent> g_Events;
 //********************************************************************************
 // ColorSet
 //--------------------------------------------------------------------------------
-// base   RGBA in [0,1], source of truth; edit directly via
-//        ImGui::ColorEdit4("Color", &base.x, ...)
+// base                RGBA in [0,1], source of truth; edit directly via
+//                     ImGui::ColorEdit4("Color", &base.x, ...)
 // pri()/sec()/ter()   primary/secondary/tertiary shades derived from base
 //--------------------------------------------------------------------------------
 struct ColorSet
@@ -131,13 +130,13 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 // apiMapChestId     /v2/mapchests id, GROUP-level not per-slot; empty =
 //                   no API "done today" signal
 //--------------------------------------------------------------------------------
-// One per-map cyclic ring: a repeating `period`-second cycle containing
-// one or more Slots, each occupying a fixed offset/duration within it.
+// One per-map cyclic ring: a repeating `period`-second cycle containing one or
+// more Slots, each occupying a fixed offset/duration within it.
 //
 // apiMapChestId is checked once per group in subscriptions_window.cpp/
-// subscriptions_bar.cpp. Groups without an API-visible signal - LLA,
-// invasions, fractal incursions, convergences, and maps mapchests
-// doesn't cover - simply leave it empty.
+// subscriptions_bar.cpp. Groups without an API-visible signal - LLA, invasions,
+// fractal incursions, convergences, and maps mapchests doesn't cover - simply
+// leave it empty.
 //--------------------------------------------------------------------------------
 struct CyclicGroup
 {
@@ -169,11 +168,10 @@ struct CyclicGroup
     //--------------------------------------------------------------------------------
     // One occurrence within a CyclicGroup's ring.
     //
-    // chatCode/shown/repeat/customColor/isVarying/varyingTimes are appended
-    // in this order for the same positional-aggregate-init reason as
-    // WorldEvent's tail fields (see events_basic.cpp/events_cyclic.cpp) -
-    // each field's position is how many trailing values a compiled-in row
-    // must supply, so later/rarer fields go last.
+    // chatCode/shown/repeat/customColor/isVarying/varyingTimes are appended in this
+    // order for the same positional-aggregate-init reason as WorldEvent's tail fields
+    // (see events_basic.cpp/events_cyclic.cpp) - each field's position is how many
+    // trailing values a compiled-in row must supply, so later/rarer fields go last.
     //--------------------------------------------------------------------------------
     struct Slot
     {
@@ -227,13 +225,13 @@ extern std::vector<CyclicGroup> g_CyclicGroups;
 // offset/duration      one-time-pushed onto the matching Slot when set
 //--------------------------------------------------------------------------------
 // Same purpose and version gate as CategoryDefaultMember::offset/duration
-// (events_categories.h), but at Slot granularity, since a Slot's own
-// fields aren't reachable through the group-level category mechanism.
+// (events_categories.h), but at Slot granularity, since a Slot's own fields
+// aren't reachable through the group-level category mechanism.
 //
-// Applied by ApplySlotOverrides (events_storage.cpp) right after
-// MergeGroups, gated the same way as ApplyCategoryOffsetOverrides: runs
-// once while the saved file predates EVENTS_DATA_VERSION, which must be
-// bumped whenever an entry is added here.
+// Applied by ApplySlotOverrides (events_storage.cpp) right after MergeGroups,
+// gated the same way as ApplyCategoryOffsetOverrides: runs once while the saved
+// file predates EVENTS_DATA_VERSION, which must be bumped whenever an entry is
+// added here.
 //--------------------------------------------------------------------------------
 struct SlotOverride
 {

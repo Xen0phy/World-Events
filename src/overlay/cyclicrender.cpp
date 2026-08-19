@@ -5,8 +5,8 @@
 //--------------------------------------------------------------------------------
 // Renders the cyclic-event overlay: one ring per CyclicGroup, with a fixed hand
 // at "now" and per-slot arcs that fade in/out as their occurrences approach,
-// become active, and pass. See RenderCyclicGroups below for the arc geometry
-// and dual entry/exit clock model. ArcPoint, ArcSegmentCount, DrawArc, and
+// become active, and pass. See RenderCyclicGroups below for the arc geometry and
+// dual entry/exit clock model. ArcPoint, ArcSegmentCount, DrawArc, and
 // DrawArcImage are internal helpers for the low-level arc/ring-image drawing.
 //--------------------------------------------------------------------------------
 
@@ -52,11 +52,11 @@ static ImVec2 ArcPoint(ImVec2 center, float radius, float angle_deg)
 // ArcSegmentCount
 //--------------------------------------------------------------------------------
 // Segment count for tessellating an arc of the given span, sized to keep visual
-// error bounded rather than fixed at 1 segment/degree (rings are only 15-40px
-// on screen, so a fixed stride wasted most of DrawArc's cost on sub-pixel
-// geometry). Uses the same formula Dear ImGui's own AddCircle/PathArcTo use to
-// derive a segment count from a max pixel error, scaled from a full circle
-// down to just this arc's span.
+// error bounded rather than fixed at 1 segment/degree (rings are only 15-40px on
+// screen, so a fixed stride wasted most of DrawArc's cost on sub-pixel geometry).
+// Uses the same formula Dear ImGui's own AddCircle/PathArcTo use to derive a
+// segment count from a max pixel error, scaled from a full circle down to just
+// this arc's span.
 //--------------------------------------------------------------------------------
 static int ArcSegmentCount(float radius, float span_deg)
 {
@@ -76,13 +76,13 @@ static int ArcSegmentCount(float radius, float span_deg)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ArcSpanDeg
 //--------------------------------------------------------------------------------
-// Same from_deg/to_deg -> span wrap-handling every arc-drawing helper here
-// needs (DrawArc inlines its own copy; DrawArcImage and RenderCyclicGroups'
-// image-splitting below share this one). from_deg==to_deg resolves to span 0,
-// not a full 360 deg circle - every caller here draws a bounded track/fade/slot
-// arc, never a degenerate from==to meaning "draw the whole ring". A genuine
-// negative span (to_deg only reachable by wrapping past 360) still gets the
-// +360 wrap; only the exact from==to case is forced to 0.
+// Same from_deg/to_deg -> span wrap-handling every arc-drawing helper here needs
+// (DrawArc inlines its own copy; DrawArcImage and RenderCyclicGroups' image-
+// splitting below share this one). from_deg==to_deg resolves to span 0, not a
+// full 360 deg circle - every caller here draws a bounded track/fade/slot arc,
+// never a degenerate from==to meaning "draw the whole ring". A genuine negative
+// span (to_deg only reachable by wrapping past 360) still gets the +360 wrap;
+// only the exact from==to case is forced to 0.
 //--------------------------------------------------------------------------------
 static float ArcSpanDeg(float from_deg, float to_deg)
 {
@@ -96,8 +96,8 @@ static float ArcSpanDeg(float from_deg, float to_deg)
 // DrawArc
 //--------------------------------------------------------------------------------
 // Draws a thick arc segment counter-clockwise from from_deg to to_deg. Supports
-// per-vertex alpha fade (pass alphaFrom=alphaTo for solid color). Uses the
-// low-level PrimVtx API so the fade is gapless.
+// per-vertex alpha fade (pass alphaFrom=alphaTo for solid color). Uses the low-
+// level PrimVtx API so the fade is gapless.
 //--------------------------------------------------------------------------------
 static void DrawArc(ImDrawList* dl, ImVec2 center, float radius,
     float from_deg, float to_deg,
@@ -153,32 +153,19 @@ static void DrawArc(ImDrawList* dl, ImVec2 center, float radius,
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawArcImage
 //--------------------------------------------------------------------------------
-// Wraps a texture around one edge of a ring, following the EXACT same arc
-// geometry (from_deg -> to_deg, span/wrap handling via ArcSpanDeg) as
-// DrawArc, so a ring image always covers precisely the portion of the
-// circle the track/arcs themselves are drawn over.
-//
-// The source image is expected wider than tall and is STRETCHED (not
-// tiled): U runs uStart->uEnd across this call's own span. uStart/uEnd
-// default to the whole image (0->1) for a single self-contained call, but
-// RenderCyclicGroups below calls this twice per edge - once for the
-// future portion, once for the past - passing each call the slice of 0..1
-// it owns so the source image reads as one continuous, unbroken wrap
-// across the seam at HAND_DEG rather than restarting mid-image.
-//
-// alphaFrom/alphaTo fades per-vertex exactly like DrawArc's own fade (the
-// past portion is faded 1->0 the same way the plain-color past track is,
-// via RenderCyclicGroups' call below); alphaFrom=alphaTo=1 (the default)
-// draws fully solid. V runs across the band's own thickness (0->1 from
-// edgeRadius-halfHeight to edgeRadius+halfHeight); flipV mirrors V so the
-// same source art, drawn a second time at a different edgeRadius, can face
-// outward on the outer edge and inward (mirrored) on the inner edge
-// without needing a second image.
+// Wraps a texture around one ring edge, along the same from_deg->to_deg arc
+// geometry as DrawArc, so the image always covers exactly the arc portion drawn.
+// Image is STRETCHED (not tiled): U runs uStart->uEnd; RenderCyclicGroups calls
+// this twice per edge (future, then past), passing each its own 0..1 slice so the
+// wrap stays seamless across the HAND_DEG seam. alphaFrom/alphaTo fade per-vertex
+// like DrawArc's own fade; default (1,1) draws solid, untinted. V spans the
+// band's own thickness; flipV mirrors it so the same source art faces outward on
+// the outer edge and inward on the (V-flipped) inner edge.
 //--------------------------------------------------------------------------------
 static void DrawArcImage(ImDrawList* dl, ImTextureID tex, ImVec2 center,
     float edgeRadius, float halfHeight,
     float from_deg, float to_deg,
-    ImU32 tint, bool flipV,
+    bool flipV,
     float uStart = 0.0f, float uEnd = 1.0f,
     float alphaFrom = 1.0f, float alphaTo = 1.0f)
 {
@@ -192,8 +179,7 @@ static void DrawArcImage(ImDrawList* dl, ImTextureID tex, ImVec2 center,
     float vNear = flipV ? 1.0f : 0.0f;   //. V at edgeRadius - halfHeight
     float vFar  = flipV ? 0.0f : 1.0f;   //. V at edgeRadius + halfHeight
 
-    ImU32 rgb        = tint & 0x00FFFFFF;
-    float tintAlpha  = ((tint >> 24) & 0xFF) / 255.0f;
+    constexpr ImU32 rgb = 0x00FFFFFF;   //. white, untinted
 
     //_ Binds tex; PrimReserve/PrimWrite* below fill this draw command directly.
     dl->PushTextureID(tex);
@@ -217,8 +203,8 @@ static void DrawArcImage(ImDrawList* dl, ImTextureID tex, ImVec2 center,
         float u0 = uStart + (uEnd - uStart) * t0;
         float u1 = uStart + (uEnd - uStart) * t1;
 
-        ImU32 c0 = rgb | (((ImU32)(tintAlpha * (alphaFrom + (alphaTo - alphaFrom) * t0) * 255.0f)) << 24);
-        ImU32 c1 = rgb | (((ImU32)(tintAlpha * (alphaFrom + (alphaTo - alphaFrom) * t1) * 255.0f)) << 24);
+        ImU32 c0 = rgb | (((ImU32)((alphaFrom + (alphaTo - alphaFrom) * t0) * 255.0f)) << 24);
+        ImU32 c1 = rgb | (((ImU32)((alphaFrom + (alphaTo - alphaFrom) * t1) * 255.0f)) << 24);
 
         //_ Two triangles forming a quad, same winding as DrawArc.
         dl->PrimWriteIdx((ImDrawIdx)(dl->_VtxCurrentIdx + 0));
@@ -240,16 +226,15 @@ static void DrawArcImage(ImDrawList* dl, ImTextureID tex, ImVec2 center,
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawArcTextureOverlay
 //--------------------------------------------------------------------------------
-// Lays a texture "decal" over the ring's own fill (track + slot arcs) for
-// grain, per CyclicFillImage* (settings_table.h). Unlike DrawArcImage - which
-// wraps its source image around the arc (U along from_deg->to_deg) - this
-// computes UV from each vertex's offset from `center`, independent of the arc
-// parameter: it reads as a decal held centered behind the ring. `projRadius`
-// (the ring's own outer radius) scales the decal with Radius/Thickness/zoom,
-// avoiding drift out of registration. alpha is a flat multiplier
-// (CyclicFillImageOpacity), no tint or per-vertex fade like
-// DrawArc/DrawArcImage - it reads as texture on top of whatever's already
-// there, not its own fading element.
+// Lays a texture "decal" over the ring's own fill (track + slot arcs) for grain,
+// per CyclicFillImage* (settings_table.h). Unlike DrawArcImage - which wraps its
+// source image around the arc (U along from_deg->to_deg) - this computes UV from
+// each vertex's offset from `center`, independent of the arc parameter: it reads
+// as a decal held centered behind the ring. `projRadius` (the ring's own outer
+// radius) scales the decal with Radius/Thickness/zoom, avoiding drift out of
+// registration. alpha is a flat multiplier (CyclicFillImageOpacity), no tint or
+// per-vertex fade like DrawArc/DrawArcImage - it reads as texture on top of
+// whatever's already there, not its own fading element.
 //--------------------------------------------------------------------------------
 static void DrawArcTextureOverlay(ImDrawList* dl, ImTextureID tex, ImVec2 center,
     float radius, float halfHeight,
@@ -306,8 +291,8 @@ static void DrawArcTextureOverlay(ImDrawList* dl, ImTextureID tex, ImVec2 center
 //--------------------------------------------------------------------------------
 // Draws a 270 deg arc per CyclicGroup on the world map. Hand fixed at 0 deg
 // ("now"); events rotate counter-clockwise past it, 1 deg = period/360 seconds.
-// Future events run CW to ARC_FROM=270 deg; past events run CCW to ARC_TO=270
-// deg the other way, leaving a 90 deg gap opposite the hand.
+// Future events run CW to ARC_FROM=270 deg; past events run CCW to ARC_TO=270 deg
+// the other way, leaving a 90 deg gap opposite the hand.
 //
 // Each slot occurrence's phase is computed once via modulo against grp.period,
 // from its TRUE baseOffset/slot.duration, wrapping correctly even when duration
@@ -335,7 +320,6 @@ void RenderCyclicGroups()
         ? GetOrRequestEventIcon(CyclicRingImageFilename)
         : nullptr;
     const bool drawRingImg = ringImg && ringImg->Resource;
-    const ImU32 ringImgTint = ColorU32(CyclicRingImageTint);
 
     //_ Same resolve/cache scheme as ringImg, for the hand image.
     Texture_t* handImg = (CyclicHandImageEnabled && !CyclicHandImageFilename.empty())
@@ -371,6 +355,15 @@ void RenderCyclicGroups()
         //_ Stored as degrees (settings_table.h); converted to seconds here.
         const float MAX_FUTURE_SECS = CyclicMaxFutureDeg * SECS_PER_DEG;
         const float MAX_PAST_SECS   = CyclicMaxPastDeg   * SECS_PER_DEG;
+
+        //_ Continuous 1->0 fade across the whole past window by seconds-behind-hand, not each arc's own span.
+        auto PastAlpha = [&](float secsBehindHand) -> float
+        {
+            if (!CyclicPastFadeEnabled) return 1.0f;
+            if (MAX_PAST_SECS <= 0.0f) return 0.0f;
+            float t = fminf(fmaxf(secsBehindHand, 0.0f), MAX_PAST_SECS) / MAX_PAST_SECS;
+            return 1.0f - t;
+        };
 
         //_ Left unwrapped - wrapping misreads a 360 deg past window as empty.
         const float ARC_FROM = CyclicMaxFutureDeg;
@@ -460,8 +453,8 @@ void RenderCyclicGroups()
 
                     if (pastDeg < 360.0f)
                         DrawArc(dl, pos, RADIUS, HAND_DEG, pastDeg,
-                                color, THICKNESS, 1.0f,
-                                CyclicPastFadeEnabled ? 0.0f : 1.0f);
+                                color, THICKNESS,
+                                PastAlpha(0.0f), PastAlpha(pastSecs));
                 }
 
                 //_ Independent of active - it's the PREVIOUS iteration's end.
@@ -475,8 +468,8 @@ void RenderCyclicGroups()
 
                     //_ ArcSpanDeg already guards zero/negative spans here.
                     DrawArc(dl, pos, RADIUS, nearDeg, farDeg,
-                            color, THICKNESS, 1.0f,
-                            CyclicPastFadeEnabled ? 0.0f : 1.0f);
+                            color, THICKNESS,
+                            PastAlpha(nearSecs), PastAlpha(farSecs));
                 }
 
                 //_ Lead-in to NEXT recurrence - see ENTRY in header above.
@@ -557,28 +550,25 @@ void RenderCyclicGroups()
                 float outerEdge = RADIUS + THICKNESS * 0.5f + offset;
                 if (futureSpan > 0.0f)
                     DrawArcImage(dl, tex, pos, outerEdge, halfH, ARC_FROM, HAND_DEG,
-                        ringImgTint, false, 0.0f, uSplit);
+                        false, 0.0f, uSplit);
                 if (pastSpan > 0.0f)
                     DrawArcImage(dl, tex, pos, outerEdge, halfH, HAND_DEG, ARC_TO,
-                        ringImgTint, false, uSplit, 1.0f, 1.0f,
+                        false, uSplit, 1.0f, 1.0f,
                         CyclicPastFadeEnabled ? 0.0f : 1.0f);
 
-                if (CyclicRingImageInnerEnabled)
-                {
-                    float innerEdge = RADIUS - THICKNESS * 0.5f - offset;
+                float innerEdge = RADIUS - THICKNESS * 0.5f - offset;
 
-                    //_ Skips the inner copy once there's no room for it.
-                    if (innerEdge - halfH > 0.0f)
-                    {
-                        //_ Mirrored V/U, not rotated (rotation breaks the fade).
-                        if (futureSpan > 0.0f)
-                            DrawArcImage(dl, tex, pos, innerEdge, halfH, ARC_FROM, HAND_DEG,
-                                ringImgTint, true, 1.0f, 1.0f - uSplit);
-                        if (pastSpan > 0.0f)
-                            DrawArcImage(dl, tex, pos, innerEdge, halfH, HAND_DEG, ARC_TO,
-                                ringImgTint, true, 1.0f - uSplit, 0.0f, 1.0f,
-                                CyclicPastFadeEnabled ? 0.0f : 1.0f);
-                    }
+                //_ Skips the inner copy once there's no room for it.
+                if (innerEdge - halfH > 0.0f)
+                {
+                    //_ Mirrored V/U, not rotated (rotation breaks the fade).
+                    if (futureSpan > 0.0f)
+                        DrawArcImage(dl, tex, pos, innerEdge, halfH, ARC_FROM, HAND_DEG,
+                            true, 1.0f, 1.0f - uSplit);
+                    if (pastSpan > 0.0f)
+                        DrawArcImage(dl, tex, pos, innerEdge, halfH, HAND_DEG, ARC_TO,
+                            true, 1.0f - uSplit, 0.0f, 1.0f,
+                            CyclicPastFadeEnabled ? 0.0f : 1.0f);
                 }
             }
         }
@@ -616,11 +606,10 @@ void RenderCyclicGroups()
             // active  true if currently active, false if upcoming
             // secs    secsLeft if active, secsUntilStart if upcoming
             //--------------------------------------------------------------------------------
-            // One entry per unique slot NAME across the whole group, not per Slot
-            // struct - two Slots sharing a name (e.g. Dry Top's two "Crash Site"
-            // slots at different offsets) are one event as far as the user needs
-            // to know on hover. The ring still draws every occurrence regardless;
-            // this collapsing is tooltip-text only.
+            // One entry per unique slot NAME across the whole group, not per Slot struct -
+            // two Slots sharing a name (e.g. Dry Top's two "Crash Site" slots at different
+            // offsets) are one event as far as the user needs to know on hover. The ring
+            // still draws every occurrence regardless; this collapsing is tooltip-text only.
             //--------------------------------------------------------------------------------
             struct TooltipEntry
             {
