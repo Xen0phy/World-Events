@@ -74,9 +74,9 @@ std::vector<WorldEvent> g_Events =
     {"Awakened Invasion (Metrica)",      41010.0f, 35462.0f,  false, m15, "[&BEgAAAA=]", false, "EventMap.png",    {}, MIN(420), MIN(390)},
 
     //_ Fractal Incursions
-    {"Fractal Incursion (Brisban)",      45568.0f, 32025.0f,  false, m15, "[&BBIAAAA=]", false, "EventBoss.png",   {}, MIN(240),        0},
+    {"Fractal Incursion (Brisban)",      40826.0f, 33123.0f,  false, m15, "[&BBIAAAA=]", false, "EventBoss.png",   {}, MIN(240),        0},
     {"Fractal Incursion (Snowden)",      51347.0f, 29164.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, MIN(240),      m60},
-    {"Fractal Incursion (Kessex)",       40826.0f, 33123.0f,  false, m15, "[&BHUAAAA=]", false, "EventBoss.png",   {}, MIN(240),     m120},
+    {"Fractal Incursion (Kessex)",       45568.0f, 32025.0f,  false, m15, "[&BHUAAAA=]", false, "EventBoss.png",   {}, MIN(240),     m120},
     {"Fractal Incursion (Diessa)",       58085.0f, 29462.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, MIN(240), MIN(180)},
 
     //_ Festivals

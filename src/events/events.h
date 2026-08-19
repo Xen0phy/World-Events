@@ -40,7 +40,7 @@
 #include <vector>
 
 //_ YYYYMMDDHHmm, see file header for what this gates and when to bump it.
-constexpr int64_t EVENTS_DATA_VERSION = 202608191056;
+constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 
 //********************************************************************************
 // WorldEvent
