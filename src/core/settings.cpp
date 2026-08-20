@@ -23,8 +23,7 @@
 
 namespace fs = std::filesystem;
 
-//_ Storage for every settings.h extern - one instance of each,
-// initialized to its settings_table.h compiled-in default.
+//_ Storage for every settings.h extern, seeded from its settings_table.h default.
 #define SETTING(S, Key, Type, Default) Type Key = Default;
 #define SETTING_ARRAY(S, Key, N, Default) float Key[N] = Default;
 #include "settings_table.h"
@@ -53,15 +52,11 @@ bool SaveSettings(const std::string& addonDir)
         #define SETTING(S, Key, Type, Default) \
             if (!lastSection || strcmp(lastSection, #S) != 0) { f << "\n[" #S "]\n"; lastSection = #S; } \
             write(#Key, Key);
-        //_ Gw2ApiKey (SETTING_SECRET) writes encrypted (see
-        // apikey_crypto.h) - same key/section as a plain SETTING, only
-        // the VALUE differs.
+        //_ SETTING_SECRET (Gw2ApiKey) writes encrypted (apikey_crypto.h); only the value differs from a plain SETTING.
         #define SETTING_SECRET(S, Key, Default) \
             if (!lastSection || strcmp(lastSection, #S) != 0) { f << "\n[" #S "]\n"; lastSection = #S; } \
             write(#Key, ApiKeyCrypto::Encrypt(addonDir, Key));
-        //_ Comma-joined "r,g,b,a" - the only place a SETTING_ARRAY's
-        // on-disk shape is written; see ParseColorArray below for the
-        // read side.
+        //_ Comma-joined "r,g,b,a" - the only place a SETTING_ARRAY writes; see ParseColorArray for reading.
         #define SETTING_ARRAY(S, Key, N, Default) \
             if (!lastSection || strcmp(lastSection, #S) != 0) { f << "\n[" #S "]\n"; lastSection = #S; } \
             { \
@@ -120,9 +115,7 @@ static void ParseColorArray(const std::string& val, float* out, int n, bool* was
         return;
     }
 
-    //_ Assumes the RRGGBBAA packing every color setting used
-    // pre-migration; only makes sense for n==4, which every
-    // current color setting is.
+    //_ Assumes pre-migration RRGGBBAA packing, valid only for n==4.
     if (n != 4) throw std::runtime_error("legacy color format requires n==4");
     unsigned int rgba = (unsigned int)std::stoul(val);
     out[0] = ((rgba >> 24) & 0xFF) / 255.0f;
@@ -153,8 +146,7 @@ bool LoadSettings(const std::string& addonDir)
         std::ifstream f(filepath);
         if (!f.is_open()) return false; //. no file yet, keep defaults
 
-        //_ Set true by ParseColorArray on a pre-migration packed-color
-        // read - triggers one SaveSettings() rewrite below (see above).
+        //_ Set by ParseColorArray on a legacy packed-color read; triggers a rewrite below.
         bool migratedLegacyColor = false;
 
         std::string line;
@@ -167,9 +159,7 @@ bool LoadSettings(const std::string& addonDir)
             std::string key = line.substr(0, eq);
             std::string val = line.substr(eq + 1);
 
-            //_ Each field's parse is individually try/catch'd - a
-            // corrupted/hand-edited line only leaves that one setting
-            // unchanged; the rest of the file keeps loading normally.
+            //_ Each field parses in its own try/catch - a bad line only skips that one setting.
             if (false) {}
             #define SETTING(S, Key, Type, Default) \
                 else if (key == #Key) \
@@ -177,9 +167,7 @@ bool LoadSettings(const std::string& addonDir)
                     try { Key = parse<Type>(val); } \
                     catch (...) { } \
                 }
-            //_ Try decrypting as our own AES-GCM blob first; on failure
-            // (empty, or a pre-encryption plaintext key) fall back to
-            // val as-is - SaveSettings re-encrypts it next time.
+            //_ Decrypts as AES-GCM first; falls back to val as-is if empty or plaintext, re-encrypted next save.
             #define SETTING_SECRET(S, Key, Default) \
                 else if (key == #Key) \
                 { \
@@ -205,9 +193,7 @@ bool LoadSettings(const std::string& addonDir)
             #undef SETTING_ARRAY
         }
 
-        //_ One rewrite if this load touched a pre-migration packed-color
-        // value, so settings.ini is on the new format from here on -
-        // can't rely on the normal AddonUnload save for this.
+        //_ One rewrite when this load touched a legacy color; can't rely on the normal AddonUnload save here.
         if (migratedLegacyColor)
             SaveSettings(addonDir);
 

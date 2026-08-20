@@ -35,8 +35,7 @@ void RenameCategoryMember(std::vector<Category>& categories, const std::string& 
 {
     if (oldName == newName) return;
 
-    //_ No break: if oldName somehow appears in multiple categories (or
-    //_ twice in one), every occurrence gets patched, not just the first.
+    //_ No break - every occurrence gets patched if oldName appears in multiple/repeated categories, not just the first.
     for (auto& cat : categories)
         for (auto& member : cat.members)
             if (member == oldName)
@@ -48,8 +47,7 @@ void RenameCategoryMember(std::vector<Category>& categories, const std::string& 
 //--------------------------------------------------------------------------------
 void MoveCategoryMember(std::vector<Category>& categories, const std::string& memberName, int targetCategoryIndex)
 {
-    //_ Remove from every category first so exclusivity holds; this also
-    //_ handles targetCategoryIndex == -1 (uncategorized) for free.
+    //_ Remove from every category first so exclusivity holds; also handles targetCategoryIndex == -1 (uncategorized) for free.
     for (auto& cat : categories)
     {
         auto it = std::find(cat.members.begin(), cat.members.end(), memberName);
@@ -199,8 +197,7 @@ bool SaveCategoriesData(const std::string& addonDir)
     {
         std::string filepath = addonDir + "\\events.json";
 
-        //_ Read the existing file first so this only adds/updates the
-        //_ category keys; falls back to an empty object if none exists yet.
+        //_ Read the existing file first so this only adds/updates category keys; falls back to an empty object if none exists yet.
         json j;
         {
             std::ifstream in(filepath);
@@ -229,8 +226,7 @@ bool LoadCategoriesData(const std::string& addonDir)
     {
         std::string filepath = addonDir + "\\events.json";
 
-        //_ Stays 0 with empty loaded lists when there's no file yet, so
-        //_ resurrectMissingDefaults below naturally resolves to the defaults.
+        //_ Stays 0 with empty loaded lists when there's no file yet, so resurrectMissingDefaults naturally resolves to the defaults.
         int64_t savedVersion = 0;
         std::vector<Category> loadedBasic;
         std::vector<Category> loadedCyclic;
@@ -250,8 +246,7 @@ bool LoadCategoriesData(const std::string& addonDir)
                 loadedCyclic = DeserializeCategoryList(j["cyclicCategories"]);
         }
 
-        //_ Same rule as LoadEventsData: an up-to-date file means the user's
-        //_ own edits win, so defaults/forced members aren't re-applied.
+        //_ Same rule as LoadEventsData: an up-to-date file means the user's own edits win, so forced members aren't re-applied.
         bool resurrectMissingDefaults = savedVersion < EVENTS_DATA_VERSION;
 
         g_BasicCategories  = MergeCategoryDefaults(g_DefaultBasicCategories,  loadedBasic,  resurrectMissingDefaults);

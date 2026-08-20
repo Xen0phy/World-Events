@@ -50,9 +50,7 @@ void DrawDragAnchor(const char* idPrefix, int index, ImVec2 center, float hoverR
 
     if (g_EditMode.isDragging && ImGui::IsMouseDown(ImGuiMouseButton_Left))
     {
-        //_ Claims the mouse for the overlay while dragging so Nexus doesn't
-        // also forward this left-drag to GW2 itself, which would otherwise
-        // pan/rotate the game's own map underneath the marker being moved.
+        //_ Claims the mouse for the overlay while dragging so Nexus doesn't also forward this left-drag to GW2 itself and pan/rotate the map underneath.
         ImGui::GetIO().WantCaptureMouse = true;
 
         ImVec2 mouse = ImGui::GetMousePos();

@@ -37,8 +37,7 @@ struct Category
     std::vector<std::string> members;
 };
 
-//_ Two vectors, not one combined list with a tag, since every reader
-//   already knows which UI section it's drawing.
+//_ Two vectors, not a tagged list, since every reader already knows which UI section it's drawing.
 extern std::vector<Category> g_BasicCategories;
 extern std::vector<Category> g_CyclicCategories;
 
@@ -50,26 +49,18 @@ extern std::vector<Category> g_CyclicCategories;
 //--------------------------------------------------------------------------------
 // Compiled-in defaults, written by hand in events_basic.cpp/events_cyclic.cpp
 // alongside g_Events/g_CyclicGroups, referencing members by name. Kept separate
-// from Category since `forced` must survive LoadCategoriesData's merge step,
-// where JSON membership normally wins.
-//
-// forced: when true, this member is (re-)placed into this category on every load
-// where the saved file predates EVENTS_DATA_VERSION, regardless of the user's
-// current arrangement. Use sparingly - it overrides a user's own organization.
-// Default false costs nothing: membership just seeds once and becomes fully user-
-// editable after.
-//
-// offset/duration: when set, one-time-pushes this member's
-// WorldEvent::offset/duration (offset = seconds from UTC midnight, duration =
-// seconds) to this value, unconditionally, the same version-gated way as forced -
-// see ApplyCategoryOffsetOverrides/ ApplyCategoryDurationOverrides in
-// events_storage.cpp.
+// from Category since forced/offset/duration must survive LoadCategoriesData's
+// merge step, where JSON membership normally wins. Each field's exact behavior is
+// documented at its own declaration below.
 //--------------------------------------------------------------------------------
 struct CategoryDefaultMember
 {
     std::string name;
+    //_ True re-places this member into the category on every pre-version load, overriding the user's arrangement; false (default) seeds once and stays editable.
     bool forced = false;
+    //_ One-time push of WorldEvent::offset (seconds from UTC midnight) on a pre-version load - see ApplyCategoryOffsetOverrides, events_storage.cpp.
     std::optional<int> offset;
+    //_ One-time push of WorldEvent::duration (seconds) on a pre-version load - see ApplyCategoryDurationOverrides, events_storage.cpp.
     std::optional<int> duration;
 };
 
@@ -79,8 +70,7 @@ struct CategoryDefault
     std::vector<CategoryDefaultMember> members;
 };
 
-//_ Consumed only by LoadCategoriesData; downstream code should use
-//   g_BasicCategories/g_CyclicCategories instead.
+//_ Consumed only by LoadCategoriesData; downstream code should use g_BasicCategories/g_CyclicCategories instead.
 extern std::vector<CategoryDefault> g_DefaultBasicCategories;
 extern std::vector<CategoryDefault> g_DefaultCyclicCategories;
 

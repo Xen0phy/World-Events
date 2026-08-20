@@ -19,13 +19,7 @@
 // (bug reports, cloud sync, screen recordings, etc.) since the ini alone is no
 // longer enough to recover the key. Does NOT protect against an attacker with
 // full read access to the whole addon data directory (apikey.key sits right next
-// to settings.ini) - no scheme that needs zero extra setup and zero extra user-
-// managed secrets can promise that. Windows DPAPI would tie the key to the OS
-// user account and defend further, but its behavior under Wine/Proton is
-// inconsistent, so it's deliberately not used here - this scheme is pure software
-// AES and behaves identically on native Windows and under Proton. bcrypt.dll
-// ships with Windows 7+ and is exercised heavily by other software, so it's a
-// safe bet under Proton too.
+// to settings.ini) - see apikey_crypto.cpp for why DPAPI isn't used here.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -40,8 +34,8 @@ namespace ApiKeyCrypto
     // plaintext <-> base64 blob safe to store as a single ini value (Gw2ApiKey).
     // Encrypt returns "" if encryption isn't available (master key or bcrypt provider
     // unavailable) - caller should treat that as "couldn't save the key", not fall
-    // back to plaintext. Decrypt returns "" (rather than throwing) if the blob can't
-    // be decrypted (missing/rotated key, corrupted blob, moved install, GCM tag
+    // back to plaintext. Decrypt returns "" instead of throwing if the blob can't be
+    // decrypted (missing/rotated key, corrupted blob, moved install, GCM tag
     // mismatch) - LoadSettings treats "" as "not one of our blobs" and falls back to
     // the raw ini value, making upgrades from a pre-encryption plaintext Gw2ApiKey
     // transparent (see settings.cpp).

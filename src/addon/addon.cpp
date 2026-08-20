@@ -1,5 +1,5 @@
 //################################################################################
-// addon.cpp
+// addon.cpp   (see: addon.h)
 //--------------------------------------------------------------------------------
 // Nexus addon entry point: AddonLoad/AddonUnload (registered via GetAddonDef
 // below) and AddonRender, the per-frame render callback that drives everything
@@ -83,10 +83,7 @@ bool ResetAllDataToDefaults()
     ResetEventsToDefaults();
     LoadCategoriesData(g_AddonDir); //. no file - resolves to compiled-in defaults
 
-    //_ LoadSubscriptionsData/LoadDailyTrackingData both treat "no file" as
-    // "nothing to load, leave memory as-is" (see their own comments) -
-    // exactly wrong here, since memory still holds whatever was
-    // subscribed/marked-done before the reset. Clear explicitly instead.
+    //_ LoadSubscriptionsData/LoadDailyTrackingData treat "no file" as "leave memory as-is" - wrong here; clear explicitly.
     ClearAllSubscriptions();
     ClearAllDoneMarkers();
 
@@ -108,8 +105,7 @@ void AddonLoad(AddonAPI_t* aAPI)
 {
     APIDefs = aAPI;
 
-    //_ Share Nexus's ImGui context/allocators - without this the addon
-    // has a separate context and nothing renders.
+    //_ Share Nexus's ImGui context/allocators - without this the addon has a separate context and nothing renders.
     ImGui::SetCurrentContext((ImGuiContext*)aAPI->ImguiContext);
     ImGui::SetAllocatorFunctions(
         (void*(*)(size_t, void*))aAPI->ImguiMalloc,
@@ -123,22 +119,16 @@ void AddonLoad(AddonAPI_t* aAPI)
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
 
-    //_ g_Events/g_CyclicGroups already hold compiled-in defaults
-    // (static-init time); this merges in whatever's saved on disk by
-    // name, then SaveAllData below writes the merged result back out.
+    //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by name, saved back below.
     LoadEventsData(g_AddonDir);
 
-    //_ Compiled-in category defaults merged with events.json's own keys
-    // by name (see events_categories.cpp); reads data_version itself, so
-    // order vs LoadEventsData doesn't matter - only the SAVE order does.
+    //_ Compiled-in category defaults merged with events.json by name; reads data_version, so load order doesn't matter.
     LoadCategoriesData(g_AddonDir);
 
-    //_ No compiled-in defaults to merge (see subscriptions.h); read-order
-    // doesn't matter here, only the save order below does.
+    //_ No compiled-in defaults to merge (see subscriptions.h); read-order doesn't matter, only save order does.
     LoadSubscriptionsData(g_AddonDir);
 
-    //_ Same story as subscriptions above; self-discards stale data from
-    // a prior UTC day, so no rollover check is needed here.
+    //_ Same story as subscriptions above; self-discards stale data from a prior UTC day, no rollover check needed.
     LoadDailyTrackingData(g_AddonDir);
 
     SaveAllData(g_AddonDir); //. see SaveAllData above
@@ -163,16 +153,13 @@ void AddonUnload()
     APIDefs->GUI_Deregister(AddonRender);
     APIDefs->GUI_Deregister(AddonOptions);
 
-    //_ Bounded wait so a still-running background thread doesn't resume
-    // in unloaded memory after this DLL is freed. 2s is generous
-    // headroom (see gw2_api.cpp's shutdown hook), not a timeout budget.
+    //_ Bounded wait so a still-running thread can't resume in unloaded memory; 2s is generous headroom, not a timeout budget.
     WaitForBackgroundThreads(2000);
 
     SaveSettings(g_AddonDir);
     SaveAllData(g_AddonDir);
 
-    //_ Force heap frees now while the CRT is still intact, rather than
-    // leaving it to the static destructor at DLL unload.
+    //_ Force heap frees now while the CRT is still intact, not left to the static destructor at DLL unload.
     g_Events.clear();
     g_Events.shrink_to_fit();
 
@@ -202,25 +189,19 @@ void AddonUnload()
 //--------------------------------------------------------------------------------
 void AddonRender()
 {
-    //_ No-op unless ShowDebug (see ScopedRenderTimer in addon.h); wraps
-    // this whole function, including every early-return below.
+    //_ No-op unless ShowDebug (see ScopedRenderTimer in addon.h); wraps this whole function, every early-return too.
     RenderTimer renderTimer;
 
-    //_ Unlike the map overlays below, this watchlist is a normal ImGui
-    // window - useful whether or not the full map is open, so it renders
-    // unconditionally on IsGameplay; only the overlays need IsMapOpen too.
+    //_ Unlike the map overlays below, this watchlist is a normal ImGui window - renders on IsGameplay; overlays need IsMapOpen too.
     if (MumbleLink && NexusLink && NexusLink->IsGameplay)
     {
-        //_ Per-view kill-switches so at least one can stay on; also skips
-        // PollGw2Api itself once none of the three would consume its
-        // data anyway - no point polling for nothing to show.
+        //_ Per-view kill-switches so at least one can stay on; also skips PollGw2Api once none would consume its data.
         bool isCompetitive = MumbleLink->Context.IsCompetitive;
         bool allDisabled = DisableWindowWhenCompetitive && DisableBarWhenCompetitive && DisableNotifyWhenCompetitive;
 
         if (!(isCompetitive && allDisabled))
         {
-            //_ Cheap no-op most frames (internal rate limiting) - called here
-            // alongside the two views that actually consume its data.
+            //_ Cheap no-op most frames (internal rate limiting) - called alongside the two views that consume its data.
             PollGw2Api();
 
             if (!(isCompetitive && DisableWindowWhenCompetitive)) RenderSubscriptionsWindow();
@@ -232,9 +213,7 @@ void AddonRender()
     if (!MumbleLink || !NexusLink)          return;
     if (!NexusLink->IsGameplay)             return;
 
-    //_ Edit mode (see maprender.h) must not stay armed once the map
-    // closes, or reopening it later could resume dragging with no visual
-    // cue. Needs the FALLING edge specifically, not just IsMapOpen == false.
+    //_ Edit mode (see maprender.h) must not stay armed once the map closes, or a later reopen resumes dragging with no visual cue; needs the FALLING edge.
     static bool wasMapOpen = false;
     bool isMapOpen = MumbleLink->Context.IsMapOpen;
     if (wasMapOpen && !isMapOpen)
@@ -243,8 +222,7 @@ void AddonRender()
 
     if (!isMapOpen) return;
 
-    //_ PvP/WvW maps never have Basic/Cyclic events on them - unconditional,
-    // not tied to any setting (unlike the subscriptions views above).
+    //_ PvP/WvW maps never have Basic/Cyclic events on them - unconditional, not tied to any setting like the views above.
     if (MumbleLink->Context.IsCompetitive) return;
 
     RenderMapEvents();

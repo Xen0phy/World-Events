@@ -41,8 +41,8 @@ ImGuiScopedDisabled::~ImGuiScopedDisabled()
 // PeriodSecondsToHours / DrawPeriodHoursDragInt
 //--------------------------------------------------------------------------------
 // Whole hours only, 1-12h: no GW2 event/chain runs on anything but a whole-hour
-// cycle, and a DragInt (rather than a Combo over a fixed label array) leaves room
-// to raise the cap later without code changes.
+// cycle. A DragInt is used instead of a Combo over a fixed label array, leaving
+// room to raise the cap later without code changes.
 //
 // PeriodSecondsToHours clamps to [kMinPeriodHours, kMaxPeriodHours], snapping any
 // out-of-range or non-whole-hour value (e.g. from a hand-edited JSON file) to the
@@ -61,8 +61,7 @@ void DrawPeriodHoursDragInt(int* periodSeconds)
     int hours = PeriodSecondsToHours(*periodSeconds);
     if (ImGui::DragInt("Period", &hours, 0.1f, kMinPeriodHours, kMaxPeriodHours, "%dh"))
     {
-        //_ DragInt's min/max only clamp the drag gesture - a typed value
-        // (ctrl+click) can still land outside range, so clamp explicitly.
+        //_ DragInt's min/max only clamp the drag gesture; a typed (ctrl+click) value can still land outside range, so clamp explicitly.
         if (hours < kMinPeriodHours) hours = kMinPeriodHours;
         if (hours > kMaxPeriodHours) hours = kMaxPeriodHours;
         *periodSeconds = hours * 3600;
@@ -95,8 +94,7 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
     for (const auto& fn : iconFiles)
         iconLabels.push_back(fn.c_str());
 
-    //_ "Dot"'s index is 0 normally, or 1 if "(mixed)" occupies slot 0; a
-    // real filename's index is offset by those lead entries ahead of it.
+    //_ "Dot"'s index is 0, or 1 if "(mixed)" occupies slot 0; filenames are offset by whichever lead entries precede them.
     int dotIndex = mixed ? 1 : 0;
     int iconIndex = mixed ? 0 : dotIndex;
     if (!mixed && !shared.empty())
@@ -107,8 +105,7 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
     ImGui::SetNextItemWidth(140.0f);
     if (ImGui::Combo(label, &iconIndex, iconLabels.data(), (int)iconLabels.size()))
     {
-        //_ Combo only returns true when the result differs from what was
-        // passed in, so iconIndex can't still be "(mixed)" here.
+        //_ Combo only returns true when the result differs from the input, so iconIndex can't still be "(mixed)" here.
         std::string newIcon = (iconIndex == dotIndex) ? std::string() : iconFiles[iconIndex - dotIndex - 1];
         for (int idx : targetIndices)
             g_Events[idx].iconTexture = newIcon;
@@ -177,8 +174,7 @@ struct DragPayload
     char name[128];
 };
 
-//_ Two distinct type strings, not one shared type with a discriminator -
-// AcceptDragDropPayload filters by type, rejecting cross-list drops for free.
+//_ Two distinct types, not one with a discriminator - AcceptDragDropPayload filters by type, rejecting cross-list drops for free.
 const char* const kBasicEventDragType  = "WE_DRAG_BASIC_EVENT";
 const char* const kCyclicGroupDragType = "WE_DRAG_CYCLIC_GROUP";
 
@@ -251,8 +247,7 @@ void DrawBellIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
     ImVec2 origin(center.x - 12.0f * s, center.y - 12.0f * s);
     auto P = [&](float x, float y) { return ImVec2(origin.x + x * s, origin.y + y * s); };
 
-    //_ Dome + flare: a semicircle (shoulders on a diameter) over the top,
-    // then straight lines flaring to the rim. Filled solid, not stroked.
+    //_ Dome + flare: a semicircle over the top, then straight lines flaring to the rim; filled solid, not stroked.
     dl->PathArcTo(P(12.0f, 14.0f), 6.0f * s, IM_PI, IM_PI * 2.0f, 12);
     dl->PathLineTo(P(20.0f, 18.0f));
     dl->PathLineTo(P(4.0f, 18.0f));
@@ -269,16 +264,14 @@ void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
 
     dl->AddRectFilled(P(5.0f, 9.0f), P(11.5f, 15.0f), color); //. housing, overlaps cone
 
-    //_ Cone/flare: a trapezoid, drawn as its own convex piece since the
-    // combined housing+cone silhouette isn't convex.
+    //_ Cone/flare drawn as its own convex trapezoid since the combined housing+cone silhouette isn't convex.
     dl->PathLineTo(P(11.0f, 9.0f));
     dl->PathLineTo(P(16.0f, 4.0f));
     dl->PathLineTo(P(16.0f, 20.0f));
     dl->PathLineTo(P(11.0f, 15.0f));
     dl->PathFillConvex(color);
 
-    //_ Sound waves: two concentric arcs, stroked (a filled crescent this
-    // small would read as a smudge rather than a wave).
+    //_ Sound waves: two concentric arcs, stroked; a filled crescent this small would look like a smudge, not a wave.
     dl->PathArcTo(P(11.0f, 12.0f), 5.0f * s, -0.65f, 0.65f, 8);
     dl->PathStroke(color, false, 1.4f * s);
 
@@ -302,8 +295,7 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
 {
     ImGui::PushID(idSuffix);
 
-    //_ Same reasoning as DrawSubscribeCheckbox: zero FramePadding so this
-    // icon matches the tree arrow's height instead of a full frame.
+    //_ Same reasoning as DrawSubscribeCheckbox: zero FramePadding so this icon matches the tree arrow's height instead of a full frame.
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
 
     float sq = ImGui::GetFrameHeight();
@@ -318,8 +310,7 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
         dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
 
     ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
-    //_ was 0.28f, which kept the +/- lines shrunk well inside the box;
-    // tightened so they now run edge-to-edge like the bell/speaker below.
+    //_ Small pad keeps the +/- lines running edge-to-edge, matching the bell/speaker icons below.
     float pad = sq * 0.10f;
 
     switch (level)
@@ -334,8 +325,7 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
         case 2: //. subscribed + toast - speaker
             DrawSpeakerIcon(dl, center, sq * 0.96f, col);
             break;
-        //_ 3: subscribed + toast + sound - "-"; clicking wraps back to
-        // level 0 (fully unsubscribed).
+        //_ Level 3 (subscribed + toast + sound) draws "-"; clicking wraps back to level 0 (fully unsubscribed).
         default:
             dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
             break;
@@ -430,26 +420,31 @@ void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNameAndContextMenu
 //--------------------------------------------------------------------------------
-// Shared expand/collapse + name + right-click row, used by Basic Events, Cyclic
-// Groups, Cyclic slots, and both category lists. Right-click always offers Edit
-// name / Delete; toggleDone, notifyLevel/setNotifyLevel, and resetToDefault add
-// optional entries, left null/-1 where not applicable (e.g. categories pass none
-// of them - no "Reset" for those).
-//
-// resetToDefault, when non-null, adds "Reset" between Edit name and Delete;
-// resetAvailable (only meaningful together with resetToDefault) greys it out for
-// entries with no compiled-in default to reset to (see
-// GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot in events_storage.h)
-// rather than hiding the entry outright, so its position in the menu stays
-// predictable either way.
-//
-// editBuffers is the caller's own edit-in-progress map, keyed by editKey (kept
-// separate from removeIndex since slots share one map across groups - see
-// DrawCyclicGroupRow). Returns {open, newName}; sets pendingRemoveIndex =
-// removeIndex on Delete.
+// toggleDone, notifyLevel/setNotifyLevel, and resetToDefault add optional right-
+// click entries, left null/-1 where not applicable (e.g. categories pass none of
+// them - no "Reset" for those). resetToDefault, when non-null, adds "Reset"
+// between Edit name and Delete; resetAvailable greys it out for entries with no
+// compiled-in default (see GetDefaultEvent/GetDefaultCyclicGroup/
+// GetDefaultCyclicSlot in events_storage.h) instead of hiding the entry, so its
+// menu position stays predictable either way. editBuffers is the caller's own
+// edit-in-progress map, keyed by editKey (kept separate from removeIndex since
+// slots share one map across groups - see DrawCyclicGroupRow). Returns {open,
+// newName}; sets pendingRemoveIndex = removeIndex on Delete.
 //--------------------------------------------------------------------------------
-NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int removeIndex, const std::string& currentName, std::map<int, std::string>& editBuffers, int& pendingRemoveIndex, const char* dragType, const char* autoTag, std::function<void()> toggleDone,
-    int notifyLevel, std::function<void(int)> setNotifyLevel, std::function<void()> resetToDefault, bool resetAvailable)
+NameRowResult DrawNameAndContextMenu(
+    const char*                 treeNodeId,
+    int                         editKey,
+    int                         removeIndex,
+    const std::string&          currentName,
+    std::map<int, std::string>& editBuffers,
+    int&                        pendingRemoveIndex,
+    const char*                 dragType,
+    const char*                 autoTag,
+    std::function<void()>       toggleDone,
+    int                         notifyLevel,
+    std::function<void(int)>    setNotifyLevel,
+    std::function<void()>       resetToDefault,
+    bool                        resetAvailable)
 {
     std::string label = currentName.empty() ? "(unnamed)" : currentName;
     if (autoTag)
@@ -463,8 +458,7 @@ NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int re
                           "Drops off the Subscriptions bar/window on its own\n"
                           "once claimed today (no need to check it off by hand).");
 
-    //_ Drag source is optional: categories are drop targets only, so
-    // they pass dragType = nullptr and this is skipped.
+    //_ Drag source is optional; categories are drop targets only and pass dragType = nullptr to skip it.
     if (dragType)
         MakeDragSource(dragType, currentName);
 
@@ -478,8 +472,7 @@ NameRowResult DrawNameAndContextMenu(const char* treeNodeId, int editKey, int re
         }
         if (setNotifyLevel && notifyLevel >= 0)
         {
-            //_ Jump menu (not just a shortcut past the forward-only
-            // cycle); current stage shows a checkmark, not hidden.
+            //_ Jump menu, not just a shortcut past the forward-only cycle; current stage shows a checkmark.
             if (ImGui::MenuItem("Set to: Subscribed + Toast + Sound", nullptr, notifyLevel == 3))
                 setNotifyLevel(3);
             if (ImGui::MenuItem("Set to: Subscribed + Toast", nullptr, notifyLevel == 2))
@@ -571,22 +564,19 @@ bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower)
 //--------------------------------------------------------------------------------
 void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 {
-    //_ Tracks in-edit-mode indices - see DrawNameAndContextMenu. Shared
-    // (function-static) across category and uncategorized passes alike.
+    //_ Tracks in-edit-mode indices (see DrawNameAndContextMenu); function-static, shared across category and uncategorized passes.
     static std::map<int, std::string> editingNames;
 
     WorldEvent& ev = g_Events[i];
 
-    //_ Drawn before the name/tree-arrow, same slot DrawSubscribeCheckbox
-    // used to occupy. See subscriptions.h for what each level touches.
+    //_ Drawn before the name/tree-arrow, in the slot DrawSubscribeCheckbox used to occupy; see subscriptions.h for what each level touches.
     int notifyLevel = GetBasicEventNotifyLevel(ev.name);
     int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
     if (newNotifyLevel != notifyLevel)
         SetBasicEventNotifyLevel(ev.name, newNotifyLevel);
     ImGui::SameLine();
 
-    //_ Map-only show/hide; doesn't touch the Subscriptions bar/window
-    // (that's the checkbox above). ev.shown defaults to true.
+    //_ Map-only show/hide; the Subscriptions bar/window are unaffected (that's the checkbox above). ev.shown defaults to true.
     DrawSubscribeCheckbox("##show_on_map", ev.shown);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Show on the map overlay\n(Subscriptions bar/window are unaffected)");
@@ -636,8 +626,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
         if (ev.isVarying)
         {
-            //_ Sorted list of HH:MM start times. Labeled UTC and not
-            // auto-converted - the schedule is UTC by design.
+            //_ Sorted HH:MM start times, labeled UTC and not auto-converted; the schedule is UTC by design.
             ImGui::Spacing();
             ImGui::TextUnformatted("Times (UTC)");
             ImGui::SameLine();
@@ -652,8 +641,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
                 int hour   = ev.varyingTimes[t] / 3600;
                 int minute = (ev.varyingTimes[t] % 3600) / 60;
 
-                //_ Narrow, unlabeled fields (":" between them reads as a
-                // clock) so hour+minute+remove all fit on one row.
+                //_ Narrow, unlabeled fields (":" between them reads as a clock) so hour+minute+remove fit on one row.
                 bool changed = false;
                 ImGui::SetNextItemWidth(25.0f);
                 if (ImGui::InputInt("##Hour", &hour, 0, 0))
@@ -686,8 +674,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
             if (pendingAddTime)
                 ev.varyingTimes.push_back(0); //. midnight UTC
 
-            //_ Re-sorted every frame (not conditionally) since
-            // GetSecondsUntilEventStart() requires ascending order.
+            //_ Re-sorted every frame (not conditionally) since GetSecondsUntilEventStart() requires ascending order.
             std::sort(ev.varyingTimes.begin(), ev.varyingTimes.end());
         }
         else
@@ -705,8 +692,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
             DrawPeriodHoursDragInt(&ev.period);
         }
 
-        //_ "Dot" (index 0) keeps the plain circle; any other entry names
-        // a textures/ file, tinted to the status color (see maprender.cpp).
+        //_ "Dot" (index 0) keeps the plain circle; any other entry names a textures/ file tinted to the status color (see maprender.cpp).
         const std::vector<std::string>& iconFiles = GetEventIconFilenames();
         std::vector<const char*> iconLabels;
         iconLabels.push_back("Dot");
@@ -726,8 +712,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
         if (ImGui::SmallButton("Refresh##icon_rescan"))
             ScanEventIconFiles();
 
-        //_ Free-text chat/map code for the copy-to-clipboard button; not
-        // a merge key, so no Save-button buffering like the name field.
+        //_ Free-text chat/map code for the copy-to-clipboard button; not a merge key, so no Save-button buffering like the name field.
         {
             char chatCodeBuf[128];
             strncpy(chatCodeBuf, ev.chatCode.c_str(), sizeof(chatCodeBuf) - 1);
@@ -762,8 +747,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
     CyclicGroup& grp = g_CyclicGroups[i];
 
-    //_ Bulk convenience over per-slot subscriptions - no storage of its
-    // own. Checked only if every slot is subscribed; mixed reads unchecked.
+    //_ Bulk convenience over per-slot subscriptions, no storage of its own; checked only if every slot is subscribed, mixed reads unchecked.
     bool allSlotsSubscribed = !grp.slots.empty() &&
         std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
         {
@@ -774,8 +758,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         for (const auto& slot : grp.slots)
         {
             CyclicSubscriptionKey key{ grp.name, slot.offset };
-            //_ allSlotsSubscribed already holds the post-click state:
-            // unticking drops every slot to 0; ticking only raises 0 -> 1.
+            //_ allSlotsSubscribed already holds the post-click state: unticking drops every slot to 0, ticking only raises 0 -> 1.
             if (!allSlotsSubscribed)
             {
                 SetCyclicSlotNotifyLevel(key, 0);
@@ -790,8 +773,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         ImGui::SetTooltip("Subscribe/unsubscribe every occurrence in this cycle at once\n(checked only when all of them already are)");
     ImGui::SameLine();
 
-    //_ Show/hide the ENTIRE ring (track + every slot) - see
-    // CyclicGroup::shown in events.h.
+    //_ Show/hide the ENTIRE ring (track + every slot); see CyclicGroup::shown in events.h.
     DrawSubscribeCheckbox("##show_group_on_map", grp.shown);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Show/hide this entire ring on the map overlay\n(no circle drawn at all while unchecked)");
@@ -816,8 +798,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
     if (open)
     {
-        //_ Compact row: Location, Period, Color, Idle override all share
-        // one line. Swatches use NoInputs (small square, full picker on click).
+        //_ Compact row: Location, Period, Color, Idle override share one line; swatches use NoInputs (small square, full picker on click).
         ImGui::SetNextItemWidth(100.0f);
         ImGui::InputFloat2("Location", &grp.continentX, "%.0f");
 
@@ -831,12 +812,12 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         ImGui::SetNextItemWidth(50.0f);
         DrawPeriodHoursDragInt(&grp.period);
 
-        //_ Base color - colors.base is a plain ImVec4, so ColorEdit4 binds
-        // to it directly; no read/convert/write-back round trip needed.
-        ImGui::ColorEdit4("Color", &grp.colors.base.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+        //_ colors.base is a plain ImVec4, so ColorEdit4 binds to it directly; no read/convert/write-back round trip needed.
+        ImGui::ColorEdit4("Color", &grp.colors.base.x, ImGuiColorEditFlags_AlphaBar |
+                                                                         ImGuiColorEditFlags_NoInputs |
+                                                                         ImGuiColorEditFlags_PickerHueWheel);
 
-        //_ Optional override: unchecked uses colors.ter() (see
-        // CyclicGroup::IdleColor()); checked stores an explicit ImU32.
+        //_ Optional override: unchecked uses colors.ter() (see CyclicGroup::IdleColor()); checked stores an explicit ImU32.
         ImGui::SameLine();
         bool hasCustomIdle = grp.idleColor.has_value();
         if (ImGui::Checkbox("##customcolorcyclicgroup", &hasCustomIdle))
@@ -852,12 +833,13 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         {
             ImU32 idleU32 = grp.idleColor.has_value() ? *grp.idleColor : grp.colors.ter();
             ImVec4 idleColorVec = ColorFloat4(idleU32);
-            if (ImGui::ColorEdit4("Custom Color##group", &idleColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
+            if (ImGui::ColorEdit4("Custom Color##group", &idleColorVec.x, ImGuiColorEditFlags_AlphaBar |
+                                                                                            ImGuiColorEditFlags_NoInputs |
+                                                                                            ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
                 grp.idleColor = ColorU32(idleColorVec);
         }
 
-        //_ Slots: the individual events within this cycle. Same deferred
-        // add/remove pattern, nested one PushID level deeper (group i, slot s).
+        //_ Slots are the individual events within this cycle; same deferred add/remove pattern, nested one PushID level deeper.
         ImGui::Spacing();
         ImGui::TextUnformatted("Events");
         ImGui::SameLine();
@@ -865,8 +847,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
         int pendingRemoveSlotIndex = -1;
 
-        //_ Shared across every group (function-static, not per-loop) -
-        // keyed by (group i, slot s) so slot 0 in different groups can't collide.
+        //_ Function-static, shared across every group; keyed by (group i, slot s) so slot 0 in different groups can't collide.
         static std::map<int, std::string> editingSlotNames;
 
         for (int s = 0; s < (int)grp.slots.size(); s++)
@@ -874,8 +855,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             CyclicGroup::Slot& slot = grp.slots[s];
             ImGui::PushID(s);
 
-            //_ Per SLOT, not per group - the group checkbox above is a
-            // bulk convenience over these same per-slot subscriptions.
+            //_ Per SLOT, not per group; the group checkbox above is a bulk convenience over these same per-slot subscriptions.
             CyclicSubscriptionKey subKey{ grp.name, slot.offset };
             int notifyLevel = GetCyclicSlotNotifyLevel(subKey);
             int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
@@ -883,8 +863,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 SetCyclicSlotNotifyLevel(subKey, newNotifyLevel);
             ImGui::SameLine();
 
-            //_ Show/hide just THIS occurrence - the rest of the ring
-            // still draws. See CyclicGroup::Slot::shown in events.h.
+            //_ Show/hide just THIS occurrence; the rest of the ring still draws (see CyclicGroup::Slot::shown in events.h).
             DrawSubscribeCheckbox("##show_slot_on_map", slot.shown);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Show/hide this occurrence on the map overlay");
@@ -898,8 +877,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. name unchanged - defaultSlot was found BY (grp.name, slot.name)
                 defaultSlot != nullptr);
             bool slotOpen = slotNameResult.open;
-            //_ Slots aren't categorized, and subscriptions key on
-            // (group name, offset), not name - so no rename fixups needed.
+            //_ Slots aren't categorized and subscriptions key on (group name, offset), not name, so no rename fixups are needed.
             if (slotNameResult.newName != slot.name)
                 slot.name = slotNameResult.newName;
 
@@ -929,8 +907,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                         slot.offset = offsetMinutes * 60;
                     }
 
-                    //_ Repeat must evenly divide the period; snaps down to
-                    // the nearest divisor of the CURRENT period (re-checked every frame).
+                    //_ Repeat must evenly divide the period; snaps down to the nearest divisor of the CURRENT period, re-checked every frame.
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(50.0f);
                     int repeatInput = slot.repeat;
@@ -957,9 +934,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 }
                 else
                 {
-                    //_ Sorted minute-into-period times, not HH:MM (the
-                    // period isn't always 24h). offset/repeat are unused
-                    // while isVarying is set (see events.h).
+                    //_ Sorted minute-into-period times, not HH:MM (period isn't always 24h); offset/repeat are unused while isVarying is set (see events.h).
                     ImGui::Spacing();
                     ImGui::TextUnformatted("Times (min into period)");
                     ImGui::SameLine();
@@ -998,9 +973,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                     if (pendingAddTime)
                         slot.varyingTimes.push_back(0);
 
-                    //_ Re-sorted every frame - GetSubscriptionActiveState's
-                    // cyclic-varying branch (subscriptions_cache.cpp)
-                    // requires ascending order.
+                    //_ Re-sorted every frame; GetSubscriptionActiveState's cyclic-varying branch (subscriptions_cache.cpp) requires ascending order.
                     std::sort(slot.varyingTimes.begin(), slot.varyingTimes.end());
                 }
 
@@ -1010,8 +983,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 if (ImGui::Combo("Tier", &tierIndex, kTierLabels, 3))
                     slot.tier = (ColorTier)tierIndex;
 
-                //_ Same checkbox-gates-swatch pattern as Custom Idle
-                // above; seeded from the slot's current resolved color.
+                //_ Same checkbox-gates-swatch pattern as Custom Idle above; seeded from the slot's current resolved color.
                 ImGui::SameLine();
                 bool hasCustomColor = slot.customColor.has_value();
                 if (ImGui::Checkbox("##customcolorcyclicslot", &hasCustomColor))
@@ -1027,12 +999,13 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 {
                     ImU32 slotU32 = slot.customColor.has_value() ? *slot.customColor : grp.SlotColor(slot);
                     ImVec4 slotColorVec = ColorFloat4(slotU32);
-                    if (ImGui::ColorEdit4("Custom Color##slot", &slotColorVec.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
+                    if (ImGui::ColorEdit4("Custom Color##slot", &slotColorVec.x, ImGuiColorEditFlags_AlphaBar |
+                                                                                                   ImGuiColorEditFlags_NoInputs |
+                                                                                                   ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
                         slot.customColor = ColorU32(slotColorVec);
                 }
 
-                //_ Same as WorldEvent::chatCode; not a merge key, so
-                // live-edits directly with no Save-button buffering.
+                //_ Same as WorldEvent::chatCode; not a merge key, so it live-edits directly with no Save-button buffering.
                 {
                     char chatCodeBuf[128];
                     strncpy(chatCodeBuf, slot.chatCode.c_str(), sizeof(chatCodeBuf) - 1);

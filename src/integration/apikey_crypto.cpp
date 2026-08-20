@@ -1,7 +1,13 @@
 //################################################################################
-// apikey_crypto.cpp
+// apikey_crypto.cpp   (see: apikey_crypto.h)
 //--------------------------------------------------------------------------------
-// See apikey_crypto.h for the overall approach and threat model.
+// See apikey_crypto.h for the overall approach and threat model. Windows DPAPI
+// would tie the master key to the OS user account and defend further against that
+// full-directory-read threat, but its behavior under Wine/Proton is inconsistent,
+// so it isn't used here - this scheme is pure software AES and behaves
+// identically on native Windows and under Proton. bcrypt.dll ships with Windows
+// 7+ and is exercised heavily by other software, so it's a safe bet under Proton
+// too.
 //--------------------------------------------------------------------------------
 
 #include "apikey_crypto.h"
@@ -83,9 +89,7 @@ namespace
         while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
         if (s.empty() || s.size() % 4 != 0) return false;
 
-        //_ '=' is only legal in the final group's last one or two slots -
-        // reject it anywhere else so a malformed middle-of-string '=' can't
-        // silently decode instead of being caught here.
+        //_ '=' is only legal in the final group's last one or two slots - reject it anywhere else so a malformed middle-of-string '=' can't silently decode instead of being caught here.
         for (size_t i = 0; i + 2 < s.size(); i++)
             if (s[i] == '=') return false;
         if (s.size() >= 2 && s[s.size() - 2] == '=' && s[s.size() - 1] != '=') return false;
@@ -127,8 +131,7 @@ namespace
             fs::create_directories(addonDir);
             std::string keyPath = addonDir + "\\apikey.key";
 
-            //_ Scoped so `in` closes here - a regenerate below reopens the
-            // same path for write, which must not race a still-open read handle.
+            //_ Scoped so `in` closes here - a regenerate below reopens the same path for write, which must not race a still-open read handle.
             {
                 std::ifstream in(keyPath, std::ios::binary);
                 if (in.is_open())
@@ -140,8 +143,7 @@ namespace
                         outKey = std::move(bytes);
                         return true;
                     }
-                    //_ Wrong size (corrupted/hand-edited) - regenerate;
-                    // anything encrypted under the old key becomes undecryptable.
+                    //_ Wrong size (corrupted/hand-edited) - regenerate; anything encrypted under the old key becomes undecryptable.
                 }
             }
 
@@ -156,8 +158,7 @@ namespace
             out.write(reinterpret_cast<const char*>(outKey.data()), outKey.size());
             if (!out.good()) return false;
 
-            //_ Best-effort: hides the key file from casual browsing, not
-            // real access control - just reduces the odds it gets zipped up.
+            //_ Best-effort: hides the key file from casual browsing, not real access control - just reduces the odds it gets zipped up.
             SetFileAttributesA(keyPath.c_str(), FILE_ATTRIBUTE_HIDDEN);
             return true;
         }
@@ -290,8 +291,7 @@ namespace ApiKeyCrypto
                 &info, nullptr, 0,
                 plaintext.empty() ? nullptr : plaintext.data(), (ULONG)plaintext.size(),
                 &resultLen, 0);
-            //_ Non-zero status includes STATUS_AUTH_TAG_MISMATCH (wrong key
-            // or tampered/corrupted blob) - either way, not decryptable.
+            //_ Non-zero status includes STATUS_AUTH_TAG_MISMATCH (wrong key or tampered/corrupted blob) - either way, not decryptable.
             if (status != 0) return "";
 
             return std::string(reinterpret_cast<char*>(plaintext.data()), resultLen);

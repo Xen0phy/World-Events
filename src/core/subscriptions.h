@@ -11,15 +11,15 @@
 // Save/LoadSubscriptionsData()               persistence to events.json
 // PasteToChat/BuildChatPasteMessage          watchlist-row chat paste helpers
 //--------------------------------------------------------------------------------
-// Data model for the user's subscribed-events watchlist, surfaced in a standalone
-// window (see subscriptions_window.h). References existing event/slot data by
-// name/key rather than owning a copy - the render code looks up the live
+// Data model for the user's subscribed-events watchlist, surfaced in the
+// subscriptions UI (see ui/subscriptions_ui.h). References existing event/slot
+// data by name/key instead of owning a copy - the render code looks up the live
 // WorldEvent/CyclicGroup::Slot in g_Events/g_CyclicGroups every frame. Basic
 // Events are keyed by name; Cyclic Events are keyed per occurrence (group name,
 // slot offset), since slot names aren't unique within a group but offsets are.
 //
 // A subscription may also opt into a toast popup and, on top of that, a
-// notification sound - modeled as one 0..3 "notify level" rather than three
+// notification sound - modeled as one 0..3 "notify level" instead of three
 // independent bools, since it's a strict ladder (0 unsubscribed, 1 silent, 2
 // +toast, 3 +sound): each level always implies every level below it, and
 // Set...NotifyLevel brings all three lists into agreement in one call.
@@ -27,10 +27,8 @@
 // disagree with the Is...Subscribed/ToastEnabled/SoundEnabled queries.
 //
 // The three UI views over this data - RenderSubscriptionsWindow,
-// RenderSubscriptionsBar, RenderSubscriptionsNotifications - are declared
-// alongside their implementations in ui/subscriptions_window.h,
-// ui/subscriptions_bar.h, and ui/subscriptions_notification.h respectively, not
-// here.
+// RenderSubscriptionsBar, RenderSubscriptionsNotifications - are declared in
+// ui/subscriptions_ui.h, with implementations in their own .cpp files, not here.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -81,7 +79,7 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key);
 //--------------------------------------------------------------------------------
 // Empties every list above (subscribed/toast/sound, Basic and Cyclic alike) and
 // bumps the generation counter once. Unlike calling LoadSubscriptionsData with no
-// file on disk - which leaves these lists untouched rather than clearing them -
+// file on disk - which leaves these lists untouched instead of clearing them -
 // this always empties them, so it's the right call for an explicit "wipe
 // subscriptions" action mid-session.
 //--------------------------------------------------------------------------------

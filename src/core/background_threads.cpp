@@ -70,6 +70,12 @@ void RegisterShutdownHook(std::function<void()> hook)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // WaitForBackgroundThreads
 //--------------------------------------------------------------------------------
+// A long timeout here would stall the whole game's shutdown if the host calls
+// AddonUnload as part of an orderly exit. A hard process kill bypasses this
+// function and terminates every thread at once, so the wait only matters when the
+// DLL unloads while the game keeps running. Threads still active past the
+// deadline are simply left running - AddonUnload has to return eventually.
+//--------------------------------------------------------------------------------
 void WaitForBackgroundThreads(int timeoutMs)
 {
     s_shuttingDown.store(true, std::memory_order_relaxed);
@@ -87,7 +93,4 @@ void WaitForBackgroundThreads(int timeoutMs)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-    //_ If threads are still active past the deadline, there is nothing
-    // safe left to do here - AddonUnload still has to return eventually,
-    // as a last-resort bound (the hooks/checkpoints above make this unlikely).
 }

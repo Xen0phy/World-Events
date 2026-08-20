@@ -11,7 +11,7 @@
 // directly for several things beyond just the row drawers (bulk icon picker,
 // category name/context-menu rows, search predicates, the drag-drop
 // "uncategorized" targets, and the DisabledBlock macro) - so these are declared
-// here with external linkage rather than kept `static` in one .cpp.
+// here with external linkage instead of kept `static` in one .cpp.
 //
 // addon_options_helpers.cpp holds every implementation; nothing here should need
 // editing just to change behavior, only to change a signature.
@@ -40,7 +40,7 @@
 // EndDisabled in this version). While `active` is true, widgets drawn inside the
 // scope are non-interactive and drawn at half alpha; both effects are popped
 // automatically on destruction, so there's no EndDisabled() call to forget.
-// Driven through the DisabledBlock macro below rather than constructed directly.
+// Driven through the DisabledBlock macro below, not constructed directly.
 //--------------------------------------------------------------------------------
 struct ImGuiScopedDisabled
 {
@@ -63,8 +63,7 @@ struct ImGuiScopedDisabled
 #define DISABLED_BLOCK_CONCAT(a, b)  DISABLED_BLOCK_CONCAT_(a, b)
 #define DisabledBlock(cond) if (ImGuiScopedDisabled DISABLED_BLOCK_CONCAT(_disabled_scope_, __LINE__){cond})
 
-//_ Period field: whole hours only, 1-12h - see addon_options_helpers.cpp
-//_ for why.
+//_ Period is whole hours only, 1-12h - see addon_options_helpers.cpp for why.
 inline constexpr int kMinPeriodHours = 1;
 inline constexpr int kMaxPeriodHours = 12;
 
@@ -108,8 +107,7 @@ bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfInd
 //--------------------------------------------------------------------------------
 void DrawDuplicateWarning();
 
-//_ Drag-and-drop payload type strings - two distinct ones give "one list,
-//_ no mixing" for free, see the .cpp for why.
+//_ Payload type strings; kept distinct to prevent cross-list drops - see the .cpp.
 extern const char* const kBasicEventDragType;
 extern const char* const kCyclicGroupDragType;
 
@@ -188,19 +186,19 @@ struct NameRowResult { bool open; std::string newName; };
 // resetToDefault/resetAvailable.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
-    const char* treeNodeId,
-    int editKey,
-    int removeIndex,
-    const std::string& currentName,
+    const char*                 treeNodeId,
+    int                         editKey,
+    int                         removeIndex,
+    const std::string&          currentName,
     std::map<int, std::string>& editBuffers,
-    int& pendingRemoveIndex,
-    const char* dragType = nullptr,
-    const char* autoTag = nullptr,
-    std::function<void()> toggleDone = nullptr,
-    int notifyLevel = -1,
-    std::function<void(int)> setNotifyLevel = nullptr,
-    std::function<void()> resetToDefault = nullptr,
-    bool resetAvailable = true);
+    int&                        pendingRemoveIndex,
+    const char*                 dragType        = nullptr,
+    const char*                 autoTag         = nullptr,
+    std::function<void()>       toggleDone      = nullptr,
+    int                         notifyLevel     = -1,
+    std::function<void(int)>    setNotifyLevel  = nullptr,
+    std::function<void()>       resetToDefault  = nullptr,
+    bool                        resetAvailable  = true);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ContainsCaseInsensitive / EventMatchesSearch / GroupMatchesSearch

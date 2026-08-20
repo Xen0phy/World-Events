@@ -1,32 +1,29 @@
 //################################################################################
-// weekly_vault.cpp
+// weekly_vault.cpp   (see: weekly_vault.h)
 //--------------------------------------------------------------------------------
 // g_CyclicWeeklyObjectives   the Cyclic objective table (see weekly_vault.h)
 // AsciiLower                 lowercases for case-insensitive title matching
 // IsBasicEventWeeklyTarget / IsCyclicSlotWeeklyTarget   see weekly_vault.h
 //--------------------------------------------------------------------------------
-// See weekly_vault.h for the overall design. This file is ONLY the static Cyclic
-// mapping table + the two lookup functions that check against it - all the live
-// API state (what's actually in this week's rotation, what's already complete)
-// comes from gw2_api.h's GetLiveWeeklyObjectives, called from here. Core Boss
-// matching needs no table at all (see weekly_vault.h).
+// Core Boss objectives embed the boss's own display name verbatim, so any
+// WorldEvent with a non-empty apiWorldBossId (events.h) is matched by name
+// automatically - no table needed, and a newly-rotated-in boss needs zero edits.
+// Cyclic objectives don't embed anything recognizable about the actual meta/map,
+// so g_CyclicWeeklyObjectives below is a hand-maintained table instead; live
+// rotation/completion state for both comes from gw2_api.h's
+// GetLiveWeeklyObjectives.
 //
 // titleKeywords entries must be exact substrings (case-insensitive) of the
-// objective's real title from /v2/account/wizardsvault/weekly - usually just the
-// objective's own "Events in <region>" clauses (see weekly_vault.h), not the
-// addon's own internal names. A keyword that stops matching just means that
-// mapping silently never lights up at runtime - nothing will warn you, so if a
-// normally-rotating objective stops tracking, check here first.
-// check_weekly_vault.py (build time) catches the OTHER half of this table going
-// stale - a targets entry that no longer resolves against events_cyclic.cpp - but
-// can't verify titleKeywords against ArenaNet's live wording; nothing offline
-// can.
+// objective's real title, usually just its "Events in <region>" clauses. A
+// keyword that stops matching means the mapping silently stops lighting up -
+// nothing will warn you. check_weekly_vault.py (build time) catches a targets
+// entry that no longer resolves against events_cyclic.cpp, but can't verify
+// titleKeywords against ArenaNet's live wording.
 //
-// groupName/slotName in targets must match an EXISTING CyclicGroup::name +
-// Slot::name (events_cyclic.cpp) exactly - the addon's own internal names, not
-// necessarily the in-game event's displayed name. Point at the ONE (or few)
-// slot(s) that actually complete the meta, not the whole group - most groups have
-// build-up slots that don't finish anything on their own.
+// groupName/slotName in targets must match an existing CyclicGroup::name +
+// Slot::name (events_cyclic.cpp) exactly, using the addon's internal names, not
+// the in-game displayed name. Point at the slot(s) that actually complete the
+// meta, not the whole group.
 //--------------------------------------------------------------------------------
 
 #include "events.h"
@@ -94,8 +91,7 @@ static std::string AsciiLower(const std::string& s)
 //--------------------------------------------------------------------------------
 bool IsBasicEventWeeklyTarget(const std::string& eventName, bool& outComplete)
 {
-    //_ Only Core Bosses (non-empty apiWorldBossId) are ever in the Vault
-    // rotation - confirm eventName is one before searching live data.
+    //_ Only Core Bosses (non-empty apiWorldBossId) are ever in the Vault rotation.
     auto evIt = std::find_if(g_Events.begin(), g_Events.end(),
         [&](const WorldEvent& e) { return e.name == eventName; });
     if (evIt == g_Events.end() || evIt->apiWorldBossId.empty()) return false;

@@ -10,20 +10,9 @@
 // GetGw2ApiFetchGeneration()      bumped on each successful daily-data fetch
 //--------------------------------------------------------------------------------
 // Thin, narrowly-scoped client for three endpoints of the real, public GW2 API
-// (api.guildwars2.com):
-//   - GET /v2/account/worldbosses  - classic Tyria world bosses the
-//     account has killed since the last daily reset (UTC midnight).
-//   - GET /v2/account/mapchests    - Hero's Choice Chests the account has
-//     claimed since the last daily reset. Only the 8 HoT/PoF maps whose
-//     CyclicGroup has a non-empty apiMapChestId (see events.h) are ever
-//     looked up; every other id this endpoint returns is ignored.
-//   - GET /v2/account/wizardsvault/weekly - this week's live Wizard's
-//     Vault objectives. Unlike the two above, objective ids aren't stable
-//     across ArenaNet's seasonal rotation, so objectives are matched by
-//     display TITLE instead (case-insensitive ASCII, exact match - see
-//     GetWeeklyObjectiveState below). weekly_vault.cpp maps these titles
-//     to actual WorldEvent/CyclicGroup::Slot entries; this file only
-//     exposes the raw API state.
+// (api.guildwars2.com): world-boss kills, Hero's Choice Chest claims, and this
+// week's live Wizard's Vault objectives, each scoped to what's already been done
+// since the last reset. See gw2_api.cpp for endpoint paths and matching details.
 //
 // Not a general GW2 API wrapper: everything else in this addon has no equivalent
 // "already done today" signal in the public API. A WorldEvent with an empty
@@ -92,7 +81,7 @@ bool IsMapChestClaimedToday(const std::string& mapChestApiId);
 // WeeklyObjectiveState
 //--------------------------------------------------------------------------------
 // The third endpoint (see file header): fetched on the same cadence as
-// worldbosses/mapchests, but reporting by display TITLE rather than a stable id,
+// worldbosses/mapchests, but reporting by display TITLE instead of a stable id,
 // since Wizard's Vault objective ids aren't stable across ArenaNet's seasonal
 // rotation. See weekly_vault.h/.cpp for the addon-side table mapping titles to
 // actual WorldEvent/ CyclicGroup::Slot entries - this file only exposes the raw
@@ -124,7 +113,7 @@ WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title);
 //--------------------------------------------------------------------------------
 // One live Wizard's Vault objective, with no title matching applied yet - for
 // callers that need to search across every live objective at once
-// (substring/keyword matching) rather than check one exact, already-known title
+// (substring/keyword matching) instead of checking one exact, already-known title
 // (see GetWeeklyObjectiveState above for that case).
 //--------------------------------------------------------------------------------
 struct LiveWeeklyObjective

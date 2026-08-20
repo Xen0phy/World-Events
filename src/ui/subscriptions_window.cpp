@@ -9,12 +9,12 @@
 // ImGui::Selectable) for per-frame cost - see DrawSubscriptionRow.
 //
 // SubscriptionsActiveColor / SoonColor / WeeklyAutoTrackColor's alpha component
-// is deliberately ignored via ToImVec4Opaque (color_utils.h) wherever those
-// colors are used below: they feed straight into ImGui::TextColored, which is
-// plain text at a fixed opacity of 1.0, not a translucency-capable draw.
+// is ignored via ToImVec4Opaque (color_utils.h) wherever those colors are used
+// below: they feed straight into ImGui::TextColored, which is plain text at a
+// fixed opacity of 1.0, not a translucency-capable draw.
 //--------------------------------------------------------------------------------
 
-#include "addon.h" //. SubsWindowDataTimer/SubsWindowDrawTimer - see their comment in addon.h
+#include "addon.h" //. SubsWindowDataTimer/SubsWindowDrawTimer - see addon.h
 #include "color_utils.h"
 #include "events_tracking.h"
 #include "imgui.h"
@@ -31,20 +31,16 @@
 #include <string>
 #include <vector>
 
-//_ 15-minute "soon" threshold, matching BasicEventColorSoon's hardcoded
-// secs < 900 check on the map (maprender.cpp) rather than adding a second
-// configurable window.
+//_ 15-minute "soon" threshold, matching BasicEventColorSoon's map check (maprender.cpp).
 static constexpr int kSoonThresholdSecs = 900;
 
-//_ Most-recently-clicked row (by display name, unique within one frame's
-// row list) and its GetTickCount64() flash deadline - see DrawSubscriptionRow.
+//_ Most-recently-clicked row (by name) and its GetTickCount64() flash deadline.
 static std::string   s_flashKey;
 static unsigned long long s_flashUntil = 0;
 
 static constexpr unsigned long long kFlashDurationMs = 350;   //. click-confirmation flash duration
 
-//_ Row (by display name) that took the last left-button mouse-down, so a
-// press must release on the same row to register - see DrawSubscriptionRow.
+//_ Row that took the last left-button mouse-down; release must land on it too.
 static std::string s_leftPressedKey;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,9 +48,9 @@ static std::string s_leftPressedKey;
 //--------------------------------------------------------------------------------
 // Draws one watchlist row: click copies "<name>: <chatCode>" to the clipboard (or
 // just "<name>" with no chat code yet), flashing a brief highlight as
-// confirmation. Rows are hand-drawn straight to the window's draw list rather
-// than one ImGui::Selectable each - a Selectable's ID hashing and hover/click
-// state machine, paid per row per frame, made this window cost roughly 2x the
+// confirmation. Rows are hand-drawn straight to the window's draw list instead of
+// one ImGui::Selectable each - a Selectable's ID hashing and hover/click state
+// machine, paid per row per frame, made this window cost roughly 2x the
 // subscription bar (subscriptions_bar.cpp) for a visually simpler job. Left-click
 // requires press and release on the same row (Selectable's own gesture); right-
 // click (open the "mark done" popup) fires on mouse-down, matching the pre-
@@ -65,8 +61,7 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
 {
     if (isWeekly)
     {
-        //_ Weekly Vault marker (weekly_vault.h) - purely visual, doesn't
-        // affect click behavior below.
+        //_ Weekly Vault marker (weekly_vault.h) - purely visual, no effect on clicks below.
         ImVec4 weeklyDotColor = ToImVec4Opaque(WeeklyAutoTrackColor);
         ImGui::TextColored(weeklyDotColor, "*");
         if (ImGui::IsItemHovered())
@@ -105,17 +100,14 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
 
     std::string label = name + statusSuffix;
 
-    //_ Row rect + hover test, computed before drawing anything - same
-    // ordering subscriptions_bar.cpp uses for hoveredIndices.
+    //_ Row rect + hover test, computed before drawing anything - same order as hoveredIndices in subscriptions_bar.cpp.
     ImVec2 rowMin       = ImGui::GetCursorScreenPos();
     float  rowWidth     = ImGui::GetContentRegionAvail().x;
-    //_ Matches Selectable's own text-only sizing (no FramePadding) -
-    // GetFrameHeight() would be taller and grow every row and the window.
+    //_ Matches Selectable's text-only sizing; GetFrameHeight() would grow every row and the window.
     float  rowHeight    = ImGui::GetTextLineHeight();
     ImVec2 rowMax(rowMin.x + rowWidth, rowMin.y + rowHeight);
 
-    //_ IsWindowHovered avoids registering a hover when a popup (including
-    // this row's own) sits on top - Selectable had this protection for free.
+    //_ IsWindowHovered skips a hover reading when a popup, including this row's own, sits on top.
     bool hovered = ImGui::IsWindowHovered()
         && ImGui::IsMouseHoveringRect(rowMin, rowMax);
 
@@ -136,8 +128,7 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
     //_ Reserves layout/scroll space without creating an interactive item.
     ImGui::Dummy(ImVec2(rowWidth, rowHeight));
 
-    //_ Records which row a press started on; the release below only acts
-    // if it lands back on that same row.
+    //_ Records which row a press started on; release only acts if it lands back on it.
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         s_leftPressedKey = name;
     if (hovered && s_leftPressedKey == name && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -149,14 +140,12 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
         s_flashUntil = GetTickCount64() + kFlashDurationMs;
     }
 
-    //_ Keyed by name (like s_flashKey) so it's unique per row without a
-    // separate numeric id - see events_tracking.h for the done-today mechanic.
+    //_ Keyed by name (like s_flashKey), unique per row without a separate numeric id.
     std::string popupId = "##we_done_popup_" + name;
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         ImGui::OpenPopup(popupId.c_str());
 
-    //_ Runs every frame regardless of hover, so an already-open popup keeps
-    // rendering after the mouse moves off this row.
+    //_ Runs every frame regardless of hover, so an open popup keeps rendering off-row.
     if (ImGui::BeginPopup(popupId.c_str()))
     {
         if (ImGui::Selectable("Mark done for today"))
@@ -182,7 +171,7 @@ struct Row { std::string name; std::string chatCode; bool active; int secs; bool
 // RenderSubscriptionsWindow
 //--------------------------------------------------------------------------------
 // Sortable, unified list of rows across both Basic Events and Cyclic slots, so
-// "what's coming up soonest" reads as one list rather than two sections the user
+// "what's coming up soonest" reads as one list instead of two sections the user
 // has to visually merge themselves - active entries first, then soonest-upcoming,
 // matching the sort already used for the per-group tooltip in cyclicrender.cpp.
 // isBasic/basicName/cyclicKey identify each row for
@@ -196,24 +185,22 @@ void RenderSubscriptionsWindow()
     time_t now = time(nullptr);
     std::vector<Row> rows;
     {
-        //_ Scoped to data gathering only, split from the draw timer below -
-        // see SubsBarDataTimer's equivalent split in subscriptions_bar.cpp.
+        //_ Scoped to data gathering only, split from the draw timer below (see subscriptions_bar.cpp).
         SubsWindowDataTimer dataTimer; //. no-op unless ShowDebug
         RefreshSubscriptionsCache(now); //. no-op most frames
 
-        //_ Shared cache, built once per RefreshSubscriptionsCache() call and
-        // reused by the bar/notifications too.
+        //_ Shared cache, built once per RefreshSubscriptionsCache() call, reused by the bar/notifications too.
         const auto& resolved = GetResolvedSubscriptions();
         rows.reserve(resolved.size());
 
         for (const auto& sub : resolved)
         {
-            if (sub.doneToday) continue; //. API-confirmed or manually marked - see ResolvedSubscription::doneToday
+            if (sub.doneToday) continue; //. API-confirmed or manually marked
 
             SubscriptionActiveState as = GetSubscriptionActiveState(sub, now);
             int secs = as.active ? as.secsUntilEnd : as.secsUntilStart;
             if (secs < 0) continue; //. no timer data yet
-            if (as.active && SubscriptionsHideActive) continue; //. "only show what's not already happening"
+            if (as.active && SubscriptionsHideActive) continue; //. hides already-active subscriptions
 
             rows.push_back({ sub.label, sub.chatCode, as.active, secs, sub.isWeeklyTarget,
                               sub.isBasic, sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
@@ -226,8 +213,7 @@ void RenderSubscriptionsWindow()
         });
     }
 
-    //_ Everything from here on is the actual ImGui window/row rendering -
-    // see g_AvgSubsWindowDrawMs's comment in addon.h.
+    //_ Everything from here on is the ImGui window/row rendering (see addon.h).
     SubsWindowDrawTimer drawTimer; //. no-op unless ShowDebug
 
     ImGui::SetNextWindowSize(ImVec2(320, 240), ImGuiCond_FirstUseEver);
@@ -249,8 +235,7 @@ void RenderSubscriptionsWindow()
         }
         else if (hasSubscriptions)
         {
-            //_ Reachable when everything subscribed is already done today -
-            // distinct from having no subscriptions at all, below.
+            //_ Reachable when everything subscribed is done today, unlike having none at all below.
             ImGui::TextDisabled("Nothing to show — everything");
             ImGui::TextDisabled("subscribed is already done today.");
         }
@@ -272,8 +257,7 @@ void RenderSubscriptionsWindow()
         ImGui::TextDisabled("Right-click to mark done for today.");
     }
 
-    //_ Clears a press that released off any row, so a stale key can't
-    // wrongly match a future row with the same name.
+    //_ Clears a press that released off any row, so a stale key can't match a future row by name.
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) s_leftPressedKey.clear();
 
     ImGui::End();

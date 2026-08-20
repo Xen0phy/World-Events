@@ -16,8 +16,7 @@ static bool s_open = false;
 
 void DrawResetToDefaultsButton()
 {
-    //_ Red, matching the "you're about to lose data" tone used for the
-    // invalid-API-key state elsewhere in this panel - not a normal action.
+    //_ Red, matching the "you're about to lose data" tone used for the invalid-API-key state elsewhere in this panel - not a normal action.
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.15f, 0.15f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.70f, 0.20f, 0.20f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.45f, 0.10f, 0.10f, 1.0f));

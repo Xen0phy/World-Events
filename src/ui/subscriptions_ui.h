@@ -43,17 +43,14 @@ void RenderSubscriptionsBar();
 // RenderSubscriptionsNotifications   (group: RenderSubscriptionsWindow,
 //                                            RenderSubscriptionsBar)
 //--------------------------------------------------------------------------------
-// Draws and internally advances/fires the notification popup stack: a "starting
-// soon" toast NotificationLeadMinutes before a slot's next occurrence (0 = off),
-// and an "it's live" toast the instant it starts, independently gated by
-// NotificationOnStart. Both require NotificationsEnabled plus, for manually
-// subscribed items, that item's own toast opt-in (IsBasicEventToastEnabled /
-// IsCyclicSlotToastEnabled, subscriptions.h) - most subscriptions default silent.
-// Auto-tracked weekly Vault targets (weekly_vault.h) aren't gated by that per-
-// item flag and get an extra thin red border, controlled instead by
-// WeeklyAutoTrackEnabled. Clicking a toast pastes its waypoint code, same as a
-// window row or bar segment (PasteToChat, subscriptions.cpp). Has no show/hide
-// checkbox of its own beyond NotificationsEnabled, since a fired toast is
-// transient by nature. No-op if NotificationsEnabled is false.
+// Draws and fires the notification popup stack: a "starting soon" toast
+// NotificationLeadMinutes before a slot's next occurrence (0 = off), and an "it's
+// live" toast the instant it starts, independently gated by NotificationOnStart.
+// Both require NotificationsEnabled, plus - for manually subscribed items - that
+// item's own toast opt-in (IsBasicEventToastEnabled / IsCyclicSlotToastEnabled,
+// subscriptions.h); most default silent. Auto-tracked weekly Vault targets
+// (weekly_vault.h) skip that per-item flag, getting a thin red border instead,
+// controlled by WeeklyAutoTrackEnabled. Clicking a toast pastes its waypoint code
+// (PasteToChat, subscriptions.cpp). No-op if NotificationsEnabled is false.
 //--------------------------------------------------------------------------------
 void RenderSubscriptionsNotifications();

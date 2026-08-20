@@ -18,7 +18,7 @@
 // idleColor/customColor (CyclicGroup / CyclicGroup::Slot in events.h) are NOT
 // part of this - they're already native ImU32, fed straight into ImDrawList
 // calls. They still get converted for editing (ColorEdit4 wants floats), just via
-// the plain ColorFloat4/ColorU32 pair below rather than a bespoke wrapper.
+// the plain ColorFloat4/ColorU32 pair below, not a bespoke wrapper.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -30,11 +30,11 @@
 //--------------------------------------------------------------------------------
 // Straight 4-float copy of a SETTING_ARRAY color (stored as plain float[4] so the
 // generic array-setting machinery in settings.h/.cpp doesn't need a color-
-// specific macro) into ImVec4, for call sites that want member/ struct syntax
-// (c.w *= alpha, ImGui::TextColored, etc.). ToImVec4Opaque forces alpha to 1.0,
-// for the handful of call sites (Subscriptions window's Active/Soon text, the
-// weekly-tracked '*' marker) that feed straight into ImGui::TextColored, which
-// has no separate opacity control.
+// specific macro) into ImVec4, for call sites that want member/struct syntax (c.w
+// *= alpha, ImGui::TextColored, etc.). ToImVec4Opaque forces alpha to 1.0, for
+// the handful of call sites (Subscriptions window's Active/Soon text, the weekly-
+// tracked '*' marker) that feed straight into ImGui::TextColored, which has no
+// separate opacity control.
 //--------------------------------------------------------------------------------
 inline ImVec4 ToImVec4(const float c[4])
 {
@@ -59,17 +59,17 @@ inline ImU32 ColorU32(const float c[4]) { return ColorU32(ToImVec4(c)); }
 // ColorFloat4
 //--------------------------------------------------------------------------------
 // Reverse direction, ImU32 -> ImVec4, for ColorEdit4 to edit it as floats.
-// idleColor/customColor (events.h) are stored as native ImU32 rather than one of
-// this addon's own RGBA-float settings, so there's no ToImVec4/ ColorU32 float-
-// array pair for them - this is the one place a stored color needs converting
-// FROM ImU32.
+// idleColor/customColor (events.h) are stored as native ImU32, not one of this
+// addon's own RGBA-float settings, so there's no ToImVec4/ColorU32 float-array
+// pair for them - this is the one place a stored color needs converting FROM
+// ImU32.
 //--------------------------------------------------------------------------------
 inline ImVec4 ColorFloat4(ImU32 c) { return ImGui::ColorConvertU32ToFloat4(c); }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ShadeU32   (group: ColorU32, FadeU32)
 //--------------------------------------------------------------------------------
-// Scales R/G/B by factor, alpha unchanged - derives a color's secondary/ tertiary
+// Scales R/G/B by factor, alpha unchanged - derives a color's secondary/tertiary
 // shade (ColorSet::sec()/ter() in events.h).
 //--------------------------------------------------------------------------------
 inline ImU32 ShadeU32(const ImVec4& c, float factor)
@@ -94,10 +94,10 @@ inline ImU32 FadeU32(const ImVec4& c, float alphaMul)
 //--------------------------------------------------------------------------------
 // Reads whatever Nexus/the user currently has the shared ImGui context themed to
 // (ImGuiCol_WindowBg/ImGuiCol_Text - same context AddonLoad hands off via
-// ImGui::SetCurrentContext, see addon.cpp), rather than a color this addon picks
-// itself. alphaMul (0..1) multiplies the style color's OWN alpha rather than
-// replacing it - exactly FadeU32, just starting from a live theme color instead
-// of one of this addon's own stored colors.
+// ImGui::SetCurrentContext, see addon.cpp), not a color this addon picks itself.
+// alphaMul (0..1) multiplies the style color's own alpha instead of replacing it
+// - exactly FadeU32, just starting from a live theme color instead of one of this
+// addon's own stored colors.
 //--------------------------------------------------------------------------------
 inline ImU32 ThemeColorU32(ImGuiCol styleColor, float alphaMul)
 {

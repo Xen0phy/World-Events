@@ -64,8 +64,7 @@ void ScanNotificationSoundFiles()
         if (!entry.is_regular_file(ec)) continue;
         auto ext = entry.path().extension().string();
         for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
-        //_ .wav only - PlaySoundW's SND_FILENAME path decodes uncompressed
-        // WAV with no extra codec; other formats are left out entirely.
+        //_ .wav only - SND_FILENAME decodes uncompressed WAV, no other codecs
         if (ext == ".wav")
             s_soundFilenames.push_back(entry.path().filename().string());
     }

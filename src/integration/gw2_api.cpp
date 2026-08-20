@@ -1,17 +1,25 @@
 //################################################################################
-// gw2_api.cpp
+// gw2_api.cpp   (see: gw2_api.h)
 //--------------------------------------------------------------------------------
-// See gw2_api.h for scope/rationale. Implementation notes:
+// This file talks to three endpoints of the real, public GW2 API:
+//   - GET /v2/account/worldbosses - world bosses killed since the last daily
+//     reset (UTC midnight).
+//   - GET /v2/account/mapchests - Hero's Choice Chests claimed since the last
+//     daily reset. Only the 8 HoT/PoF maps whose CyclicGroup has a non-empty
+//     apiMapChestId (events.h) are looked up; other ids are ignored.
+//   - GET /v2/account/wizardsvault/weekly - this week's live Wizard's Vault
+//     objectives, matched by display TITLE since ids aren't stable across
+//     ArenaNet's seasonal rotation (see GetWeeklyObjectiveState in gw2_api.h).
+//     weekly_vault.cpp maps titles to WorldEvent/CyclicGroup::Slot entries;
+//     this file only exposes the raw API state.
 //
-// - HTTP via WinHTTP (synchronous calls), always from a short-lived
-//   detached background thread - never the render thread. Same overall
-//   shape as PasteToChat's background thread in subscriptions.cpp,
-//   guarded the same way (an atomic in-flight flag instead of
-//   overlapping requests).
-// - The completed-boss set is guarded by a mutex; the render thread only
-//   ever takes a quick lock to read a handful of strings out of an
-//   unordered_set, so there's no meaningful contention risk with a
-//   background fetch that runs at most once every kMinPollSeconds.
+// HTTP via WinHTTP (synchronous calls), always from a short-lived detached
+// background thread - never the render thread. Same shape as PasteToChat's
+// background thread in subscriptions.cpp, guarded the same way (an atomic in-
+// flight flag instead of overlapping requests).
+//
+// The completed-boss set is guarded by a mutex; the render thread only takes a
+// quick lock to read a handful of strings, so contention risk is minimal.
 //--------------------------------------------------------------------------------
 
 #pragma comment(lib, "winhttp.lib")
@@ -40,18 +48,15 @@ static std::unordered_set<std::string> s_completedWorldBosses; //. guarded by s_
 static std::unordered_set<std::string> s_claimedMapChests;     //. guarded by s_mutex
 
 //_ Guarded by s_mutex - key: lowercased objective title, value: complete?
-// A failure on this third fetch does NOT invalidate the two sets above.
 static std::unordered_map<std::string, bool> s_weeklyObjectiveComplete;
 
 static std::atomic<Gw2ApiStatus> s_status{Gw2ApiStatus::NoKey};
 static std::atomic<bool>         s_fetchInProgress{false};
 
-//_ Bumped at the end of a successful poll - see GetGw2ApiFetchGeneration's
-// comment in gw2_api.h for why this exists.
+//_ Bumped at the end of a successful poll - see GetGw2ApiFetchGeneration in gw2_api.h.
 static std::atomic<uint64_t> s_fetchGeneration{0};
 
-//_ UTC day number the cached set above is valid for; -1 = never fetched.
-// A rollover forces a fresh fetch even if kMinPollSeconds hasn't elapsed.
+//_ UTC day the cached set is valid for; -1 = never fetched, rollover forces a refetch.
 static std::atomic<long long> s_cachedForDay{-1};
 
 static std::atomic<long long> s_lastFetchAttemptUnixTime{0};
@@ -83,12 +88,10 @@ static std::string AsciiLower(const std::string& s)
     return out;
 }
 
-//_ No benefit polling faster than this - the list only changes on a kill,
-// and 600 req/10min per key is the rate-limit budget to conserve.
+//_ The list only changes on a kill; 600 req/10min per key is the rate-limit budget.
 static constexpr int kMinPollSeconds = 120;
 
-//_ Handles the in-flight HttpsGetJson call currently has open - see
-// CancelInFlightHttpRequest below for why these need tracking.
+//_ Handles the in-flight HttpsGetJson call has open (see CancelInFlightHttpRequest).
 static std::mutex s_activeHandlesMutex;
 static HINTERNET  s_activeSession = nullptr;
 static HINTERNET  s_activeConnect = nullptr;
@@ -98,16 +101,14 @@ static HINTERNET  s_activeRequest = nullptr;
 // CancelInFlightHttpRequest
 //--------------------------------------------------------------------------------
 // WinHTTP's documented way to cancel a blocked synchronous call is to close the
-// handle from a different thread - the blocked call then returns (with an error)
-// instead of running out its timeout. Registered as a shutdown hook (see
-// background_threads.h), this closes whichever s_active* handles HttpsGetJson
-// currently has open, from the main/render thread during AddonUnload, so the
-// fetch thread's blocking call returns almost immediately instead of waiting out
-// the full timeout.
+// handle from a different thread, so the blocked call returns early instead of
+// waiting out its timeout. Registered as a shutdown hook (background_threads.h),
+// this closes whichever s_active* handles HttpsGetJson currently has open, from
+// the main/render thread during AddonUnload.
 //
 // s_activeHandlesMutex serializes every close so a handle is never closed twice
-// from two threads at once - whichever close gets the lock first "wins"; the
-// other sees the slot already nulled and skips it.
+// at once - whichever close gets the lock first "wins"; the other sees the slot
+// already nulled and skips it.
 //--------------------------------------------------------------------------------
 static void CancelInFlightHttpRequest()
 {
@@ -118,8 +119,7 @@ static void CancelInFlightHttpRequest()
     if (s_activeSession) { WinHttpCloseHandle(s_activeSession); s_activeSession = nullptr; }
 }
 
-//_ Registered at static-init time - simpler/race-free than lazily
-// registering on HttpsGetJson's first call.
+//_ Registered at static-init - simpler/race-free than a lazy first-call registration.
 static bool s_cancelHookRegistered = (RegisterShutdownHook(CancelInFlightHttpRequest), true);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -148,8 +148,7 @@ static bool HttpsGetJson(const wchar_t* host, const wchar_t* path,
         s_activeSession = hSession;
     }
 
-    //_ A stuck/hanging connection must not leave this thread (and
-    // s_fetchInProgress) stuck forever; 10s is generous but bounded.
+    //_ Stuck connections must not hang this thread forever; 10s is generous but bounded.
     WinHttpSetTimeouts(hSession, 10000, 10000, 10000, 10000);
 
     HINTERNET hConnect = WinHttpConnect(hSession, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
@@ -207,8 +206,7 @@ static bool HttpsGetJson(const wchar_t* host, const wchar_t* path,
         }
     }
 
-    //_ Same guarded-close pattern as CancelInFlightHttpRequest - never
-    // double-closes a handle an unload already force-closed.
+    //_ Same guarded-close pattern as CancelInFlightHttpRequest - never double-closes.
     {
         std::lock_guard<std::mutex> lock(s_activeHandlesMutex);
         if (s_activeRequest) { WinHttpCloseHandle(s_activeRequest); s_activeRequest = nullptr; }
@@ -260,8 +258,7 @@ void PollGw2Api()
 
     std::thread([apiKeyCopy, today]()
     {
-        //_ Keeps AddonUnload's WaitForBackgroundThreads aware this thread
-        // is still in flight, for the lambda's whole lifetime.
+        //_ Keeps WaitForBackgroundThreads aware of this thread for its whole lifetime.
         BackgroundThreadGuard threadGuard;
 
         if (IsShuttingDown())
@@ -270,9 +267,7 @@ void PollGw2Api()
             return;
         }
 
-        //_ GETs one of the two "already done today" id-list endpoints into
-        // a flat string set; false only on a hard failure (transport,
-        // bad key, or malformed body).
+        //_ GETs one id-list endpoint into a flat set; false only on a hard failure.
         auto FetchIdSet = [&](const wchar_t* path, std::unordered_set<std::string>& outSet, int& outStatusCode) -> bool
         {
             std::string body;
@@ -297,15 +292,13 @@ void PollGw2Api()
 
         if (!worldBossesOk)
         {
-            //_ Leaves both cached sets untouched - a transient failure
-            // here shouldn't wipe out an earlier fetch; next poll retries.
+            //_ Leaves cached sets untouched - a transient failure keeps the prior fetch.
             s_status.store((statusCode == 401 || statusCode == 403) ? Gw2ApiStatus::InvalidKey : Gw2ApiStatus::NetworkError);
             s_fetchInProgress.store(false);
             return;
         }
 
-        //_ Bails early on shutdown so WaitForBackgroundThreads waits at
-        // most the current call's timeout, not three calls' worth.
+        //_ Bails early on shutdown so unload waits out one call's timeout, not three.
         if (IsShuttingDown())
         {
             s_fetchInProgress.store(false);
@@ -317,17 +310,13 @@ void PollGw2Api()
 
         if (!mapChestsOk)
         {
-            //_ Key already proved good above, so this is transport/parse
-            // specific, not a bad key; neither cached set updated (as above).
+            //_ Key already proved good above, so this is transport/parse - sets stay as-is.
             s_status.store(Gw2ApiStatus::NetworkError);
             s_fetchInProgress.store(false);
             return;
         }
 
-        //_ Third call, deliberately soft-fail (unlike the two above): a
-        // differently-scoped/older key, or an ArenaNet-side change to
-        // just this endpoint, must not take down the two daily checks.
-        //_ Same checkpoint as above, one call earlier.
+        //_ Third call is a deliberate soft-fail - must not sink the two checks above.
         if (IsShuttingDown())
         {
             s_fetchInProgress.store(false);
@@ -360,8 +349,7 @@ void PollGw2Api()
                     }
                     weeklyOk = true;
                 }
-                //_ Malformed body on a 200 - weeklyOk stays false,
-                // weeklyComplete discarded.
+                //_ Malformed body on a 200 - weeklyOk false, weeklyComplete discarded.
                 catch (...) { }
             }
         }
@@ -376,8 +364,7 @@ void PollGw2Api()
         }
         s_cachedForDay.store(today);
         s_status.store(Gw2ApiStatus::Ok);
-        //_ Signals "fresh data landed" (see subscriptions_cache.cpp);
-        // relaxed is fine - only compared for equality, never used to order.
+        //_ Signals "fresh data landed" (subscriptions_cache.cpp); relaxed, only compared.
         s_fetchGeneration.fetch_add(1, std::memory_order_relaxed);
 
         s_fetchInProgress.store(false);
@@ -416,8 +403,7 @@ WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title)
     std::string key = AsciiLower(title);
     std::lock_guard<std::mutex> lock(s_mutex);
     auto it = s_weeklyObjectiveComplete.find(key);
-    //_ Not in this week's live rotation - or the soft-fail third fetch
-    // hasn't succeeded yet; either way, not a match.
+    //_ Not this week's rotation, or the soft-fail third fetch hasn't landed - no match.
     if (it == s_weeklyObjectiveComplete.end()) return WeeklyObjectiveState::NotThisWeek;
     return it->second ? WeeklyObjectiveState::Complete : WeeklyObjectiveState::Incomplete;
 }

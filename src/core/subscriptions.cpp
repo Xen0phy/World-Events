@@ -252,7 +252,7 @@ static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 //
 // Load defaults any missing key to empty via .value(...), so an events.json from
 // before this feature existed loads with every subscription non-toast/non-sound
-// rather than opting in silently.
+// instead of opting in silently.
 //--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir)
 {
@@ -379,8 +379,7 @@ LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
 
     std::uint32_t l_param = 1;                    //. repeat count, bits 0-15
     l_param |= (scan_code & 0xFF) << 16;           //. bits 16-23
-    //_ Bit 24 (extended key flag) and bits 25-28 (reserved) are left 0
-    // here; set bit 24 via (is_extended_key(key)?1u:0u)<<24 if ever needed.
+    //_ Bit 24 (extended key flag) and bits 25-28 (reserved) are left 0; set bit 24 via (is_extended_key(key)?1u:0u)<<24 if ever needed.
     l_param |= (down && repeat ? 1u : 0u) << 30;   //. previous key state
     l_param |= (!down ? 1u : 0u) << 31;            //. transition state
 
@@ -392,7 +391,7 @@ LPARAM get_l_param(std::uint32_t key, bool down, bool repeat = false)
 //--------------------------------------------------------------------------------
 // Builds "<name>: <chatCode>" (or just <name>) for a watchlist row/segment/toast
 // click. Unprefixed - PasteToChat applies Settings::ChatChannelPrefix itself,
-// since /w pastes the prefix and body into two different input boxes rather than
+// since /w pastes the prefix and body into two different input boxes instead of
 // one concatenated string.
 //--------------------------------------------------------------------------------
 std::string BuildChatPasteMessage(const std::string& name, const std::string& chatCode)
@@ -526,8 +525,7 @@ void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::mi
                     return;
                 }
 
-                //_ WM_PASTE was tried here directly but doesn't reliably
-                // reach the third-party target app - hence Ctrl+V key events.
+                //_ WM_PASTE was tried here directly but doesn't reliably reach the third-party target app - hence Ctrl+V key events.
                 SendMessage(tool_handle, WM_KEYDOWN, 'V', get_l_param('V', true));
                 SendMessage(tool_handle, WM_KEYUP, 'V', get_l_param('V', false));
                 std::this_thread::sleep_for(delay_ms);
@@ -568,7 +566,7 @@ void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::mi
 // target name and the message in two separate fields reached by pressing Tab
 // between them, so that case pastes three segments instead - "/w ", the Mumble-
 // reported character name, then message - with Tab after the name. If the
-// character name can't be read yet, the whisper is dropped rather than sent to
+// character name can't be read yet, the whisper is dropped instead of sent to
 // whatever box currently has focus.
 //--------------------------------------------------------------------------------
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)

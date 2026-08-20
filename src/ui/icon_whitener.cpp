@@ -34,9 +34,9 @@
 namespace {
 
 static bool        s_open          = false;   //. popup open/closed
-static int         s_iconIndex     = 0;       //. combo selection, 0 = none picked
+static int         s_iconIndex     = 0;       //. combo selection index (0=none)
 static std::string s_statusMessage;           //. last convert result or error
-static bool        s_statusIsError = false;   //. true if s_statusMessage is an error
+static bool        s_statusIsError = false;   //. whether s_statusMessage is an error
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ProcessPixels
@@ -60,8 +60,7 @@ static void ProcessPixels(UINT w, UINT h, BYTE* px)
 
     const UINT n = w * h;
 
-    //_ Pass 1: desaturate to luminance, store result back as gray sRGB, and
-    // track the brightest value for the normalize pass.
+    //_ Pass 1: desaturate to luminance, store result back as gray sRGB, and track the brightest value for the normalize pass.
     float brightest = 0.0f;
     for (UINT i = 0; i < n; i++)
     {
@@ -111,6 +110,12 @@ static std::wstring ToWide(const std::string& s)
 // Loads filename via WIC, runs ProcessPixels over it, and saves the result as
 // "<stem>_white.png" in the same folder. Sets s_statusMessage/s_statusIsError
 // with the outcome.
+//
+// CoInitializeEx returning S_OK or S_FALSE means this call owns pairing it with
+// CoUninitialize (S_OK = this call initialized COM, S_FALSE = it was already
+// initialized and this just bumped the per-thread refcount). Any other result
+// means CoUninitialize must not be called here; skipping that check used to leak
+// one COM apartment reference per "Convert & Save" click.
 //--------------------------------------------------------------------------------
 static void DoConvert(const std::string& filename)
 {
@@ -137,12 +142,7 @@ static void DoConvert(const std::string& filename)
     HRESULT hr = S_OK;
     std::string errMsg;
 
-    //_ S_OK/S_FALSE both mean this call owns a CoUninitialize (S_OK = we
-    // initialized COM, S_FALSE = it was already initialized and this just
-    // bumped the per-thread refcount). Any other result (e.g. thread already
-    // COM-initialized with an incompatible concurrency model) means this call
-    // must NOT uninitialize - skipping this check used to leak one COM
-    // apartment reference per "Convert & Save" click.
+    //_ Only S_OK/S_FALSE mean this call owns the CoUninitialize pairing (see DoConvert above).
     HRESULT coInitResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     bool comNeedsUninit = (coInitResult == S_OK || coInitResult == S_FALSE);
 
@@ -286,14 +286,13 @@ void DrawIconWhitenerPopup()
     ImGui::Separator();
     ImGui::Spacing();
 
-    //_ GetEventIconFilenames() also lists bundled default icons that only
-    // exist as in-memory data (see maprender.cpp); DoConvert can only WIC-
-    // decode a real file, so those must be filtered out here.
+    //_ GetEventIconFilenames() also lists bundled default icons that only exist as in-memory data (see maprender.cpp)
     std::string texDir = g_AddonDir + "\\textures";
     std::vector<std::string> iconFiles;
     for (const auto& fn : GetEventIconFilenames())
     {
         std::error_code ec;
+        //_ DoConvert can only WIC-decode a real file, so those are filtered out here.
         if (std::filesystem::exists(texDir + "\\" + fn, ec))
             iconFiles.push_back(fn);
     }
