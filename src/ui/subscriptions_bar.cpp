@@ -32,6 +32,7 @@
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
+#include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
 
 #include <algorithm>
@@ -1300,7 +1301,8 @@ void RenderSubscriptionsBar()
             ImGuiWindowFlags_NoNav);
         ImGui::PopStyleVar();
         ImGui::InvisibleButton("##we_subbar_line_click_hit", ImVec2(screenW, lineWinY1 - lineWinY0));
-        bool lineClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        bool lineClicked      = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        bool lineRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
         ImGui::End();
 
         if (lineClicked)
@@ -1329,6 +1331,19 @@ void RenderSubscriptionsBar()
                     io.WantCaptureMouse = true;
                 }
             }
+        }
+
+        //_ Background "manage subscriptions" entry point
+        if (lineRightClicked)
+        {
+            ImGui::OpenPopup("##we_subbar_bg_edit_popup");
+            io.WantCaptureMouse = true;
+        }
+        if (ImGui::BeginPopup("##we_subbar_bg_edit_popup"))
+        {
+            if (ImGui::Selectable("Edit Subscriptions"))
+                OpenEditSubscriptionsWindow();
+            ImGui::EndPopup();
         }
     }
 
@@ -1417,6 +1432,9 @@ void RenderSubscriptionsBar()
                 if (s.isBasic) ToggleBasicEventDoneToday(s.basicName);
                 else           ToggleCyclicSlotDoneToday(s.cyclicKey);
             }
+            ImGui::Separator();
+            if (ImGui::Selectable("Edit Subscriptions"))
+                OpenEditSubscriptionsWindow(s.isBasic, s.basicName, s.cyclicKey);
             ImGui::EndPopup();
         }
     }

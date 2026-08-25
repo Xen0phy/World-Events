@@ -282,10 +282,13 @@ void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNotifyLevelIcon
 //--------------------------------------------------------------------------------
-// 4-way control: level 0 unsubscribed ("+"), 1 subscribed/silent (bell), 2 +toast
-// ("-"), 3 +toast+sound (speaker) - see GetBasicEventNotifyLevel in
-// subscriptions.h. Left-click advances one level, wrapping 3 -> 0; jumping to any
-// level directly is in DrawNameAndContextMenu's right-click menu instead.
+// 4-way control: level 0 unsubscribed ("-"), 1 subscribed/silent ("+"), 2 +toast
+// (bell), 3 +toast+sound (speaker) - see GetBasicEventNotifyLevel in
+// subscriptions.h. Icon shows the *current* level, not the level a click would
+// advance to. Left-click advances one level, wrapping 3 -> 0; jumping to any
+// level directly is in DrawNameAndContextMenu's right-click menu instead. Also
+// used by the Edit Subscriptions quick-access window
+// (subscriptions_edit_window.cpp) in front of each row.
 //
 // Manual hit-test + ImDrawList (not a real widget), sized to GetFrameHeight() to
 // match the tree arrow. Returns the level to apply this frame - unchanged unless
@@ -315,19 +318,19 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
 
     switch (level)
     {
-        case 0: //. unsubscribed - plain "+"
+        case 0: //. unsubscribed - minus only
+            dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
+            break;
+        case 1: //. subscribed, silent - plus
             dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
             dl->AddLine(ImVec2(center.x, rmin.y + pad), ImVec2(center.x, rmax.y - pad), col, 1.6f);
             break;
-        case 1: //. subscribed, silent - bell
+        case 2: //. subscribed + toast - bell
             DrawBellIcon(dl, center, sq * 0.96f, col);
             break;
-        case 2: //. subscribed + toast - speaker
-            DrawSpeakerIcon(dl, center, sq * 0.96f, col);
-            break;
-        //_ Level 3 (subscribed + toast + sound) draws "-"; clicking wraps back to level 0 (fully unsubscribed).
+        //_ Level 3 (subscribed + toast + sound) draws the speaker; clicking wraps back to level 0 (fully unsubscribed).
         default:
-            dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
+            DrawSpeakerIcon(dl, center, sq * 0.96f, col);
             break;
     }
 
@@ -345,6 +348,92 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
             level == 1 ? "Subscribed — click to also show a toast notification\n(right-click the name for more options)" :
             level == 2 ? "Subscribed + toast notification — click to also play a sound\n(right-click the name for more options)"
                        : "Subscribed + toast + sound — click to unsubscribe\n(right-click the name for more options)");
+    }
+
+    ImGui::PopID();
+    return newLevel;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawNotifyLevelButtons   (pairs with: DrawNotifyLevelIcon)
+//--------------------------------------------------------------------------------
+// Four boxes, same authoring box/primitives as DrawNotifyLevelIcon. Glyphs are
+// minus / plus / bell / speaker for levels 0-3 respectively - each level gets its
+// own distinct glyph (a prior version doubled up the speaker on levels 2 and 3,
+// relying on position + tooltip to disambiguate; that didn't hold up in testing).
+// Each box is its own hit-test, clicking one jumps directly to that level; no
+// wraparound, no cycle.
+//--------------------------------------------------------------------------------
+int DrawNotifyLevelButtons(const char* idSuffix, int level)
+{
+    ImGui::PushID(idSuffix);
+
+    float sq = ImGui::GetFrameHeight();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+
+    static const char* const kTooltips[4] = {
+        "Unsubscribed",
+        "Subscribed \xE2\x80\x94 silent",
+        "Subscribed + toast notification",
+        "Subscribed + toast + sound"
+    };
+
+    int newLevel = level;
+
+    for (int lvl = 0; lvl < 4; lvl++)
+    {
+        if (lvl > 0)
+            ImGui::SameLine(0.0f, 4.0f);
+
+        ImGui::PushID(lvl);
+
+        ImVec2 rmin = ImGui::GetCursorScreenPos();
+        ImVec2 rmax(rmin.x + sq, rmin.y + sq);
+        ImVec2 center((rmin.x + rmax.x) * 0.5f, (rmin.y + rmax.y) * 0.5f);
+
+        bool hovered = ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(rmin, rmax);
+        bool active  = (level == lvl);
+
+        //_ Active box gets a filled+outlined frame; a merely-hovered inactive box gets just the hover fill.
+        if (active)
+        {
+            dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_Header), 3.0f);
+            dl->AddRect(rmin, rmax, ImGui::GetColorU32(ImGuiCol_HeaderActive), 3.0f, 0, 1.5f);
+        }
+        else if (hovered)
+        {
+            dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_HeaderHovered), 3.0f);
+        }
+
+        ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
+        float pad = sq * 0.10f;
+
+        switch (lvl)
+        {
+            case 0: //. unsubscribed - minus only
+                dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
+                break;
+            case 1: //. subscribed, silent - plus
+                dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
+                dl->AddLine(ImVec2(center.x, rmin.y + pad), ImVec2(center.x, rmax.y - pad), col, 1.6f);
+                break;
+            case 2: //. +toast - bell
+                DrawBellIcon(dl, center, sq * 0.9f, col);
+                break;
+            default: //. lvl 3 - +toast+sound - speaker
+                DrawSpeakerIcon(dl, center, sq * 0.9f, col);
+                break;
+        }
+
+        ImGui::Dummy(ImVec2(sq, sq));
+
+        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            newLevel = lvl;
+
+        if (hovered)
+            ImGui::SetTooltip("%s", kTooltips[lvl]);
+
+        ImGui::PopID();
     }
 
     ImGui::PopID();

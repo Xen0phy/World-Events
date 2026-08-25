@@ -22,6 +22,7 @@
 #include "maprender.h"
 #include "settings.h"
 #include "subscriptions.h"
+#include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
 #include "version.h"
 
@@ -136,6 +137,9 @@ void AddonLoad(AddonAPI_t* aAPI)
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
 
+    //_ Grants Esc-to-close to the Edit Subscriptions window.
+    APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowTitle, &ShowEditSubscriptionsWindow);
+
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Loaded.");
 }
 
@@ -152,6 +156,9 @@ void AddonUnload()
     //_ Stops any in-flight render calls before teardown starts.
     APIDefs->GUI_Deregister(AddonRender);
     APIDefs->GUI_Deregister(AddonOptions);
+
+    //_ Matches the GUI_RegisterCloseOnEscape call in AddonLoad
+    APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowTitle);
 
     //_ Bounded wait so a still-running thread can't resume in unloaded memory; 2s is generous headroom, not a timeout budget.
     WaitForBackgroundThreads(2000);
@@ -208,6 +215,9 @@ void AddonRender()
             if (!(isCompetitive && DisableBarWhenCompetitive))    RenderSubscriptionsBar();
             if (!(isCompetitive && DisableNotifyWhenCompetitive)) RenderSubscriptionsNotifications();
         }
+
+        //_ Not gated by the competitive kill-switches above: those govern passive overlay visibility, not an editor the user just explicitly opened.
+        RenderEditSubscriptionsWindow();
     }
 
     if (!MumbleLink || !NexusLink)          return;

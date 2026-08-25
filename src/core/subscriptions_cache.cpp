@@ -94,11 +94,10 @@ static time_t GetCurrentWeeklyResetEpoch(time_t now)
 //--------------------------------------------------------------------------------
 // Populates s_weeklyCache by asking weekly_vault.h's own matching functions
 // (IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget) which Basic Events/ Cyclic
-// slots are live weekly targets, rather than duplicating that logic here. Basic:
-// every Core Boss is checked, the whole candidate set. Cyclic: only slots
-// referenced by g_CyclicWeeklyObjectives are walked, resolving each target's slot
-// NAME to the stable slot OFFSET against g_CyclicGroups. Only called from a full
-// rebuild, never per-frame.
+// slots are live weekly targets. Basic: every Core Boss is checked, the whole
+// candidate set. Cyclic: only slots referenced by g_CyclicWeeklyObjectives are
+// walked, resolving each target's slot NAME to the stable slot OFFSET against
+// g_CyclicGroups. Only called from a full rebuild, never per-frame.
 //--------------------------------------------------------------------------------
 static void RebuildWeeklyCache()
 {

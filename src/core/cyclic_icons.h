@@ -7,12 +7,11 @@
 //--------------------------------------------------------------------------------
 // The addon's bundled default cyclic-ring overlay images (CyclicHandImage /
 // CyclicRingImage / CyclicFillImage, see settings_table.h), compiled directly
-// into the dll as raw PNG byte arrays rather than shipped as loose files, so a
-// working default set exists with nothing needing to be on disk - see
-// maprender.cpp's s_defaultIcons / Textures_LoadFromMemory, which is the only
-// consumer. Each array is immediately followed by a matching _size constant
-// giving its byte length; the two are always used as a pair (see DefaultIconEntry
-// in maprender.cpp).
+// into the dll as raw PNG byte arrays, so a working default set exists with
+// nothing needing to be on disk - see maprender.cpp's s_defaultIcons /
+// Textures_LoadFromMemory, which is the only consumer. Each array is immediately
+// followed by a matching _size constant giving its byte length; the two are
+// always used as a pair (see DefaultIconEntry in maprender.cpp).
 //
 // Source images must already be neutral-gray RGB + alpha, per maprender.cpp's
 // authoring requirement for tintable icons (CyclicHandColor provides the

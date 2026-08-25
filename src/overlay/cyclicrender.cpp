@@ -52,11 +52,10 @@ static ImVec2 ArcPoint(ImVec2 center, float radius, float angle_deg)
 // ArcSegmentCount
 //--------------------------------------------------------------------------------
 // Segment count for tessellating an arc of the given span, sized to keep visual
-// error bounded rather than fixed at 1 segment/degree (rings are only 15-40px on
-// screen, so a fixed stride wasted most of DrawArc's cost on sub-pixel geometry).
-// Uses the same formula Dear ImGui's own AddCircle/PathArcTo use to derive a
-// segment count from a max pixel error, scaled from a full circle down to just
-// this arc's span.
+// error bounded (rings are only 15-40px on screen, so a fixed stride wasted most
+// of DrawArc's cost on sub-pixel geometry). Uses the same formula Dear ImGui's
+// own AddCircle/PathArcTo use to derive a segment count from a max pixel error,
+// scaled from a full circle down to just this arc's span.
 //--------------------------------------------------------------------------------
 static int ArcSegmentCount(float radius, float span_deg)
 {

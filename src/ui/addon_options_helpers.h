@@ -143,12 +143,32 @@ void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color);
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNotifyLevelIcon
 //--------------------------------------------------------------------------------
-// 4-way notify-level control (unsubscribed / silent / toast / toast+sound). Left-
-// click always advances one level, wrapping 3 -> 0; jumping to an arbitrary level
-// lives in DrawNameAndContextMenu's right-click menu instead
-// (notifyLevel/setNotifyLevel params below).
+// 4-way notify-level control (unsubscribed / silent / toast / toast+sound). Icon
+// shows the *current* level (minus/plus/bell/speaker for 0-3). Left-click always
+// advances one level, wrapping 3 -> 0; jumping to an arbitrary level lives in
+// DrawNameAndContextMenu's right-click menu instead (notifyLevel/ setNotifyLevel
+// params below). Also used, at the front of each row, by the "Edit Subscriptions"
+// quick-access window (subscriptions_edit_window.cpp) for glanceable state - see
+// DrawNotifyLevelButtons below for that same window's expanded-body direct-jump
+// control.
 //--------------------------------------------------------------------------------
 int DrawNotifyLevelIcon(const char* idSuffix, int level);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawNotifyLevelButtons   (pairs with: DrawNotifyLevelIcon)
+//--------------------------------------------------------------------------------
+// Same 0..3 notify ladder as DrawNotifyLevelIcon, laid out as four side-by-side
+// hit-boxes (minus, plus, bell, speaker) instead of one cycling icon - each
+// independently clickable, jumping straight to that level instead of advancing
+// one step. The currently-active box is framed/highlighted. Used by the "Edit
+// Subscriptions" quick-access window (subscriptions_edit_window.cpp), inside each
+// row's expanded body, alongside the front-of-row DrawNotifyLevelIcon - the icon
+// gives glanceable state without expanding, this gives a direct jump once
+// expanded, without needing the right-click menu DrawNotifyLevelIcon otherwise
+// relies on for that (which this window doesn't have). Returns the level to apply
+// this frame - unchanged unless one of the four boxes was just clicked.
+//--------------------------------------------------------------------------------
+int DrawNotifyLevelButtons(const char* idSuffix, int level);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawDragButton

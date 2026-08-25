@@ -22,6 +22,7 @@
 #include "subscriptions.h"
 #include "subscriptions_ui.h"
 #include "subscriptions_cache.h"
+#include "subscriptions_edit_window.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -56,7 +57,7 @@ static std::string s_leftPressedKey;
 // click (open the "mark done" popup) fires on mouse-down, matching the pre-
 // rewrite IsItemClicked() behavior exactly.
 //--------------------------------------------------------------------------------
-static void DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs, bool isWeekly,
+static bool DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs, bool isWeekly,
     bool isBasic, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey)
 {
     if (isWeekly)
@@ -153,8 +154,13 @@ static void DrawSubscriptionRow(const std::string& name, const std::string& chat
             if (isBasic) ToggleBasicEventDoneToday(basicName);
             else         ToggleCyclicSlotDoneToday(cyclicKey);
         }
+        ImGui::Separator();
+        if (ImGui::Selectable("Edit Subscriptions"))
+            OpenEditSubscriptionsWindow(isBasic, basicName, cyclicKey);
         ImGui::EndPopup();
     }
+
+    return hovered;
 }
 
 //********************************************************************************
@@ -246,11 +252,12 @@ void RenderSubscriptionsWindow()
             ImGui::TextDisabled("in the options panel to add it here.");
         }
     }
-    else
+    bool anyRowHovered = false;
+    if (!rows.empty())
     {
         for (const auto& row : rows)
-            DrawSubscriptionRow(row.name, row.chatCode, row.active, row.secs, row.isWeekly,
-                                 row.isBasic, row.basicName, row.cyclicKey);
+            anyRowHovered |= DrawSubscriptionRow(row.name, row.chatCode, row.active, row.secs, row.isWeekly,
+                                                  row.isBasic, row.basicName, row.cyclicKey);
 
         ImGui::Separator();
         ImGui::TextDisabled("Click a row to copy its waypoint code.");
@@ -259,6 +266,16 @@ void RenderSubscriptionsWindow()
 
     //_ Clears a press that released off any row, so a stale key can't match a future row by name.
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) s_leftPressedKey.clear();
+
+    //_ Background "manage subscriptions" entry point - fires on empty content area only; a row's own right-click is already handled inside DrawSubscriptionRow above (anyRowHovered rules this out there).
+    if (ImGui::IsWindowHovered() && !anyRowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        ImGui::OpenPopup("##we_edit_subs_bg_popup");
+    if (ImGui::BeginPopup("##we_edit_subs_bg_popup"))
+    {
+        if (ImGui::Selectable("Edit Subscriptions"))
+            OpenEditSubscriptionsWindow();
+        ImGui::EndPopup();
+    }
 
     ImGui::End();
 }

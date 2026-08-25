@@ -78,9 +78,8 @@
 // can mutate at runtime - see the file header's safety-net note for the one gap
 // this doesn't fully close) or touch a string.
 //
-// doneToday is kept as a plain field here, rather than pre-filtered out of the
-// resolved list, because it can change without a rebuild - each of the three
-// views applies the skip itself at consumption time.
+// doneToday is kept as a plain field here, because it can change without a
+// rebuild. Each of the three views applies the skip itself at consumption time.
 //--------------------------------------------------------------------------------
 struct ResolvedSubscription
 {

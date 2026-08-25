@@ -103,251 +103,254 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
 
-    //_ Table 1 - Subscriptions, always visible; split out since CollapsingHeader can't span table columns.
-    if (ImGui::BeginTable("##subs_table", 2, ImGuiTableFlags_SizingStretchSame))
+    if (ImGui::CollapsingHeader("Overlay Settings"))
     {
-        ImGui::TableNextRow();
-
-        //_ Column 0: Subscriptions window, then Notification popups
-        ImGui::TableSetColumnIndex(0);
-
-        //_ Watchlist window toggle only opens/closes the window, not which events are subscribed (events.json data).
-        ImGui::Checkbox("Show subscriptions window", &ShowSubscriptionsWindow);
-        DisabledBlock(!ShowSubscriptionsWindow)
+        //_ Table 1 - Subscriptions, always visible; split out since CollapsingHeader can't span table columns.
+        if (ImGui::BeginTable("##subs_table", 2, ImGuiTableFlags_SizingStretchSame))
         {
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::Checkbox("Hide active in window", &SubscriptionsHideActive);
-            
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
+            ImGui::TableNextRow();
 
-            //_ RGB only (feeds TextColored), not a tinted dot/icon like BasicEventColor* below, which need alpha.
-            ImGui::ColorEdit3("Active##sub_color_active", SubscriptionsActiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+            //_ Column 0: Subscriptions window, then Notification popups
+            ImGui::TableSetColumnIndex(0);
 
-            ImGui::SameLine();
-            ImGui::ColorEdit3("Soon##sub_color_soon", SubscriptionsSoonColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-        }
-
-        ImGui::Dummy(dummySquare);
-
-        //_ Third, independent view of the same subscription data (toast popups); not gated by window/bar visibility.
-        ImGui::Checkbox("Enable notification popups", &NotificationsEnabled);
-        Tooltip("Pops up a small toast in the lower-right corner for events\n"
-                "you have notifications enabled for, whether or not the\n"
-                "window or distribution line are open. Click a popup to paste\n"
-                "its waypoint code, same as clicking a row/segment there.");
-
-        DisabledBlock(!NotificationsEnabled)
-        {
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(50);
-            if (ImGui::InputInt("Warn before start (min)", &NotificationLeadMinutes, 0, 0))
+            //_ Watchlist window toggle only opens/closes the window, not which events are subscribed (events.json data).
+            ImGui::Checkbox("Show subscriptions window", &ShowSubscriptionsWindow);
+            DisabledBlock(!ShowSubscriptionsWindow)
             {
-                //_ 0 is a valid value ("off"); floor is 0, not 1.
-                if (NotificationLeadMinutes < 0)   NotificationLeadMinutes = 0;
-                if (NotificationLeadMinutes > 120) NotificationLeadMinutes = 120;
-            }
-            Tooltip("How long before a subscribed event/slot starts to\n"
-                    "fire the \"starting soon\" popup. 0 disables it.");
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::Checkbox("Hide active in window", &SubscriptionsHideActive);
                 
-            ImGui::SameLine();
-            ImGui::Checkbox("Notify on start", &NotificationOnStart);
-            
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(50);
-            if (ImGui::InputInt("Popup duration (sec)", &NotificationDisplaySeconds, 0, 0))
-            {
-                if (NotificationDisplaySeconds < 1)   NotificationDisplaySeconds = 1;
-                if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+
+                //_ RGB only (feeds TextColored), not a tinted dot/icon like BasicEventColor* below, which need alpha.
+                ImGui::ColorEdit3("Active##sub_color_active", SubscriptionsActiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+
+                ImGui::SameLine();
+                ImGui::ColorEdit3("Soon##sub_color_soon", SubscriptionsSoonColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
             }
-            Tooltip("How long a popup stays fully visible before it fades out.\n"
-                    "Hovering a popup pauses its timer.");
 
-            //_ Single .wav file, picked from "<addon dir>/sounds"; which events play it is each row's notify level.
+            ImGui::Dummy(dummySquare);
+
+            //_ Third, independent view of the same subscription data (toast popups); not gated by window/bar visibility.
+            ImGui::Checkbox("Enable notification popups", &NotificationsEnabled);
+            Tooltip("Pops up a small toast in the lower-right corner for events\n"
+                    "you have notifications enabled for, whether or not the\n"
+                    "window or distribution line are open. Click a popup to paste\n"
+                    "its waypoint code, same as clicking a row/segment there.");
+
+            DisabledBlock(!NotificationsEnabled)
             {
-                const std::vector<std::string>& soundFiles = GetNotificationSoundFilenames();
-
-                //_ Reuses DrawSpeakerIcon (notify level 3's icon) to mark this row as about the notification sound.
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::InputInt("Warn before start (min)", &NotificationLeadMinutes, 0, 0))
                 {
-                    float sq = ImGui::GetFrameHeight();
-                    ImVec2 rmin = ImGui::GetCursorScreenPos();
-                    ImVec2 center(rmin.x + sq * 0.5f, rmin.y + sq * 0.5f);
-                    DrawSpeakerIcon(ImGui::GetWindowDrawList(), center, sq * 0.96f, ImGui::GetColorU32(ImGuiCol_Text));
-                    ImGui::Dummy(ImVec2(sq, sq));
+                    //_ 0 is a valid value ("off"); floor is 0, not 1.
+                    if (NotificationLeadMinutes < 0)   NotificationLeadMinutes = 0;
+                    if (NotificationLeadMinutes > 120) NotificationLeadMinutes = 120;
                 }
+                Tooltip("How long before a subscribed event/slot starts to\n"
+                        "fire the \"starting soon\" popup. 0 disables it.");
+                    
                 ImGui::SameLine();
-
-                std::vector<const char*> soundLabels;
-                soundLabels.push_back("(none)");
-                for (const auto& fn : soundFiles)
-                    soundLabels.push_back(fn.c_str());
-
-                int soundIndex = 0; //. "(none)"
-                if (!NotificationSoundFile.empty())
-                    for (int k = 0; k < (int)soundFiles.size(); k++)
-                        if (soundFiles[k] == NotificationSoundFile) { soundIndex = k + 1; break; }
-
-                ImGui::SetNextItemWidth(100.0f);
-                if (ImGui::Combo("Sound", &soundIndex, soundLabels.data(), (int)soundLabels.size()))
-                    NotificationSoundFile = (soundIndex == 0) ? std::string() : soundFiles[soundIndex - 1];
-
-                ImGui::SameLine();
-                ImGui::TextDisabled("(.wav)");
-                ImGui::SameLine();
-                if (ImGui::Button("Rescan"))
-                    ScanNotificationSoundFiles();
-                Tooltip("Re-scans \"<addon dir>/sounds\" for .wav files you've\n"
-                        "dropped in since the dropdown was last built.");
-                        
-                ImGui::SameLine();
-                DisabledBlock(NotificationSoundFile.empty())
-                {
-                    if (ImGui::Button("Test"))
-                        PlayNotificationSound(NotificationSoundFile);
-                }
-                Tooltip("Drop .wav files into \"<addon dir>/sounds\" and pick one\n"
-                        "here to preview it. Only .wav is supported (PlaySound has\n"
-                        "no built-in decoder for mp3/ogg/etc). \"Test\" just plays it\n"
-                        "immediately — it also plays automatically alongside a real\n"
-                        "notification popup, but only for events/slots whose own\n"
-                        "notify level has sound enabled (see the speaker icon on\n"
-                        "each row below).");
-            }
-        }
-
-        //_ Column 1: Subscriptions bar
-        ImGui::TableSetColumnIndex(1);
-
-        //_ Second, alternate view of subscription data: a thin animated line pinned to the screen edge, no titlebar.
-        ImGui::Checkbox("Show subscriptions bar", &ShowSubscriptionsBar);
-
-        DisabledBlock(!ShowSubscriptionsBar)
-        {
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::Checkbox("Hide active on bar", &SubscriptionsBarHideActive);
-            Tooltip("Segments that are currently active are left off the bar entirely\n"
-                    "instead of showing as a dropped-to-startX line — only upcoming events\n"
-                    "are shown. Independent from \"Hide active in window\" above.");
-
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::Checkbox("Minimal Mode", &SubscriptionsBarMinimalMode);
-            ImGui::SameLine();
-            ImGui::Checkbox("Bottom Line", &SubscriptionsBarBottomAnchored);
-            
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::ColorEdit4("Dot Color##bar_dot_color", SubscriptionsBarDotColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-            
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(50);
-            if (ImGui::InputInt("Pop-out height (px)", &SubscriptionsBarMaxDropPx, 0, 0))
-            {
-                //_ Floored at 8, not 0: subscriptions_bar.cpp derives the pill's corner radius from half this value.
-                if (SubscriptionsBarMaxDropPx < 8)     SubscriptionsBarMaxDropPx = 8;
-                if (SubscriptionsBarMaxDropPx > 300)   SubscriptionsBarMaxDropPx = 300;
-            }
-            Tooltip("How tall the dropped block/pill is, in px.\n"
-                    "Sized by default to fit two centered lines of label text;\n"
-                    "raise it if your font/DPI needs more room.");
+                ImGui::Checkbox("Notify on start", &NotificationOnStart);
                 
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(50);
-            if (ImGui::InputInt("Pop-out delay (ms)", &SubscriptionsBarHoverDelayMs, 0, 0))
-            {
-                //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
-                if (SubscriptionsBarHoverDelayMs < 0)    SubscriptionsBarHoverDelayMs = 0;
-                if (SubscriptionsBarHoverDelayMs > 5000) SubscriptionsBarHoverDelayMs = 5000;
-            }
-            Tooltip("How long the mouse has to sit still over a segment or dot\n"
-                    "before it pops out. 0 = instant.");
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::InputInt("Popup duration (sec)", &NotificationDisplaySeconds, 0, 0))
+                {
+                    if (NotificationDisplaySeconds < 1)   NotificationDisplaySeconds = 1;
+                    if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
+                }
+                Tooltip("How long a popup stays fully visible before it fades out.\n"
+                        "Hovering a popup pauses its timer.");
 
-            float screenWidth = ImGui::GetIO().DisplaySize.x;
-            float screenHeight = ImGui::GetIO().DisplaySize.y;
+                //_ Single .wav file, picked from "<addon dir>/sounds"; which events play it is each row's notify level.
+                {
+                    const std::vector<std::string>& soundFiles = GetNotificationSoundFilenames();
 
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::Text("Unsafe zone");
-            
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(50);
-            if (ImGui::DragInt("Left##leftuz", &SubscriptionsBarUnsafeLeftPx, 1, 0,0, "%dpx"))
-            {
-                if (SubscriptionsBarUnsafeLeftPx < 0)           SubscriptionsBarUnsafeLeftPx = 0;
-                if (SubscriptionsBarUnsafeLeftPx > screenWidth)  SubscriptionsBarUnsafeLeftPx = (int)screenWidth;
-                if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
-                    SubscriptionsBarUnsafeRightPx = (int)screenWidth - SubscriptionsBarUnsafeLeftPx;
+                    //_ Reuses DrawSpeakerIcon (notify level 3's icon) to mark this row as about the notification sound.
+                    {
+                        float sq = ImGui::GetFrameHeight();
+                        ImVec2 rmin = ImGui::GetCursorScreenPos();
+                        ImVec2 center(rmin.x + sq * 0.5f, rmin.y + sq * 0.5f);
+                        DrawSpeakerIcon(ImGui::GetWindowDrawList(), center, sq * 0.96f, ImGui::GetColorU32(ImGuiCol_Text));
+                        ImGui::Dummy(ImVec2(sq, sq));
+                    }
+                    ImGui::SameLine();
+
+                    std::vector<const char*> soundLabels;
+                    soundLabels.push_back("(none)");
+                    for (const auto& fn : soundFiles)
+                        soundLabels.push_back(fn.c_str());
+
+                    int soundIndex = 0; //. "(none)"
+                    if (!NotificationSoundFile.empty())
+                        for (int k = 0; k < (int)soundFiles.size(); k++)
+                            if (soundFiles[k] == NotificationSoundFile) { soundIndex = k + 1; break; }
+
+                    ImGui::SetNextItemWidth(100.0f);
+                    if (ImGui::Combo("Sound", &soundIndex, soundLabels.data(), (int)soundLabels.size()))
+                        NotificationSoundFile = (soundIndex == 0) ? std::string() : soundFiles[soundIndex - 1];
+
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(.wav)");
+                    ImGui::SameLine();
+                    if (ImGui::Button("Rescan"))
+                        ScanNotificationSoundFiles();
+                    Tooltip("Re-scans \"<addon dir>/sounds\" for .wav files you've\n"
+                            "dropped in since the dropdown was last built.");
+                            
+                    ImGui::SameLine();
+                    DisabledBlock(NotificationSoundFile.empty())
+                    {
+                        if (ImGui::Button("Test"))
+                            PlayNotificationSound(NotificationSoundFile);
+                    }
+                    Tooltip("Drop .wav files into \"<addon dir>/sounds\" and pick one\n"
+                            "here to preview it. Only .wav is supported (PlaySound has\n"
+                            "no built-in decoder for mp3/ogg/etc). \"Test\" just plays it\n"
+                            "immediately — it also plays automatically alongside a real\n"
+                            "notification popup, but only for events/slots whose own\n"
+                            "notify level has sound enabled (see the speaker icon on\n"
+                            "each row below).");
+                }
             }
-            bool leftActive = ImGui::IsItemActive();
-            Tooltip("Width from the LEFT screen edge, in px, treated as\n"
-                    "covered by your own GW2 UI (e.g. party/buffs). Segments\n"
-                    "in this zone drop lower instead of covering it.\n"
-                    "0 disables the left zone.");
-            
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(50);
-            if (ImGui::DragInt("Right##rightuz", &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
+
+            //_ Column 1: Subscriptions bar
+            ImGui::TableSetColumnIndex(1);
+
+            //_ Second, alternate view of subscription data: a thin animated line pinned to the screen edge, no titlebar.
+            ImGui::Checkbox("Show subscriptions bar", &ShowSubscriptionsBar);
+
+            DisabledBlock(!ShowSubscriptionsBar)
             {
-                if (SubscriptionsBarUnsafeRightPx < 0)           SubscriptionsBarUnsafeRightPx = 0;
-                if (SubscriptionsBarUnsafeRightPx > screenWidth)  SubscriptionsBarUnsafeRightPx = (int)screenWidth;
-                if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
-                    SubscriptionsBarUnsafeLeftPx = (int)screenWidth - SubscriptionsBarUnsafeRightPx;
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::Checkbox("Hide active on bar", &SubscriptionsBarHideActive);
+                Tooltip("Segments that are currently active are left off the bar entirely\n"
+                        "instead of showing as a dropped-to-startX line — only upcoming events\n"
+                        "are shown. Independent from \"Hide active in window\" above.");
+
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::Checkbox("Minimal Mode", &SubscriptionsBarMinimalMode);
+                ImGui::SameLine();
+                ImGui::Checkbox("Bottom Line", &SubscriptionsBarBottomAnchored);
+                
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::ColorEdit4("Dot Color##bar_dot_color", SubscriptionsBarDotColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::InputInt("Pop-out height (px)", &SubscriptionsBarMaxDropPx, 0, 0))
+                {
+                    //_ Floored at 8, not 0: subscriptions_bar.cpp derives the pill's corner radius from half this value.
+                    if (SubscriptionsBarMaxDropPx < 8)     SubscriptionsBarMaxDropPx = 8;
+                    if (SubscriptionsBarMaxDropPx > 300)   SubscriptionsBarMaxDropPx = 300;
+                }
+                Tooltip("How tall the dropped block/pill is, in px.\n"
+                        "Sized by default to fit two centered lines of label text;\n"
+                        "raise it if your font/DPI needs more room.");
+                    
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::InputInt("Pop-out delay (ms)", &SubscriptionsBarHoverDelayMs, 0, 0))
+                {
+                    //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
+                    if (SubscriptionsBarHoverDelayMs < 0)    SubscriptionsBarHoverDelayMs = 0;
+                    if (SubscriptionsBarHoverDelayMs > 5000) SubscriptionsBarHoverDelayMs = 5000;
+                }
+                Tooltip("How long the mouse has to sit still over a segment or dot\n"
+                        "before it pops out. 0 = instant.");
+
+                float screenWidth = ImGui::GetIO().DisplaySize.x;
+                float screenHeight = ImGui::GetIO().DisplaySize.y;
+
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::Text("Unsafe zone");
+                
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::DragInt("Left##leftuz", &SubscriptionsBarUnsafeLeftPx, 1, 0,0, "%dpx"))
+                {
+                    if (SubscriptionsBarUnsafeLeftPx < 0)           SubscriptionsBarUnsafeLeftPx = 0;
+                    if (SubscriptionsBarUnsafeLeftPx > screenWidth)  SubscriptionsBarUnsafeLeftPx = (int)screenWidth;
+                    if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
+                        SubscriptionsBarUnsafeRightPx = (int)screenWidth - SubscriptionsBarUnsafeLeftPx;
+                }
+                bool leftActive = ImGui::IsItemActive();
+                Tooltip("Width from the LEFT screen edge, in px, treated as\n"
+                        "covered by your own GW2 UI (e.g. party/buffs). Segments\n"
+                        "in this zone drop lower instead of covering it.\n"
+                        "0 disables the left zone.");
+                
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::DragInt("Right##rightuz", &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
+                {
+                    if (SubscriptionsBarUnsafeRightPx < 0)           SubscriptionsBarUnsafeRightPx = 0;
+                    if (SubscriptionsBarUnsafeRightPx > screenWidth)  SubscriptionsBarUnsafeRightPx = (int)screenWidth;
+                    if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
+                        SubscriptionsBarUnsafeLeftPx = (int)screenWidth - SubscriptionsBarUnsafeRightPx;
+                }
+                bool rightActive = ImGui::IsItemActive();
+                Tooltip("Width from the RIGHT screen edge, in px, treated as\n"
+                        "covered by your own GW2 UI (e.g. minimap/compass).\n"
+                        "Segments in this zone drop lower instead of covering it.\n"
+                        "0 disables the right zone.");
+                
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::DragInt("Height##heightuz", &SubscriptionsBarUnsafeHeightPx, 1, 0, 0, "%dpx"))
+                {
+                    if (SubscriptionsBarUnsafeHeightPx < 0)    SubscriptionsBarUnsafeHeightPx = 0;
+                    if (SubscriptionsBarUnsafeHeightPx > screenHeight) SubscriptionsBarUnsafeHeightPx = screenHeight;
+                }
+                bool heightActive = ImGui::IsItemActive();
+                Tooltip("How tall your corner UI is, in px. Segments inside\n"
+                        "either unsafe zone start their drop this far down\n"
+                        "instead of from the line itself, so the popped-out\n"
+                        "block clears your UI.");
+                
+                //_ Live preview, shown only while one of the three fields above is focused; mirrors subscriptions_bar.cpp's anchor math.
+                if (leftActive || rightActive || heightActive)
+                {
+                    ImDrawList* dl = ImGui::GetForegroundDrawList();
+                    const ImU32 kYellow = IM_COL32(255, 220, 0, 255);
+                    const float kDropDir  = SubscriptionsBarBottomAnchored ? -1.0f : 1.0f;
+                    const float kBaselineY = SubscriptionsBarBottomAnchored
+                        ? (ImGui::GetIO().DisplaySize.y - 1.0f)
+                        : 1.0f;
+                    const float h = kBaselineY + kDropDir * (float)SubscriptionsBarUnsafeHeightPx;
+                
+                    //_ Left zone: vertical edge + horizontal top from the screen edge to it
+                    dl->AddLine(ImVec2((float)SubscriptionsBarUnsafeLeftPx, kBaselineY),
+                                ImVec2((float)SubscriptionsBarUnsafeLeftPx, h), kYellow, 2.0f);
+                    dl->AddLine(ImVec2(0.0f, h),
+                                ImVec2((float)SubscriptionsBarUnsafeLeftPx, h), kYellow, 2.0f);
+                
+                    //_ Right zone: mirrored
+                    float xRight = screenWidth - (float)SubscriptionsBarUnsafeRightPx;
+                    dl->AddLine(ImVec2(xRight, kBaselineY), ImVec2(xRight, h), kYellow, 2.0f);
+                    dl->AddLine(ImVec2(xRight, h), ImVec2(screenWidth, h), kYellow, 2.0f);
+                }
             }
-            bool rightActive = ImGui::IsItemActive();
-            Tooltip("Width from the RIGHT screen edge, in px, treated as\n"
-                    "covered by your own GW2 UI (e.g. minimap/compass).\n"
-                    "Segments in this zone drop lower instead of covering it.\n"
-                    "0 disables the right zone.");
-            
-            ImGui::Dummy(dummySquare);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(50);
-            if (ImGui::DragInt("Height##heightuz", &SubscriptionsBarUnsafeHeightPx, 1, 0, 0, "%dpx"))
-            {
-                if (SubscriptionsBarUnsafeHeightPx < 0)    SubscriptionsBarUnsafeHeightPx = 0;
-                if (SubscriptionsBarUnsafeHeightPx > screenHeight) SubscriptionsBarUnsafeHeightPx = screenHeight;
-            }
-            bool heightActive = ImGui::IsItemActive();
-            Tooltip("How tall your corner UI is, in px. Segments inside\n"
-                    "either unsafe zone start their drop this far down\n"
-                    "instead of from the line itself, so the popped-out\n"
-                    "block clears your UI.");
-            
-            //_ Live preview, shown only while one of the three fields above is focused; mirrors subscriptions_bar.cpp's anchor math.
-            if (leftActive || rightActive || heightActive)
-            {
-                ImDrawList* dl = ImGui::GetForegroundDrawList();
-                const ImU32 kYellow = IM_COL32(255, 220, 0, 255);
-                const float kDropDir  = SubscriptionsBarBottomAnchored ? -1.0f : 1.0f;
-                const float kBaselineY = SubscriptionsBarBottomAnchored
-                    ? (ImGui::GetIO().DisplaySize.y - 1.0f)
-                    : 1.0f;
-                const float h = kBaselineY + kDropDir * (float)SubscriptionsBarUnsafeHeightPx;
-            
-                //_ Left zone: vertical edge + horizontal top from the screen edge to it
-                dl->AddLine(ImVec2((float)SubscriptionsBarUnsafeLeftPx, kBaselineY),
-                            ImVec2((float)SubscriptionsBarUnsafeLeftPx, h), kYellow, 2.0f);
-                dl->AddLine(ImVec2(0.0f, h),
-                            ImVec2((float)SubscriptionsBarUnsafeLeftPx, h), kYellow, 2.0f);
-            
-                //_ Right zone: mirrored
-                float xRight = screenWidth - (float)SubscriptionsBarUnsafeRightPx;
-                dl->AddLine(ImVec2(xRight, kBaselineY), ImVec2(xRight, h), kYellow, 2.0f);
-                dl->AddLine(ImVec2(xRight, h), ImVec2(screenWidth, h), kYellow, 2.0f);
-            }
+
+            ImGui::EndTable();
         }
-
-        ImGui::EndTable();
     }
 
-    if (ImGui::CollapsingHeader("Events Settings (Basic|Cyclic)", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Events Settings (Basic|Cyclic)"))
     {
         //_ Table 2 - Search/API key (Row 1) and section controls (Row 2); exists only while the header is expanded.
         if (ImGui::BeginTable("##world_events_table", 2, ImGuiTableFlags_SizingStretchSame))
@@ -689,8 +692,7 @@ void AddonOptions()
                     ImGui::DragFloat("Offset##cyclic_ring_image_offset", &CyclicRingImageOffset, 0.1f, -5.0f, 5.0f, "%.1f px");
                     Tooltip("Nudges both copies radially outward from the ring's own\n"
                             "fill - the outer copy moves further out, the inner copy\n"
-                            "further in - so they stay mirror-symmetric around the\n"
-                            "ring rather than one drifting relative to the other.\n"
+                            "further in - so they stay mirror-symmetric.\n"
                             "Negative values pull both back in toward the ring instead.");
                 }
 
@@ -731,7 +733,7 @@ void AddonOptions()
         }
     }
 
-    if (ImGui::CollapsingHeader("Event Lists (Basic|Cyclic)", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Event Lists (Basic|Cyclic)"))
     {
         //_ Transient UI state (not persisted); filters both trees - event name for Basic, group+slot for Cyclic.
         static char searchBuf[128] = "";

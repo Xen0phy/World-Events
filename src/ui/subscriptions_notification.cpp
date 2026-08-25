@@ -35,6 +35,7 @@
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
+#include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -390,6 +391,9 @@ static void DrawAndExpirePopups()
                 if (p.isBasic) ToggleBasicEventDoneToday(p.basicName);
                 else           ToggleCyclicSlotDoneToday(p.cyclicKey);
             }
+            ImGui::Separator();
+            if (ImGui::Selectable("Edit Subscriptions"))
+                OpenEditSubscriptionsWindow(p.isBasic, p.basicName, p.cyclicKey);
             ImGui::EndPopup();
         }
 
