@@ -1,76 +1,102 @@
-// ################################################################################
+//################################################################################
 // shard-object.ts
-// --------------------------------------------------------------------------------
-// One Durable Object instance per shard key (see shard_id.h client-side -
-// "map{mapId}-{addressHash}"). Holds:
-//   - live WebSocket connections for everyone currently on that shard, via the
-//     Hibernation API (state.acceptWebSocket) so idle connections aren't
-//     billed for duration on the Workers Free plan.
-//   - an embedded SQLite table capped at the last 10 reports per event_id,
-//     so late joiners get history without a separate database.
-//
+//--------------------------------------------------------------------------------
+// ShardObject   one DO instance per shard key; live WS clients + last-10-per-
+//               event report history
+//--------------------------------------------------------------------------------
+// Hibernation API (state.acceptWebSocket) keeps idle connections unbilled on
+// the Workers Free plan. History lives in an embedded SQLite table capped at
+// MAX_REPORTS_PER_EVENT rows per event_id, so late joiners get history
+// without a separate database.
 // Wire protocol (must match ws_client.cpp exactly - see networking-handoff.md
 // section 5):
-//
-//   Connect:  GET /ws?shard=<key>  ->  WebSocket upgrade. One connection = one
-//             shard (routing to the right ShardObject happens in index.ts).
-//
-//   Server -> client, on connect:
+//   Connect:  GET /ws?shard=<key> -> WS upgrade (routing lives in index.ts)
+//   Server->client on connect:
 //     {"type":"history","reports":[{"event_id":"...","ts":1234567890}, ...]}
-//     (any order - client sorts/trims itself)
-//
-//   Client -> server, on report button press:
+//   Client->server, report button press:
 //     {"type":"report","event_id":"..."}
-//
-//   Server -> client, broadcast to everyone on that shard (including sender),
-//   ts is server-stamped at receipt:
+//   Server->client broadcast (incl. sender), ts server-stamped at receipt:
 //     {"type":"report","event_id":"...","ts":1234567890}
-// --------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 
 import { DurableObject } from "cloudflare:workers";
 
-/** Reports kept per event_id - mirrors the client's local trim (see ws_client.cpp). */
+//_ Reports kept per event_id, mirrors the client's local trim (ws_client.cpp)
 const MAX_REPORTS_PER_EVENT = 10;
 
-/** Sanity bound so a malformed/malicious client can't stuff huge strings into storage. */
+//_ Sanity bound so a malformed/malicious client can't stuff huge event ids
 const MAX_EVENT_ID_LENGTH = 128;
 
-/** Minimum spacing between accepted reports from a single connection - not in the
- *  original spec, but a bare-minimum guard against a stuck/spammy client hammering
- *  the button; cheap to justify given there's no server-side auth at all. */
+//_ Min spacing between accepted reports from one connection, anti-spam guard
 const MIN_SECONDS_BETWEEN_REPORTS = 2;
 
+//_ Idle shard (no viewers, no reports) this long wipes its own storage
+const INACTIVITY_TIMEOUT_MS = 12 * 60 * 60 * 1000;
+
+//********************************************************************************
+// ReportRow
+//--------------------------------------------------------------------------------
+// event_id   report's event identifier
+// ts         unix seconds when the report was accepted
+//--------------------------------------------------------------------------------
 interface ReportRow extends Record<string, SqlStorageValue> {
   event_id: string;
   ts: number;
 }
 
+//********************************************************************************
+// ClientMessage
+//--------------------------------------------------------------------------------
+// type        unvalidated, checked against the literal "report"
+// event_id    unvalidated, checked to be a string in webSocketMessage
+//--------------------------------------------------------------------------------
 interface ClientMessage {
   type?: unknown;
   event_id?: unknown;
 }
 
-/** Per-connection state stashed via WebSocket attachments so it survives hibernation. */
+//********************************************************************************
+// SocketAttachment
+//--------------------------------------------------------------------------------
+// lastReportTs   unix seconds of this connection's last accepted report
+//--------------------------------------------------------------------------------
+// Stashed via WebSocket attachments so per-connection state survives
+// hibernation.
+//--------------------------------------------------------------------------------
 interface SocketAttachment {
   lastReportTs?: number;
 }
 
+//********************************************************************************
+// ShardObject
+//--------------------------------------------------------------------------------
+// One DO instance per shard key. Reports are ephemeral: any shard with no
+// live connections and no activity for INACTIVITY_TIMEOUT_MS wipes its own
+// storage via alarm() rather than staying provisioned forever.
+//--------------------------------------------------------------------------------
 export class ShardObject extends DurableObject<Env> {
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // constructor
+  //--------------------------------------------------------------------------------
+  // blockConcurrencyWhile so no request is served against a mid-setup
+  // instance; covers both first-ever creation and every hibernation wake.
+  //--------------------------------------------------------------------------------
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.ctx.storage.sql.exec(`
-      CREATE TABLE IF NOT EXISTS reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_id TEXT NOT NULL,
-        ts INTEGER NOT NULL
-      );
-    `);
-    this.ctx.storage.sql.exec(`
-      CREATE INDEX IF NOT EXISTS idx_reports_event_ts
-      ON reports (event_id, ts DESC);
-    `);
+    this.ctx.blockConcurrencyWhile(async () => {
+      this.ensureSchema();
+      await this.scheduleIdleAlarm();
+    });
   }
 
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // fetch
+  //--------------------------------------------------------------------------------
+  // Upgrades to a WebSocket via the Hibernation API, so idle connections
+  // aren't billed on the Workers Free plan. No in-memory per-connection state
+  // is kept, since the runtime can drop and reload this instance between
+  // messages - state lives only in SQLite or the socket's attachment.
+  //--------------------------------------------------------------------------------
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get("Upgrade") !== "websocket") {
       return new Response("Expected WebSocket upgrade", { status: 426 });
@@ -79,28 +105,29 @@ export class ShardObject extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
-    // Hibernation API: the runtime can drop this JS object between messages and
-    // wake it back up on the next event without re-running the constructor's
-    // in-memory state - only ctx.storage persists. We don't keep any in-memory
-    // per-connection maps for that reason; everything either lives in SQLite or
-    // in the socket's serialized attachment.
     this.ctx.acceptWebSocket(server);
+    await this.scheduleIdleAlarm();  //. new connection counts as activity
 
-    // Send history immediately on connect. Client re-sorts/trims itself, so
-    // order here doesn't matter.
     server.send(JSON.stringify({ type: "history", reports: this.readHistory() }));
 
     return new Response(null, { status: 101, webSocket: client });
   }
 
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // webSocketMessage
+  //--------------------------------------------------------------------------------
+  // Handles one "report" message: throttles per-connection, persists it, then
+  // broadcasts to every connected socket including the sender, since the
+  // server is the single timestamp authority for a report's ts.
+  //--------------------------------------------------------------------------------
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    if (typeof message !== "string") return; // binary frames aren't part of this protocol
+    if (typeof message !== "string") return;  //. binary frames unsupported here
 
     let parsed: ClientMessage;
     try {
       parsed = JSON.parse(message);
     } catch {
-      return; // malformed JSON - silently ignore, matches the "fire and forget" spirit
+      return;  //. malformed JSON, ignored silently
     }
 
     if (parsed.type !== "report") return;
@@ -116,32 +143,36 @@ export class ShardObject extends DurableObject<Env> {
       attachment.lastReportTs !== undefined &&
       nowSeconds - attachment.lastReportTs < MIN_SECONDS_BETWEEN_REPORTS
     ) {
-      return; // throttled - drop silently, same "no ack" contract as a normal report
+      return;  //. throttled, dropped silently
     }
     attachment.lastReportTs = nowSeconds;
     ws.serializeAttachment(attachment);
 
     this.insertAndTrim(eventId, nowSeconds);
+    await this.scheduleIdleAlarm();  //. accepted report counts as activity
 
     const broadcast = JSON.stringify({ type: "report", event_id: eventId, ts: nowSeconds });
     for (const socket of this.ctx.getWebSockets()) {
-      // Broadcasts to everyone on the shard, including the sender - server is
-      // the timestamp authority, so the sender learns ts the same way as
-      // everyone else rather than optimistically stamping client-side.
       try {
-        socket.send(broadcast);
+        socket.send(broadcast);  //. send to this shard
       } catch {
-        // A dead socket here will get cleaned up via webSocketClose/webSocketError;
-        // nothing to do at broadcast time.
+        //_ dead socket - cleanup happens in webSocketClose/webSocketError
       }
     }
   }
 
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // webSocketClose / webSocketError
+  //--------------------------------------------------------------------------------
+  // Hibernation API handlers; ws.close() completes the closing handshake and
+  // an already-closing/closed socket is swallowed since there's nothing left
+  // to do.
+  //--------------------------------------------------------------------------------
   async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
     try {
       ws.close(code, reason);
     } catch {
-      // already closing/closed - nothing to do
+      //_ already closing/closed, nothing to do
     }
   }
 
@@ -149,12 +180,59 @@ export class ShardObject extends DurableObject<Env> {
     try {
       ws.close(1011, "WebSocket error");
     } catch {
-      // already closing/closed - nothing to do
+      //_ already closing/closed, nothing to do
     }
   }
 
-  /** All buffered reports across every event_id this shard has seen, each event
-   *  already capped at MAX_REPORTS_PER_EVENT by insertAndTrim on write. */
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // alarm
+  //--------------------------------------------------------------------------------
+  // Fires after INACTIVITY_TIMEOUT_MS with nothing resetting the deadline. A
+  // connected shard reschedules instead of wiping - a live viewer counts as
+  // activity even without reports. Otherwise wipes storage; deleteAll() also
+  // clears the alarm itself (compat date >= 2026-02-24), so the next fetch()
+  // for this shard key just re-runs the constructor on a clean slate.
+  //--------------------------------------------------------------------------------
+  async alarm(): Promise<void> {
+    if (this.ctx.getWebSockets().length > 0) {
+      await this.scheduleIdleAlarm();
+      return;
+    }
+    await this.ctx.storage.deleteAll();
+    this.ensureSchema();
+  }
+
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // ensureSchema
+  //--------------------------------------------------------------------------------
+  // Also called right after deleteAll() in alarm(): the runtime doesn't
+  // guarantee eviction immediately after an alarm, so a surviving in-memory
+  // instance could otherwise hit a missing table on its next request.
+  //--------------------------------------------------------------------------------
+  private ensureSchema(): void {
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT NOT NULL,
+        ts INTEGER NOT NULL
+      );
+    `);
+    this.ctx.storage.sql.exec(`
+      CREATE INDEX IF NOT EXISTS idx_reports_event_ts
+      ON reports (event_id, ts DESC);
+    `);
+  }
+
+  private async scheduleIdleAlarm(): Promise<void> {
+    await this.ctx.storage.setAlarm(Date.now() + INACTIVITY_TIMEOUT_MS);
+  }
+
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // readHistory
+  //--------------------------------------------------------------------------------
+  // Every event_id this shard has seen, each already capped at
+  // MAX_REPORTS_PER_EVENT by insertAndTrim on write.
+  //--------------------------------------------------------------------------------
   private readHistory(): ReportRow[] {
     const cursor = this.ctx.storage.sql.exec<ReportRow>(
       `SELECT event_id, ts FROM reports ORDER BY ts DESC;`
@@ -162,13 +240,18 @@ export class ShardObject extends DurableObject<Env> {
     return [...cursor];
   }
 
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // insertAndTrim
+  //--------------------------------------------------------------------------------
+  // Inserts one report row, then deletes older rows for that event_id beyond
+  // MAX_REPORTS_PER_EVENT.
+  //--------------------------------------------------------------------------------
   private insertAndTrim(eventId: string, ts: number): void {
     this.ctx.storage.sql.exec(
       `INSERT INTO reports (event_id, ts) VALUES (?, ?);`,
       eventId,
       ts
     );
-    // Keep only the newest MAX_REPORTS_PER_EVENT rows for this event_id.
     this.ctx.storage.sql.exec(
       `DELETE FROM reports
        WHERE event_id = ?

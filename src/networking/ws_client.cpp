@@ -58,11 +58,11 @@ namespace
     // DecodeHost
     //--------------------------------------------------------------------------------
     // Reconstructs the real relay host from host_config.h's obfuscated bytes, widened
-    // to what WinHttpConnect expects. Same reasoning as webhook_report.cpp's
-    // DecodeWebhookUrl -- XOR-obfuscated, not encrypted, just keeps the host out of a
-    // strings/hex-editor pass over the built DLL; see host_config.example.h for the
-    // fuller picture. Only ever called right before the connect that needs it - the
-    // plain host exists in memory only as long as it takes WinHTTP to consume it.
+    // to what WinHttpConnect expects. XOR-obfuscated, not encrypted, just keeps the
+    // host out of a strings/hex-editor pass over the built DLL; see
+    // host_config.example.h for the fuller picture. Only ever called right before the
+    // connect that needs it - the plain host exists in memory only as long as it
+    // takes WinHTTP to consume it.
     //--------------------------------------------------------------------------------
     std::wstring DecodeHost()
     {

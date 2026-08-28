@@ -14,6 +14,10 @@ class_name = "ShardObject"
 tag = "v1"
 new_sqlite_classes = ["ShardObject"]
 
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["ShardObject"]
+
 # Uncomment to move off the free plan later if usage ever needs it - a
 # toggle, not a rearchitecture (see networking-handoff.md).
 # workers_dev = true
