@@ -238,9 +238,9 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
 // editing affordance that doesn't belong in a quick-access view - see the file
 // header. The pending deep-link target (if any) is consumed once Begin() confirms
 // the window drew this frame: captured into a local, cleared from the static, so
-// it only forces its row/category open for the one draw it was requested on.
-// Esc-to-close is handled by Nexus via GUI_RegisterCloseOnEscape (addon.cpp), not
-// an in-window key check - prior attempts at the latter silently no-opped, since
+// it only forces its row/category open for the one draw it was requested on. Esc-
+// to-close is handled by Nexus via GUI_RegisterCloseOnEscape (addon.cpp), not an
+// in-window key check - prior attempts at the latter silently no-opped, since
 // Escape never reaches ImGui's io.KeysDown here.
 //--------------------------------------------------------------------------------
 void RenderEditSubscriptionsWindow()

@@ -1,0 +1,19 @@
+name = "gw2-world-events"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# Durable Objects run on the Workers Free plan. Each shard (map instance) gets
+# its own ShardObject: holds live WebSocket connections (hibernation-eligible,
+# so idle viewers cost nothing) and an embedded SQLite last-10-per-event
+# buffer. No separate database.
+[[durable_objects.bindings]]
+name = "SHARDS"
+class_name = "ShardObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ShardObject"]
+
+# Uncomment to move off the free plan later if usage ever needs it - a
+# toggle, not a rearchitecture (see networking-handoff.md).
+# workers_dev = true

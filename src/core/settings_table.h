@@ -468,3 +468,19 @@ SETTING(Notifications, NotificationDisplaySeconds, int, 10)
 // subscriptions.h); the "Test" button plays it unconditionally.
 //--------------------------------------------------------------------------------
 SETTING(Notifications, NotificationSoundFile, std::string, std::string())
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// [LiveEvents]
+//--------------------------------------------------------------------------------
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ShowLiveEventButton
+//--------------------------------------------------------------------------------
+// Master switch for RenderLiveEventButtons() (live_events_ui.h/.cpp) - the upper-
+// right-corner "report" button(s) shown while the player is within range of an
+// activated LiveEvent (events_live.h). False makes that function a complete no-
+// op, same early-out pattern as ShowSubscriptionsWindow/ShowSubscriptionsBar.
+// Doesn't affect which LiveEvents are activated (IsLiveEventActivated) - only
+// whether the button itself is ever drawn.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, ShowLiveEventButton, bool, true)

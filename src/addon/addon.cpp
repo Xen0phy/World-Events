@@ -19,12 +19,16 @@
 #include "events_tracking.h"
 #include "gw2_api.h"
 #include "imgui.h"
+#include "live_events_ui.h"
 #include "maprender.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
 #include "version.h"
+#include "ws_client.h"
+#include "ws_debug_log.h"
+#include "ws_debug_window.h"
 
 #include <filesystem>
 #include <system_error>
@@ -117,7 +121,15 @@ void AddonLoad(AddonAPI_t* aAPI)
     NexusLink  = (NexusLinkData_t*) APIDefs->DataLink_Get(DL_NEXUS_LINK);
     InitBetterChatLink();
 
+    //_ Set before InitWsDebugLog/InitWsClient below so the very first connect attempt this session is captured, not just later ones.
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");
+
+    //_ Opens ws_traffic.log and mirrors into Nexus's log; must precede InitWsClient so nothing it logs is dropped (see ws_debug_log.h).
+    InitWsDebugLog(g_AddonDir);
+
+    //_ Idle until the first UpdateShard call, wired in alongside the report button UI (see ws_client.h).
+    InitWsClient();
+
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
 
     //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by name, saved back below.
@@ -137,8 +149,17 @@ void AddonLoad(AddonAPI_t* aAPI)
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
 
+    //_ Registered separately from AddonRender so it isn't gated by its IsGameplay/IsMapOpen early-outs; connects can happen at character select too.
+    APIDefs->GUI_Register(RT_Render, RenderWsDebugWindow);
+
     //_ Grants Esc-to-close to the Edit Subscriptions window.
     APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowTitle, &ShowEditSubscriptionsWindow);
+
+    //_ Same, for the live-event recent-reports window (live_events_ui.h).
+    APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow);
+
+    //_ Same, for the WS debug log window (ws_debug_window.h).
+    APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowTitle, &ShowWsDebugWindow);
 
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Loaded.");
 }
@@ -156,12 +177,21 @@ void AddonUnload()
     //_ Stops any in-flight render calls before teardown starts.
     APIDefs->GUI_Deregister(AddonRender);
     APIDefs->GUI_Deregister(AddonOptions);
+    APIDefs->GUI_Deregister(RenderWsDebugWindow);
 
-    //_ Matches the GUI_RegisterCloseOnEscape call in AddonLoad
+    //_ Matches the GUI_RegisterCloseOnEscape calls in AddonLoad
     APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowTitle);
 
     //_ Bounded wait so a still-running thread can't resume in unloaded memory; 2s is generous headroom, not a timeout budget.
     WaitForBackgroundThreads(2000);
+
+    //_ Explicit unbounded join for this one long-lived thread (see ws_client.h); after the call above, so its shutdown hook fires first and this join returns quickly.
+    ShutdownWsClient();
+
+    //_ After ShutdownWsClient() so its own join is logged too, keeping the log continuous from first connect to this addon's last line (see ws_debug_log.h).
+    ShutdownWsDebugLog();
 
     SaveSettings(g_AddonDir);
     SaveAllData(g_AddonDir);
@@ -218,6 +248,10 @@ void AddonRender()
 
         //_ Not gated by the competitive kill-switches above: those govern passive overlay visibility, not an editor the user just explicitly opened.
         RenderEditSubscriptionsWindow();
+
+        //_ Also not gated by the kill-switches: g_LiveEvents only has PvE-map entries, so IsPlayerNearLiveEvent is already false on PvP/WvW (events_live.h).
+        RenderLiveEventButtons();
+        RenderLiveEventReportsWindow();
     }
 
     if (!MumbleLink || !NexusLink)          return;

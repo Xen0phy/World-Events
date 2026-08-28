@@ -28,6 +28,7 @@
 #include "build_info.h"
 #include "events.h"
 #include "events_categories.h"
+#include "events_live.h"
 #include "events_tracking.h"
 #include "gw2_api.h"
 #include "icon_whitener.h"
@@ -35,6 +36,7 @@
 #include "notify_sound.h"
 #include "reset_defaults.h"
 #include "settings.h"
+#include "ws_debug_window.h"
 
 #include <algorithm>
 #include <cstring>
@@ -98,6 +100,69 @@ void AddonOptions()
     ImGui::Checkbox("Toast##dis_comp_toast", &DisableNotifyWhenCompetitive);
     ImGui::SameLine();
     ImGui::Checkbox("Bar##dis_comp_bar", &DisableBarWhenCompetitive);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::Checkbox("Show live event report button", &ShowLiveEventButton);
+    Tooltip("Shows a button in the upper-right corner naming any activated\n"
+            "live event while you're within range of it. Click it to report\n"
+            "the event as active to everyone else on your map instance and\n"
+            "see recent reports; right-click to just see recent reports\n"
+            "without reporting.");
+
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Debug WS Traffic..."))
+        ShowWsDebugWindow = true;
+    Tooltip("Opens a window showing every message sent/received on the live-\n"
+            "events WebSocket connection (Cloudflare Durable Object), from the\n"
+            "moment the addon loaded. Also saved to ws_traffic.log in this\n"
+            "addon's data folder.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (ImGui::CollapsingHeader("Live Events"))
+    {
+        ImGui::TextDisabled("Compiled-in, player-reportable events with no fixed schedule.\n"
+                             "Activate one to show its report button when you're near it.");
+        ImGui::Spacing();
+
+        if (g_LiveEvents.empty())
+        {
+            ImGui::TextDisabled("None compiled in yet.");
+        }
+        else if (ImGui::BeginTable("##live_events_table", 2,
+            ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH))
+        {
+            ImGui::TableSetupColumn("Active", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableHeadersRow();
+
+            for (const LiveEvent& ev : g_LiveEvents)
+            {
+                ImGui::TableNextRow();
+
+                ImGui::TableSetColumnIndex(0);
+                bool activated = IsLiveEventActivated(ev.eventId);
+                std::string checkboxId = "##live_active_" + ev.eventId;
+                if (ImGui::Checkbox(checkboxId.c_str(), &activated))
+                    ToggleLiveEventActivation(ev.eventId);
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextUnformatted(ev.name.c_str());
+                ImGui::SameLine();
+                ImGui::TextDisabled("(map %d)", ev.mapId);
+            }
+
+            ImGui::EndTable();
+        }
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("Activation resets when the game restarts (not yet persisted).");
+    }
 
     ImGui::Spacing();
     ImGui::Separator();

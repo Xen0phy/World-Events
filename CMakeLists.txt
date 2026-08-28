@@ -28,6 +28,9 @@ add_custom_target(bump_rev
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/bump_rev.py
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Bumping revision..."
+    BYPRODUCTS
+        ${CMAKE_SOURCE_DIR}/src/addon/version.h
+        ${CMAKE_SOURCE_DIR}/src/addon/build_info.h
     VERBATIM
 )
 add_dependencies(bump_rev check_weekly_vault)
@@ -43,23 +46,29 @@ add_library(gw2-world-events SHARED
     src/events/events_basic.cpp
     src/events/events_categories.cpp
     src/events/events_cyclic.cpp
+    src/events/events_live.cpp
     src/events/events_storage.cpp
     src/events/events_tracking.cpp
     src/integration/apikey_crypto.cpp
     src/integration/better_chat_link.cpp
     src/integration/gw2_api.cpp
     src/integration/weekly_vault.cpp
+    src/networking/shard_id.cpp
+    src/networking/ws_client.cpp
+    src/networking/ws_debug_log.cpp
     src/overlay/cyclicrender.cpp
     src/overlay/maprender.cpp
     src/overlay/map_shared.cpp
     src/ui/addon_options_helpers.cpp
     src/ui/addon_options.cpp
     src/ui/icon_whitener.cpp
+    src/ui/live_events_ui.cpp
     src/ui/reset_defaults.cpp
     src/ui/subscriptions_bar.cpp
     src/ui/subscriptions_edit_window.cpp
     src/ui/subscriptions_notification.cpp
     src/ui/subscriptions_window.cpp
+    src/ui/ws_debug_window.cpp
     include/imgui.cpp
     include/imgui_draw.cpp
     include/imgui_tables.cpp
@@ -74,6 +83,7 @@ target_include_directories(gw2-world-events PRIVATE
     src/core
     src/events
     src/integration
+    src/networking
     src/overlay
     src/ui
 )
