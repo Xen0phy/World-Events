@@ -24,7 +24,7 @@
 
 #include "addon.h"
 #include "addon_options_helpers.h"
-#include "better_chat_link.h"
+#include "better_chat.h"
 #include "build_info.h"
 #include "events.h"
 #include "events_categories.h"
@@ -437,16 +437,6 @@ void AddonOptions()
                 ImGui::SetNextItemWidth(50.0f);
                 ImGui::InputInt("Paste Delay", &delayMilliseconds, 0 , 0);
             }
-            
-            if (BetterChatLink == nullptr)
-            {
-                if (ImGui::Checkbox("I have Better Chat installed and /self enabled##better_chat_manual_override", &BetterChatManualOverride)
-                    && BetterChatManualOverride)
-                    ChatChannelPrefix = "/self ";
-                Tooltip("Adds \"Better Chat (/self)\" to \"Paste to\" below and\n"
-                        "switches to it immediately, without waiting for Better\n"
-                        "Chat to announce itself to World Events.");
-            }
 
             {
                 std::vector<const char*> chatChannelLabels;
@@ -468,7 +458,13 @@ void AddonOptions()
                         "selected in-game. Prepends that channel's slash command\n"
                         "(e.g. \"/p \") before the name/waypoint. \"Current chat\"\n"
                         "pastes exactly as before, into whichever channel already\n"
-                        "has focus.");
+                        "has focus.\n\n"
+                        "When Better Chat's \"/self\" is enabled, the option is\n"
+                        "available here as well.");
+                        
+                if (!IsBetterChatLoaded()) ImGui::TextDisabled("Better Chat not loaded (optional)");
+                else if (!IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("Better Chat loaded, /self disabled");
+                else if (IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("Better Chat loaded, /self enabled");
             }
             
             ImGui::Dummy(dummySquare);

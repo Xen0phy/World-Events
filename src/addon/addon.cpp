@@ -11,7 +11,6 @@
 
 #include "addon.h"
 #include "background_threads.h"
-#include "better_chat_link.h"
 #include "cyclicrender.h"
 #include "events.h"
 #include "events_categories.h"
@@ -119,7 +118,6 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     MumbleLink = (Mumble::Data*)    APIDefs->DataLink_Get(DL_MUMBLE_LINK);
     NexusLink  = (NexusLinkData_t*) APIDefs->DataLink_Get(DL_NEXUS_LINK);
-    InitBetterChatLink();
 
     //_ Set before InitWsDebugLog/InitWsClient below so the very first connect attempt this session is captured, not just later ones.
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");

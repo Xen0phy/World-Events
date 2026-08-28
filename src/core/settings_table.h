@@ -409,16 +409,6 @@ SETTING(System, delayMilliseconds, int, 20)
 SETTING(System, ChatChannelPrefix, std::string, std::string())
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// BetterChatManualOverride
-//--------------------------------------------------------------------------------
-// Read by IsBetterChatAvailable() (better_chat_link.cpp) alongside the resolved
-// DataLink pointer, so BuildChatChannelOptions can list /self without
-// DL_BETTER_CHAT actually resolving. Options-panel checkbox lives in
-// addon_options.cpp, shown only while BetterChatLink is null.
-//--------------------------------------------------------------------------------
-SETTING(System, BetterChatManualOverride, bool, false)
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [Notifications]
 //--------------------------------------------------------------------------------
 

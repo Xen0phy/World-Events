@@ -10,7 +10,7 @@
 //--------------------------------------------------------------------------------
 
 #include "addon_options_helpers.h"
-#include "better_chat_link.h"
+#include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for BuildChatChannelOptions
 #include "color_utils.h"
 #include "events_storage.h" //. GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot
 #include "events_tracking.h"
@@ -480,7 +480,10 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 // BuildChatChannelOptions
 //--------------------------------------------------------------------------------
 // Index 0 is the empty prefix (ChatChannelPrefix's "current chat" default); the
-// Better Chat entry stays last so dropping it is a single tail check.
+// Better Chat entry stays last so dropping it is a single tail check. It's
+// dropped unless Better Chat is loaded and reports its /self command enabled
+// (see better_chat.h) - offering it otherwise would let the user pick a channel
+// that just types "/self ..." into whatever chat box has focus.
 //--------------------------------------------------------------------------------
 void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const char*>& prefixes)
 {
@@ -500,7 +503,7 @@ void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const
 
     for (int i = 0; i < kCount; i++)
     {
-        if (std::string(kPrefixes[i]) == "/self " && !IsBetterChatAvailable()) continue;
+        if (std::string(kPrefixes[i]) == "/self " && !IsBetterChatSelfCommandEnabled()) continue;
         labels.push_back(kLabels[i]);
         prefixes.push_back(kPrefixes[i]);
     }

@@ -182,8 +182,8 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix);
 // BuildChatChannelOptions
 //--------------------------------------------------------------------------------
 // Fills labels/prefixes with the "Paste to" combo's entries, in matching index
-// order. Omits the Better Chat entry unless IsBetterChatAvailable()
-// (better_chat_link.h) is true.
+// order. Omits the Better Chat entry unless IsBetterChatSelfCommandEnabled()
+// (better_chat.h) is true.
 //--------------------------------------------------------------------------------
 void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const char*>& prefixes);
 

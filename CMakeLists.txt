@@ -50,7 +50,7 @@ add_library(gw2-world-events SHARED
     src/events/events_storage.cpp
     src/events/events_tracking.cpp
     src/integration/apikey_crypto.cpp
-    src/integration/better_chat_link.cpp
+    src/integration/better_chat.cpp
     src/integration/gw2_api.cpp
     src/integration/weekly_vault.cpp
     src/networking/shard_id.cpp
