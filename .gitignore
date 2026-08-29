@@ -7,7 +7,7 @@ build/
 .clangd
 Raidcore.html
 
-#safety net for lazyness
+# safety net for lazyness
 *.gz
 *.tar
 *.md
