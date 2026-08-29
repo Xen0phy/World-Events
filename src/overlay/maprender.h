@@ -105,9 +105,9 @@ float GetEventZoomSizeMultiplier();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderMapEvents
 //--------------------------------------------------------------------------------
-// Draws all events from g_Events onto the open world map, plus an outline
-// ring per g_LiveEvents (events_live.h) entry when ShowLiveEventMapDots is
-// set, sized to the live event's radius.
+// Draws all events from g_Events onto the open world map, plus a randomly
+// rotated ring texture per g_LiveEvents (events_live.h) entry when
+// ShowLiveEventMapDots is set, sized to the live event's radius.
 //--------------------------------------------------------------------------------
 void RenderMapEvents();
 

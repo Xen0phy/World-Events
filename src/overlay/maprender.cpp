@@ -43,6 +43,7 @@
 #include "events_icons.h"
 #include "events_live.h"
 #include "imgui.h"
+#include "live_event_icons.h"
 #include "map_shared.h"
 #include "maprender.h"
 #include "settings.h"
@@ -50,12 +51,17 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 //********************************************************************************
 // EventIconEntry
@@ -104,6 +110,7 @@ static const DefaultIconEntry s_defaultIcons[] =
     { "circle_hand.png", g_CyclicHandIconData,  g_CyclicHandIconData_size },
     { "circle_edge.png", g_CyclicRingIconData,  g_CyclicRingIconData_size },
     { "circle_bg.png",   g_CyclicFillIconData,  g_CyclicFillIconData_size },
+    { "live_ring.png",   g_LiveEventRingIconData, g_LiveEventRingIconData_size },
 };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -445,11 +452,39 @@ void ClearEditMode()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawLiveEventRing
+//--------------------------------------------------------------------------------
+// Draws the bundled live-ring texture (live_event_icons.h) as a square quad of
+// half-extent `radiusPx` centered on `pos`, rotated by `angleDeg` about that
+// center. Every g_LiveEvents entry uses the same texture, so the rotation is
+// what keeps a map full of them from looking like stamped copies of one image.
+//--------------------------------------------------------------------------------
+static void DrawLiveEventRing(ImDrawList* dl, ImTextureID tex, ImVec2 pos,
+    float radiusPx, float angleDeg, ImU32 col)
+{
+    float rad = angleDeg * ((float)M_PI / 180.0f);
+    float s   = sinf(rad);
+    float c   = cosf(rad);
+
+    //_ Unrotated corners relative to `pos`, rotated in place, then re-centered.
+    ImVec2 corners[4] = {
+        { -radiusPx, -radiusPx }, { radiusPx, -radiusPx },
+        {  radiusPx,  radiusPx }, { -radiusPx, radiusPx },
+    };
+    for (ImVec2& corner : corners)
+        corner = { pos.x + corner.x * c - corner.y * s,
+                   pos.y + corner.x * s + corner.y * c };
+
+    dl->AddImageQuad(tex, corners[0], corners[1], corners[2], corners[3],
+        ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderMapEvents
 //--------------------------------------------------------------------------------
-// Draws a dot/icon for each g_Events entry, then (if ShowLiveEventMapDots)
-// an outline ring per g_LiveEvents entry sized to its radius (meters, same
-// scale as continentX/Y - see GetContinentScale), reusing COL_RING/RING_THICK.
+// Draws a dot/icon for each g_Events entry, then (if ShowLiveEventMapDots) the
+// live-ring texture per g_LiveEvents entry, sized to its radius (meters, same
+// scale as continentX/Y - see GetContinentScale) and spun by DrawLiveEventRing.
 // No hover, tooltip, drag-to-reposition, or per-map scoping for those.
 // Basic Event size follows GetEventZoomSizeMultiplier.
 //
@@ -576,7 +611,8 @@ void RenderMapEvents()
 
     if (ShowLiveEventMapDots)
     {
-        float scale = GetContinentScale();
+        float      scale   = GetContinentScale();
+        Texture_t* ringTex = GetOrRequestEventIcon("live_ring.png");
 
         for (const LiveEvent& ev : g_LiveEvents)
         {
@@ -586,7 +622,17 @@ void RenderMapEvents()
             if (pos.x + radiusPx < -100 || pos.x - radiusPx > NexusLink->Width  + 100) continue;
             if (pos.y + radiusPx < -100 || pos.y - radiusPx > NexusLink->Height + 100) continue;
 
-            dl->AddCircle(pos, radiusPx, COL_RING, 0, RING_THICK);
+            if (ringTex && ringTex->Resource)
+            {
+                //_ Per-event, stable, and free - no per-event rotation field needed.
+                float angleDeg = fmodf(ev.continentX, 360.0f);
+                DrawLiveEventRing(dl, (ImTextureID)ringTex->Resource, pos,
+                    radiusPx, angleDeg, COL_RING);
+            }
+            else
+            {
+                dl->AddCircle(pos, radiusPx, COL_RING, 0, RING_THICK); //. texture still loading
+            }
         }
     }
 
