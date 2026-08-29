@@ -1039,6 +1039,12 @@ void AddonOptions()
                     "always-on HUD instead of an interactive window. Position it\n"
                     "by dragging the title bar before ticking this.");
         }
+
+        ImGui::Checkbox("Show live event locations on map", &ShowLiveEventMapDots);
+        Tooltip("Draws a ring at each live event's location and radius while\n"
+                "the full-screen map is open - just a rough visual hint of\n"
+                "where to watch. Purely decorative; works whether or not\n"
+                "you're subscribed above.");
         ImGui::Spacing();
 
         ImGui::TextDisabled("Compiled-in, player-reportable events with no fixed schedule.\n"

@@ -40,8 +40,8 @@ bool LiveEventButtonMoveMode = false;
 //--------------------------------------------------------------------------------
 // The one draggable stand-in RenderLiveEventButtons shows while
 // LiveEventButtonMoveMode is on, clamped so it can't be dragged off screen.
-// Tracks the mouse delta itself - not ImGui's own window-move - so dragging
-// works the same regardless of io.ConfigWindowsMoveFromTitleBarOnly.
+// Tracks the mouse delta itself - not ImGui's own window-move - so dragging works
+// the same regardless of io.ConfigWindowsMoveFromTitleBarOnly.
 //--------------------------------------------------------------------------------
 static void RenderLiveEventButtonMovePreview()
 {
@@ -218,15 +218,14 @@ static const char* ConnectionStateLabel(WsConnectionState state)
 // RenderLiveEventReportsWindow   (group: RenderLiveEventButtons, OpenLiveEventReportsWindow)
 //--------------------------------------------------------------------------------
 // See header. GetRecentReports is already newest-first (ws_client.h): its first
-// entry folds into each row's idLine to form that row's own tree label, the
-// rest become leaves underneath, so no re-sort is needed here either way.
-// Filters g_LiveEvents by MumbleLink->Context.MapID rather than
-// IsPlayerNearLiveEvent (unlike RenderLiveEventButtons) - a report can still
-// be worth checking on a shard from across the map, not just in range.
-// LiveEventReportsWindowLocked (settings_table.h) strips the window down to
-// bare, click-through text pinned at its last position, and deregisters
-// Escape-to-close for as long as it stays locked - see "Lock window" in the
-// options panel.
+// entry folds into each row's idLine to form that row's own tree label, the rest
+// become leaves underneath, so no re-sort is needed here either way. Filters
+// g_LiveEvents by MumbleLink->Context.MapID rather than IsPlayerNearLiveEvent
+// (unlike RenderLiveEventButtons) - a report can still be worth checking on a
+// shard from across the map, not just in range. LiveEventReportsWindowLocked
+// (settings_table.h) strips the window down to bare, click-through text pinned at
+// its last position, and deregisters Escape-to-close for as long as it stays
+// locked - see "Lock window" in the options panel.
 //--------------------------------------------------------------------------------
 void RenderLiveEventReportsWindow()
 {

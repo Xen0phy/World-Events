@@ -11,7 +11,8 @@
 // ContinentToScreen/ScreenToContinent
 //                               continent coordinate <-> screen pixel
 // g_EditMode/ClearEditMode     shared drag-to-reposition state
-// RenderMapEvents               draws all Basic Events onto the open world map
+// RenderMapEvents               draws all Basic Events + live-event radius
+//                               rings onto the open world map
 //--------------------------------------------------------------------------------
 // Icon textures are optional, per-event, and either user-supplied or bundled
 // default. Scans a "textures" folder under the addon's own directory and loads on
@@ -40,6 +41,7 @@
 #include "cyclic_icons.h"
 #include "events.h"
 #include "events_icons.h"
+#include "events_live.h"
 #include "imgui.h"
 #include "map_shared.h"
 #include "maprender.h"
@@ -369,6 +371,19 @@ float GetEventZoomSizeMultiplier()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetContinentScale
+//--------------------------------------------------------------------------------
+// Continent units per screen pixel (Compass.Scale adjusted for display
+// scaling), shared by ContinentToScreen, ScreenToContinent, and the
+// live-event radius ring below.
+//--------------------------------------------------------------------------------
+static float GetContinentScale()
+{
+    float scale = MumbleLink->Context.Compass.Scale / NexusLink->Scaling;
+    return scale < 0.0001f ? 1.0f : scale; //. guard against divide-by-zero on init
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ContinentToScreen   (pairs with: ScreenToContinent)
 //--------------------------------------------------------------------------------
 // Maps a GW2 continent coordinate (cx, cy) to a screen pixel position.
@@ -387,8 +402,7 @@ ImVec2 ContinentToScreen(float cx, float cy)
     float screenCX = NexusLink->Width  * 0.5f;
     float screenCY = NexusLink->Height * 0.5f;
 
-    float scale = compass.Scale / NexusLink->Scaling;
-    if (scale < 0.0001f) scale = 1.0f; //. guard against divide-by-zero on init
+    float scale = GetContinentScale();
 
     return {
         screenCX + (cx - compass.Center.X) / scale,
@@ -411,8 +425,7 @@ ImVec2 ScreenToContinent(ImVec2 screenPos)
     float screenCX = NexusLink->Width  * 0.5f;
     float screenCY = NexusLink->Height * 0.5f;
 
-    float scale = compass.Scale / NexusLink->Scaling;
-    if (scale < 0.0001f) scale = 1.0f;
+    float scale = GetContinentScale();
 
     return {
         compass.Center.X + (screenPos.x - screenCX) * scale,
@@ -434,16 +447,15 @@ void ClearEditMode()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderMapEvents
 //--------------------------------------------------------------------------------
-// Draws a dot/icon for each event in g_Events. Size is fixed in pixels regardless
-// of zoom (Compass.Scale only positions the center) unless BasicEventZoomScaling
-// is enabled, in which case markers grow past BasicEventZoomStartPct up to
-// BasicEventZoomMaxMultiplier at 100% zoom (see
-// GetZoomPercent/GetEventZoomSizeMultiplier above).
+// Draws a dot/icon for each g_Events entry, then (if ShowLiveEventMapDots)
+// an outline ring per g_LiveEvents entry sized to its radius (meters, same
+// scale as continentX/Y - see GetContinentScale), reusing COL_RING/RING_THICK.
+// No hover, tooltip, drag-to-reposition, or per-map scoping for those.
+// Basic Event size follows GetEventZoomSizeMultiplier.
 //
-// The overlay window keeps NoMouseInputs so it never blocks map-dragging; drag
-// capture for the armed marker (EditModeState, maprender.h) is handled per-marker
-// by DrawDragAnchor's anchor window, recreated each frame at the marker's
-// position and staying armed across drag cycles until "Drag"/"Stop" disarms it.
+// The overlay window keeps NoMouseInputs so it never blocks map-dragging;
+// the armed marker's drag capture (EditModeState) is handled per-marker by
+// DrawDragAnchor's anchor window, staying armed until "Drag"/"Stop" disarms it.
 //--------------------------------------------------------------------------------
 void RenderMapEvents()
 {
@@ -559,6 +571,22 @@ void RenderMapEvents()
                     ev.name.c_str(), FormatCountdown(secs).c_str());
             }
             ImGui::EndTooltip();
+        }
+    }
+
+    if (ShowLiveEventMapDots)
+    {
+        float scale = GetContinentScale();
+
+        for (const LiveEvent& ev : g_LiveEvents)
+        {
+            ImVec2 pos      = ContinentToScreen(ev.continentX, ev.continentY);
+            float  radiusPx = ev.radius / scale;
+
+            if (pos.x + radiusPx < -100 || pos.x - radiusPx > NexusLink->Width  + 100) continue;
+            if (pos.y + radiusPx < -100 || pos.y - radiusPx > NexusLink->Height + 100) continue;
+
+            dl->AddCircle(pos, radiusPx, COL_RING, 0, RING_THICK);
         }
     }
 

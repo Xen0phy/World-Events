@@ -264,7 +264,7 @@ void AddonRender()
 
     if (!isMapOpen) return;
 
-    //_ PvP/WvW maps never have Basic/Cyclic events on them - unconditional, not tied to any setting like the views above.
+    //_ PvP/WvW maps never have Basic/Cyclic/Live events on them - unconditional, not tied to any setting like the views above.
     if (MumbleLink->Context.IsCompetitive) return;
 
     RenderMapEvents();

@@ -15,7 +15,7 @@
 std::vector<LiveEvent> g_LiveEvents =
 {
     {"5869C555-53AF-4701-876B-02BFB5F0AD7A", "Treasure Mushroom (Verdant Brink)",
-        33980.0f, 33242.0f,
+        33716.0f, 32109.0f,
         1052, -747.0f, 369.0f, -223.0f, 100.0f},
     {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Auric Basin)",
         34980.0f, 34242.0f,

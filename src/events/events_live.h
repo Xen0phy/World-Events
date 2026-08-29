@@ -42,8 +42,8 @@
 //               button offers this dot - only relevant on the map it occurs on
 // worldX/Y/Z    API's location.center, in-world (not continent) coordinates -
 //               same space as Mumble Link's raw avatar position (see below)
-// radius        API's location.radius; sphere radius in the same space/units
-//               as worldX/Y/Z (see IsPlayerNearLiveEvent)
+// radius        API's location.radius, in meters - same units as
+//               continentX/Y and worldX/Y/Z (see IsPlayerNearLiveEvent).
 //--------------------------------------------------------------------------------
 // One live, player-reported event: an always-available, always-compiled-in dot
 // definition with no timer of its own. Whether it's currently "up" comes entirely
