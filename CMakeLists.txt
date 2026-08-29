@@ -18,14 +18,14 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 add_custom_target(check_weekly_vault
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/check_weekly_vault.py
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/check_weekly_vault.py
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Validating weekly_vault.cpp against events_cyclic.cpp..."
     VERBATIM
 )
 
 add_custom_target(bump_rev
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/bump_rev.py
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/bump_rev.py
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Bumping revision..."
     BYPRODUCTS
@@ -34,6 +34,24 @@ add_custom_target(bump_rev
     VERBATIM
 )
 add_dependencies(bump_rev check_weekly_vault)
+
+# Regenerates src/generated/bundled_icons.generated.cpp from every PNG under
+# resources/textures/ (see tools/generate_bundled_icons.py / src/core/
+# bundled_icons.h). CONFIGURE_DEPENDS makes CMake re-glob on the next build
+# after a texture is added or removed, not just when an existing one changes.
+file(GLOB BUNDLED_ICON_SOURCES CONFIGURE_DEPENDS
+    ${CMAKE_SOURCE_DIR}/resources/textures/*.png)
+
+set(BUNDLED_ICONS_GENERATED ${CMAKE_SOURCE_DIR}/src/generated/bundled_icons.generated.cpp)
+
+add_custom_command(
+    OUTPUT ${BUNDLED_ICONS_GENERATED}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_bundled_icons.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS ${CMAKE_SOURCE_DIR}/tools/generate_bundled_icons.py ${BUNDLED_ICON_SOURCES}
+    COMMENT "Embedding resources/textures/*.png into bundled_icons.generated.cpp..."
+    VERBATIM
+)
 
 add_library(gw2-world-events SHARED
     src/addon/addon.cpp
@@ -49,6 +67,7 @@ add_library(gw2-world-events SHARED
     src/events/events_live.cpp
     src/events/events_storage.cpp
     src/events/events_tracking.cpp
+    src/generated/bundled_icons.generated.cpp
     src/integration/apikey_crypto.cpp
     src/integration/better_chat.cpp
     src/integration/gw2_api.cpp

@@ -21,8 +21,8 @@
 // still null while the file decodes in the background, with no ready signal.
 // Results are cached by filename, since multiple events can share an icon.
 //
-// A small set of default icons is compiled into the dll (see events_icons.h /
-// s_defaultIcons below) and loaded via Textures_LoadFromMemory instead of
+// A small set of default icons is compiled into the dll (see bundled_icons.h /
+// g_BundledIcons) and loaded via Textures_LoadFromMemory instead of
 // LoadFromFile, so no files need to exist on disk out of the box. Disk is checked
 // first for a given filename (see GetOrRequestEventIcon), so a user can override
 // a bundled icon by dropping a same-named file into their own textures/ folder.
@@ -37,13 +37,11 @@
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
+#include "bundled_icons.h"
 #include "color_utils.h"
-#include "cyclic_icons.h"
 #include "events.h"
-#include "events_icons.h"
 #include "events_live.h"
 #include "imgui.h"
-#include "live_event_icons.h"
 #include "map_shared.h"
 #include "maprender.h"
 #include "settings.h"
@@ -52,7 +50,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <cstdint>
 #include <ctime>
 #include <filesystem>
 #include <mutex>
@@ -82,45 +79,17 @@ static std::unordered_map<std::string, EventIconEntry> s_iconCache;
 static std::vector<std::string> s_iconFilenames;
 static bool s_iconFilenamesScanned = false;
 
-//********************************************************************************
-// DefaultIconEntry
-//--------------------------------------------------------------------------------
-// name    bundled filename, matched against disk/user references
-// data    raw PNG bytes (see events_icons.h)
-// size    byte length of `data`
-//--------------------------------------------------------------------------------
-// One entry per bundled icon (s_defaultIcons below). Only consulted when nothing
-// matching `name` exists on disk, see GetOrRequestEventIcon
-//--------------------------------------------------------------------------------
-struct DefaultIconEntry
-{
-    const char*    name;
-    const uint8_t* data;
-    uint64_t       size;
-};
-
-static const DefaultIconEntry s_defaultIcons[] =
-{
-    { "BasicCross.png",  g_BasicIconData,       g_BasicIconData_size },
-    { "Convergence.png", g_ConvergenceIconData, g_ConvergenceIconData_size },
-    { "EventBoss.png",   g_EventBossIconData,   g_EventBossIconData_size },
-    { "EventMap.png",    g_EventMapIconData,    g_EventMapIconData_size },
-    { "Festival.png",    g_FestivalIconData,    g_FestivalIconData_size },
-    { "WorldBoss.png",   g_WorldBossIconData,   g_WorldBossIconData_size },
-    { "circle_hand.png", g_CyclicHandIconData,  g_CyclicHandIconData_size },
-    { "circle_edge.png", g_CyclicRingIconData,  g_CyclicRingIconData_size },
-    { "circle_bg.png",   g_CyclicFillIconData,  g_CyclicFillIconData_size },
-    { "live_ring.png",   g_LiveEventRingIconData, g_LiveEventRingIconData_size },
-};
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // FindDefaultIcon
 //--------------------------------------------------------------------------------
+// Searches g_BundledIcons (bundled_icons.h), the generated table of every PNG
+// under resources/textures/.
+//--------------------------------------------------------------------------------
 static const DefaultIconEntry* FindDefaultIcon(const std::string& filename)
 {
-    for (const auto& entry : s_defaultIcons)
-        if (filename == entry.name)
-            return &entry;
+    for (size_t i = 0; i < g_BundledIconsCount; i++)
+        if (filename == g_BundledIcons[i].name)
+            return &g_BundledIcons[i];
     return nullptr;
 }
 
@@ -152,9 +121,9 @@ void ScanEventIconFiles()
             s_iconFilenames.push_back(entry.path().filename().string());
     }
 
-    for (const auto& defaultIcon : s_defaultIcons)
-        if (std::find(s_iconFilenames.begin(), s_iconFilenames.end(), defaultIcon.name) == s_iconFilenames.end())
-            s_iconFilenames.push_back(defaultIcon.name);
+    for (size_t i = 0; i < g_BundledIconsCount; i++)
+        if (std::find(s_iconFilenames.begin(), s_iconFilenames.end(), g_BundledIcons[i].name) == s_iconFilenames.end())
+            s_iconFilenames.push_back(g_BundledIcons[i].name);
 
     std::sort(s_iconFilenames.begin(), s_iconFilenames.end());
 }
@@ -189,7 +158,7 @@ static void OnEventIconReceived(const char* aIdentifier, Texture_t* aTexture)
 //
 // DISK FIRST: if a file by this name exists under <addonDir>/textures, it's
 // loaded from there exactly as before, even if the same name also exists in
-// s_defaultIcons - this is what lets a user override/reskin a bundled icon just
+// g_BundledIcons - this is what lets a user override/reskin a bundled icon just
 // by dropping a same-named file, no rebuild needed. Only when nothing matches on
 // disk does this fall back to the bundled table via Textures_LoadFromMemory
 // instead of Textures_LoadFromFile.
@@ -454,10 +423,11 @@ void ClearEditMode()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawLiveEventRing
 //--------------------------------------------------------------------------------
-// Draws the bundled live-ring texture (live_event_icons.h) as a square quad of
-// half-extent `radiusPx` centered on `pos`, rotated by `angleDeg` about that
-// center. Every g_LiveEvents entry uses the same texture, so the rotation is
-// what keeps a map full of them from looking like stamped copies of one image.
+// Draws the bundled live-ring texture (resources/textures/live_ring.png) as a
+// square quad of half-extent `radiusPx` centered on `pos`, rotated by
+// `angleDeg` about that center. Every g_LiveEvents entry uses the same
+// texture, so the rotation is what keeps a map full of them from looking
+// like stamped copies of one image.
 //--------------------------------------------------------------------------------
 static void DrawLiveEventRing(ImDrawList* dl, ImTextureID tex, ImVec2 pos,
     float radiusPx, float angleDeg, ImU32 col)

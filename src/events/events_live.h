@@ -15,7 +15,7 @@
 // mode (EditTarget::BasicEvent/CyclicGroup) so a user's own additions/tweaks
 // survive updates; g_LiveEvents gets neither. Position, name, and id are only
 // ever meaningful if they match what every other client and the relay server
-// agree on, so they ship compiled-in only, the same way events_icons.h's icon
+// agree on, so they ship compiled-in only, the same way bundled_icons.h's icon
 // table isn't user-editable.
 //
 // What IS user-controlled is whether the whole feature is on at all - see
