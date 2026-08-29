@@ -160,7 +160,7 @@ static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubs
     if (auto it = s_weeklyCache.find(r.key); it != s_weeklyCache.end())
         r.isWeeklyTarget = !it->second.complete;
 
-    bool apiDone    = !ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId);
+    bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId);
     bool manualDone = IsBasicEventMarkedDoneToday(ev.name);
     r.doneToday = apiDone || manualDone;
 
@@ -191,7 +191,7 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
     if (auto it = s_weeklyCache.find(r.key); it != s_weeklyCache.end())
         r.isWeeklyTarget = !it->second.complete;
 
-    bool apiDone    = !grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId);
+    bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId);
     bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset });
     r.doneToday = apiDone || manualDone;
 

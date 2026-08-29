@@ -379,6 +379,20 @@ SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f
 SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Gw2ApiAutoMarkDoneEnabled
+//--------------------------------------------------------------------------------
+// Master switch for the apiDone half of ResolveBasic/ResolveCyclic's doneToday
+// (subscriptions_cache.cpp): when true (default), a subscribed Core Boss/map
+// chest ring still auto-hides once the GW2 API reports it done for the day, on
+// top of any manual done-today mark. When false, apiDone is never consulted -
+// doneToday reduces to the manual mark alone, even with a valid Gw2ApiKey - for
+// players who'd rather mark everything themselves despite having a key set.
+// Doesn't affect whether the API is polled at all; that's still gated by
+// Gw2ApiKey being non-empty.
+//--------------------------------------------------------------------------------
+SETTING(Subscriptions, Gw2ApiAutoMarkDoneEnabled, bool, true)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [System]
 //--------------------------------------------------------------------------------
 

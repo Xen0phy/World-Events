@@ -478,6 +478,14 @@ void AddonOptions()
                     break;
             }
 
+            //_ Whether the API half of doneToday is consulted at all; the manual mark always still applies.
+            ImGui::Checkbox("Automatically mark API-confirmed events done", &Gw2ApiAutoMarkDoneEnabled);
+            Tooltip("When on (default), any Basic Event/Cyclic group tagged\n"
+                    "(auto) in the lists below still auto-hides once the GW2\n"
+                    "API reports it done for the day. Turn this off to ignore\n"
+                    "that signal and rely only on marking events done for\n"
+                    "today yourself (right-click a row/segment/popup).");
+
             //_ Master switch: drives whether any of the three subscription views auto-surfaces this week's Vault targets.
             ImGui::Checkbox("Auto-track weekly Wizard's Vault targets", &WeeklyAutoTrackEnabled);
             Tooltip("When on (default), the subscriptions window, distribution\n"
@@ -1001,6 +1009,43 @@ void AddonOptions()
 
     if (ImGui::CollapsingHeader("Live Events (Experimental)"))
     {
+        //_ Informational panel above the controls - explains the feature before the checkboxes, not a control itself.
+        static const ImVec4 kInfoHeaderColor(0.65f, 0.80f, 1.00f, 1.0f);
+
+        ImGui::TextColored(kInfoHeaderColor, "How it works");
+        ImGui::TextWrapped(
+            "GW2 doesn't expose a schedule for these events, so instead of predicting them, players report "
+            "\"it's up right now\". Get within range of a compiled-in event - or turn on map markers below to "
+            "see where they are - and a button appears in the upper-right corner (draggable to wherever you "
+            "want it); click it to report the event as active, or right-click to just see recent reports "
+            "without reporting yourself. Every report is broadcast in real time to everyone else on your "
+            "exact map instance.");
+        ImGui::Spacing();
+
+        ImGui::TextColored(kInfoHeaderColor, "What data this uses");
+        ImGui::TextWrapped(
+            "A report is just an event id and a server-stamped timestamp - no account name, character name, "
+            "or exact position is ever sent. Your map instance is identified by a hash of the map ID and the "
+            "server address, never the raw address itself, so nobody can see who reported what. History is "
+            "capped at the last 10 reports per event, and an instance with no viewers and no reports for 12 "
+            "hours wipes its own data. Nothing is sent - no connection is even made - unless "
+            "\"Subscribe to live events\" below is ticked. An up/downvote system for individual reports is "
+            "planned.");
+        ImGui::Spacing();
+
+        ImGui::TextColored(kInfoHeaderColor, "Where this could go");
+        ImGui::TextWrapped(
+            "The roster below is small, compiled-in, and all-or-nothing for now - there's no picking "
+            "individual events. As the reporting pipeline proves reliable, this could grow into a larger "
+            "roster, per-event opt-in, and toast notifications like the ones Basic/Cyclic subscriptions "
+            "already get - eventually graduating out of Experimental. This is a project that relies on "
+            "trust: the more players trust it, the more precise the reports get, and the more players "
+            "might join in turn. Feedback of any kind, and wishes for events worth adding, are welcome - "
+            "message Xenophy.2716 in-game or find me on the Raidcore Discord.");
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
         ImGui::Checkbox("Subscribe to live events", &LiveEventsSubscribed);
         Tooltip("Follows every compiled-in live event at once: shows a button\n"
                 "in the upper-right corner naming any of them while you're\n"
@@ -1041,8 +1086,8 @@ void AddonOptions()
         }
 
         ImGui::Checkbox("Show live event locations on map", &ShowLiveEventMapDots);
-        Tooltip("Draws a ring at each live event's location and radius while\n"
-                "the full-screen map is open - just a rough visual hint of\n"
+        Tooltip("Draws a ring at each live event's location while the\n"
+                "full-screen map is open - just a rough visual hint of\n"
                 "where to watch. Purely decorative; works whether or not\n"
                 "you're subscribed above.");
         ImGui::Spacing();
