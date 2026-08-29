@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.20)
 #   MinGW (default, unchanged, no -DCMAKE_TOOLCHAIN_FILE needed):
 #     cmake -B build/mingw
 #   MSVC-ABI via clang-cl + lld-link (xwin sysroot):
-#     cmake -B build/msvc -G Ninja -DCMAKE_TOOLCHAIN_FILE=toolchain-msvc-clangcl.cmake -DXWIN_SYSROOT=~/.xwin
+#     cmake -B build/msvc -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-msvc-clangcl.cmake -DXWIN_SYSROOT=~/.xwin
 if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_SYSTEM_NAME Windows)
     set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
@@ -14,6 +14,24 @@ endif()
 
 project(gw2-world-events)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Third-party dependencies, fetched at configure time instead of being
+# vendored under include/. See cmake/*.cmake for pinned versions/commits.
+# Each build tree (build/mingw, build/msvc) gets its own _deps/ -- do NOT
+# point FETCHCONTENT_BASE_DIR at a shared location across them. FetchContent's
+# "already populated" bookkeeping is per-build-tree, so the second backend to
+# configure re-runs its clone step regardless, and that step's scratch
+# project is configured with -G${CMAKE_GENERATOR} (mingw's default Makefiles
+# vs msvc's Ninja) -- a shared dir means it collides with the other backend's
+# leftover cache there. nlohmann/json's own CMakeLists.txt also gets
+# add_subdirectory()'d in (for the mumble/nexus/imgui compiler too), which
+# would hit the same kind of conflict from mingw-g++ vs clang-cl once past
+# the generator issue. Not worth it for a few small repos.
+include(${CMAKE_SOURCE_DIR}/cmake/imgui.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/mumble.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/nexus.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/nlohmann_json.cmake)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
@@ -88,16 +106,11 @@ add_library(gw2-world-events SHARED
     src/ui/subscriptions_notification.cpp
     src/ui/subscriptions_window.cpp
     src/ui/ws_debug_window.cpp
-    include/imgui.cpp
-    include/imgui_draw.cpp
-    include/imgui_tables.cpp
-    include/imgui_widgets.cpp
 )
 
 add_dependencies(gw2-world-events bump_rev)
 
 target_include_directories(gw2-world-events PRIVATE
-    include
     src/addon
     src/core
     src/events
@@ -113,7 +126,13 @@ target_include_directories(gw2-world-events PRIVATE
 # "expected unqualified-id" errors under clang-cl/xwin's SDK headers.
 target_compile_definitions(gw2-world-events PRIVATE NOMINMAX)
 
-target_link_libraries(gw2-world-events PRIVATE windowscodecs ole32 winhttp bcrypt winmm)
+target_link_libraries(gw2-world-events PRIVATE
+    windowscodecs ole32 winhttp bcrypt winmm
+    imgui
+    mumble
+    nexus
+    nlohmann_json::nlohmann_json
+)
 
 set_target_properties(gw2-world-events PROPERTIES
     OUTPUT_NAME "WorldEvents"
@@ -140,6 +159,12 @@ if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
         /OPT:REF   # dead code/data stripping, ~= --gc-sections
         /OPT:ICF   # identical comdat folding, extra win lld-link gives for free
     )
+    # imgui's .cpp files used to be compiled straight into gw2-world-events
+    # and inherited these flags for free. Now that imgui is its own fetched
+    # static-lib target, it needs them applied explicitly too -- /MT in
+    # particular, since linking a /MD-built static lib into a /MT target is
+    # a CRT mismatch clang-cl/lld-link will reject at link time.
+    target_compile_options(imgui PRIVATE /O1 /GR- /EHsc /MT)
 else()
     # mingw-w64 (GNU ABI) path -- unchanged from before.
     target_compile_options(gw2-world-events PRIVATE
@@ -156,4 +181,7 @@ else()
         -Wl,--gc-sections
         -Wl,--exclude-libs,ALL
     )
+    # See the MSVC branch above -- imgui is now a separate fetched target
+    # and no longer inherits these automatically.
+    target_compile_options(imgui PRIVATE -Os -ffunction-sections -fdata-sections -fno-rtti)
 endif()

@@ -13,7 +13,7 @@
 
 #include "events_tracking.h"
 #include "events.h"
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <ctime>

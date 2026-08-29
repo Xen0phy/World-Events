@@ -15,7 +15,7 @@
 
 #include "events.h"   //. EVENTS_DATA_VERSION
 #include "events_categories.h"
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <filesystem>

@@ -26,7 +26,7 @@
 
 #include "background_threads.h"
 #include "gw2_api.h"
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 #include "settings.h"
 
 #define WIN32_LEAN_AND_MEAN

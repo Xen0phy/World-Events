@@ -1,11 +1,17 @@
+# root/ folders
 backup/
 build/
-apikey.key
+
+# root/ files
 .backup-excludes
 .clangd
+Raidcore.html
+
+#safety net for lazyness
 *.gz
 *.tar
-Raidcore.html
+*.md
+!README.md
 
 # Real relay host -- see src/networking/host_config.example.h for the
 # committed template this is copied from. Never commit the real one.

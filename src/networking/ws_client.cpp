@@ -27,7 +27,7 @@
 
 #include "background_threads.h"
 #include "host_config.h"
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 #include "ws_debug_log.h"
 
 #define WIN32_LEAN_AND_MEAN

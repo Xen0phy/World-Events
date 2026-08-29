@@ -15,7 +15,7 @@
 #
 # Configure with:
 #   cmake -B build/msvc -G Ninja \
-#     -DCMAKE_TOOLCHAIN_FILE=toolchain-msvc-clangcl.cmake \
+#     -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-msvc-clangcl.cmake \
 #     -DXWIN_SYSROOT=$HOME/.xwin
 #   cmake --build build/msvc
 #

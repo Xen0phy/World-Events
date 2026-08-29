@@ -16,7 +16,7 @@
 #include "addon.h"
 #include "background_threads.h"
 #include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for PasteToChat's /self fallback
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 #include "settings.h"
 #include "subscriptions.h"
 

@@ -18,7 +18,7 @@
 
 #include "events.h"
 #include "events_categories.h"
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 
 #include <filesystem>
 #include <fstream>

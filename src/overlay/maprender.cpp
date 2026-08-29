@@ -22,10 +22,10 @@
 // Results are cached by filename, since multiple events can share an icon.
 //
 // A small set of default icons is compiled into the dll (see bundled_icons.h /
-// g_BundledIcons) and loaded via Textures_LoadFromMemory instead of
-// LoadFromFile, so no files need to exist on disk out of the box. Disk is checked
-// first for a given filename (see GetOrRequestEventIcon), so a user can override
-// a bundled icon by dropping a same-named file into their own textures/ folder.
+// g_BundledIcons) and loaded via Textures_LoadFromMemory instead of LoadFromFile,
+// so no files need to exist on disk out of the box. Disk is checked first for a
+// given filename (see GetOrRequestEventIcon), so a user can override a bundled
+// icon by dropping a same-named file into their own textures/ folder.
 //
 // AUTHORING REQUIREMENT: the icon is recolored at draw time via a multiplicative
 // tint (ImDrawList::AddImage's `col` parameter multiplies each pixel's RGB/A by
@@ -349,9 +349,9 @@ float GetEventZoomSizeMultiplier()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetContinentScale
 //--------------------------------------------------------------------------------
-// Continent units per screen pixel (Compass.Scale adjusted for display
-// scaling), shared by ContinentToScreen, ScreenToContinent, and the
-// live-event radius ring below.
+// Continent units per screen pixel (Compass.Scale adjusted for display scaling),
+// shared by ContinentToScreen, ScreenToContinent, and the live-event radius ring
+// below.
 //--------------------------------------------------------------------------------
 static float GetContinentScale()
 {
@@ -424,10 +424,10 @@ void ClearEditMode()
 // DrawLiveEventRing
 //--------------------------------------------------------------------------------
 // Draws the bundled live-ring texture (resources/textures/live_ring.png) as a
-// square quad of half-extent `radiusPx` centered on `pos`, rotated by
-// `angleDeg` about that center. Every g_LiveEvents entry uses the same
-// texture, so the rotation is what keeps a map full of them from looking
-// like stamped copies of one image.
+// square quad of half-extent `radiusPx` centered on `pos`, rotated by `angleDeg`
+// about that center. Every g_LiveEvents entry uses the same texture, so the
+// rotation is what keeps a map full of them from looking like stamped copies of
+// one image.
 //--------------------------------------------------------------------------------
 static void DrawLiveEventRing(ImDrawList* dl, ImTextureID tex, ImVec2 pos,
     float radiusPx, float angleDeg, ImU32 col)
@@ -455,11 +455,11 @@ static void DrawLiveEventRing(ImDrawList* dl, ImTextureID tex, ImVec2 pos,
 // Draws a dot/icon for each g_Events entry, then (if ShowLiveEventMapDots) the
 // live-ring texture per g_LiveEvents entry, sized to its radius (meters, same
 // scale as continentX/Y - see GetContinentScale) and spun by DrawLiveEventRing.
-// No hover, tooltip, drag-to-reposition, or per-map scoping for those.
-// Basic Event size follows GetEventZoomSizeMultiplier.
+// No hover, tooltip, drag-to-reposition, or per-map scoping for those. Basic
+// Event size follows GetEventZoomSizeMultiplier.
 //
-// The overlay window keeps NoMouseInputs so it never blocks map-dragging;
-// the armed marker's drag capture (EditModeState) is handled per-marker by
+// The overlay window keeps NoMouseInputs so it never blocks map-dragging; the
+// armed marker's drag capture (EditModeState) is handled per-marker by
 // DrawDragAnchor's anchor window, staying armed until "Drag"/"Stop" disarms it.
 //--------------------------------------------------------------------------------
 void RenderMapEvents()
