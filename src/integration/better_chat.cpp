@@ -12,11 +12,11 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBetterChatLoaded
 //--------------------------------------------------------------------------------
-// GetModuleHandleA matches case-insensitively on just the module's own file
-// name, regardless of the full path it was loaded from, so this needs no
-// enumeration - one call per candidate name is enough. A renamed .dll this list
-// doesn't happen to cover would still read as "not loaded"; there is no Nexus
-// API to ask "is addon X loaded" directly (see better_chat.h).
+// GetModuleHandleA matches case-insensitively on just the module's own file name,
+// regardless of the full path it was loaded from, so this needs no enumeration -
+// one call per candidate name is enough. A renamed .dll this list doesn't happen
+// to cover would still read as "not loaded"; there is no Nexus API to ask "is
+// addon X loaded" directly (see better_chat.h).
 //--------------------------------------------------------------------------------
 bool IsBetterChatLoaded()
 {

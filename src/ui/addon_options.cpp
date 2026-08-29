@@ -1025,11 +1025,20 @@ void AddonOptions()
                 "the position is remembered.");
 
         ImGui::Checkbox("Show live event reports window", &ShowLiveEventReportsWindow);
-        Tooltip("Keeps the reports window (server status, recent reports for the\n"
-                "last event you targeted) open regardless of proximity to any\n"
+        Tooltip("Keeps the reports window (server status, every live event on\n"
+                "your current map instance) open regardless of proximity to any\n"
                 "event. Left unticked here, the window still opens on its own\n"
                 "whenever you click a report button, and stays open across\n"
                 "restarts if you leave this ticked.");
+
+        DisabledBlock(!ShowLiveEventReportsWindow)
+        {
+            ImGui::Checkbox("Lock window", &LiveEventReportsWindowLocked);
+            Tooltip("Drops the title bar, background, and resize/move handles,\n"
+                    "leaving just the report text pinned in place - a low-profile\n"
+                    "always-on HUD instead of an interactive window. Position it\n"
+                    "by dragging the title bar before ticking this.");
+        }
         ImGui::Spacing();
 
         ImGui::TextDisabled("Compiled-in, player-reportable events with no fixed schedule.\n"

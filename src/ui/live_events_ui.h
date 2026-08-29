@@ -3,7 +3,7 @@
 //--------------------------------------------------------------------------------
 // RenderLiveEventButtons        upper-right corner report button(s)
 // LiveEventButtonMoveMode       transient "drag to reposition" flag (see below)
-// OpenLiveEventReportsWindow    open the window for one specific event
+// OpenLiveEventReportsWindow    opens the window; see below for what it shows
 // RenderLiveEventReportsWindow  draws the window; no-op unless open
 //--------------------------------------------------------------------------------
 // The UI half of the live-event-reporting feature (networking-handoff.md), the
@@ -13,11 +13,11 @@
 // RenderLiveEventReportsWindow below).
 //
 // ShowLiveEventReportsWindow (settings_table.h) is itself a SETTING, so the
-// popup's visibility survives a restart and can also be toggled directly from
-// the options panel, independent of proximity to any event - unlike
+// popup's visibility survives a restart and can also be toggled directly from the
+// options panel, independent of proximity to any event - unlike
 // LiveEventButtonMoveMode, which stays transient for the same reason
-// ShowEditSubscriptionsWindow (subscriptions_edit_window.h) does: it's an
-// editing mode, not state worth persisting.
+// ShowEditSubscriptionsWindow (subscriptions_edit_window.h) does: it's an editing
+// mode, not state worth persisting.
 //
 // Call both once per frame from AddonRender, gameplay-gated the same way as the
 // Subscriptions views (subscriptions_ui.h) - see addon.cpp.
@@ -31,8 +31,8 @@
 // RenderLiveEventButtons
 //--------------------------------------------------------------------------------
 // No-op outside gameplay (no MumbleLink/NexusLink, or NexusLink->IsGameplay
-// false). If LiveEventButtonMoveMode is true, draws one draggable placeholder
-// at LiveEventButtonMarginX/Y (settings_table.h) so its position is visible and
+// false). If LiveEventButtonMoveMode is true, draws one draggable placeholder at
+// LiveEventButtonMarginX/Y (settings_table.h) so its position is visible and
 // adjustable without being subscribed or near an event - nothing else below
 // applies while that's on. Otherwise a no-op if LiveEventsSubscribed
 // (settings_table.h) is false. Otherwise draws one borderless button per
@@ -52,24 +52,23 @@ inline constexpr const char* kLiveEventReportsWindowTitle = "World Events — Li
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenLiveEventReportsWindow
 //--------------------------------------------------------------------------------
-// Opens the reports window (sets ShowLiveEventReportsWindow) targeted at one
-// event. Re-calling with a different eventId while the window is already open
-// just retargets it - there's only ever one reports window, not one per event.
+// Opens the reports window (sets ShowLiveEventReportsWindow). Idempotent if
+// already open - see RenderLiveEventReportsWindow for what it shows.
 //--------------------------------------------------------------------------------
-void OpenLiveEventReportsWindow(const std::string& eventId, const std::string& eventName);
+void OpenLiveEventReportsWindow();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderLiveEventReportsWindow
 //--------------------------------------------------------------------------------
 // Draws live GetConnectionState() (ws_client.h) as a small "Server:
-// Connected/Connecting/Disconnected" line, then the targeted event's name plus
-// the shard's last IPv4 octet (GetShardLastAddressOctet, shard_id.h). Below
-// that, up to the last 10 GetRecentReports(eventId): the most recent is a
-// folded-by-default tree node labeled with how long ago it came in, and older
-// ones are leaves underneath once unfolded. Placeholder text if no event has
-// been targeted yet - possible now that ShowLiveEventReportsWindow can be
-// turned on directly from the options panel. No-op if that flag is false. Call
-// once per frame, alongside RenderLiveEventButtons - see AddonRender in
-// addon.cpp.
+// Connected/Connecting/Disconnected" line, then one row per g_LiveEvents
+// (events_live.h) entry on the player's current map - no per-event selection,
+// entering a shard is enough. Each row is the event's name plus the shard's last
+// IPv4 octet (GetShardLastAddressOctet, shard_id.h), followed by "(empty)" or how
+// long ago the most recent of the last 10 GetRecentReports(eventId) came in; a
+// row with more than one report folds into a tree node, collapsed by default,
+// with the rest as leaves underneath. No-op if ShowLiveEventReportsWindow
+// (settings_table.h) is false. Call once per frame, alongside
+// RenderLiveEventButtons - see below.
 //--------------------------------------------------------------------------------
 void RenderLiveEventReportsWindow();

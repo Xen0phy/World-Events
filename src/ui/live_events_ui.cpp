@@ -35,10 +35,6 @@ static constexpr unsigned long long kShardUpdateIntervalMs = 1000;
 
 bool LiveEventButtonMoveMode = false;
 
-//_ Which event the reports window is currently targeted at - set by OpenLiveEventReportsWindow, read by RenderLiveEventReportsWindow.
-static std::string s_reportsWindowEventId;
-static std::string s_reportsWindowEventName;
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderLiveEventButtonMovePreview   (pairs with: RenderLiveEventButtons)
 //--------------------------------------------------------------------------------
@@ -175,11 +171,11 @@ void RenderLiveEventButtons()
         if (ImGui::Button(label.c_str(), ImVec2(kButtonWidth, kButtonHeight)))
         {
             SendReport(ev->eventId);
-            OpenLiveEventReportsWindow(ev->eventId, ev->name);
+            OpenLiveEventReportsWindow();
         }
         if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
         {
-            OpenLiveEventReportsWindow(ev->eventId, ev->name);
+            OpenLiveEventReportsWindow();
         }
         if (ImGui::IsItemHovered())
         {
@@ -196,10 +192,8 @@ void RenderLiveEventButtons()
 //--------------------------------------------------------------------------------
 // See header.
 //--------------------------------------------------------------------------------
-void OpenLiveEventReportsWindow(const std::string& eventId, const std::string& eventName)
+void OpenLiveEventReportsWindow()
 {
-    s_reportsWindowEventId   = eventId;
-    s_reportsWindowEventName = eventName;
     ShowLiveEventReportsWindow = true;
 }
 
@@ -224,17 +218,46 @@ static const char* ConnectionStateLabel(WsConnectionState state)
 // RenderLiveEventReportsWindow   (group: RenderLiveEventButtons, OpenLiveEventReportsWindow)
 //--------------------------------------------------------------------------------
 // See header. GetRecentReports is already newest-first (ws_client.h): its first
-// entry becomes the tree's own (folded-by-default) label, the rest become leaves
-// underneath, so no re-sort is needed here either way. MumbleLink is null-checked
-// again for the octet lookup - same defensive stance as RenderLiveEventButtons,
-// even though addon.cpp's call site already guarantees it here too.
+// entry folds into each row's idLine to form that row's own tree label, the
+// rest become leaves underneath, so no re-sort is needed here either way.
+// Filters g_LiveEvents by MumbleLink->Context.MapID rather than
+// IsPlayerNearLiveEvent (unlike RenderLiveEventButtons) - a report can still
+// be worth checking on a shard from across the map, not just in range.
+// LiveEventReportsWindowLocked (settings_table.h) strips the window down to
+// bare, click-through text pinned at its last position, and deregisters
+// Escape-to-close for as long as it stays locked - see "Lock window" in the
+// options panel.
 //--------------------------------------------------------------------------------
 void RenderLiveEventReportsWindow()
 {
+    //_ Mirrors AddonLoad's unconditional initial registration - corrects itself below on this function's first call if the loaded setting says otherwise.
+    static bool s_escapeCloseRegistered = true;
+    if (LiveEventReportsWindowLocked && s_escapeCloseRegistered)
+    {
+        APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
+        s_escapeCloseRegistered = false;
+    }
+    else if (!LiveEventReportsWindowLocked && !s_escapeCloseRegistered)
+    {
+        APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow);
+        s_escapeCloseRegistered = true;
+    }
+
     if (!ShowLiveEventReportsWindow) return;
 
+    ImGuiWindowFlags flags = ImGuiWindowFlags_None;
+    if (LiveEventReportsWindowLocked)
+    {
+        ImGui::SetNextWindowBgAlpha(0.0f); //. background drawn by nothing - see flags below
+        flags |= ImGuiWindowFlags_NoTitleBar          |
+                 ImGuiWindowFlags_NoScrollbar          |
+                 ImGuiWindowFlags_NoBackground         |
+                 ImGuiWindowFlags_NoInputs             |
+                 ImGuiWindowFlags_NoBringToFrontOnFocus;
+    }
+
     ImGui::SetNextWindowSize(ImVec2(320.0f, 220.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow))
+    if (!ImGui::Begin(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow, flags))
     {
         ImGui::End();
         return;
@@ -242,40 +265,49 @@ void RenderLiveEventReportsWindow()
 
     ImGui::TextDisabled("Server: %s", ConnectionStateLabel(GetConnectionState()));
 
-    if (s_reportsWindowEventId.empty())
+    if (!MumbleLink)
     {
         ImGui::Spacing();
-        ImGui::TextDisabled("No event selected yet - click a report button to pick one.");
+        ImGui::TextDisabled("Not in game.");
         ImGui::End();
         return;
     }
 
-    std::vector<EventReport> reports = GetRecentReports(s_reportsWindowEventId);
+    int mapId = (int)MumbleLink->Context.MapID;
+    std::optional<uint8_t> octet = GetShardLastAddressOctet(MumbleLink->Context);
     time_t now = time(nullptr);
+    bool any = false;
 
-    std::string idLine = s_reportsWindowEventName;
-    std::optional<uint8_t> octet = MumbleLink ? GetShardLastAddressOctet(MumbleLink->Context) : std::nullopt;
-    if (octet)
-        idLine += "." + std::to_string(*octet);
-    ImGui::TextUnformatted(idLine.c_str());
-    ImGui::Spacing();
+    for (const LiveEvent& ev : g_LiveEvents)
+    {
+        if (ev.mapId != mapId) continue;
+        any = true;
 
-    if (reports.empty())
-    {
-        ImGui::TextDisabled("No reports yet for this event on your map instance.");
-    }
-    else
-    {
+        std::string idLine = ev.name;
+        if (octet)
+            idLine += "." + std::to_string(*octet);
+
+        std::vector<EventReport> reports = GetRecentReports(ev.eventId);
+        if (reports.empty())
+        {
+            ImGui::TextUnformatted((idLine + " (empty)").c_str());
+            continue;
+        }
+
         //_ Signed/clamped the same way subscriptions_notification.cpp treats its own tick-based elapsed time - a server-stamped ts should never be in the future, but a client clock can't be trusted not to disagree slightly.
         long long elapsedSigned = (long long)now - reports.front().timestampUnix; //. newest first, see GetRecentReports
         int elapsed = elapsedSigned > 0 ? (int)elapsedSigned : 0;
-        std::string mostRecentLabel = FormatMinSec(elapsed) + " ago";
+        std::string treeLabel = idLine + " (" + FormatMinSec(elapsed) + " ago)";
 
         if (reports.size() == 1)
         {
-            ImGui::BulletText("%s", mostRecentLabel.c_str()); //. nothing to fold with only one report
+            ImGui::TextUnformatted(treeLabel.c_str()); //. nothing to fold with only one report
+            continue;
         }
-        else if (ImGui::TreeNode("##we_live_reports_tree", "%s", mostRecentLabel.c_str()))
+
+        //_ Keyed by eventId so every event's tree keeps its own fold state.
+        std::string treeId = "##we_live_reports_tree_" + ev.eventId;
+        if (ImGui::TreeNode(treeId.c_str(), "%s", treeLabel.c_str()))
         {
             for (size_t i = 1; i < reports.size(); i++)
             {
@@ -285,6 +317,12 @@ void RenderLiveEventReportsWindow()
             }
             ImGui::TreePop();
         }
+    }
+
+    if (!any)
+    {
+        ImGui::Spacing();
+        ImGui::TextDisabled("No live events on this map.");
     }
 
     ImGui::End();

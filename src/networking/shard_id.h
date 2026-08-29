@@ -71,10 +71,10 @@ ShardIdentity ComputeShardIdentity(const Mumble::Context& context);
 //--------------------------------------------------------------------------------
 // The last byte of Context::ServerAddress's IPv4 address (xxx.yyy.zzz.THIS) -
 // local on-screen display only, telling apart two players seeing the same map
-// name but on different physical servers, without exposing the full address
-// (see file header on why the full address is never sent or stored anywhere
-// else). nullopt for IPv6 (no single-octet analog) or wherever
-// ComputeShardIdentity would itself report invalid - not connected to a map
-// server, or an unrecognized address family.
+// name but on different physical servers, without exposing the full address (see
+// file header on why the full address is never sent or stored anywhere else).
+// nullopt for IPv6 (no single-octet analog) or wherever ComputeShardIdentity
+// would itself report invalid - not connected to a map server, or an unrecognized
+// address family.
 //--------------------------------------------------------------------------------
 std::optional<uint8_t> GetShardLastAddressOctet(const Mumble::Context& context);

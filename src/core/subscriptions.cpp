@@ -568,11 +568,11 @@ void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::mi
 // between them, so that case pastes three segments instead - "/w ", the Mumble-
 // reported character name, then message - with Tab after the name. If the
 // character name can't be read yet, the whisper is dropped instead of sent to
-// whatever box currently has focus. "/self " falls back to the unprefixed
-// default the same way if Better Chat's /self isn't available right now - the
-// options panel only offers that entry while it is (addon_options_helpers.cpp),
-// but a stale saved setting (Better Chat updated/disabled since) must not paste
-// a dead command into whatever box currently has focus either.
+// whatever box currently has focus. "/self " falls back to the unprefixed default
+// the same way if Better Chat's /self isn't available right now - the options
+// panel only offers that entry while it is (addon_options_helpers.cpp), but a
+// stale saved setting (Better Chat updated/disabled since) must not paste a dead
+// command into whatever box currently has focus either.
 //--------------------------------------------------------------------------------
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 {

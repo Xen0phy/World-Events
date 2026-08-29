@@ -490,10 +490,22 @@ SETTING(LiveEvents, LiveEventButtonMarginY, float, 20.0f)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ShowLiveEventReportsWindow
 //--------------------------------------------------------------------------------
-// Visibility for the live-event reports window (live_events_ui.h/.cpp) - set
-// true either by clicking/right-clicking a report button, or directly via "Show
-// live event reports window" in the options panel, so it can stay open (and
-// reopen on restart) without being near any event. The window's own close
-// button writes back through this same flag.
+// Visibility for the live-event reports window (live_events_ui.h/.cpp) - set true
+// either by clicking/right-clicking a report button, or directly via "Show live
+// event reports window" in the options panel, so it can stay open (and reopen on
+// restart) without being near any event. The window's own close button writes
+// back through this same flag.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, ShowLiveEventReportsWindow, bool, false)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LiveEventReportsWindowLocked
+//--------------------------------------------------------------------------------
+// Low-profile display mode for the reports window (live_events_ui.h/.cpp): title
+// bar, background, and resize/move all dropped, leaving just the text content
+// pinned at its current screen position - a lightweight always-on HUD instead of
+// an interactive window. Toggled via "Lock window" in the options panel, next to
+// ShowLiveEventReportsWindow; has no effect while that flag is false, since
+// there's no window to reshape.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, LiveEventReportsWindowLocked, bool, false)

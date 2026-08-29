@@ -20,6 +20,25 @@ std::vector<LiveEvent> g_LiveEvents =
     {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Auric Basin)",
         34980.0f, 34242.0f,
         1043, 412.0f, 241.0f, -196.0f, 100.0f},
+    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Tangled Depth)",
+        36496.0f, 34112.0f,
+        1045, -302.0f, 108.0f, 507.0f, 100.0f},
+    //_ FIXME: DS API locations don't reflect real locations
+    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Dragon's Stand North)",
+        35681.0f, 37591.0f,
+        1041, 60.0f, 112.0f, -54.0f, 100.0f},
+    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Dragon's Stand Mid",
+        36055.0f, 37672.0f,
+        1041, 288.0f, 120.0f, -103.0f, 100.0f},
+    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Dragon's Stand East)",
+        36576.0f, 37582.0f,
+        1041, 607.0f, 45.0f, -43.0f, 100.0f},
+    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Bloodtsone Fen)",
+        35389.0f, 30570.0f,
+        1165, -118.0f, 511.0f, 92.0f, 100.0f},
+    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Draconis Mons)",
+        36469.0f, 41154.0f,
+        1195, -102.0f, 360.0f, 30.0f, 50.0f},
 };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
