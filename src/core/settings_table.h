@@ -464,13 +464,36 @@ SETTING(Notifications, NotificationSoundFile, std::string, std::string())
 //--------------------------------------------------------------------------------
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ShowLiveEventButton
+// LiveEventsSubscribed
 //--------------------------------------------------------------------------------
-// Master switch for RenderLiveEventButtons() (live_events_ui.h/.cpp) - the upper-
-// right-corner "report" button(s) shown while the player is within range of an
-// activated LiveEvent (events_live.h). False makes that function a complete no-
-// op, same early-out pattern as ShowSubscriptionsWindow/ShowSubscriptionsBar.
-// Doesn't affect which LiveEvents are activated (IsLiveEventActivated) - only
-// whether the button itself is ever drawn.
+// Master opt-in for the whole live-event-reporting feature. False (default) makes
+// RenderLiveEventButtons() (live_events_ui.h/.cpp) a complete no-op AND keeps the
+// client from ever connecting to the relay server/Durable Object (see UpdateShard
+// call in live_events_ui.cpp) - not just hiding the button. True follows every
+// compiled-in LiveEvent (events_live.h) at once; there's no per-event opt-in
+// beneath this one.
 //--------------------------------------------------------------------------------
-SETTING(LiveEvents, ShowLiveEventButton, bool, true)
+SETTING(LiveEvents, LiveEventsSubscribed, bool, false)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LiveEventButtonMarginX / LiveEventButtonMarginY
+//--------------------------------------------------------------------------------
+// Report button's anchor point, in screen-space pixels from the top-right corner
+// (X grows leftward, Y grows downward - see RenderLiveEventButtons). User-
+// draggable via "Move button" in the options panel (LiveEventButtonMoveMode,
+// live_events_ui.h); 20.0f/20.0f matches the button stack's original hardcoded
+// margin, so an existing settings.ini with no entry for these keeps that look.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, LiveEventButtonMarginX, float, 20.0f)
+SETTING(LiveEvents, LiveEventButtonMarginY, float, 20.0f)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ShowLiveEventReportsWindow
+//--------------------------------------------------------------------------------
+// Visibility for the live-event reports window (live_events_ui.h/.cpp) - set
+// true either by clicking/right-clicking a report button, or directly via "Show
+// live event reports window" in the options panel, so it can stay open (and
+// reopen on restart) without being near any event. The window's own close
+// button writes back through this same flag.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, ShowLiveEventReportsWindow, bool, false)

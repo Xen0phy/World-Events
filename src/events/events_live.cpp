@@ -1,21 +1,15 @@
 //################################################################################
 // events_live.cpp
 //--------------------------------------------------------------------------------
-// g_LiveEvents                  compiled-in LiveEvent roster (see events_live.h)
-// IsLiveEventActivated/Toggle   in-memory activation storage (see below)
+// g_LiveEvents   compiled-in LiveEvent roster (see events_live.h)
 //--------------------------------------------------------------------------------
 // Hand-written roster, same spirit as events_basic.cpp/events_cyclic.cpp: no
 // logic, grouped by comment banner. eventId/name/mapId/continentX/Y and the
 // worldX/Y/Z+radius sphere come straight from the GW2 API v2 /events endpoint -
 // see events_live.h for why worldX/Y/Z/radius aren't used for anything yet.
-//
-// Activation storage (IsLiveEventActivated/ToggleLiveEventActivation) is in-
-// memory only - resets on addon restart.
 //--------------------------------------------------------------------------------
 
 #include "events_live.h"
-
-#include <algorithm>
 
 //_ continentX/Y sourced same as WorldEvent's (see events_basic.cpp); worldX/Y/Z/radius copied verbatim from the API's location.center/radius, not yet used.
 std::vector<LiveEvent> g_LiveEvents =
@@ -27,24 +21,6 @@ std::vector<LiveEvent> g_LiveEvents =
         34980.0f, 34242.0f,
         1043, 412.0f, 241.0f, -196.0f, 100.0f},
 };
-
-//_ eventIds activated this session; opt-in/in-memory, unlike WorldEvent::shown's opt-out+persisted pattern (see events_live.h).
-static std::vector<std::string> g_ActivatedLiveEventIds;
-
-bool IsLiveEventActivated(const std::string& eventId)
-{
-    return std::find(g_ActivatedLiveEventIds.begin(), g_ActivatedLiveEventIds.end(), eventId)
-        != g_ActivatedLiveEventIds.end();
-}
-
-void ToggleLiveEventActivation(const std::string& eventId)
-{
-    auto it = std::find(g_ActivatedLiveEventIds.begin(), g_ActivatedLiveEventIds.end(), eventId);
-    if (it != g_ActivatedLiveEventIds.end())
-        g_ActivatedLiveEventIds.erase(it);
-    else
-        g_ActivatedLiveEventIds.push_back(eventId);
-}
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsPlayerNearLiveEvent   (see: events_live.h)
@@ -74,4 +50,12 @@ bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble)
     //_ Full 3D sphere check - see events_live.h on why not a flat 2D radius.
     float distSq = dx * dx + dy * dy + dz * dz;
     return distSq <= (event.radius * event.radius);
+}
+
+bool MapHasLiveEvents(int mapId)
+{
+    for (const LiveEvent& ev : g_LiveEvents)
+        if (ev.mapId == mapId)
+            return true;
+    return false;
 }

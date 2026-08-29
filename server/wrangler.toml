@@ -2,6 +2,13 @@ name = "gw2-world-events"
 main = "src/index.ts"
 compatibility_date = "2026-08-01"
 
+# Regenerates src/live_event_maps.generated.ts from the client's compiled-in
+# roster (events_live.cpp) before every `wrangler dev`/`deploy` - Wrangler runs
+# this itself, so it fires for a bare `npx wrangler deploy` too, not just
+# `npm run deploy`. Same idiom as bump_rev.py on the addon side.
+[build]
+command = "python3 scripts/sync_live_event_maps.py"
+
 # Durable Objects run on the Workers Free plan. Each shard (map instance) gets
 # its own ShardObject: holds live WebSocket connections (hibernation-eligible,
 # so idle viewers cost nothing) and an embedded SQLite last-10-per-event

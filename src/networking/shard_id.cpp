@@ -4,6 +4,7 @@
 // Fnv1a64          fixed, portable 64-bit hash (see shard_id.h for why not
 //                   std::hash)
 // ComputeShardIdentity   extracts + validates + hashes ServerAddress
+// GetShardLastAddressOctet   extracts just the last IPv4 byte (see shard_id.h)
 //--------------------------------------------------------------------------------
 
 #include "shard_id.h"
@@ -89,4 +90,23 @@ ShardIdentity ComputeShardIdentity(const Mumble::Context& context)
     id.addressHash = Fnv1a64(canonical, canonicalLen);
     id.valid       = true;
     return id;
+}
+
+std::optional<uint8_t> GetShardLastAddressOctet(const Mumble::Context& context)
+{
+    const unsigned char* addr = context.ServerAddress;
+    uint16_t family = static_cast<uint16_t>(addr[0] | (addr[1] << 8));
+    if (family != AF_INET_WIN)
+        return std::nullopt;
+
+    //_ Same all-zero guard as ComputeShardIdentity - mid-connect/loading state.
+    bool allZero = true;
+    for (size_t i = 2; i < 8; ++i)
+    {
+        if (addr[i] != 0) { allZero = false; break; }
+    }
+    if (allZero)
+        return std::nullopt;
+
+    return addr[7]; //. sockaddr_in: family(2)+port(2)+addr(4), so the last IPv4 byte sits at offset 7
 }

@@ -21,64 +21,140 @@
 #include <windows.h>
 
 #include <ctime>
+#include <optional>
 #include <string>
 #include <vector>
 
-//_ Button stack layout, screen-space pixels - see kMarginX/Y etc in subscriptions_notification.cpp for the sibling convention.
+//_ Button stack layout, screen-space pixels - see kMarginX/Y etc in subscriptions_notification.cpp for the sibling convention. Anchor position itself (LiveEventButtonMarginX/Y) is user-adjustable - see settings_table.h.
 static constexpr float kButtonWidth  = 220.0f;
 static constexpr float kButtonHeight = 32.0f;
 static constexpr float kGapY         = 6.0f;   //. vertical gap between stacked buttons
-static constexpr float kMarginX      = 20.0f;  //. from the right screen edge
-static constexpr float kMarginY      = 20.0f;  //. from the top screen edge
 
 //_ Shard-update throttle interval - see RenderLiveEventButtons.
 static constexpr unsigned long long kShardUpdateIntervalMs = 1000;
 
-bool ShowLiveEventReportsWindow = false;
+bool LiveEventButtonMoveMode = false;
 
 //_ Which event the reports window is currently targeted at - set by OpenLiveEventReportsWindow, read by RenderLiveEventReportsWindow.
 static std::string s_reportsWindowEventId;
 static std::string s_reportsWindowEventName;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RenderLiveEventButtonMovePreview   (pairs with: RenderLiveEventButtons)
+//--------------------------------------------------------------------------------
+// The one draggable stand-in RenderLiveEventButtons shows while
+// LiveEventButtonMoveMode is on, clamped so it can't be dragged off screen.
+// Tracks the mouse delta itself - not ImGui's own window-move - so dragging
+// works the same regardless of io.ConfigWindowsMoveFromTitleBarOnly.
+//--------------------------------------------------------------------------------
+static void RenderLiveEventButtonMovePreview()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    float x = io.DisplaySize.x - LiveEventButtonMarginX - kButtonWidth;
+    float y = LiveEventButtonMarginY;
+
+    ImGui::SetNextWindowPos(ImVec2(x, y));
+    ImGui::SetNextWindowSize(ImVec2(kButtonWidth, kButtonHeight));
+    ImGui::SetNextWindowBgAlpha(0.0f); //. background drawn by Button below
+    ImGui::Begin("##we_live_btn_move_preview", nullptr,
+        ImGuiWindowFlags_NoTitleBar         |
+        ImGuiWindowFlags_NoResize           |
+        ImGuiWindowFlags_NoMove             |
+        ImGuiWindowFlags_NoScrollbar        |
+        ImGuiWindowFlags_NoSavedSettings    |
+        ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav);
+
+    ImGui::Button("Drag to move##we_live_btn_move_preview", ImVec2(kButtonWidth, kButtonHeight));
+
+    static bool   s_dragging = false;
+    static ImVec2 s_dragStartMouse;
+    static ImVec2 s_dragStartMargin;
+
+    if (ImGui::IsItemActivated())
+    {
+        s_dragging        = true;
+        s_dragStartMouse  = io.MousePos;
+        s_dragStartMargin = ImVec2(LiveEventButtonMarginX, LiveEventButtonMarginY);
+    }
+    if (s_dragging && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+    {
+        float dx = io.MousePos.x - s_dragStartMouse.x;
+        float dy = io.MousePos.y - s_dragStartMouse.y;
+
+        //_ Margin is measured from the right edge, so dragging right shrinks it.
+        float newMarginX = s_dragStartMargin.x - dx;
+        float newMarginY = s_dragStartMargin.y + dy;
+
+        float maxMarginX = io.DisplaySize.x - kButtonWidth;
+        float maxMarginY = io.DisplaySize.y - kButtonHeight;
+        LiveEventButtonMarginX = newMarginX < 0.0f ? 0.0f : (newMarginX > maxMarginX ? maxMarginX : newMarginX);
+        LiveEventButtonMarginY = newMarginY < 0.0f ? 0.0f : (newMarginY > maxMarginY ? maxMarginY : newMarginY);
+    }
+    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+        s_dragging = false;
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Drag to reposition the live-event report button.\n"
+                           "Untick \"Move button\" in options when done.");
+    }
+
+    ImGui::End();
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderLiveEventButtons   (group: OpenLiveEventReportsWindow, RenderLiveEventReportsWindow)
 //--------------------------------------------------------------------------------
 // See header. MumbleLink/NexusLink are null-checked here too - addon.cpp's
 // AddonRender already gates on both, but this file doesn't assume that ordering
-// holds forever. UpdateShard is throttled to ~1x/sec (the render- tick hook
-// networking-handoff.md section 9 #5 calls for); harmless to call more often
-// since it's itself a no-op on an unchanged shard key.
+// holds forever. UpdateShard is throttled to ~1x/sec (the render-tick hook
+// networking-handoff.md section 9 #5 calls for) and runs regardless of
+// LiveEventsSubscribed, so unticking it disconnects an already-open shard within
+// that ~1s instead of merely skipping future connects. Only issued with a real
+// shard when LiveEventsSubscribed is true AND MapHasLiveEvents (events_live.h)
+// agrees the current map has one; a default (invalid) ShardIdentity is sent
+// otherwise, itself a no-op if already disconnected.
 //--------------------------------------------------------------------------------
 void RenderLiveEventButtons()
 {
-    if (!ShowLiveEventButton) return;
     if (!MumbleLink || !NexusLink || !NexusLink->IsGameplay) return;
 
     static unsigned long long s_lastShardUpdateMs = 0;
     unsigned long long nowMs = GetTickCount64();
     if (nowMs - s_lastShardUpdateMs >= kShardUpdateIntervalMs)
     {
-        UpdateShard(ComputeShardIdentity(MumbleLink->Context));
+        if (LiveEventsSubscribed && MapHasLiveEvents((int)MumbleLink->Context.MapID))
+            UpdateShard(ComputeShardIdentity(MumbleLink->Context));
+        else
+            UpdateShard(ShardIdentity{});
         s_lastShardUpdateMs = nowMs;
     }
 
-    //_ IsPlayerNearLiveEvent already checks event.mapId against MumbleLink->Context.MapID internally - see events_live.h.
+    if (LiveEventButtonMoveMode)
+    {
+        RenderLiveEventButtonMovePreview();
+        return;
+    }
+
+    if (!LiveEventsSubscribed) return;
+
+    //_ Every compiled-in LiveEvent counts once subscribed - no per-event opt-in (see events_live.h).
     std::vector<const LiveEvent*> nearby;
     for (const LiveEvent& ev : g_LiveEvents)
     {
-        if (!IsLiveEventActivated(ev.eventId))      continue;
         if (!IsPlayerNearLiveEvent(ev, *MumbleLink)) continue;
         nearby.push_back(&ev);
     }
     if (nearby.empty()) return;
 
     ImGuiIO& io = ImGui::GetIO();
-    float x = io.DisplaySize.x - kMarginX - kButtonWidth;
+    float x = io.DisplaySize.x - LiveEventButtonMarginX - kButtonWidth;
 
     for (size_t i = 0; i < nearby.size(); i++)
     {
         const LiveEvent* ev = nearby[i];
-        float y = kMarginY + (float)i * (kButtonHeight + kGapY);
+        float y = LiveEventButtonMarginY + (float)i * (kButtonHeight + kGapY);
 
         //_ Keyed by eventId, not loop index, so a button's window identity stays stable if the nearby list's order shifts between frames.
         std::string winId = "##we_live_btn_" + ev->eventId;
@@ -147,8 +223,11 @@ static const char* ConnectionStateLabel(WsConnectionState state)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderLiveEventReportsWindow   (group: RenderLiveEventButtons, OpenLiveEventReportsWindow)
 //--------------------------------------------------------------------------------
-// See header. GetRecentReports is already newest-first (ws_client.h), so rows are
-// drawn in the order returned with no re-sort here.
+// See header. GetRecentReports is already newest-first (ws_client.h): its first
+// entry becomes the tree's own (folded-by-default) label, the rest become leaves
+// underneath, so no re-sort is needed here either way. MumbleLink is null-checked
+// again for the octet lookup - same defensive stance as RenderLiveEventButtons,
+// even though addon.cpp's call site already guarantees it here too.
 //--------------------------------------------------------------------------------
 void RenderLiveEventReportsWindow()
 {
@@ -161,25 +240,50 @@ void RenderLiveEventReportsWindow()
         return;
     }
 
-    ImGui::TextUnformatted(s_reportsWindowEventName.c_str());
     ImGui::TextDisabled("Server: %s", ConnectionStateLabel(GetConnectionState()));
-    ImGui::Separator();
-    ImGui::Spacing();
+
+    if (s_reportsWindowEventId.empty())
+    {
+        ImGui::Spacing();
+        ImGui::TextDisabled("No event selected yet - click a report button to pick one.");
+        ImGui::End();
+        return;
+    }
 
     std::vector<EventReport> reports = GetRecentReports(s_reportsWindowEventId);
+    time_t now = time(nullptr);
+
+    std::string idLine = s_reportsWindowEventName;
+    std::optional<uint8_t> octet = MumbleLink ? GetShardLastAddressOctet(MumbleLink->Context) : std::nullopt;
+    if (octet)
+        idLine += "." + std::to_string(*octet);
+    ImGui::TextUnformatted(idLine.c_str());
+    ImGui::Spacing();
+
     if (reports.empty())
     {
         ImGui::TextDisabled("No reports yet for this event on your map instance.");
     }
     else
     {
-        time_t now = time(nullptr);
-        for (const EventReport& r : reports)
+        //_ Signed/clamped the same way subscriptions_notification.cpp treats its own tick-based elapsed time - a server-stamped ts should never be in the future, but a client clock can't be trusted not to disagree slightly.
+        long long elapsedSigned = (long long)now - reports.front().timestampUnix; //. newest first, see GetRecentReports
+        int elapsed = elapsedSigned > 0 ? (int)elapsedSigned : 0;
+        std::string mostRecentLabel = FormatMinSec(elapsed) + " ago";
+
+        if (reports.size() == 1)
         {
-            //_ Signed/clamped the same way subscriptions_notification.cpp treats its own tick-based elapsed time - a server-stamped ts should never be in the future, but a client clock can't be trusted not to disagree slightly.
-            long long elapsedSigned = (long long)now - r.timestampUnix;
-            int elapsed = elapsedSigned > 0 ? (int)elapsedSigned : 0;
-            ImGui::Text("Reported %s ago", FormatMinSec(elapsed).c_str());
+            ImGui::BulletText("%s", mostRecentLabel.c_str()); //. nothing to fold with only one report
+        }
+        else if (ImGui::TreeNode("##we_live_reports_tree", "%s", mostRecentLabel.c_str()))
+        {
+            for (size_t i = 1; i < reports.size(); i++)
+            {
+                long long es = (long long)now - reports[i].timestampUnix;
+                int e = es > 0 ? (int)es : 0;
+                ImGui::BulletText("%s ago", FormatMinSec(e).c_str());
+            }
+            ImGui::TreePop();
         }
     }
 

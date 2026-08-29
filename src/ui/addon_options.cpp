@@ -33,6 +33,7 @@
 #include "gw2_api.h"
 #include "icon_whitener.h"
 #include "imgui.h"
+#include "live_events_ui.h"
 #include "notify_sound.h"
 #include "reset_defaults.h"
 #include "settings.h"
@@ -100,69 +101,6 @@ void AddonOptions()
     ImGui::Checkbox("Toast##dis_comp_toast", &DisableNotifyWhenCompetitive);
     ImGui::SameLine();
     ImGui::Checkbox("Bar##dis_comp_bar", &DisableBarWhenCompetitive);
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    ImGui::Checkbox("Show live event report button", &ShowLiveEventButton);
-    Tooltip("Shows a button in the upper-right corner naming any activated\n"
-            "live event while you're within range of it. Click it to report\n"
-            "the event as active to everyone else on your map instance and\n"
-            "see recent reports; right-click to just see recent reports\n"
-            "without reporting.");
-
-    ImGui::SameLine();
-    if (ImGui::SmallButton("Debug WS Traffic..."))
-        ShowWsDebugWindow = true;
-    Tooltip("Opens a window showing every message sent/received on the live-\n"
-            "events WebSocket connection (Cloudflare Durable Object), from the\n"
-            "moment the addon loaded. Also saved to ws_traffic.log in this\n"
-            "addon's data folder.");
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    if (ImGui::CollapsingHeader("Live Events"))
-    {
-        ImGui::TextDisabled("Compiled-in, player-reportable events with no fixed schedule.\n"
-                             "Activate one to show its report button when you're near it.");
-        ImGui::Spacing();
-
-        if (g_LiveEvents.empty())
-        {
-            ImGui::TextDisabled("None compiled in yet.");
-        }
-        else if (ImGui::BeginTable("##live_events_table", 2,
-            ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH))
-        {
-            ImGui::TableSetupColumn("Active", ImGuiTableColumnFlags_WidthFixed, 50.0f);
-            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableHeadersRow();
-
-            for (const LiveEvent& ev : g_LiveEvents)
-            {
-                ImGui::TableNextRow();
-
-                ImGui::TableSetColumnIndex(0);
-                bool activated = IsLiveEventActivated(ev.eventId);
-                std::string checkboxId = "##live_active_" + ev.eventId;
-                if (ImGui::Checkbox(checkboxId.c_str(), &activated))
-                    ToggleLiveEventActivation(ev.eventId);
-
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted(ev.name.c_str());
-                ImGui::SameLine();
-                ImGui::TextDisabled("(map %d)", ev.mapId);
-            }
-
-            ImGui::EndTable();
-        }
-
-        ImGui::Spacing();
-        ImGui::TextDisabled("Activation resets when the game restarts (not yet persisted).");
-    }
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -1054,6 +992,63 @@ void AddonOptions()
                 g_CyclicCategories.push_back({ "New Category", {} });
 
             ImGui::EndTable();
+        }
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (ImGui::CollapsingHeader("Live Events (Experimental)"))
+    {
+        ImGui::Checkbox("Subscribe to live events", &LiveEventsSubscribed);
+        Tooltip("Follows every compiled-in live event at once: shows a button\n"
+                "in the upper-right corner naming any of them while you're\n"
+                "within range, on any map that has one. Click it to report the\n"
+                "event as active to everyone else on your map instance and see\n"
+                "recent reports; right-click to just see recent reports without\n"
+                "reporting. Unticked, this feature does nothing at all - no\n"
+                "connection to the relay server is ever made.");
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Debug WS Traffic..."))
+            ShowWsDebugWindow = true;
+        Tooltip("Opens a window showing every message sent/received on the live-\n"
+                "events WebSocket connection (Cloudflare Durable Object), from the\n"
+                "moment the addon loaded. Also saved to ws_traffic.log in this\n"
+                "addon's data folder.");
+
+        ImGui::Checkbox("Move button", &LiveEventButtonMoveMode);
+        Tooltip("Shows the report button at its current position - even when\n"
+                "you're not subscribed or not near an event - so you can drag\n"
+                "it wherever you'd like. Untick when you're done positioning it;\n"
+                "the position is remembered.");
+
+        ImGui::Checkbox("Show live event reports window", &ShowLiveEventReportsWindow);
+        Tooltip("Keeps the reports window (server status, recent reports for the\n"
+                "last event you targeted) open regardless of proximity to any\n"
+                "event. Left unticked here, the window still opens on its own\n"
+                "whenever you click a report button, and stays open across\n"
+                "restarts if you leave this ticked.");
+        ImGui::Spacing();
+
+        ImGui::TextDisabled("Compiled-in, player-reportable events with no fixed schedule.\n"
+                             "Subscribing above follows all of them - there's no picking\n"
+                             "individual ones.");
+        ImGui::Spacing();
+
+        if (g_LiveEvents.empty())
+        {
+            ImGui::TextDisabled("None compiled in yet.");
+        }
+        else
+        {
+            for (const LiveEvent& ev : g_LiveEvents)
+            {
+                ImGui::BulletText("%s", ev.name.c_str());
+                ImGui::SameLine();
+                ImGui::TextDisabled("(map %d)", ev.mapId);
+            }
         }
     }
 }

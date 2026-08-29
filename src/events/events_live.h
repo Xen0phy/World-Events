@@ -18,11 +18,9 @@
 // agree on, so they ship compiled-in only, the same way events_icons.h's icon
 // table isn't user-editable.
 //
-// What IS user-controlled is whether a given LiveEvent's dot is shown at all -
-// see IsLiveEventActivated()/ToggleLiveEventActivation() below. Opt-in and
-// defaulting to false, unlike WorldEvent::shown (opt-out, defaults true): there's
-// no schedule to filter noise by here, so an unfiltered map would be wall-to-wall
-// dots for events most players will never care about.
+// What IS user-controlled is whether the whole feature is on at all - see
+// LiveEventsSubscribed (settings_table.h). There's no per-event opt-in: when
+// subscribed, every entry in g_LiveEvents is followed at once.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -75,22 +73,6 @@ struct LiveEvent
 extern std::vector<LiveEvent> g_LiveEvents;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsLiveEventActivated / ToggleLiveEventActivation
-//--------------------------------------------------------------------------------
-// User's per-event opt-in for whether the dot is drawn at all (see file header -
-// this is the ONLY thing about a LiveEvent a user controls). Keyed by eventId.
-// Defaults to false/not-activated for any id not yet toggled on.
-//
-// Kept separate from g_SubscribedBasicEvents/g_SubscribedCyclicSlots
-// (subscriptions.h): Subscriptions opt into notifications for a scheduled
-// occurrence ("tell me when this starts"), which doesn't apply here - there's no
-// schedule to be notified ahead of. This is purely "show/hide this dot," closer
-// to WorldEvent::shown than to a subscription, just opt-in instead of opt-out.
-//--------------------------------------------------------------------------------
-bool IsLiveEventActivated(const std::string& eventId);
-void ToggleLiveEventActivation(const std::string& eventId);
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsPlayerNearLiveEvent
 //--------------------------------------------------------------------------------
 // True only when the player is on event.mapId AND within event.radius (full 3D
@@ -100,3 +82,12 @@ void ToggleLiveEventActivation(const std::string& eventId);
 // near. See events_live.cpp for the unit-conversion story.
 //--------------------------------------------------------------------------------
 bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// MapHasLiveEvents
+//--------------------------------------------------------------------------------
+// True if any entry in g_LiveEvents has this mapId. Gates whether the client
+// opens a shard connection at all (live_events_ui.cpp) - the relay server
+// enforces the same allow-list independently (server/src/index.ts).
+//--------------------------------------------------------------------------------
+bool MapHasLiveEvents(int mapId);

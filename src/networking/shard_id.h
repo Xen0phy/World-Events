@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------------------
 // ShardIdentity        stable per-instance fingerprint derived from MumbleLink
 // ComputeShardIdentity builds one from the live Context
+// GetShardLastAddressOctet   local-display-only IPv4 last octet (see below)
 //--------------------------------------------------------------------------------
 // Context::ShardID is not reliable for telling map INSTANCES apart - it does not
 // vary the way its name implies. The actual signal for "which physical map server
@@ -25,6 +26,7 @@
 #include "Mumble.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 //********************************************************************************
@@ -63,3 +65,16 @@ struct ShardIdentity
 // Mumble's own live state.
 //--------------------------------------------------------------------------------
 ShardIdentity ComputeShardIdentity(const Mumble::Context& context);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetShardLastAddressOctet
+//--------------------------------------------------------------------------------
+// The last byte of Context::ServerAddress's IPv4 address (xxx.yyy.zzz.THIS) -
+// local on-screen display only, telling apart two players seeing the same map
+// name but on different physical servers, without exposing the full address
+// (see file header on why the full address is never sent or stored anywhere
+// else). nullopt for IPv6 (no single-octet analog) or wherever
+// ComputeShardIdentity would itself report invalid - not connected to a map
+// server, or an unrecognized address family.
+//--------------------------------------------------------------------------------
+std::optional<uint8_t> GetShardLastAddressOctet(const Mumble::Context& context);
