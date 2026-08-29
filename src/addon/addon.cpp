@@ -56,9 +56,9 @@ float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 //
 // Called from both AddonLoad (to persist merged defaults+disk state on first
 // write) and AddonUnload, kept as one function so this ordering rule can't drift
-// out of sync between the two callers. settings.ini is deliberately NOT included
-// here - SaveSettings has no such ordering dependency and is only ever called
-// from AddonUnload.
+// out of sync between the two callers. settings.ini is NOT included here -
+// SaveSettings has no such ordering dependency and is only ever called from
+// AddonUnload.
 //--------------------------------------------------------------------------------
 static void SaveAllData(const std::string& addonDir)
 {
@@ -119,11 +119,10 @@ void AddonLoad(AddonAPI_t* aAPI)
     MumbleLink = (Mumble::Data*)    APIDefs->DataLink_Get(DL_MUMBLE_LINK);
     NexusLink  = (NexusLinkData_t*) APIDefs->DataLink_Get(DL_NEXUS_LINK);
 
-    //_ Set before InitWsDebugLog/InitWsClient below so the very first connect attempt this session is captured, not just later ones.
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");
 
-    //_ Opens ws_traffic.log and mirrors into Nexus's log; must precede InitWsClient so nothing it logs is dropped (see ws_debug_log.h).
-    InitWsDebugLog(g_AddonDir);
+    //_ Resets the WS debug ring buffer; must precede InitWsClient so nothing it logs is dropped (see ws_debug_log.h).
+    InitWsDebugLog();
 
     //_ Idle until the first UpdateShard call, wired in alongside the report button UI (see ws_client.h).
     InitWsClient();
@@ -188,7 +187,7 @@ void AddonUnload()
     //_ Explicit unbounded join for this one long-lived thread (see ws_client.h); after the call above, so its shutdown hook fires first and this join returns quickly.
     ShutdownWsClient();
 
-    //_ After ShutdownWsClient() so its own join is logged too, keeping the log continuous from first connect to this addon's last line (see ws_debug_log.h).
+    //_ No-op, kept for symmetry with InitWsDebugLog (see ws_debug_log.h).
     ShutdownWsDebugLog();
 
     SaveSettings(g_AddonDir);

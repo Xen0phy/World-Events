@@ -1060,8 +1060,9 @@ void AddonOptions()
             ShowWsDebugWindow = true;
         Tooltip("Opens a window showing every message sent/received on the live-\n"
                 "events WebSocket connection (Cloudflare Durable Object), from the\n"
-                "moment the addon loaded. Also saved to ws_traffic.log in this\n"
-                "addon's data folder.");
+                "moment the addon loaded. Also mirrored into Nexus's own log\n"
+                "under the \"WorldEvents-WS\" channel for a record that survives\n"
+                "a crash.");
 
         ImGui::Checkbox("Move button", &LiveEventButtonMoveMode);
         Tooltip("Shows the report button at its current position - even when\n"

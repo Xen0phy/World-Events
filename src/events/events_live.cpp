@@ -20,22 +20,22 @@ std::vector<LiveEvent> g_LiveEvents =
     {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Auric Basin)",
         34980.0f, 34242.0f,
         1043, 412.0f, 241.0f, -196.0f, 100.0f},
-    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Tangled Depth)",
+    {"EAE3DF8F-244D-4BC3-9B7E-3B3A2BDAAFAB", "Treasure Mushroom (Tangled Depth)",
         36496.0f, 34112.0f,
         1045, -302.0f, 108.0f, 507.0f, 100.0f},
-    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Dragon's Stand North)",
+    {"4A9E691A-BBFD-4C17-B2D6-D0B88D7C446F", "Treasure Mushroom (Dragon's Stand North)",
         35789.0f, 36581.0f,
         1041, 125.0f, 47.0f, 562.0f, 100.0f},
-    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Dragon's Stand Mid",
+    {"32C14803-A210-4443-B8F4-F91641035B81", "Treasure Mushroom (Dragon's Stand Center)",
         36060.0f, 37314.0f,
         1041, 290.0f, 105.0f, 115.0f, 100.0f},
-    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Dragon's Stand South)",
+    {"1ADCD34C-3281-4A52-9C4F-DBA62B75F94C", "Treasure Mushroom (Dragon's Stand South)",
         36582.0f, 37602.0f,
         1041, 608.0f, 44.0f, -59.0f, 100.0f},
-    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Bloodtsone Fen)",
+    {"704DF521-84B3-46C1-9FE4-304AF55E6FB6", "Treasure Mushroom (Bloodstone Fen)",
         35389.0f, 30570.0f,
         1165, -118.0f, 511.0f, 92.0f, 100.0f},
-    {"38F28682-B136-4B4D-9F87-E15379771C72", "Treasure Mushroom (Draconis Mons)",
+    {"D3109A18-8A51-4F79-94EB-B474024063F0", "Treasure Mushroom (Draconis Mons)",
         36469.0f, 41154.0f,
         1195, -102.0f, 360.0f, 30.0f, 50.0f},
 };
@@ -70,6 +70,9 @@ bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble)
     return distSq <= (event.radius * event.radius);
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// MapHasLiveEvents   (see: events_live.h)
+//--------------------------------------------------------------------------------
 bool MapHasLiveEvents(int mapId)
 {
     for (const LiveEvent& ev : g_LiveEvents)

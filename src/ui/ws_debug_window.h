@@ -5,11 +5,8 @@
 //                            anywhere else convenient
 // kWsDebugWindowTitle        registered with GUI_RegisterCloseOnEscape in
 //                            addon.cpp, same pattern as every other window
-// RenderWsDebugWindow()      draws the window if ShowWsDebugWindow is set;
-//                            registered as its own RT_Render callback in
-//                            addon.cpp so it works even outside gameplay
-//                            (loading screens, character select) - useful
-//                            since a connection attempt can happen there too
+// RenderWsDebugWindow()      draws the window if ShowWsDebugWindow is set -
+//                            see ws_debug_window.cpp for the render-callback details
 //--------------------------------------------------------------------------------
 // A live view over everything ws_debug_log.h records: every connect attempt,
 // every raw message sent or received, every error, from the moment the addon

@@ -16,8 +16,8 @@
 // fills that gap with a plain manual toggle, set via right-click in the
 // subscriptions window/bar/ toast (see those .cpp files).
 //
-// Deliberately independent of API state: a manually-marked event and an API-
-// confirmed one are checked side by side at each call site (see
+// Independent of API state: a manually-marked event and an API-confirmed one are
+// checked side by side at each call site (see
 // subscriptions_window.cpp/subscriptions_bar.cpp/
 // subscriptions_notification.cpp), each hiding the row on its own - this module
 // doesn't know or care whether an event even has an apiWorldBossId/apiMapChestId.

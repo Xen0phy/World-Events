@@ -8,11 +8,6 @@
 #include "ws_client.h"
 #include "ws_debug_log.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <shellapi.h>
-#pragma comment(lib, "shell32.lib")
-
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -21,7 +16,7 @@ bool ShowWsDebugWindow = false;
 
 namespace
 {
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // ConnStateLabel   (pairs with: ConnectionStateLabel in live_events_ui.cpp)
     //--------------------------------------------------------------------------------
     // Own copy, not a shared helper - this file has no other dependency on
@@ -37,12 +32,11 @@ namespace
         }
     }
 
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // FormatElapsed
     //--------------------------------------------------------------------------------
-    // "mm:ss.mmm" since InitWsDebugLog, not a wall-clock timestamp (that's what the
-    // external file is for). An elapsed counter answers "how long after connecting
-    // did this happen" at a glance in a narrow window.
+    // "mm:ss.mmm" since InitWsDebugLog. An elapsed counter answers "how long after
+    // connecting did this happen" at a glance in a narrow window.
     //--------------------------------------------------------------------------------
     std::string FormatElapsed(double sessionSec)
     {
@@ -56,7 +50,7 @@ namespace
         return buf;
     }
 
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // DirColor / DirTag
     //--------------------------------------------------------------------------------
     // TX cyan, RX green, Error red, Info neutral gray - a color a person can pattern-
@@ -103,7 +97,9 @@ namespace
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderWsDebugWindow
 //--------------------------------------------------------------------------------
-// See header.
+// Registered as its own RT_Render callback in addon.cpp, so it works even outside
+// gameplay (loading screens, character select) - useful since a connection
+// attempt can happen there too.
 //--------------------------------------------------------------------------------
 void RenderWsDebugWindow()
 {
@@ -123,21 +119,8 @@ void RenderWsDebugWindow()
     ImGui::SameLine();
     ImGui::TextDisabled("|");
     ImGui::SameLine();
-    ImGui::TextDisabled("Log file:");
-    ImGui::SameLine();
-
-    std::string logPath = GetWsDebugLogPath();
-    ImGui::TextUnformatted(logPath.empty() ? "(not initialized)" : logPath.c_str());
-
-    if (!logPath.empty())
-    {
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Open"))
-        {
-            //_ Opens with whatever app is associated with .log - no need for a second in-app text viewer.
-            ShellExecuteA(nullptr, "open", logPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-        }
-    }
+    //_ Durable copy is Nexus's own log ("WorldEvents-WS"), not a file - see ws_debug_log.h.
+    ImGui::TextDisabled("This window resets on reload - see Nexus's log (WorldEvents-WS) too.");
 
     ImGui::Spacing();
 

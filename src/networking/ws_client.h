@@ -24,8 +24,7 @@
 // wait alone isn't a strong enough guarantee for this thread.
 //
 // Built on WinHTTP's asynchronous mode (WINHTTP_FLAG_ASYNC) - see ws_client.cpp's
-// file header for why that's the only mode where cancelling a pending WebSocket
-// receive from another thread is documented as safe.
+// file header for why.
 //
 // Known v1 limitation: SendReport while disconnected drops the report - no
 // outgoing retry queue.
@@ -42,8 +41,8 @@
 //********************************************************************************
 // EventReport
 //--------------------------------------------------------------------------------
-// eventId          matches whatever id scheme events.h ends up using for
-//                   live-reportable events
+// eventId          matches the id scheme events.h uses for live-reportable
+//                  events
 // timestampUnix    server-stamped seconds since epoch (UTC) - see file header
 //--------------------------------------------------------------------------------
 struct EventReport

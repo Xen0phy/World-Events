@@ -60,8 +60,7 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// SerializeCategory / DeserializeCategory /
-// SerializeCategoryList / DeserializeCategoryList
+// SerializeCategory / DeserializeCategory / SerializeCategoryList / DeserializeCategoryList
 //--------------------------------------------------------------------------------
 // Category <-> json conversion; the List variants just map the single-item
 // versions over a json array. DeserializeCategory defaults a missing name to

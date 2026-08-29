@@ -84,6 +84,9 @@ namespace
     //_ Bounds the best-effort wait for WinHttpWebSocketClose's completion (CloseGracefully) - WinHttpCloseHandle follows regardless.
     constexpr DWORD kCloseTimeoutMs = 2000;
 
+    //_ Backstop for a send whose completion never arrives (see FindJsonObjectEnd) - well above the ~200ms worst-case real round trip observed via the WS debug log.
+    constexpr ULONGLONG kSendStaleMs = 5000;
+
     //********************************************************************************
     // AsyncConn
     //--------------------------------------------------------------------------------
@@ -92,7 +95,7 @@ namespace
     // ioError/ioBytes/       only meaningful immediately after hIoEvent
     //   ioBufferType         signals; read solely by the background thread
     // sendMutex/sendInFlight/ guard the single in-flight WinHttpWebSocketSend
-    //   sendBuf              issued by SendReport, from the render thread
+    //   sendStartTick/sendBuf issued by SendReport, from the render thread
     // hSessionHandle         identifies the last handle to close (StatusCallback)
     // hWebSocketHandle       set once known, for future log/assert use
     //--------------------------------------------------------------------------------
@@ -112,8 +115,9 @@ namespace
         WINHTTP_WEB_SOCKET_BUFFER_TYPE ioBufferType = WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE;
 
         std::mutex        sendMutex;
-        bool              sendInFlight = false; //. guarded by sendMutex
-        std::vector<char> sendBuf;               //. guarded by sendMutex
+        bool              sendInFlight  = false; //. guarded by sendMutex
+        ULONGLONG         sendStartTick = 0;      //. guarded by sendMutex, GetTickCount64() at send start
+        std::vector<char> sendBuf;                //. guarded by sendMutex
 
         HINTERNET hSessionHandle   = nullptr;
         HINTERNET hWebSocketHandle = nullptr;
@@ -385,11 +389,11 @@ static WaitOutcome WaitForIoOrCancel(AsyncConn& conn, DWORD boundMs)
 // consistently report SendReport()'s most recent send (67 bytes, UTF8_MESSAGE)
 // instead of the actual receive, because the concurrent send/receive on one
 // handle cross-contaminate their WINHTTP_WEB_SOCKET_STATUS (confirmed against
-// docs and ws_traffic.log byte counts). `chunk` itself is not corrupted, though,
-// and reliably holds the real message at offset 0 - so this finds the message's
-// end directly from its content (brace depth, string/escape state) instead of
-// trusting either field. Returns npos if no complete top-level object is found
-// within len bytes.
+// docs and observed Rx byte counts via the WS debug log). `chunk` itself is not
+// corrupted, though, and reliably holds the real message at offset 0 - so this
+// finds the message's end directly from its content (brace depth, string/escape
+// state) instead of trusting either field. Returns npos if no complete top-level
+// object is found within len bytes.
 //--------------------------------------------------------------------------------
 static size_t FindJsonObjectEnd(const char* data, size_t len)
 {
@@ -795,6 +799,9 @@ static void ConnectLoop()
     }
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// InitWsClient   (see: ws_client.h)
+//--------------------------------------------------------------------------------
 void InitWsClient()
 {
     bool expected = false;
@@ -829,6 +836,9 @@ void ShutdownWsClient()
     if (s_shutdownEvent) { CloseHandle(s_shutdownEvent); s_shutdownEvent = nullptr; }
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// UpdateShard   (see: ws_client.h)
+//--------------------------------------------------------------------------------
 void UpdateShard(const ShardIdentity& shard)
 {
     std::string key = shard.valid ? shard.ToKey() : std::string();
@@ -850,6 +860,9 @@ void UpdateShard(const ShardIdentity& shard)
     if (s_wakeEvent) SetEvent(s_wakeEvent);
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SendReport   (see: ws_client.h)
+//--------------------------------------------------------------------------------
 void SendReport(const std::string& eventId)
 {
     json j;
@@ -867,13 +880,21 @@ void SendReport(const std::string& eventId)
     AsyncConn* conn = s_activeConn;
     {
         std::lock_guard<std::mutex> sendLock(conn->sendMutex);
-        if (conn->sendInFlight)
+        ULONGLONG nowTick = GetTickCount64();
+        if (conn->sendInFlight && (nowTick - conn->sendStartTick) < kSendStaleMs)
         {
             WsLogf(WsLogDir::Error, "SendReport(%s) dropped - previous send still in flight", eventId.c_str());
             return; //. drop under backpressure
         }
+        if (conn->sendInFlight)
+        {
+            WsLogf(WsLogDir::Info, "SendReport(%s) - previous send's completion never arrived, treating as stale after %llums",
+                eventId.c_str(), (unsigned long long)(nowTick - conn->sendStartTick));
+        }
+
         conn->sendBuf.assign(payload.begin(), payload.end());
-        conn->sendInFlight = true;
+        conn->sendInFlight  = true;
+        conn->sendStartTick = nowTick;
     }
 
     WsLog(WsLogDir::Tx, payload);
@@ -891,6 +912,9 @@ void SendReport(const std::string& eventId)
     }
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetRecentReports   (see: ws_client.h)
+//--------------------------------------------------------------------------------
 std::vector<EventReport> GetRecentReports(const std::string& eventId)
 {
     std::lock_guard<std::mutex> lock(s_reportsMutex);
@@ -899,6 +923,9 @@ std::vector<EventReport> GetRecentReports(const std::string& eventId)
     return std::vector<EventReport>(it->second.begin(), it->second.end()); //. already newest-first, see PushReportsLocked
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetConnectionState   (see: ws_client.h)
+//--------------------------------------------------------------------------------
 WsConnectionState GetConnectionState()
 {
     return s_connState.load();

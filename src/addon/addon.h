@@ -25,7 +25,7 @@ extern NexusLinkData_t* NexusLink;
 //_ Set once in AddonLoad via APIDefs->Paths_GetAddonDirectory; used for settings.ini and any future JSON data.
 extern std::string g_AddonDir;
 
-//_ Build-time only, deliberately not a settings_table.h SETTING - flip and rebuild instead of a real user option.
+//_ Build-time only - flip and rebuild instead of a real user option.
 inline constexpr bool ShowDebug = false;
 
 //_ Rolling ~1s average, ms, of AddonRender's own body (see ScopedRenderTimer below); 0 unless ShowDebug is true.

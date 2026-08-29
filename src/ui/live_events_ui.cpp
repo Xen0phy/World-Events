@@ -23,6 +23,7 @@
 #include <ctime>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 //_ Button stack layout, screen-space pixels - see kMarginX/Y etc in subscriptions_notification.cpp for the sibling convention. Anchor position itself (LiveEventButtonMarginX/Y) is user-adjustable - see settings_table.h.
@@ -32,6 +33,12 @@ static constexpr float kGapY         = 6.0f;   //. vertical gap between stacked 
 
 //_ Shard-update throttle interval - see RenderLiveEventButtons.
 static constexpr unsigned long long kShardUpdateIntervalMs = 1000;
+
+//_ Fixed, not user-adjustable - a client-settable cooldown could be set to 0 by anyone motivated to spam.
+static constexpr unsigned long long kReportCooldownMs = 30000;
+
+//_ Last report-button press per event id, GetTickCount64() ticks - see RenderLiveEventButtons.
+static std::unordered_map<std::string, unsigned long long> s_lastReportPressMs;
 
 bool LiveEventButtonMoveMode = false;
 
@@ -167,11 +174,25 @@ void RenderLiveEventButtons()
             ImGuiWindowFlags_NoFocusOnAppearing |
             ImGuiWindowFlags_NoNav);
 
+        unsigned long long nowTick = GetTickCount64();
+
+        auto it = s_lastReportPressMs.find(ev->eventId);
+        unsigned long long sinceLastMs = (it != s_lastReportPressMs.end()) ? (nowTick - it->second) : kReportCooldownMs;
+        bool onCooldown = sinceLastMs < kReportCooldownMs;
+
         std::string label = ev->name + "##we_live_report_" + ev->eventId;
-        if (ImGui::Button(label.c_str(), ImVec2(kButtonWidth, kButtonHeight)))
+        if (onCooldown) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        bool clicked = ImGui::Button(label.c_str(), ImVec2(kButtonWidth, kButtonHeight));
+        if (onCooldown) ImGui::PopStyleVar();
+
+        if (clicked)
         {
-            SendReport(ev->eventId);
-            OpenLiveEventReportsWindow();
+            if (!onCooldown)
+            {
+                SendReport(ev->eventId);
+                s_lastReportPressMs[ev->eventId] = nowTick;
+            }
+            OpenLiveEventReportsWindow(); //. opens either way - right-click already does this without sending
         }
         if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
         {
@@ -179,8 +200,17 @@ void RenderLiveEventButtons()
         }
         if (ImGui::IsItemHovered())
         {
-            ImGui::SetTooltip("Click: report \"%s\" as active and show recent reports.\n"
-                               "Right-click: just show recent reports, without reporting.", ev->name.c_str());
+            if (onCooldown)
+            {
+                unsigned long long remainingSec = (kReportCooldownMs - sinceLastMs + 999) / 1000;
+                ImGui::SetTooltip("Reported recently - %llu s before you can report \"%s\" again.\n"
+                                   "Right-click: just show recent reports.", remainingSec, ev->name.c_str());
+            }
+            else
+            {
+                ImGui::SetTooltip("Click: report \"%s\" as active and show recent reports.\n"
+                                   "Right-click: just show recent reports, without reporting.", ev->name.c_str());
+            }
         }
 
         ImGui::End();
@@ -220,12 +250,11 @@ static const char* ConnectionStateLabel(WsConnectionState state)
 // See header. GetRecentReports is already newest-first (ws_client.h): its first
 // entry folds into each row's idLine to form that row's own tree label, the rest
 // become leaves underneath, so no re-sort is needed here either way. Filters
-// g_LiveEvents by MumbleLink->Context.MapID rather than IsPlayerNearLiveEvent
-// (unlike RenderLiveEventButtons) - a report can still be worth checking on a
-// shard from across the map, not just in range. LiveEventReportsWindowLocked
-// (settings_table.h) strips the window down to bare, click-through text pinned at
-// its last position, and deregisters Escape-to-close for as long as it stays
-// locked - see "Lock window" in the options panel.
+// g_LiveEvents by MumbleLink->Context.MapID - a report can still be worth
+// checking on a shard from across the map, not just in range.
+// LiveEventReportsWindowLocked (settings_table.h) strips the window down to bare,
+// click-through text pinned at its last position, and deregisters Escape-to-close
+// for as long as it stays locked - see "Lock window" in the options panel.
 //--------------------------------------------------------------------------------
 void RenderLiveEventReportsWindow()
 {

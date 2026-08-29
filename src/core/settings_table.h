@@ -214,10 +214,10 @@ SETTING(BasicEvents, BasicEventZoomScaleMaxObserved, float, -1.0f)
 // Only show upcoming Basic Events starting within the next N minutes; currently-
 // active events always show regardless. Minutes, in 10-minute steps up to 360
 // (6h); a separate enabled flag gates the filter instead of using 0 as an "off"
-// sentinel, since 0 is also a theoretically valid window value. Deliberately NOT
-// applied to cyclic groups - see RenderCyclicGroups in cyclicrender.cpp: a cyclic
-// group's ring already shows its own rolling window per slot, and a group-level
-// "hide the whole ring" filter would conflict with that instead of composing.
+// sentinel, since 0 is also a theoretically valid window value. NOT applied to
+// cyclic groups - see RenderCyclicGroups in cyclicrender.cpp: a cyclic group's
+// ring already shows its own rolling window per slot, and a group-level "hide the
+// whole ring" filter would conflict with that instead of composing.
 //--------------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventTimeFilterEnabled,    bool, false)
 SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
@@ -313,9 +313,9 @@ SETTING(Subscriptions, SubscriptionsBarUnsafeHeightPx, int, 90)
 // SubscriptionsBarMaxDropPx
 //--------------------------------------------------------------------------------
 // How far a fully-hovered segment drops from the baseline, and, once pill-detach
-// kicks in for unsafe-zone segments, the pill's fixed height too - deliberately
-// unified into one value (pill height must equal a normal pop-out's height
-// exactly). Sized by default to fit two centered lines of label text.
+// kicks in for unsafe-zone segments, the pill's fixed height too - unified into
+// one value (pill height must equal a normal pop-out's height exactly). Sized by
+// default to fit two centered lines of label text.
 //--------------------------------------------------------------------------------
 SETTING(Subscriptions, SubscriptionsBarMaxDropPx, int, 50)
 

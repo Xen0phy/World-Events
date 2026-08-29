@@ -465,15 +465,14 @@ struct ChatPasteSegment
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PasteSegmentsToChat   (pairs with: PasteToChat)
 //--------------------------------------------------------------------------------
-// Deliberately mixes two input mechanisms: Enter and 'V' go through SendMessage
-// (posts straight to the target window's queue), while Ctrl goes through
-// SendInput (the real, system-wide input stream GetKeyState reads) - required for
-// the third-party target app this talks to, since an all-SendInput or all-
-// SendMessage version both failed to deliver a recognized Ctrl+V there. Runs on a
-// detached background thread guarded by BackgroundThreadGuard
-// (background_threads.h) so AddonUnload can wait for it to finish;
-// IsShuttingDown() is checked between steps so it can bail early, releasing Ctrl
-// first if it was already held.
+// Mixes two input mechanisms: Enter and 'V' go through SendMessage (posts
+// straight to the target window's queue), while Ctrl goes through SendInput (the
+// real, system-wide input stream GetKeyState reads) - required for the third-
+// party target app this talks to, since an all-SendInput or all- SendMessage
+// version both failed to deliver a recognized Ctrl+V there. Runs on a detached
+// background thread guarded by BackgroundThreadGuard (background_threads.h) so
+// AddonUnload can wait for it to finish; IsShuttingDown() is checked between
+// steps so it can bail early, releasing Ctrl first if it was already held.
 //--------------------------------------------------------------------------------
 void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::milliseconds delay_ms)
 {

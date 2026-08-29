@@ -2,18 +2,12 @@
 // ws_debug_log.h
 //--------------------------------------------------------------------------------
 // WsLogDir               Info / Tx / Rx / Error - see WsLogEntry
-// WsLogEntry             one line: when, what kind, the text
-// InitWsDebugLog(dir)    open the external log file, call once from AddonLoad
-// ShutdownWsDebugLog()   flush + close the external log file, call once from
-//                        AddonUnload, AFTER ShutdownWsClient()
-// WsLog / WsLogf         append one line; thread-safe (both ws_client.cpp's
-//                        background thread and WinHTTP's callback thread call this)
-// GetWsDebugLogSnapshot  thread-safe copy of the in-memory ring buffer, for the
-//                        debug window (ws_debug_window.h) to draw
-// ClearWsDebugLog        empties the in-memory ring buffer only - the external
-//                        file is append-only and unaffected (see below)
-// GetWsDebugLogPath      full path of the external log file, for the window's
-//                        "open file" affordance
+// WsLogEntry             one log line: elapsed time, direction, text
+// InitWsDebugLog()       resets the in-memory ring buffer
+// ShutdownWsDebugLog()   no-op (see below)
+// WsLog / WsLogf         appends one log line
+// GetWsDebugLogSnapshot  copies the ring buffer for the debug window
+// ClearWsDebugLog        empties the ring buffer
 //--------------------------------------------------------------------------------
 // Purpose: ws_client.cpp's async WinHTTP rewrite (v2, see that file's header)
 // moved connect/send/receive off blocking calls and onto a status-callback state
@@ -24,13 +18,14 @@
 // events_live.cpp/the UI. If a report goes out but never comes back, this log is
 // where that turns from a guess into an observation: either the Rx line is
 // missing entirely (server/network problem) or it's present and something after
-// it (parsing, event_id matching, the UI's own read) is at fault. See
-// ws_debug_log.cpp for how the log is actually produced.
+// it (parsing, event_id matching, the UI's own read) is at fault. Every line is
+// also mirrored into Nexus's own log (WsLog, ws_debug_log.cpp) at TRACE under
+// "WorldEvents-WS" - survives an addon reload, cleared on the next game launch.
+// One log for a user to send beats each addon keeping its own file.
 //--------------------------------------------------------------------------------
 
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -53,54 +48,46 @@ enum class WsLogDir
 //********************************************************************************
 // WsLogEntry
 //--------------------------------------------------------------------------------
-// wallClockMs   milliseconds since the Unix epoch - what the external log file
-//               timestamps each line with
-// sessionSec    seconds since this InitWsDebugLog call - what the in-game
-//               window shows (a small elapsed counter reads better in a 300px
-//               window than a wall-clock timestamp does)
+// sessionSec   seconds since this InitWsDebugLog call
+// dir          Info/Tx/Rx/Error - see WsLogDir
+// text         the log line itself
 //--------------------------------------------------------------------------------
 struct WsLogEntry
 {
-    int64_t     wallClockMs = 0;
-    double      sessionSec  = 0.0;
-    WsLogDir    dir         = WsLogDir::Info;
+    double      sessionSec = 0.0;
+    WsLogDir    dir        = WsLogDir::Info;
     std::string text;
 };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // InitWsDebugLog / ShutdownWsDebugLog
 //--------------------------------------------------------------------------------
-// Call InitWsDebugLog once from AddonLoad, after g_AddonDir is known and before
-// InitWsClient - so the very first connect attempt is captured. Call
-// ShutdownWsDebugLog once from AddonUnload, after ShutdownWsClient() has returned
-// (so the shutdown sequence itself is fully logged before the file is closed).
+// Call InitWsDebugLog once from AddonLoad, before InitWsClient - so the very
+// first connect attempt is captured. ShutdownWsDebugLog is a no-op kept only so
+// AddonUnload's call sites stay symmetric with AddonLoad's.
 //--------------------------------------------------------------------------------
-void InitWsDebugLog(const std::string& addonDir);
+void InitWsDebugLog();
 void ShutdownWsDebugLog();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // WsLog / WsLogf
 //--------------------------------------------------------------------------------
-// Appends one line to both the in-memory ring buffer and the external file (and
-// mirrors to APIDefs->Log). Safe to call from any thread - internally mutex-
-// guarded, since ws_client.cpp's background thread AND WinHTTP's own callback
-// thread (StatusCallback, arbitrary WinHTTP-internal thread) both call this.
-// Cheap enough to call on every message/state transition; not intended for a per-
-// frame render-thread hot path.
+// Appends one line to the in-memory ring buffer and mirrors it to APIDefs->Log.
+// Safe to call from any thread - internally mutex-guarded, since ws_client.cpp's
+// background thread AND WinHTTP's own callback thread (StatusCallback, arbitrary
+// WinHTTP-internal thread) both call this. Cheap enough to call on every
+// message/state transition; not intended for a per-frame render-thread hot path.
 //--------------------------------------------------------------------------------
 void WsLog(WsLogDir dir, const std::string& text);
 void WsLogf(WsLogDir dir, const char* fmt, ...);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// GetWsDebugLogSnapshot / ClearWsDebugLog / GetWsDebugLogPath
+// GetWsDebugLogSnapshot / ClearWsDebugLog
 //--------------------------------------------------------------------------------
 // GetWsDebugLogSnapshot copies the current ring buffer (oldest-first); cheap
 // enough to call every frame the debug window is open, same contract as
-// GetRecentReports elsewhere in this addon. ClearWsDebugLog only empties that in-
-// memory buffer - the external file is append-only and unaffected, by design (see
-// file header). GetWsDebugLogPath returns the external file's full path, valid
-// after InitWsDebugLog has been called.
+// GetRecentReports elsewhere in this addon - no disk I/O, so there's nothing for
+// that per-frame call to ever block on. ClearWsDebugLog empties it.
 //--------------------------------------------------------------------------------
 std::vector<WsLogEntry> GetWsDebugLogSnapshot();
 void ClearWsDebugLog();
-std::string GetWsDebugLogPath();

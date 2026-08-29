@@ -6,6 +6,9 @@
 
 #include <cstdio>
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// FormatMinSec / FormatCountdown   (see: time_format.h)
+//--------------------------------------------------------------------------------
 std::string FormatMinSec(int totalSeconds)
 {
     if (totalSeconds < 0) totalSeconds = 0;

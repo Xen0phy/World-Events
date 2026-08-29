@@ -22,6 +22,9 @@ namespace
     constexpr uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
     constexpr uint64_t FNV_PRIME        = 1099511628211ULL;
 
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Fnv1a64
+    //--------------------------------------------------------------------------------
     uint64_t Fnv1a64(const void* data, size_t len)
     {
         const unsigned char* bytes = static_cast<const unsigned char*>(data);
@@ -35,6 +38,9 @@ namespace
     }
 }
 
+//********************************************************************************
+// ShardIdentity   (see: shard_id.h)
+//--------------------------------------------------------------------------------
 std::string ShardIdentity::ToKey() const
 {
     char buf[32];
@@ -43,6 +49,9 @@ std::string ShardIdentity::ToKey() const
     return std::string(buf);
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ComputeShardIdentity   (see: shard_id.h)
+//--------------------------------------------------------------------------------
 ShardIdentity ComputeShardIdentity(const Mumble::Context& context)
 {
     ShardIdentity id;
@@ -92,6 +101,9 @@ ShardIdentity ComputeShardIdentity(const Mumble::Context& context)
     return id;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetShardLastAddressOctet   (see: shard_id.h)
+//--------------------------------------------------------------------------------
 std::optional<uint8_t> GetShardLastAddressOctet(const Mumble::Context& context)
 {
     const unsigned char* addr = context.ServerAddress;
