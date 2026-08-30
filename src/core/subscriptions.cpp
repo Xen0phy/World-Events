@@ -15,7 +15,8 @@
 
 #include "addon.h"
 #include "background_threads.h"
-#include "nlohmann_json.hpp"
+#include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for PasteToChat's /self fallback
+#include <nlohmann/json.hpp>
 #include "settings.h"
 #include "subscriptions.h"
 
@@ -464,15 +465,14 @@ struct ChatPasteSegment
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PasteSegmentsToChat   (pairs with: PasteToChat)
 //--------------------------------------------------------------------------------
-// Deliberately mixes two input mechanisms: Enter and 'V' go through SendMessage
-// (posts straight to the target window's queue), while Ctrl goes through
-// SendInput (the real, system-wide input stream GetKeyState reads) - required for
-// the third-party target app this talks to, since an all-SendInput or all-
-// SendMessage version both failed to deliver a recognized Ctrl+V there. Runs on a
-// detached background thread guarded by BackgroundThreadGuard
-// (background_threads.h) so AddonUnload can wait for it to finish;
-// IsShuttingDown() is checked between steps so it can bail early, releasing Ctrl
-// first if it was already held.
+// Mixes two input mechanisms: Enter and 'V' go through SendMessage (posts
+// straight to the target window's queue), while Ctrl goes through SendInput (the
+// real, system-wide input stream GetKeyState reads) - required for the third-
+// party target app this talks to, since an all-SendInput or all- SendMessage
+// version both failed to deliver a recognized Ctrl+V there. Runs on a detached
+// background thread guarded by BackgroundThreadGuard (background_threads.h) so
+// AddonUnload can wait for it to finish; IsShuttingDown() is checked between
+// steps so it can bail early, releasing Ctrl first if it was already held.
 //--------------------------------------------------------------------------------
 void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::milliseconds delay_ms)
 {
@@ -567,7 +567,11 @@ void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::mi
 // between them, so that case pastes three segments instead - "/w ", the Mumble-
 // reported character name, then message - with Tab after the name. If the
 // character name can't be read yet, the whisper is dropped instead of sent to
-// whatever box currently has focus.
+// whatever box currently has focus. "/self " falls back to the unprefixed default
+// the same way if Better Chat's /self isn't available right now - the options
+// panel only offers that entry while it is (addon_options_helpers.cpp), but a
+// stale saved setting (Better Chat updated/disabled since) must not paste a dead
+// command into whatever box currently has focus either.
 //--------------------------------------------------------------------------------
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 {
@@ -584,6 +588,12 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
                 { message,  false }
             },
             delay_ms);
+        return;
+    }
+
+    if (ChatChannelPrefix == "/self " && !IsBetterChatSelfCommandEnabled())
+    {
+        PasteSegmentsToChat({ { message, false } }, delay_ms);
         return;
     }
 

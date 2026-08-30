@@ -11,7 +11,8 @@
 // ContinentToScreen/ScreenToContinent
 //                               continent coordinate <-> screen pixel
 // g_EditMode/ClearEditMode     shared drag-to-reposition state
-// RenderMapEvents               draws all Basic Events onto the open world map
+// RenderMapEvents               draws all Basic Events + live-event radius
+//                               rings onto the open world map
 //--------------------------------------------------------------------------------
 // Icon textures are optional, per-event, and either user-supplied or bundled
 // default. Scans a "textures" folder under the addon's own directory and loads on
@@ -20,11 +21,11 @@
 // still null while the file decodes in the background, with no ready signal.
 // Results are cached by filename, since multiple events can share an icon.
 //
-// A small set of default icons is compiled into the dll (see events_icons.h /
-// s_defaultIcons below) and loaded via Textures_LoadFromMemory instead of
-// LoadFromFile, so no files need to exist on disk out of the box. Disk is checked
-// first for a given filename (see GetOrRequestEventIcon), so a user can override
-// a bundled icon by dropping a same-named file into their own textures/ folder.
+// A small set of default icons is compiled into the dll (see bundled_icons.h /
+// g_BundledIcons) and loaded via Textures_LoadFromMemory instead of LoadFromFile,
+// so no files need to exist on disk out of the box. Disk is checked first for a
+// given filename (see GetOrRequestEventIcon), so a user can override a bundled
+// icon by dropping a same-named file into their own textures/ folder.
 //
 // AUTHORING REQUIREMENT: the icon is recolored at draw time via a multiplicative
 // tint (ImDrawList::AddImage's `col` parameter multiplies each pixel's RGB/A by
@@ -36,10 +37,10 @@
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
+#include "bundled_icons.h"
 #include "color_utils.h"
-#include "cyclic_icons.h"
 #include "events.h"
-#include "events_icons.h"
+#include "events_live.h"
 #include "imgui.h"
 #include "map_shared.h"
 #include "maprender.h"
@@ -48,12 +49,16 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
+#include <cmath>
 #include <ctime>
 #include <filesystem>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 //********************************************************************************
 // EventIconEntry
@@ -74,44 +79,17 @@ static std::unordered_map<std::string, EventIconEntry> s_iconCache;
 static std::vector<std::string> s_iconFilenames;
 static bool s_iconFilenamesScanned = false;
 
-//********************************************************************************
-// DefaultIconEntry
-//--------------------------------------------------------------------------------
-// name    bundled filename, matched against disk/user references
-// data    raw PNG bytes (see events_icons.h)
-// size    byte length of `data`
-//--------------------------------------------------------------------------------
-// One entry per bundled icon (s_defaultIcons below). Only consulted when nothing
-// matching `name` exists on disk, see GetOrRequestEventIcon
-//--------------------------------------------------------------------------------
-struct DefaultIconEntry
-{
-    const char*    name;
-    const uint8_t* data;
-    uint64_t       size;
-};
-
-static const DefaultIconEntry s_defaultIcons[] =
-{
-    { "BasicCross.png",  g_BasicIconData,       g_BasicIconData_size },
-    { "Convergence.png", g_ConvergenceIconData, g_ConvergenceIconData_size },
-    { "EventBoss.png",   g_EventBossIconData,   g_EventBossIconData_size },
-    { "EventMap.png",    g_EventMapIconData,    g_EventMapIconData_size },
-    { "Festival.png",    g_FestivalIconData,    g_FestivalIconData_size },
-    { "WorldBoss.png",   g_WorldBossIconData,   g_WorldBossIconData_size },
-    { "circle_hand.png", g_CyclicHandIconData,  g_CyclicHandIconData_size },
-    { "circle_edge.png", g_CyclicRingIconData,  g_CyclicRingIconData_size },
-    { "circle_bg.png",   g_CyclicFillIconData,  g_CyclicFillIconData_size },
-};
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // FindDefaultIcon
 //--------------------------------------------------------------------------------
+// Searches g_BundledIcons (bundled_icons.h), the generated table of every PNG
+// under resources/textures/.
+//--------------------------------------------------------------------------------
 static const DefaultIconEntry* FindDefaultIcon(const std::string& filename)
 {
-    for (const auto& entry : s_defaultIcons)
-        if (filename == entry.name)
-            return &entry;
+    for (size_t i = 0; i < g_BundledIconsCount; i++)
+        if (filename == g_BundledIcons[i].name)
+            return &g_BundledIcons[i];
     return nullptr;
 }
 
@@ -143,9 +121,9 @@ void ScanEventIconFiles()
             s_iconFilenames.push_back(entry.path().filename().string());
     }
 
-    for (const auto& defaultIcon : s_defaultIcons)
-        if (std::find(s_iconFilenames.begin(), s_iconFilenames.end(), defaultIcon.name) == s_iconFilenames.end())
-            s_iconFilenames.push_back(defaultIcon.name);
+    for (size_t i = 0; i < g_BundledIconsCount; i++)
+        if (std::find(s_iconFilenames.begin(), s_iconFilenames.end(), g_BundledIcons[i].name) == s_iconFilenames.end())
+            s_iconFilenames.push_back(g_BundledIcons[i].name);
 
     std::sort(s_iconFilenames.begin(), s_iconFilenames.end());
 }
@@ -180,7 +158,7 @@ static void OnEventIconReceived(const char* aIdentifier, Texture_t* aTexture)
 //
 // DISK FIRST: if a file by this name exists under <addonDir>/textures, it's
 // loaded from there exactly as before, even if the same name also exists in
-// s_defaultIcons - this is what lets a user override/reskin a bundled icon just
+// g_BundledIcons - this is what lets a user override/reskin a bundled icon just
 // by dropping a same-named file, no rebuild needed. Only when nothing matches on
 // disk does this fall back to the bundled table via Textures_LoadFromMemory
 // instead of Textures_LoadFromFile.
@@ -369,6 +347,19 @@ float GetEventZoomSizeMultiplier()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetContinentScale
+//--------------------------------------------------------------------------------
+// Continent units per screen pixel (Compass.Scale adjusted for display scaling),
+// shared by ContinentToScreen, ScreenToContinent, and the live-event radius ring
+// below.
+//--------------------------------------------------------------------------------
+static float GetContinentScale()
+{
+    float scale = MumbleLink->Context.Compass.Scale / NexusLink->Scaling;
+    return scale < 0.0001f ? 1.0f : scale; //. guard against divide-by-zero on init
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ContinentToScreen   (pairs with: ScreenToContinent)
 //--------------------------------------------------------------------------------
 // Maps a GW2 continent coordinate (cx, cy) to a screen pixel position.
@@ -387,8 +378,7 @@ ImVec2 ContinentToScreen(float cx, float cy)
     float screenCX = NexusLink->Width  * 0.5f;
     float screenCY = NexusLink->Height * 0.5f;
 
-    float scale = compass.Scale / NexusLink->Scaling;
-    if (scale < 0.0001f) scale = 1.0f; //. guard against divide-by-zero on init
+    float scale = GetContinentScale();
 
     return {
         screenCX + (cx - compass.Center.X) / scale,
@@ -411,8 +401,7 @@ ImVec2 ScreenToContinent(ImVec2 screenPos)
     float screenCX = NexusLink->Width  * 0.5f;
     float screenCY = NexusLink->Height * 0.5f;
 
-    float scale = compass.Scale / NexusLink->Scaling;
-    if (scale < 0.0001f) scale = 1.0f;
+    float scale = GetContinentScale();
 
     return {
         compass.Center.X + (screenPos.x - screenCX) * scale,
@@ -432,18 +421,46 @@ void ClearEditMode()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawLiveEventRing
+//--------------------------------------------------------------------------------
+// Draws the bundled live-ring texture (resources/textures/live_ring.png) as a
+// square quad of half-extent `radiusPx` centered on `pos`, rotated by `angleDeg`
+// about that center. Every g_LiveEvents entry uses the same texture, so the
+// rotation is what keeps a map full of them from looking like stamped copies of
+// one image.
+//--------------------------------------------------------------------------------
+static void DrawLiveEventRing(ImDrawList* dl, ImTextureID tex, ImVec2 pos,
+    float radiusPx, float angleDeg, ImU32 col)
+{
+    float rad = angleDeg * ((float)M_PI / 180.0f);
+    float s   = sinf(rad);
+    float c   = cosf(rad);
+
+    //_ Unrotated corners relative to `pos`, rotated in place, then re-centered.
+    ImVec2 corners[4] = {
+        { -radiusPx, -radiusPx }, { radiusPx, -radiusPx },
+        {  radiusPx,  radiusPx }, { -radiusPx, radiusPx },
+    };
+    for (ImVec2& corner : corners)
+        corner = { pos.x + corner.x * c - corner.y * s,
+                   pos.y + corner.x * s + corner.y * c };
+
+    dl->AddImageQuad(tex, corners[0], corners[1], corners[2], corners[3],
+        ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderMapEvents
 //--------------------------------------------------------------------------------
-// Draws a dot/icon for each event in g_Events. Size is fixed in pixels regardless
-// of zoom (Compass.Scale only positions the center) unless BasicEventZoomScaling
-// is enabled, in which case markers grow past BasicEventZoomStartPct up to
-// BasicEventZoomMaxMultiplier at 100% zoom (see
-// GetZoomPercent/GetEventZoomSizeMultiplier above).
+// Draws a dot/icon for each g_Events entry, then (if ShowLiveEventMapDots) the
+// live-ring texture per g_LiveEvents entry, sized to its radius (meters, same
+// scale as continentX/Y - see GetContinentScale) and spun by DrawLiveEventRing.
+// No hover, tooltip, drag-to-reposition, or per-map scoping for those. Basic
+// Event size follows GetEventZoomSizeMultiplier.
 //
-// The overlay window keeps NoMouseInputs so it never blocks map-dragging; drag
-// capture for the armed marker (EditModeState, maprender.h) is handled per-marker
-// by DrawDragAnchor's anchor window, recreated each frame at the marker's
-// position and staying armed across drag cycles until "Drag"/"Stop" disarms it.
+// The overlay window keeps NoMouseInputs so it never blocks map-dragging; the
+// armed marker's drag capture (EditModeState) is handled per-marker by
+// DrawDragAnchor's anchor window, staying armed until "Drag"/"Stop" disarms it.
 //--------------------------------------------------------------------------------
 void RenderMapEvents()
 {
@@ -559,6 +576,33 @@ void RenderMapEvents()
                     ev.name.c_str(), FormatCountdown(secs).c_str());
             }
             ImGui::EndTooltip();
+        }
+    }
+
+    if (ShowLiveEventMapDots)
+    {
+        float      scale   = GetContinentScale();
+        Texture_t* ringTex = GetOrRequestEventIcon("live_ring.png");
+
+        for (const LiveEvent& ev : g_LiveEvents)
+        {
+            ImVec2 pos      = ContinentToScreen(ev.continentX, ev.continentY);
+            float  radiusPx = ev.radius / scale;
+
+            if (pos.x + radiusPx < -100 || pos.x - radiusPx > NexusLink->Width  + 100) continue;
+            if (pos.y + radiusPx < -100 || pos.y - radiusPx > NexusLink->Height + 100) continue;
+
+            if (ringTex && ringTex->Resource)
+            {
+                //_ Per-event, stable, and free - no per-event rotation field needed.
+                float angleDeg = fmodf(ev.continentX, 360.0f);
+                DrawLiveEventRing(dl, (ImTextureID)ringTex->Resource, pos,
+                    radiusPx, angleDeg, COL_RING);
+            }
+            else
+            {
+                dl->AddCircle(pos, radiusPx, COL_RING, 0, RING_THICK); //. texture still loading
+            }
         }
     }
 

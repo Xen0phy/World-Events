@@ -11,7 +11,7 @@
 
 #include "addon.h"
 #include "background_threads.h"
-#include "better_chat_link.h"
+#include "changelog_window.h"
 #include "cyclicrender.h"
 #include "events.h"
 #include "events_categories.h"
@@ -19,12 +19,16 @@
 #include "events_tracking.h"
 #include "gw2_api.h"
 #include "imgui.h"
+#include "live_events_ui.h"
 #include "maprender.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
 #include "version.h"
+#include "ws_client.h"
+#include "ws_debug_log.h"
+#include "ws_debug_window.h"
 
 #include <filesystem>
 #include <system_error>
@@ -53,9 +57,9 @@ float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 //
 // Called from both AddonLoad (to persist merged defaults+disk state on first
 // write) and AddonUnload, kept as one function so this ordering rule can't drift
-// out of sync between the two callers. settings.ini is deliberately NOT included
-// here - SaveSettings has no such ordering dependency and is only ever called
-// from AddonUnload.
+// out of sync between the two callers. settings.ini is NOT included here -
+// SaveSettings has no such ordering dependency and is only ever called from
+// AddonUnload.
 //--------------------------------------------------------------------------------
 static void SaveAllData(const std::string& addonDir)
 {
@@ -115,10 +119,19 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     MumbleLink = (Mumble::Data*)    APIDefs->DataLink_Get(DL_MUMBLE_LINK);
     NexusLink  = (NexusLinkData_t*) APIDefs->DataLink_Get(DL_NEXUS_LINK);
-    InitBetterChatLink();
 
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");
+
+    //_ Resets the WS debug ring buffer; must precede InitWsClient so nothing it logs is dropped (see ws_debug_log.h).
+    InitWsDebugLog();
+
+    //_ Idle until the first UpdateShard call, wired in alongside the report button UI (see ws_client.h).
+    InitWsClient();
+
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
+
+    //_ Shows the "What's New" notice at most once per version - see changelog_window.h. Deliberately after LoadSettings (needs the persisted LastKnownVersion) and before anything renders.
+    CheckForVersionHistoryOnLoad(g_AddonDir);
 
     //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by name, saved back below.
     LoadEventsData(g_AddonDir);
@@ -137,8 +150,23 @@ void AddonLoad(AddonAPI_t* aAPI)
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
 
+    //_ Registered separately from AddonRender so it isn't gated by its IsGameplay/IsMapOpen early-outs; connects can happen at character select too.
+    APIDefs->GUI_Register(RT_Render, RenderWsDebugWindow);
+
+    //_ Also registered separately, same reason: the notice should be visible at character select, not just once a character is loaded onto a map - see changelog_window.h.
+    APIDefs->GUI_Register(RT_Render, RenderVersionHistoryWindow);
+
     //_ Grants Esc-to-close to the Edit Subscriptions window.
     APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowTitle, &ShowEditSubscriptionsWindow);
+
+    //_ Same, for the live-event recent-reports window (live_events_ui.h).
+    APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow);
+
+    //_ Same, for the WS debug log window (ws_debug_window.h).
+    APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowTitle, &ShowWsDebugWindow);
+
+    //_ Same, for the "What's New" version-history window (changelog_window.h).
+    APIDefs->GUI_RegisterCloseOnEscape(kVersionHistoryWindowTitle, &ShowVersionHistoryWindow);
 
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Loaded.");
 }
@@ -156,12 +184,23 @@ void AddonUnload()
     //_ Stops any in-flight render calls before teardown starts.
     APIDefs->GUI_Deregister(AddonRender);
     APIDefs->GUI_Deregister(AddonOptions);
+    APIDefs->GUI_Deregister(RenderWsDebugWindow);
+    APIDefs->GUI_Deregister(RenderVersionHistoryWindow);
 
-    //_ Matches the GUI_RegisterCloseOnEscape call in AddonLoad
+    //_ Matches the GUI_RegisterCloseOnEscape calls in AddonLoad
     APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowTitle);
 
     //_ Bounded wait so a still-running thread can't resume in unloaded memory; 2s is generous headroom, not a timeout budget.
     WaitForBackgroundThreads(2000);
+
+    //_ Explicit unbounded join for this one long-lived thread (see ws_client.h); after the call above, so its shutdown hook fires first and this join returns quickly.
+    ShutdownWsClient();
+
+    //_ No-op, kept for symmetry with InitWsDebugLog (see ws_debug_log.h).
+    ShutdownWsDebugLog();
 
     SaveSettings(g_AddonDir);
     SaveAllData(g_AddonDir);
@@ -218,6 +257,10 @@ void AddonRender()
 
         //_ Not gated by the competitive kill-switches above: those govern passive overlay visibility, not an editor the user just explicitly opened.
         RenderEditSubscriptionsWindow();
+
+        //_ Also not gated by the kill-switches: g_LiveEvents only has PvE-map entries, so IsPlayerNearLiveEvent is already false on PvP/WvW (events_live.h).
+        RenderLiveEventButtons();
+        RenderLiveEventReportsWindow();
     }
 
     if (!MumbleLink || !NexusLink)          return;
@@ -232,7 +275,7 @@ void AddonRender()
 
     if (!isMapOpen) return;
 
-    //_ PvP/WvW maps never have Basic/Cyclic events on them - unconditional, not tied to any setting like the views above.
+    //_ PvP/WvW maps never have Basic/Cyclic/Live events on them - unconditional, not tied to any setting like the views above.
     if (MumbleLink->Context.IsCompetitive) return;
 
     RenderMapEvents();

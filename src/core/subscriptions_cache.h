@@ -59,7 +59,8 @@
 //                      (WeeklyAutoTrackEnabled)
 // isWeeklyTarget       active-and-incomplete weekly Wizard's Vault target
 //                      this week (weekly_vault.h)
-// doneToday            API-confirmed OR manually marked done
+// doneToday            API-confirmed (Gw2ApiAutoMarkDoneEnabled) OR manually
+//                      marked done
 // isVarying            per-day (Basic) or per-cycle (Cyclic) time list
 //                      instead of a fixed period / offset+repeat
 // varyingTimes         isVarying only: sorted times within the relevant

@@ -26,7 +26,7 @@
 
 #include "background_threads.h"
 #include "gw2_api.h"
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 #include "settings.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -316,7 +316,7 @@ void PollGw2Api()
             return;
         }
 
-        //_ Third call is a deliberate soft-fail - must not sink the two checks above.
+        //_ Third call is a soft-fail - must not sink the two checks above.
         if (IsShuttingDown())
         {
             s_fetchInProgress.store(false);
@@ -372,11 +372,17 @@ void PollGw2Api()
     .detach();
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetGw2ApiStatus   (see: gw2_api.h)
+//--------------------------------------------------------------------------------
 Gw2ApiStatus GetGw2ApiStatus()
 {
     return s_status.load();
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsWorldBossCompletedToday / IsMapChestClaimedToday   (see: gw2_api.h)
+//--------------------------------------------------------------------------------
 bool IsWorldBossCompletedToday(const std::string& worldBossApiId)
 {
     if (worldBossApiId.empty()) return false;
@@ -395,6 +401,9 @@ bool IsMapChestClaimedToday(const std::string& mapChestApiId)
     return s_claimedMapChests.count(mapChestApiId) != 0;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetWeeklyObjectiveState   (see: gw2_api.h)
+//--------------------------------------------------------------------------------
 WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title)
 {
     if (title.empty()) return WeeklyObjectiveState::NotThisWeek;
@@ -408,6 +417,9 @@ WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title)
     return it->second ? WeeklyObjectiveState::Complete : WeeklyObjectiveState::Incomplete;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetLiveWeeklyObjectives   (see: gw2_api.h)
+//--------------------------------------------------------------------------------
 std::vector<LiveWeeklyObjective> GetLiveWeeklyObjectives()
 {
     if (s_cachedForDay.load() != CurrentUtcDay()) return {}; //. same as above
@@ -420,6 +432,9 @@ std::vector<LiveWeeklyObjective> GetLiveWeeklyObjectives()
     return out;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetGw2ApiFetchGeneration   (see: gw2_api.h)
+//--------------------------------------------------------------------------------
 uint64_t GetGw2ApiFetchGeneration()
 {
     return s_fetchGeneration.load(std::memory_order_relaxed);

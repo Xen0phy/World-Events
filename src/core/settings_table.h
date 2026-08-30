@@ -15,11 +15,10 @@
 // matched by name alone on load, not scoped by section. Key is both the C++
 // variable name and the INI key name.
 //
-// DELIBERATELY NO include guard: this header is re-included once per macro-
-// definition site, and settings.cpp includes it TWICE in the same translation
-// unit (once via settings.h for the extern declarations, once directly for the
-// storage definitions) - a guard would silently turn the second inclusion into a
-// no-op, so the actual global storage would never get defined.
+// No include guard: re-included once per macro-definition site, including twice
+// within settings.cpp (once via settings.h for the extern declarations, once
+// directly for the storage definitions). A guard would no-op the second
+// inclusion, leaving the storage undefined.
 //--------------------------------------------------------------------------------
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -214,10 +213,10 @@ SETTING(BasicEvents, BasicEventZoomScaleMaxObserved, float, -1.0f)
 // Only show upcoming Basic Events starting within the next N minutes; currently-
 // active events always show regardless. Minutes, in 10-minute steps up to 360
 // (6h); a separate enabled flag gates the filter instead of using 0 as an "off"
-// sentinel, since 0 is also a theoretically valid window value. Deliberately NOT
-// applied to cyclic groups - see RenderCyclicGroups in cyclicrender.cpp: a cyclic
-// group's ring already shows its own rolling window per slot, and a group-level
-// "hide the whole ring" filter would conflict with that instead of composing.
+// sentinel, since 0 is also a theoretically valid window value. NOT applied to
+// cyclic groups - see RenderCyclicGroups in cyclicrender.cpp: a cyclic group's
+// ring already shows its own rolling window per slot, and a group-level "hide the
+// whole ring" filter would conflict with that instead of composing.
 //--------------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventTimeFilterEnabled,    bool, false)
 SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
@@ -313,9 +312,9 @@ SETTING(Subscriptions, SubscriptionsBarUnsafeHeightPx, int, 90)
 // SubscriptionsBarMaxDropPx
 //--------------------------------------------------------------------------------
 // How far a fully-hovered segment drops from the baseline, and, once pill-detach
-// kicks in for unsafe-zone segments, the pill's fixed height too - deliberately
-// unified into one value (pill height must equal a normal pop-out's height
-// exactly). Sized by default to fit two centered lines of label text.
+// kicks in for unsafe-zone segments, the pill's fixed height too - unified into
+// one value (pill height must equal a normal pop-out's height exactly). Sized by
+// default to fit two centered lines of label text.
 //--------------------------------------------------------------------------------
 SETTING(Subscriptions, SubscriptionsBarMaxDropPx, int, 50)
 
@@ -379,6 +378,20 @@ SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f
 SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Gw2ApiAutoMarkDoneEnabled
+//--------------------------------------------------------------------------------
+// Master switch for the apiDone half of ResolveBasic/ResolveCyclic's doneToday
+// (subscriptions_cache.cpp): when true (default), a subscribed Core Boss/map
+// chest ring still auto-hides once the GW2 API reports it done for the day, on
+// top of any manual done-today mark. When false, apiDone is never consulted -
+// doneToday reduces to the manual mark alone, even with a valid Gw2ApiKey - for
+// players who'd rather mark everything themselves despite having a key set.
+// Doesn't affect whether the API is polled at all; that's still gated by
+// Gw2ApiKey being non-empty.
+//--------------------------------------------------------------------------------
+SETTING(Subscriptions, Gw2ApiAutoMarkDoneEnabled, bool, true)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [System]
 //--------------------------------------------------------------------------------
 
@@ -395,6 +408,16 @@ SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 SETTING(System, delayMilliseconds, int, 20)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LastKnownVersion
+//--------------------------------------------------------------------------------
+// Packed Maj/Min/Bld/Rev (version.h) as of the last run, used by
+// CheckForVersionHistoryOnLoad (changelog_window.h/.cpp) to show the "What's New"
+// notice at most once per version, including once on a brand-new install (default
+// 0 never matches a real compiled version).
+//--------------------------------------------------------------------------------
+SETTING(System, LastKnownVersion, int, 0)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ChatChannelPrefix
 //--------------------------------------------------------------------------------
 // Slash-command prefix prepended to every PasteToChat message (see
@@ -407,16 +430,6 @@ SETTING(System, delayMilliseconds, int, 20)
 // mapping.
 //--------------------------------------------------------------------------------
 SETTING(System, ChatChannelPrefix, std::string, std::string())
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// BetterChatManualOverride
-//--------------------------------------------------------------------------------
-// Read by IsBetterChatAvailable() (better_chat_link.cpp) alongside the resolved
-// DataLink pointer, so BuildChatChannelOptions can list /self without
-// DL_BETTER_CHAT actually resolving. Options-panel checkbox lives in
-// addon_options.cpp, shown only while BetterChatLink is null.
-//--------------------------------------------------------------------------------
-SETTING(System, BetterChatManualOverride, bool, false)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [Notifications]
@@ -468,3 +481,65 @@ SETTING(Notifications, NotificationDisplaySeconds, int, 10)
 // subscriptions.h); the "Test" button plays it unconditionally.
 //--------------------------------------------------------------------------------
 SETTING(Notifications, NotificationSoundFile, std::string, std::string())
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// [LiveEvents]
+//--------------------------------------------------------------------------------
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LiveEventsSubscribed
+//--------------------------------------------------------------------------------
+// Master opt-in for the whole live-event-reporting feature. False (default) makes
+// RenderLiveEventButtons() (live_events_ui.h/.cpp) a complete no-op AND keeps the
+// client from ever connecting to the relay server/Durable Object (see UpdateShard
+// call in live_events_ui.cpp) - not just hiding the button. True follows every
+// compiled-in LiveEvent (events_live.h) at once; there's no per-event opt-in
+// beneath this one.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, LiveEventsSubscribed, bool, false)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LiveEventButtonMarginX / LiveEventButtonMarginY
+//--------------------------------------------------------------------------------
+// Report button's anchor point, in screen-space pixels from the top-right corner
+// (X grows leftward, Y grows downward - see RenderLiveEventButtons). User-
+// draggable via "Move button" in the options panel (LiveEventButtonMoveMode,
+// live_events_ui.h); 20.0f/20.0f matches the button stack's original hardcoded
+// margin, so an existing settings.ini with no entry for these keeps that look.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, LiveEventButtonMarginX, float, 20.0f)
+SETTING(LiveEvents, LiveEventButtonMarginY, float, 20.0f)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ShowLiveEventReportsWindow
+//--------------------------------------------------------------------------------
+// Visibility for the live-event reports window (live_events_ui.h/.cpp) - set true
+// either by clicking/right-clicking a report button, or directly via "Show live
+// event reports window" in the options panel, so it can stay open (and reopen on
+// restart) without being near any event. The window's own close button writes
+// back through this same flag.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, ShowLiveEventReportsWindow, bool, false)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LiveEventReportsWindowLocked
+//--------------------------------------------------------------------------------
+// Low-profile display mode for the reports window (live_events_ui.h/.cpp): title
+// bar, background, and resize/move all dropped, leaving just the text content
+// pinned at its current screen position - a lightweight always-on HUD instead of
+// an interactive window. Toggled via "Lock window" in the options panel, next to
+// ShowLiveEventReportsWindow; has no effect while that flag is false, since
+// there's no window to reshape.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, LiveEventReportsWindowLocked, bool, false)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ShowLiveEventMapDots
+//--------------------------------------------------------------------------------
+// Draws an outline ring, sized to its radius, at each g_LiveEvents
+// (events_live.h) location on the open world map (RenderMapEvents, maprender.cpp)
+// - purely decorative, a rough "watch here" hint. Independent of
+// LiveEventsSubscribed: these rings don't depend on the relay connection or
+// report feature at all, so they're visible even unsubscribed.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, ShowLiveEventMapDots, bool, false)

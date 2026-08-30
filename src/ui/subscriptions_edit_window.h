@@ -16,7 +16,7 @@
 // right-click on the bar strip and the window's empty content area - see
 // subscriptions_bar.cpp/subscriptions_window.cpp/subscriptions_notification.cpp.
 //
-// ShowEditSubscriptionsWindow is deliberately NOT a persisted setting (contrast
+// ShowEditSubscriptionsWindow is NOT a persisted setting (contrast
 // ShowSubscriptionsWindow/ShowSubscriptionsBar in settings_table.h): this window
 // is meant as "pop it open, make a quick change, close it," not a standing
 // overlay, so its visibility doesn't survive a restart and isn't written to

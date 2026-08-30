@@ -9,7 +9,8 @@
 // EditModeState/g_EditMode    momentary drag-to-reposition state for the map
 // ClearEditMode                clears g_EditMode unconditionally
 // GetEventZoomSizeMultiplier  current zoom-based marker size multiplier
-// RenderMapEvents              draws all Basic Events onto the open world map
+// RenderMapEvents              draws all Basic Events + live-event radius
+//                               rings onto the open world map
 // GetEventIconFilenames/ScanEventIconFiles
 //                              icon-picker dropdown contents
 //--------------------------------------------------------------------------------
@@ -104,7 +105,9 @@ float GetEventZoomSizeMultiplier();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderMapEvents
 //--------------------------------------------------------------------------------
-// Draws all events from g_Events onto the open world map.
+// Draws all events from g_Events onto the open world map, plus a randomly rotated
+// ring texture per g_LiveEvents (events_live.h) entry when ShowLiveEventMapDots
+// is set, sized to the live event's radius.
 //--------------------------------------------------------------------------------
 void RenderMapEvents();
 

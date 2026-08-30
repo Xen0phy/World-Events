@@ -20,11 +20,11 @@
 // float[N], not std::array, so it decays to float* for ImGui::ColorEdit3/4
 // without a .data() at every call site.
 //
-// SETTING_SECRET is deliberately not defined here: settings_table.h's own
-// fallback delegates it to SETTING, so `extern std::string Gw2ApiKey;` is
-// produced automatically. Only SaveSettings/LoadSettings (settings.cpp) need
-// `#define SETTING_SECRET` explicitly - encrypting/decrypting is the only place a
-// secret's behavior actually differs from a plain SETTING.
+// SETTING_SECRET is not defined here: settings_table.h's own fallback delegates
+// it to SETTING, so `extern std::string Gw2ApiKey;` is produced automatically.
+// Only SaveSettings/LoadSettings (settings.cpp) need `#define SETTING_SECRET`
+// explicitly - encrypting/decrypting is the only place a secret's behavior
+// actually differs from a plain SETTING.
 //--------------------------------------------------------------------------------
 #define SETTING(S, Key, Type, Default) extern Type Key;
 #define SETTING_ARRAY(S, Key, N, Default) extern float Key[N];

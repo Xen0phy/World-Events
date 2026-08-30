@@ -15,7 +15,7 @@
 
 #include "events.h"   //. EVENTS_DATA_VERSION
 #include "events_categories.h"
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <filesystem>
@@ -60,8 +60,7 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// SerializeCategory / DeserializeCategory /
-// SerializeCategoryList / DeserializeCategoryList
+// SerializeCategory / DeserializeCategory / SerializeCategoryList / DeserializeCategoryList
 //--------------------------------------------------------------------------------
 // Category <-> json conversion; the List variants just map the single-item
 // versions over a json array. DeserializeCategory defaults a missing name to

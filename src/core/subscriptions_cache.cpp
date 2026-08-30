@@ -160,7 +160,7 @@ static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubs
     if (auto it = s_weeklyCache.find(r.key); it != s_weeklyCache.end())
         r.isWeeklyTarget = !it->second.complete;
 
-    bool apiDone    = !ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId);
+    bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId);
     bool manualDone = IsBasicEventMarkedDoneToday(ev.name);
     r.doneToday = apiDone || manualDone;
 
@@ -191,7 +191,7 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
     if (auto it = s_weeklyCache.find(r.key); it != s_weeklyCache.end())
         r.isWeeklyTarget = !it->second.complete;
 
-    bool apiDone    = !grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId);
+    bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId);
     bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset });
     r.doneToday = apiDone || manualDone;
 
@@ -311,7 +311,21 @@ void RefreshSubscriptionsCache(time_t now)
 
     if (!needRebuild) return;
 
-    RebuildWeeklyCache();
+    bool onlySafetyNetTriggered =
+        resetEpoch == s_cacheBuiltForResetEpoch   &&
+        subGen     == s_lastSubscriptionGeneration &&
+        utcDay     == s_lastUtcDay                 &&
+        doneGen    == s_lastDoneMarkerGeneration   &&
+        fetchGen   == s_lastAppliedFetchGeneration;
+
+    bool weeklyAllComplete = !s_weeklyCache.empty() &&
+        std::all_of(s_weeklyCache.begin(), s_weeklyCache.end(),
+            [](const auto& kv) { return kv.second.complete; });
+
+    //_ Skip the redundant re-match when only the safety net fired and every known weekly target is already complete.
+    if (!(onlySafetyNetTriggered && weeklyAllComplete))
+        RebuildWeeklyCache();
+
     RebuildResolvedSubscriptions();
 
     s_cacheBuiltForResetEpoch    = resetEpoch;

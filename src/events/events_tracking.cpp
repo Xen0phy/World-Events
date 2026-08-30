@@ -13,7 +13,7 @@
 
 #include "events_tracking.h"
 #include "events.h"
-#include "nlohmann_json.hpp"
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <ctime>
@@ -87,6 +87,9 @@ static std::string ResolveBasicDoneKey(const std::string& eventName)
     return eventName; //. stale/unknown name - unchanged
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday (see: events_tracking.h)
+//--------------------------------------------------------------------------------
 bool IsBasicEventMarkedDoneToday(const std::string& eventName)
 {
     RollOverIfNewUtcDay();
@@ -107,6 +110,9 @@ void ToggleBasicEventDoneToday(const std::string& eventName)
     s_doneMarkersGeneration++;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsCyclicSlotMarkedDoneToday / ToggleCyclicSlotDoneToday (see: events_tracking.h)
+//--------------------------------------------------------------------------------
 bool IsCyclicSlotMarkedDoneToday(const CyclicSubscriptionKey& key)
 {
     RollOverIfNewUtcDay();
@@ -125,6 +131,9 @@ void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key)
     s_doneMarkersGeneration++;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ClearAllDoneMarkers   (see: events_tracking.h)
+//--------------------------------------------------------------------------------
 void ClearAllDoneMarkers()
 {
     //_ Leaves s_DoneTodayUtcDay untouched - a manual reset, not a rollover.
