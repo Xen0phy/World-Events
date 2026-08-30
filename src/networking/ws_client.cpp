@@ -454,7 +454,7 @@ constexpr DWORD kReceivePollMs = 200;
 static bool ReceiveLoop(HINTERNET hWebSocket, AsyncConn& conn, const std::string& connectedKey)
 {
     std::string   messageBuf;
-    unsigned char chunk[4096];
+    unsigned char chunk[4096] = {};
 
     //_ Most recently dispatched message - see header above for why this exists.
     std::string lastDispatched;

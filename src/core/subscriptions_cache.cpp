@@ -311,7 +311,21 @@ void RefreshSubscriptionsCache(time_t now)
 
     if (!needRebuild) return;
 
-    RebuildWeeklyCache();
+    bool onlySafetyNetTriggered =
+        resetEpoch == s_cacheBuiltForResetEpoch   &&
+        subGen     == s_lastSubscriptionGeneration &&
+        utcDay     == s_lastUtcDay                 &&
+        doneGen    == s_lastDoneMarkerGeneration   &&
+        fetchGen   == s_lastAppliedFetchGeneration;
+
+    bool weeklyAllComplete = !s_weeklyCache.empty() &&
+        std::all_of(s_weeklyCache.begin(), s_weeklyCache.end(),
+            [](const auto& kv) { return kv.second.complete; });
+
+    //_ Skip the redundant re-match when only the safety net fired and every known weekly target is already complete.
+    if (!(onlySafetyNetTriggered && weeklyAllComplete))
+        RebuildWeeklyCache();
+
     RebuildResolvedSubscriptions();
 
     s_cacheBuiltForResetEpoch    = resetEpoch;

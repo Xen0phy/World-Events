@@ -13,9 +13,9 @@
 // older entries too, defaulting to the newest.
 //
 // Shown at most once per version: LastKnownVersion (settings_table.h) is a
-// persisted int compared the same way Split Wars compares its own
-// currentVersion - see CheckForVersionHistoryOnLoad. This flag itself always
-// starts false; "have we shown this version's notice" lives in LastKnownVersion.
+// persisted int compared the same way Split Wars compares its own currentVersion
+// - see CheckForVersionHistoryOnLoad. This flag itself always starts false; "have
+// we shown this version's notice" lives in LastKnownVersion.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -32,10 +32,10 @@ inline constexpr const char* kVersionHistoryWindowTitle = "World Events — What
 // CheckForVersionHistoryOnLoad
 //--------------------------------------------------------------------------------
 // Call once from AddonLoad, after LoadSettings. Compares the compiled Maj/Min/
-// Bld/Rev (version.h) against the persisted LastKnownVersion - including a
-// brand-new install, where it defaults to 0 - and if they differ, sets
-// ShowVersionHistoryWindow and immediately persists the new LastKnownVersion,
-// so a crash before a clean unload can't cause the notice to reappear.
+// Bld/Rev (version.h) against the persisted LastKnownVersion - including a brand-
+// new install, where it defaults to 0 - and if they differ, sets
+// ShowVersionHistoryWindow and immediately persists the new LastKnownVersion, so
+// a crash before a clean unload can't cause the notice to reappear.
 //--------------------------------------------------------------------------------
 void CheckForVersionHistoryOnLoad(const std::string& addonDir);
 

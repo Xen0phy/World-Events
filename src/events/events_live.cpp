@@ -47,12 +47,6 @@ std::vector<LiveEvent> g_LiveEvents =
 // map_id) via the wider type. Distance is full 3D Euclidean since the API's
 // location.type is "sphere", not a flat ground radius - matters on maps with
 // stacked geometry sharing the same X/Z at different elevations.
-//
-// CONFIRMED IN-GAME: no unit conversion needed between mumble.AvatarPosition and
-// worldX/Y/Z. An earlier revision assumed Mumble's generic meters spec applied
-// and multiplied by 39.3701 for the API's inches; untested and wrong - GW2's own
-// implementation already reports raw engine units. The conversion in place never
-// triggered proximity on a real live event; removing it fixed it.
 //--------------------------------------------------------------------------------
 bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble)
 {
@@ -60,7 +54,6 @@ bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble)
     if (mumble.Context.MapID != (unsigned)event.mapId)
         return false;
 
-    //_ No unit conversion - worldX/Y/Z is already in mumble.AvatarPosition's raw engine units (see above).
     float dx = mumble.AvatarPosition.X - event.worldX;
     float dy = mumble.AvatarPosition.Y - event.worldY;
     float dz = mumble.AvatarPosition.Z - event.worldZ;

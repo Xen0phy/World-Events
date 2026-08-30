@@ -4,8 +4,8 @@
 // DrawIndentedNotice   renders one entry's Notes text (file-local)
 //--------------------------------------------------------------------------------
 // Straight port of Split Wars' helper of the same name/contract (that addon's
-// addon.cpp), kept identical so notice text stays interchangeable between the
-// two addons.
+// addon.cpp), kept identical so notice text stays interchangeable between the two
+// addons.
 //--------------------------------------------------------------------------------
 
 #include "changelog_window.h"
@@ -83,8 +83,8 @@ static void DrawIndentedNotice(const char* text)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CheckForVersionHistoryOnLoad   (see: changelog_window.h)
 //--------------------------------------------------------------------------------
-// Packs the compiled version the same way Split Wars packs its own
-// currentVersion (Maj*1e6 + Min*1e4 + Bld*100 + Rev).
+// Packs the compiled version the same way Split Wars packs its own currentVersion
+// (Maj*1e6 + Min*1e4 + Bld*100 + Rev).
 //--------------------------------------------------------------------------------
 void CheckForVersionHistoryOnLoad(const std::string& addonDir)
 {

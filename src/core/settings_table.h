@@ -15,11 +15,10 @@
 // matched by name alone on load, not scoped by section. Key is both the C++
 // variable name and the INI key name.
 //
-// DELIBERATELY NO include guard: this header is re-included once per macro-
-// definition site, and settings.cpp includes it TWICE in the same translation
-// unit (once via settings.h for the extern declarations, once directly for the
-// storage definitions) - a guard would silently turn the second inclusion into a
-// no-op, so the actual global storage would never get defined.
+// No include guard: re-included once per macro-definition site, including twice
+// within settings.cpp (once via settings.h for the extern declarations, once
+// directly for the storage definitions). A guard would no-op the second
+// inclusion, leaving the storage undefined.
 //--------------------------------------------------------------------------------
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -412,9 +411,9 @@ SETTING(System, delayMilliseconds, int, 20)
 // LastKnownVersion
 //--------------------------------------------------------------------------------
 // Packed Maj/Min/Bld/Rev (version.h) as of the last run, used by
-// CheckForVersionHistoryOnLoad (changelog_window.h/.cpp) to show the "What's
-// New" notice at most once per version, including once on a brand-new install
-// (default 0 never matches a real compiled version).
+// CheckForVersionHistoryOnLoad (changelog_window.h/.cpp) to show the "What's New"
+// notice at most once per version, including once on a brand-new install (default
+// 0 never matches a real compiled version).
 //--------------------------------------------------------------------------------
 SETTING(System, LastKnownVersion, int, 0)
 
