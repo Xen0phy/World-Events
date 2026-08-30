@@ -409,6 +409,16 @@ SETTING(Subscriptions, Gw2ApiAutoMarkDoneEnabled, bool, true)
 SETTING(System, delayMilliseconds, int, 20)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LastKnownVersion
+//--------------------------------------------------------------------------------
+// Packed Maj/Min/Bld/Rev (version.h) as of the last run, used by
+// CheckForVersionHistoryOnLoad (changelog_window.h/.cpp) to show the "What's
+// New" notice at most once per version, including once on a brand-new install
+// (default 0 never matches a real compiled version).
+//--------------------------------------------------------------------------------
+SETTING(System, LastKnownVersion, int, 0)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ChatChannelPrefix
 //--------------------------------------------------------------------------------
 // Slash-command prefix prepended to every PasteToChat message (see

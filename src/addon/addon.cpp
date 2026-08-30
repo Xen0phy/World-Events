@@ -11,6 +11,7 @@
 
 #include "addon.h"
 #include "background_threads.h"
+#include "changelog_window.h"
 #include "cyclicrender.h"
 #include "events.h"
 #include "events_categories.h"
@@ -129,6 +130,9 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
 
+    //_ Shows the "What's New" notice at most once per version - see changelog_window.h. Deliberately after LoadSettings (needs the persisted LastKnownVersion) and before anything renders.
+    CheckForVersionHistoryOnLoad(g_AddonDir);
+
     //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by name, saved back below.
     LoadEventsData(g_AddonDir);
 
@@ -149,6 +153,9 @@ void AddonLoad(AddonAPI_t* aAPI)
     //_ Registered separately from AddonRender so it isn't gated by its IsGameplay/IsMapOpen early-outs; connects can happen at character select too.
     APIDefs->GUI_Register(RT_Render, RenderWsDebugWindow);
 
+    //_ Also registered separately, same reason: the notice should be visible at character select, not just once a character is loaded onto a map - see changelog_window.h.
+    APIDefs->GUI_Register(RT_Render, RenderVersionHistoryWindow);
+
     //_ Grants Esc-to-close to the Edit Subscriptions window.
     APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowTitle, &ShowEditSubscriptionsWindow);
 
@@ -157,6 +164,9 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     //_ Same, for the WS debug log window (ws_debug_window.h).
     APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowTitle, &ShowWsDebugWindow);
+
+    //_ Same, for the "What's New" version-history window (changelog_window.h).
+    APIDefs->GUI_RegisterCloseOnEscape(kVersionHistoryWindowTitle, &ShowVersionHistoryWindow);
 
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Loaded.");
 }
@@ -175,11 +185,13 @@ void AddonUnload()
     APIDefs->GUI_Deregister(AddonRender);
     APIDefs->GUI_Deregister(AddonOptions);
     APIDefs->GUI_Deregister(RenderWsDebugWindow);
+    APIDefs->GUI_Deregister(RenderVersionHistoryWindow);
 
     //_ Matches the GUI_RegisterCloseOnEscape calls in AddonLoad
     APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowTitle);
     APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
     APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowTitle);
 
     //_ Bounded wait so a still-running thread can't resume in unloaded memory; 2s is generous headroom, not a timeout budget.
     WaitForBackgroundThreads(2000);

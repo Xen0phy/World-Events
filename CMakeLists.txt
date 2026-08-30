@@ -98,6 +98,7 @@ add_library(gw2-world-events SHARED
     src/overlay/map_shared.cpp
     src/ui/addon_options_helpers.cpp
     src/ui/addon_options.cpp
+    src/ui/changelog_window.cpp
     src/ui/icon_whitener.cpp
     src/ui/live_events_ui.cpp
     src/ui/reset_defaults.cpp
