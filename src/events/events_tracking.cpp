@@ -164,7 +164,7 @@ static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// SaveDailyTrackingData / LoadDailyTrackingData
+// SaveDailyTrackingData / LoadDailyTrackingData   (see: events_tracking.h)
 //--------------------------------------------------------------------------------
 bool SaveDailyTrackingData(const std::string& addonDir)
 {

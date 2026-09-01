@@ -11,7 +11,7 @@
 
 #include "events_live.h"
 
-//_ continentX/Y sourced same as WorldEvent's (see events_basic.cpp); worldX/Y/Z/radius copied verbatim from the API's location.center/radius, not yet used.
+//_ continentX/Y sourced same as WorldEvent's (see events_basic.cpp)
 std::vector<LiveEvent> g_LiveEvents =
 {
     {"5869C555-53AF-4701-876B-02BFB5F0AD7A", "Treasure Mushroom (Verdant Brink)",
@@ -38,6 +38,26 @@ std::vector<LiveEvent> g_LiveEvents =
     {"D3109A18-8A51-4F79-94EB-B474024063F0", "Treasure Mushroom (Draconis Mons)",
         36469.0f, 41154.0f,
         1195, -102.0f, 360.0f, 30.0f, 50.0f},
+
+    {"6BD7C8B0-2605-4819-9AE6-EF2849098090", "Rhendak the Crazed (Diessa Plateau)",
+        58547.0f, 27859.0f,
+        32, 265.0f, -57.0f, 573.0f, 25.0f},
+    {"95CA969B-0CC6-4604-B166-DBCCE125864F", "Dreadge Commissar (Dredgehaunt Cliffs)",
+        52515.0f, 34472.0f,
+        26, -524.0f, 30.0f, -883.0f, 15.0f},
+
+    {"B4E6588F-232C-4F68-9D58-8803D67E564D", "Foulbear Kraal (Fields of Ruin)",
+        63363.0f, 34732.0f,
+        21, 236.0f, 55.0f, -339.0f, 200.0f},
+    {"A0796EC5-191D-4389-9C09-E48829D1FDB2", "Eye of Zhaitan (Straits of Devestation)",
+        47908.0f, 41362.0f,
+        51, -606.0f, 15.0f, -713.0f, 200.0f},
+    {"BFA71CD0-ED1E-4EE3-B8A9-B23B98C3B786", "Statue of Lyssa (Malchor's Leap)",
+        45845.0f, 40318.0f,
+        65, 403.0f, 96.0f, 156.0f, 200.0f},
+    {"02DECBE6-A0BA-47CC-9256-A6D59881D92A", "High Wizard (Cursed Shore)",
+        44623.0f, 44145.0f,
+        62, 438.0f, 88.0f, -303.0f, 150.0f},
 };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -3,8 +3,7 @@
 //--------------------------------------------------------------------------------
 // EventIconEntry/s_iconCache   per-filename cache of loaded icon textures
 // GetOrRequestEventIcon         returns/kicks off the load for one icon
-//                               (public - also used by cyclicrender.cpp's
-//                               ring-image overlay, see maprender.h)
+//                               (also used by cyclicrender.cpp, see maprender.h)
 // GetSecondsUntilEventStart/GetSecondsUntilEventEnd/IsEventActive
 //                               Basic Event schedule queries (see maprender.h)
 // GetEventZoomSizeMultiplier   current zoom-based marker size multiplier
@@ -94,7 +93,7 @@ static const DefaultIconEntry* FindDefaultIcon(const std::string& filename)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ScanEventIconFiles   (pairs with: GetEventIconFilenames)
+// ScanEventIconFiles / GetEventIconFilenames
 //--------------------------------------------------------------------------------
 // Scan (or re-scan) "<addon dir>/textures" and rebuild s_iconFilenames. Call this
 // to refresh after the user adds new files - there's no automatic filesystem-
@@ -128,9 +127,6 @@ void ScanEventIconFiles()
     std::sort(s_iconFilenames.begin(), s_iconFilenames.end());
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// GetEventIconFilenames   (pairs with: ScanEventIconFiles)
-//--------------------------------------------------------------------------------
 const std::vector<std::string>& GetEventIconFilenames()
 {
     if (!s_iconFilenamesScanned)
@@ -140,6 +136,8 @@ const std::vector<std::string>& GetEventIconFilenames()
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OnEventIconReceived
+//--------------------------------------------------------------------------------
+// Callback Nexus invokes once a requested icon file has finished loading.
 //--------------------------------------------------------------------------------
 static void OnEventIconReceived(const char* aIdentifier, Texture_t* aTexture)
 {
@@ -413,7 +411,7 @@ ImVec2 ScreenToContinent(ImVec2 screenPos)
 EditModeState g_EditMode;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ClearEditMode
+// ClearEditMode   (see: maprender.h)
 //--------------------------------------------------------------------------------
 void ClearEditMode()
 {
@@ -582,26 +580,35 @@ void RenderMapEvents()
     if (ShowLiveEventMapDots)
     {
         float      scale   = GetContinentScale();
-        Texture_t* ringTex = GetOrRequestEventIcon("live_ring.png");
-
-        for (const LiveEvent& ev : g_LiveEvents)
+        if (scale > 0.0f)
         {
-            ImVec2 pos      = ContinentToScreen(ev.continentX, ev.continentY);
-            float  radiusPx = ev.radius / scale;
+            Texture_t* ringTexSmall = GetOrRequestEventIcon("small_live_ring.png");
+            Texture_t* ringTexBig = GetOrRequestEventIcon("big_live_ring.png");
 
-            if (pos.x + radiusPx < -100 || pos.x - radiusPx > NexusLink->Width  + 100) continue;
-            if (pos.y + radiusPx < -100 || pos.y - radiusPx > NexusLink->Height + 100) continue;
-
-            if (ringTex && ringTex->Resource)
+            for (const LiveEvent& ev : g_LiveEvents)
             {
+                ImVec2 pos      = ContinentToScreen(ev.continentX, ev.continentY);
+                float  radiusPx = ev.radius * 1.8f / scale;
                 //_ Per-event, stable, and free - no per-event rotation field needed.
                 float angleDeg = fmodf(ev.continentX, 360.0f);
-                DrawLiveEventRing(dl, (ImTextureID)ringTex->Resource, pos,
-                    radiusPx, angleDeg, COL_RING);
-            }
-            else
-            {
-                dl->AddCircle(pos, radiusPx, COL_RING, 0, RING_THICK); //. texture still loading
+
+                if (pos.x + radiusPx < -100 || pos.x - radiusPx > NexusLink->Width  + 100) continue;
+                if (pos.y + radiusPx < -100 || pos.y - radiusPx > NexusLink->Height + 100) continue;
+
+                if (ev.radius > 100 && ringTexBig && ringTexBig->Resource)
+                {
+                    DrawLiveEventRing(dl, (ImTextureID)ringTexBig->Resource, pos,
+                        radiusPx, angleDeg, COL_RING);
+                }
+                else if (ringTexSmall && ringTexSmall->Resource)
+                {
+                    DrawLiveEventRing(dl, (ImTextureID)ringTexSmall->Resource, pos,
+                        radiusPx, angleDeg, COL_RING);
+                }
+                else
+                {
+                    dl->AddCircle(pos, radiusPx, COL_RING, 0, RING_THICK); //. texture still loading
+                }
             }
         }
     }

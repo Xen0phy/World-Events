@@ -1,6 +1,7 @@
 # root/ folders
 backup/
 build/
+logs/
 
 # root/ files
 .backup-excludes

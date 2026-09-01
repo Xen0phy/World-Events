@@ -18,13 +18,14 @@ static std::atomic<bool> s_shuttingDown{false};   //. set once by WaitForBackgro
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // HooksMutex / ShutdownHooks
 //--------------------------------------------------------------------------------
-// Function-local statics (not file-scope globals) deliberately: gw2_api.cpp
-// registers its cancellation hook via a file-scope static initializer of its own,
-// and C++ gives no ordering guarantee between two different translation units'
-// file-scope statics. A function-local static is guaranteed (thread-safely, since
-// C++11) to construct on first use regardless of which TU's static initializers
-// ran first - so RegisterShutdownHook is safe to call from another module's
-// static initializer, which a file-scope vector here would not be.
+// Function-local statics, not file-scope globals: gw2_api.cpp registers its
+// cancellation hook via a file-scope static initializer of its own, and C++
+// gives no ordering guarantee between two different translation units' file-
+// scope statics. A function-local static is guaranteed (thread-safely, since
+// C++11) to construct on first use regardless of which TU's static
+// initializers ran first, so RegisterShutdownHook is safe to call from
+// another module's static initializer, which a file-scope vector here would
+// not be.
 //--------------------------------------------------------------------------------
 static std::mutex& HooksMutex()
 {
@@ -38,7 +39,7 @@ static std::vector<std::function<void()>>& ShutdownHooks()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// BackgroundThreadGuard::BackgroundThreadGuard / ~BackgroundThreadGuard
+// BackgroundThreadGuard::BackgroundThreadGuard / ~BackgroundThreadGuard   (see: background_threads.h)
 //--------------------------------------------------------------------------------
 BackgroundThreadGuard::BackgroundThreadGuard()
 {
@@ -51,7 +52,7 @@ BackgroundThreadGuard::~BackgroundThreadGuard()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsShuttingDown
+// IsShuttingDown   (see: background_threads.h)
 //--------------------------------------------------------------------------------
 bool IsShuttingDown()
 {
@@ -59,7 +60,7 @@ bool IsShuttingDown()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// RegisterShutdownHook
+// RegisterShutdownHook   (see: background_threads.h)
 //--------------------------------------------------------------------------------
 void RegisterShutdownHook(std::function<void()> hook)
 {

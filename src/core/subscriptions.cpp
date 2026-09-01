@@ -46,7 +46,7 @@ static uint64_t s_subscriptionListGeneration = 0;
 uint64_t GetSubscriptionListGeneration() { return s_subscriptionListGeneration; }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBasicEventSubscribed / ToggleBasicEventSubscription
+// IsBasicEventSubscribed / ToggleBasicEventSubscription   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsBasicEventSubscribed(const std::string& eventName)
 {
@@ -90,7 +90,7 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsCyclicSlotSubscribed / ToggleCyclicSlotSubscription
+// IsCyclicSlotSubscribed / ToggleCyclicSlotSubscription   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsCyclicSlotSubscribed(const CyclicSubscriptionKey& key)
 {
@@ -109,7 +109,7 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ClearAllSubscriptions
+// ClearAllSubscriptions   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 void ClearAllSubscriptions()
 {
@@ -123,7 +123,7 @@ void ClearAllSubscriptions()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBasicEventToastEnabled / IsCyclicSlotToastEnabled
+// IsBasicEventToastEnabled / IsCyclicSlotToastEnabled   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsBasicEventToastEnabled(const std::string& eventName)
 {
@@ -138,7 +138,7 @@ bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBasicEventSoundEnabled / IsCyclicSlotSoundEnabled
+// IsBasicEventSoundEnabled / IsCyclicSlotSoundEnabled   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsBasicEventSoundEnabled(const std::string& eventName)
 {
@@ -227,6 +227,8 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCyclicKey / DeserializeCyclicKey
+//--------------------------------------------------------------------------------
+// Deserialize defaults missing fields to empty string / 0 instead of throwing.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
@@ -560,18 +562,16 @@ void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::mi
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PasteToChat   (pairs with: BuildChatPasteMessage, PasteSegmentsToChat)
 //--------------------------------------------------------------------------------
-// Applies Settings::ChatChannelPrefix to message and hands it to
-// PasteSegmentsToChat. Every prefix but "/w " is one segment: prefix and body
-// concatenated, pasted once. "/w " needs GW2's own whisper box, which takes the
-// target name and the message in two separate fields reached by pressing Tab
-// between them, so that case pastes three segments instead - "/w ", the Mumble-
-// reported character name, then message - with Tab after the name. If the
-// character name can't be read yet, the whisper is dropped instead of sent to
-// whatever box currently has focus. "/self " falls back to the unprefixed default
-// the same way if Better Chat's /self isn't available right now - the options
-// panel only offers that entry while it is (addon_options_helpers.cpp), but a
-// stale saved setting (Better Chat updated/disabled since) must not paste a dead
-// command into whatever box currently has focus either.
+// Applies Settings::ChatChannelPrefix to message, then hands it to
+// PasteSegmentsToChat. Every prefix but "/w " pastes as one segment: prefix and
+// body concatenated. "/w " needs GW2's own whisper box, which takes the target
+// name and message in two separate fields reached by pressing Tab between them,
+// so that case pastes three segments instead - "/w ", the Mumble-reported
+// character name, then message - with Tab after the name; an unreadable
+// character name drops the whisper instead of sending it to whatever box has
+// focus. "/self " falls back to the unprefixed default the same way when Better
+// Chat's /self command isn't available, since a stale saved setting must not
+// paste a dead command into whatever box has focus.
 //--------------------------------------------------------------------------------
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 {

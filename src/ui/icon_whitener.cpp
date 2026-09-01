@@ -248,7 +248,7 @@ static void DoConvert(const std::string& filename)
 } //. namespace
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawIconWhitenerButton / DrawIconWhitenerPopup
+// DrawIconWhitenerButton / DrawIconWhitenerPopup   (see: icon_whitener.h)
 //--------------------------------------------------------------------------------
 
 void DrawIconWhitenerButton()

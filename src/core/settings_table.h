@@ -224,7 +224,8 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [Subscriptions]
 //--------------------------------------------------------------------------------
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~ DisableWindowWhenCompetitive / DisableBarWhenCompetitive /
 // DisableNotifyWhenCompetitive
 //--------------------------------------------------------------------------------
@@ -278,8 +279,9 @@ SETTING(Subscriptions, SubscriptionsBarBottomAnchored,  bool, false)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SubscriptionsBarDotColor
 //--------------------------------------------------------------------------------
-// Default dot color for the subscription bar (alpha suppressed in the
-// options UI for visibility); plain white by default, was 0xFEFFFEFFu.
+// Default dot color for the subscription bar (alpha suppressed in the options UI
+// for visibility); plain white by default, was 0xFEFFFEFFu.
+//--------------------------------------------------------------------------------
 SETTING_ARRAY(Subscriptions, SubscriptionsBarDotColor, 4, ARR(0.996f, 1.000f, 0.996f, 1.000f))
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

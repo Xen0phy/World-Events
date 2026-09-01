@@ -11,7 +11,7 @@
 // only settings blob.
 //
 // DataLink alone can't tell us Better Chat has unloaded: per Nexus's own docs, an
-// addon's shared "static data" is left untouched on unload rather than cleared,
+// addon's shared "static data" is left untouched on unload instead of cleared,
 // so a stale SelfMessageCommand = 1 would otherwise outlive Better Chat's actual
 // session. IsBetterChatSelfCommandEnabled cross-checks that Better Chat's DLL is
 // still loaded in the process (see better_chat.cpp) before trusting the DataLink
@@ -49,7 +49,7 @@ struct BetterChatSettings
 };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBetterChatLoaded (see better_chat.cpp)
+// IsBetterChatLoaded   (see: better_chat.cpp)
 //--------------------------------------------------------------------------------
 bool IsBetterChatLoaded();
 

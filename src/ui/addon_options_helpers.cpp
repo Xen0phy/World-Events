@@ -113,7 +113,7 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsDuplicateEventName / IsDuplicateGroupName / IsDuplicateSlotKey
+// IsDuplicateEventName / IsDuplicateGroupName / IsDuplicateSlotKey / DrawDuplicateWarning
 //--------------------------------------------------------------------------------
 // Match the merge keys from events_storage.cpp: groups/events/slots all by name
 // alone (GroupKey/EventKey/SlotKey) - for slots this means unique WITHIN the
@@ -150,9 +150,6 @@ bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfInd
     return false;
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawDuplicateWarning   (pairs with: IsDuplicateEventName/GroupName/SlotKey)
-//--------------------------------------------------------------------------------
 void DrawDuplicateWarning()
 {
     ImGui::SameLine();
@@ -282,14 +279,6 @@ void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNotifyLevelIcon
 //--------------------------------------------------------------------------------
-// 4-way control: level 0 unsubscribed ("-"), 1 subscribed/silent ("+"), 2 +toast
-// (bell), 3 +toast+sound (speaker) - see GetBasicEventNotifyLevel in
-// subscriptions.h. Icon shows the *current* level, not the level a click would
-// advance to. Left-click advances one level, wrapping 3 -> 0; jumping to any
-// level directly is in DrawNameAndContextMenu's right-click menu instead. Also
-// used by the Edit Subscriptions quick-access window
-// (subscriptions_edit_window.cpp) in front of each row.
-//
 // Manual hit-test + ImDrawList (not a real widget), sized to GetFrameHeight() to
 // match the tree arrow. Returns the level to apply this frame - unchanged unless
 // this click just advanced it.

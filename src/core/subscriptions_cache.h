@@ -12,29 +12,17 @@
 // Shared, per-frame-cheap cache of the fully resolved state of every
 // subscribed/auto-tracked Basic Event and Cyclic slot, replacing three
 // independent per-frame re-derivations previously done separately by
-// subscriptions_bar.cpp/subscriptions_window.cpp/ subscriptions_notification.cpp
-// from g_SubscribedBasicEvents/ g_SubscribedCyclicSlots + g_Events/g_CyclicGroups
-// + gw2_api.h + events_tracking.h + weekly_vault.h.
+// subscriptions_bar.cpp/subscriptions_window.cpp/subscriptions_notification.cpp.
 //
-// WHAT'S CACHED vs COMPUTED FRESH EVERY FRAME: Everything in ResolvedSubscription
-// is resolved once at cache-rebuild time. active/secsUntilStart/secsUntilEnd are
-// the one part that must reflect "right now" rather than "as of the last rebuild"
-// - GetSubscriptionActiveState computes these as pure arithmetic against the
-// fields already copied into ResolvedSubscription, with no locks, allocations, or
-// lookups into g_Events/g_CyclicGroups/gw2_api involved.
+// WHAT'S CACHED VS COMPUTED FRESH EVERY FRAME: everything in ResolvedSubscription
+// is resolved once at cache-rebuild time. active/secsUntilStart/secsUntilEnd
+// instead reflect "right now": GetSubscriptionActiveState computes these as
+// pure arithmetic against the fields already copied into ResolvedSubscription,
+// with no locks, allocations, or lookups into g_Events/g_CyclicGroups/gw2_api
+// involved.
 //
-// WHEN A REBUILD ACTUALLY HAPPENS (see RefreshSubscriptionsCache): the subscribed
-// set changed (subscribe/unsubscribe/rename), a fresh GW2 API poll landed, the
-// UTC day rolled over, a done-today marker was toggled, the weekly reset rolled
-// over (Monday 07:30 UTC), or a periodic safety-net interval elapsed. The safety
-// net bounds staleness for the one gap with no dedicated invalidation hook:
-// editing an already-subscribed event's own schedule in the options panel while
-// it's live - a rare edit-while-watching case where a bounded few seconds of
-// staleness is an accepted tradeoff over adding a hook to every field editor in
-// addon_options.cpp.
-//
-// Every other frame, this is a handful of integer/atomic comparisons and nothing
-// else.
+// Every other frame, this is a handful of integer/atomic comparisons and
+// nothing else.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -123,16 +111,15 @@ struct SubscriptionActiveState
 // RefreshSubscriptionsCache / GetResolvedSubscriptions /
 // GetSubscriptionActiveState
 //--------------------------------------------------------------------------------
-// Call RefreshSubscriptionsCache once per frame, before the other two - safe and
-// cheap every frame; see the file header for when a real rebuild actually happens
-// (usually just a handful of comparisons).
+// Call RefreshSubscriptionsCache once per frame, before the other two; see the
+// file header for when a rebuild actually happens (usually just a handful of
+// comparisons).
 //
 // GetResolvedSubscriptions returns the list as of the last refresh: every
 // manually-subscribed item plus every active-and-incomplete weekly auto-track
-// target not already subscribed. Callers apply the doneToday skip themselves.
-//
+// target not already subscribed; callers apply the doneToday skip themselves.
 // GetSubscriptionActiveState is pure arithmetic against the already-copied
-// schedule fields - safe to call fresh every frame for every item.
+// schedule fields, safe to call fresh every frame for every item.
 //--------------------------------------------------------------------------------
 void RefreshSubscriptionsCache(time_t now);
 const std::vector<ResolvedSubscription>& GetResolvedSubscriptions();

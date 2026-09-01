@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "addon.h"
 #include "events.h"
 #include "events_categories.h"
 #include "imgui.h"

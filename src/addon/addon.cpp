@@ -49,17 +49,15 @@ float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveAllData
 //--------------------------------------------------------------------------------
-// Writes every on-disk JSON file this addon owns, in the one order that's
-// actually safe: events first, then categories/subscriptions/tracking, since
-// those three reference g_Events/g_CyclicGroups by name (see events_categories.h,
-// subscriptions.h, events_tracking.h) and need events.json's own keys to already
-// reflect the final merged state.
+// Writes every on-disk JSON file this addon owns, in the one safe order: events
+// first, then categories/subscriptions/tracking, since those three reference
+// g_Events/g_CyclicGroups by name and need events.json's keys already reflecting
+// the final merged state.
 //
-// Called from both AddonLoad (to persist merged defaults+disk state on first
-// write) and AddonUnload, kept as one function so this ordering rule can't drift
-// out of sync between the two callers. settings.ini is NOT included here -
-// SaveSettings has no such ordering dependency and is only ever called from
-// AddonUnload.
+// Called from both AddonLoad (persisting merged defaults+disk state on first
+// write) and AddonUnload, kept as one function so the ordering can't drift between
+// callers. settings.ini isn't included - SaveSettings has no such dependency and
+// is only ever called from AddonUnload.
 //--------------------------------------------------------------------------------
 static void SaveAllData(const std::string& addonDir)
 {
@@ -130,7 +128,7 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
 
-    //_ Shows the "What's New" notice at most once per version - see changelog_window.h. Deliberately after LoadSettings (needs the persisted LastKnownVersion) and before anything renders.
+    //_ Shows the "What's New" notice at most once per version - see changelog_window.h. Runs after LoadSettings (needs the persisted LastKnownVersion) and before anything renders.
     CheckForVersionHistoryOnLoad(g_AddonDir);
 
     //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by name, saved back below.

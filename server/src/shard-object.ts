@@ -85,7 +85,18 @@ export class ShardObject extends DurableObject<Env> {
     super(ctx, env);
     this.ctx.blockConcurrencyWhile(async () => {
       this.ensureSchema();
-      await this.scheduleIdleAlarm();
+      //. Defensive backstop only - do NOT unconditionally reschedule here.
+      //. The constructor reruns on *every* hibernation wake (any message,
+      //. webSocketClose, webSocketError, even a dropped/throttled message),
+      //. not just real activity. Real activity already reschedules
+      //. explicitly (see fetch() and webSocketMessage()); resetting the
+      //. alarm here too would push the 12h deadline out on every wake,
+      //. contradicting alarm()'s "nothing resets the deadline" invariant
+      //. and letting idle shards live indefinitely.
+      const existingAlarm = await this.ctx.storage.getAlarm();
+      if (existingAlarm === null) {
+        await this.scheduleIdleAlarm();
+      }
     });
   }
 
@@ -107,6 +118,13 @@ export class ShardObject extends DurableObject<Env> {
 
     this.ctx.acceptWebSocket(server);
     await this.scheduleIdleAlarm();  //. new connection counts as activity
+
+    //. Diagnostic only: if this count climbs above what's actually live
+    //. (e.g. 2, 3... on a shard with one real viewer), it's ghost sockets
+    //. from connections that died without a webSocketClose/webSocketError
+    //. ever reaching this DO - see shard-object.ts header notes.
+    const shardKey = new URL(request.url).searchParams.get("shard");
+    console.log(`[fetch] connect (shard=${shardKey}, liveSockets=${this.ctx.getWebSockets().length})`);
 
     server.send(JSON.stringify({ type: "history", reports: this.readHistory() }));
 
@@ -194,10 +212,13 @@ export class ShardObject extends DurableObject<Env> {
   // for this shard key just re-runs the constructor on a clean slate.
   //--------------------------------------------------------------------------------
   async alarm(): Promise<void> {
-    if (this.ctx.getWebSockets().length > 0) {
+    const socketCount = this.ctx.getWebSockets().length;
+    if (socketCount > 0) {
+      console.log(`[alarm] rescheduling, ${socketCount} socket(s) still connected`);
       await this.scheduleIdleAlarm();
       return;
     }
+    console.log("[alarm] no sockets connected, wiping storage");
     await this.ctx.storage.deleteAll();
     this.ensureSchema();
   }

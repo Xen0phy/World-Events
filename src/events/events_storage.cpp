@@ -585,7 +585,7 @@ bool LoadEventsData(const std::string& addonDir)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ResetEventsToDefaults
+// ResetEventsToDefaults   (see: events_storage.h)
 //--------------------------------------------------------------------------------
 void ResetEventsToDefaults()
 {

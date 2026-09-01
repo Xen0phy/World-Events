@@ -2,6 +2,12 @@ name = "gw2-world-events"
 main = "src/index.ts"
 compatibility_date = "2026-08-01"
 
+# Persists console.log output to your Cloudflare account so it can be viewed
+# in the dashboard (Workers & Pages -> gw2-world-events -> Observability)
+# without needing `wrangler tail` running locally.
+[observability]
+enabled = true
+
 # Regenerates src/live_event_maps.generated.ts from the client's compiled-in
 # roster (events_live.cpp) before every `wrangler dev`/`deploy` - Wrangler runs
 # this itself, so it fires for a bare `npx wrangler deploy` too, not just

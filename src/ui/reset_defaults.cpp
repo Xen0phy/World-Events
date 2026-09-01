@@ -11,7 +11,7 @@
 static bool s_open = false;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawResetToDefaultsButton / DrawResetToDefaultsPopup
+// DrawResetToDefaultsButton / DrawResetToDefaultsPopup   (see: reset_defaults.h)
 //--------------------------------------------------------------------------------
 
 void DrawResetToDefaultsButton()

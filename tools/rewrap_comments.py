@@ -32,13 +32,18 @@ processed independently and the separator lines themselves are left
 untouched.
 
 Usage:
-    python3 tools/rewrap_comments.py [--root ROOT] [--auto]
-    python3 tools/rewrap_comments.py [--auto] FILE [FILE ...]
+    python3 tools/rewrap_comments.py [--root ROOT] [--auto] [--log FILE]
+    python3 tools/rewrap_comments.py [--auto] [--log FILE] FILE [FILE ...]
 
 With no positional arguments, walks <root>/src and processes every .h/.cpp
 file found there. If one or more FILE arguments are given, only those
 specific files are processed instead (any extension is accepted in this
-mode, and --root is ignored).
+mode, and --root is ignored for file selection).
+
+Every box that needed rewrapping -- applied or skipped -- is recorded to
+<root>/logs/rewrap_comments.log (created if needed; --log FILE writes
+elsewhere instead), the same logs/ convention check_comments.py uses, so
+a run's skipped boxes are still on record even when nothing gets written.
 
 Review mode (default, no --auto):
     Each box that actually needs rewrapping is shown as a diff, and the
@@ -235,6 +240,12 @@ def process_file(path, auto=False):
                   changes and let the user accept/skip it with a
                   keypress; only write the file if something was
                   applied.
+
+    Returns (changes, log_entries). log_entries has one
+    (box_start_line_1_based, status) pair for every box that needed
+    rewrapping, status being 'applied' or 'skipped' -- skipped boxes are
+    included too, so the log is a full record of what still needs a
+    second look even when nothing in the file was written.
     """
     with open(path, 'r', encoding='utf-8') as f:
         original_text = f.read()
@@ -244,6 +255,7 @@ def process_file(path, auto=False):
 
     out = []
     changes = 0
+    log_entries = []
 
     for chunk in chunks:
         if chunk[0] == 'line':
@@ -264,11 +276,13 @@ def process_file(path, auto=False):
         if apply_change:
             out.extend(box_rewrapped)
             changes += 1
+            log_entries.append((box_start + 1, 'applied'))
         else:
             out.extend(box_original)
+            log_entries.append((box_start + 1, 'skipped'))
 
     if changes == 0:
-        return 0
+        return 0, log_entries
 
     newline = '\r\n' if '\r\n' in original_text else '\n'
     new_content = newline.join(out)
@@ -278,7 +292,7 @@ def process_file(path, auto=False):
     with open(path, 'w', encoding='utf-8', newline='') as f:
         f.write(new_content)
 
-    return changes
+    return changes, log_entries
 
 
 def main():
@@ -290,22 +304,39 @@ def main():
                          help="apply all detected changes automatically and write every "
                               "file with changes, without prompting for each box "
                               "(default is to review each box interactively)")
+    parser.add_argument('--log', metavar='FILE',
+                         help='write the box log to FILE, in addition to stdout '
+                              '(default: <root>/logs/rewrap_comments.log -- shared by '
+                              'any tool that adopts the same convention)')
     parser.add_argument('files', nargs='*', metavar='FILE',
                          help='one or more specific files to process, instead of '
-                              'walking <root>/src. When given, --root is ignored '
-                              'and any file extension is accepted.')
+                              'walking <root>/src. When given, --root is ignored for '
+                              'file selection (though the default log path still uses '
+                              'it), and any file extension is accepted.')
     args = parser.parse_args()
+
+    tool_stem = os.path.splitext(os.path.basename(__file__))[0]
+    log_path = args.log or os.path.join(args.root, 'logs', f'{tool_stem}.log')
 
     total_files = 0
     total_boxes = 0
     prefix = '[auto] ' if args.auto else ''
+    log_lines = []
+
+    def record(fpath, log_entries):
+        if not log_entries:
+            return
+        log_lines.append(f'{fpath}  ({len(log_entries)} box(es))')
+        for line_no, status in log_entries:
+            log_lines.append(f'  line {line_no:<5} [{status}]')
 
     if args.files:
         for fpath in args.files:
             if not os.path.isfile(fpath):
                 print(f'error: {fpath} does not exist', file=sys.stderr)
                 sys.exit(1)
-            nchg = process_file(fpath, auto=args.auto)
+            nchg, log_entries = process_file(fpath, auto=args.auto)
+            record(fpath, log_entries)
             if nchg:
                 total_files += 1
                 total_boxes += nchg
@@ -320,13 +351,21 @@ def main():
             for fn in filenames:
                 if fn.endswith('.h') or fn.endswith('.cpp'):
                     fpath = os.path.join(dirpath, fn)
-                    nchg = process_file(fpath, auto=args.auto)
+                    nchg, log_entries = process_file(fpath, auto=args.auto)
+                    record(fpath, log_entries)
                     if nchg:
                         total_files += 1
                         total_boxes += nchg
                         print(f'{prefix}{fpath}: {nchg} box(es) processed')
 
-    print(f'\nDone. {total_boxes} box(es) processed in {total_files} file(s).')
+    summary = f'Done. {total_boxes} box(es) processed in {total_files} file(s).'
+    print(f'\n{summary}')
+    log_lines.append(summary)
+
+    os.makedirs(os.path.dirname(os.path.abspath(log_path)), exist_ok=True)
+    with open(log_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(log_lines) + '\n')
+    print(f'Log written to {log_path}')
 
 
 if __name__ == '__main__':
