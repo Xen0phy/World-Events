@@ -42,7 +42,7 @@ std::vector<LiveEvent> g_LiveEvents =
     {"6BD7C8B0-2605-4819-9AE6-EF2849098090", "Rhendak the Crazed (Diessa Plateau)",
         58547.0f, 27859.0f,
         32, 265.0f, -57.0f, 573.0f, 25.0f},
-    {"95CA969B-0CC6-4604-B166-DBCCE125864F", "Dreadge Commissar (Dredgehaunt Cliffs)",
+    {"95CA969B-0CC6-4604-B166-DBCCE125864F", "Dredge Commissar (Dredgehaunt Cliffs)",
         52515.0f, 34472.0f,
         26, -524.0f, 30.0f, -883.0f, 15.0f},
 
