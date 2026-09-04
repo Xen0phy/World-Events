@@ -134,7 +134,7 @@ void RenderVersionHistoryWindow()
         ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Spacing();
-        ImGui::TextWrapped("What's New");
+        ImGui::TextWrapped("%s", kVersionHistoryWindowTitle);
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
