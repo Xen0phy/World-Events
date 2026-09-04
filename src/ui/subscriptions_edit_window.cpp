@@ -20,6 +20,12 @@
 // convention as the main panel, for glanceable state - and DrawNotifyLevelButtons
 // in the expanded body, for a direct jump to any level; see
 // DrawLeanBasicEventRow/DrawLeanCyclicSlotRow below for both.
+//
+// The Live Events tab is its own flat table (subscribe / name / "Only named" /
+// done-today columns), not the category tree the other tab uses - see
+// DrawLeanLiveEventRow - with the same "Share my name in reports" checkbox
+// (ShareNameInReports, settings_table.h) the options panel exposes, since whether
+// a report carries the reporter's name is what "Only named" filters on.
 //--------------------------------------------------------------------------------
 
 #include "subscriptions_edit_window.h"
@@ -237,17 +243,21 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawLeanLiveEventRow
 //--------------------------------------------------------------------------------
-// One flat row per compiled-in LiveEvent. No notify-level ladder - subscribing IS
-// the toast opt-in, one flat list (subscriptions.h) - and no category tree
-// (g_LiveEvents carries none), so unlike DrawLeanBasicEventRow/
-// DrawLeanCyclicSlotRow there's nothing to collapse: subscribe checkbox, name,
-// and the done-today toggle all sit on one line, always visible. The subscribe
-// checkbox itself is disabled while Gw2ApiKey (settings.h) is empty - region-
-// wide toast delivery needs GetLiveEventsRegion (gw2_api.h), which needs that key
-// now that Mumble no longer provides one.
+// One table row per compiled-in LiveEvent - subscribe checkbox, name, "Only
+// named" gate, and the done-today toggle, one per column (see the "Event" header
+// row set up by the caller). No notify-level ladder - subscribing IS the toast
+// opt-in, one flat list (subscriptions.h) - and no category tree (g_LiveEvents
+// carries none), so unlike DrawLeanBasicEventRow/DrawLeanCyclicSlotRow there's
+// nothing to collapse. The subscribe checkbox is disabled while Gw2ApiKey
+// (settings.h) is empty - region-wide toast delivery needs GetLiveEventsRegion
+// (gw2_api.h), which needs that key now that Mumble no longer provides one. See
+// IsLiveEventNamedOnly (subscriptions.h) for what "Only named" gates.
 //--------------------------------------------------------------------------------
 static void DrawLeanLiveEventRow(const LiveEvent& ev)
 {
+    ImGui::TableNextRow();
+
+    ImGui::TableSetColumnIndex(0);
     bool subscribed = IsLiveEventSubscribed(ev.eventId);
     DisabledBlock(Gw2ApiKey.empty())
     {
@@ -260,15 +270,25 @@ static void DrawLeanLiveEventRow(const LiveEvent& ev)
             ? "Requires a GW2 API key (options panel) - region-wide toast\ndelivery needs it to tell NA and EU apart."
             : "Subscribe to region-wide toast notifications for this event,\nregardless of which map you're currently on.");
     }
-    ImGui::SameLine();
 
+    ImGui::TableSetColumnIndex(1);
     ImGui::TextUnformatted(ev.name.empty() ? "(unnamed)" : ev.name.c_str());
-    ImGui::SameLine();
 
+    ImGui::TableSetColumnIndex(2);
+    bool namedOnly = IsLiveEventNamedOnly(ev.eventId);
+    if (ImGui::Checkbox("##edit_live_named_only", &namedOnly))
+        ToggleLiveEventNamedOnly(ev.eventId);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Only notify me when the reporter shared their name.\n"
+                           "An unnamed report can't be whispered or joined directly,\n"
+                           "so skip its toast rather than show one you can't act on.");
+
+    ImGui::TableSetColumnIndex(3);
     bool doneToday = IsLiveEventMarkedDoneToday(ev.eventId);
-    std::string doneLabel = "Done for today##edit_live_done";
-    if (ImGui::Checkbox(doneLabel.c_str(), &doneToday))
+    if (ImGui::Checkbox("##edit_live_done", &doneToday))
         ToggleLiveEventDoneToday(ev.eventId);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Done for today - mutes toasts for this event until the daily reset.");
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -278,12 +298,12 @@ static void DrawLeanLiveEventRow(const LiveEvent& ev)
 // search box + 2-column table (Basic Events / Cyclic Events), each a category-
 // aware tree exactly like addon_options.cpp's Table 3, minus every structural-
 // editing affordance that doesn't belong in a quick-access view - see the file
-// header; and "Live Events", a flat DrawLeanLiveEventRow per g_LiveEvents entry,
-// no search box - the compiled-in roster is short enough not to need one. The
-// pending deep-link target (if any) is consumed once Begin() confirms the window
-// drew this frame, forcing its row/category and matching tab open for that one
-// draw. Esc-to-close is handled by Nexus via GUI_RegisterCloseOnEscape
-// (addon.cpp), not an in-window key check.
+// header; and "Live Events", a "Share my name in reports" checkbox above a
+// 4-column table (DrawLeanLiveEventRow per g_LiveEvents entry), no search box -
+// the compiled-in roster is short enough not to need one. The pending deep-link
+// target (if any) is consumed once Begin() confirms the window drew this frame,
+// forcing its row/category and matching tab open for that one draw. Esc-to-close
+// is handled by Nexus via GUI_RegisterCloseOnEscape (addon.cpp).
 //--------------------------------------------------------------------------------
 void RenderEditSubscriptionsWindow()
 {
@@ -516,18 +536,34 @@ void RenderEditSubscriptionsWindow()
 
     if (ImGui::BeginTabItem("Live Events", nullptr, liveTabFlags))
     {
+        ImGui::Checkbox("Share my name in reports", &ShareNameInReports);
+        Tooltip("Off (default): reports are anonymous. On: your character name\n"
+                "goes out with every report you send, and anyone whose toast\n"
+                "notification it triggers can whisper you directly by clicking\n"
+                "it, instead of just pasting the waypoint.");
+        ImGui::Spacing();
+
         if (g_LiveEvents.empty())
         {
             ImGui::TextDisabled("No live events compiled in.");
         }
-        else
+        else if (ImGui::BeginTable("##edit_live_events", 4,
+            ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingFixedFit))
         {
+            ImGui::TableSetupColumn("##edit_live_subscribe_col", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("Event", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Only named", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("Done today", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableHeadersRow();
+
             for (const LiveEvent& ev : g_LiveEvents)
             {
                 ImGui::PushID(ev.eventId.c_str());
                 DrawLeanLiveEventRow(ev);
                 ImGui::PopID();
             }
+
+            ImGui::EndTable();
         }
         ImGui::EndTabItem();
     }

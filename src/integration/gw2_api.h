@@ -23,9 +23,9 @@
 // permanent no-op; every daily-completion query reports "not done"/"not found",
 // and GetLiveEventsRegion reports Unknown - features degrade to "off", never to
 // "everything hidden". Mumble Link's Identity JSON no longer carries a usable
-// world_id (mumble_identity.h), so this is the only region source left;
-// live_events_ui.cpp/subscriptions_edit_window.cpp gate their own controls on
-// Gw2ApiKey being non-empty for the same reason.
+// world_id, so this is the only region source left, feeding only the cross-region
+// toast relay - subscriptions_edit_window.cpp gates on it for that;
+// live_events_ui.cpp's report button needs no key.
 //
 // Degradation rule for the daily-completion queries: unknown/stale/not-yet-
 // fetched data is always "not completed"/"not found", never "completed" - a

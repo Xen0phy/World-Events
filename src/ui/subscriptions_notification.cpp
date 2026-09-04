@@ -82,8 +82,8 @@ static constexpr int kMaxVisiblePopups = 4;
 // name           display name, e.g. "Tequatl the Sunless"
 // chatCode       waypoint chat code pasted on click
 // message        e.g. "Starting in 4m 32s" or "Now active!"
-// color          plain ImVec4 RGBA - SubscriptionsSoonColor for the lead
-//                popup, SubscriptionsActiveColor for the start/Live popup
+// color          plain ImVec4 RGBA - Soon/Active/Live popups each use their own
+//                SubscriptionsXColor setting (see CollectLiveEventPopups)
 // spawnedAtMs    GetTickCount64() timestamp, doubles as a pause mechanism
 // isWeekly       active-and-incomplete weekly Wizard's Vault target
 // kind           SubscriptionKind (subscriptions.h): Basic/Cyclic/Live
@@ -338,15 +338,15 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
 // CollectLiveEventPopups
 //--------------------------------------------------------------------------------
 // Drains DrainLiveEventNotifications() (notification_client.h) and spawns one
-// popup per notification that's toast-worthy: subscribed and not already marked
-// done today - subscribing IS the toast opt-in for Live Events, one flat list, no
-// separate toast/sound tier (subscriptions.h) - and matched against a known
-// g_LiveEvents entry (an unrecognized eventId is silently dropped). Gated only
-// behind NotificationsEnabled (checked by the caller); a live report has no
-// schedule to draw a lead-time popup from, so NotificationLeadMinutes/
-// NotificationOnStart don't apply. No sound: Live Events have no per-event sound
-// opt-in. Each notification gets its own unique popup key - unlike Candidate's
-// reused-on-purpose key, a live report is a one-off fact.
+// popup per notification that's toast-worthy: subscribed, not already marked done
+// today, and not an unnamed report on an event with IsLiveEventNamedOnly set (the
+// report itself still reaches GetRecentReports for the reports window - only the
+// toast is dropped) - subscribing IS the toast opt-in for Live Events, one flat
+// list, no separate toast/sound tier (subscriptions.h) - and matched against a
+// known g_LiveEvents entry (an unrecognized eventId is silently dropped). Gated
+// only behind NotificationsEnabled (checked by the caller); a live report has no
+// schedule to draw a lead-time popup from, so
+// NotificationLeadMinutes/NotificationOnStart don't apply.
 //--------------------------------------------------------------------------------
 static void CollectLiveEventPopups()
 {
@@ -356,6 +356,7 @@ static void CollectLiveEventPopups()
     {
         if (!IsLiveEventSubscribed(n.eventId)) continue;
         if (IsLiveEventMarkedDoneToday(n.eventId)) continue;
+        if (n.reporterName.empty() && IsLiveEventNamedOnly(n.eventId)) continue;
 
         const LiveEvent* ev = nullptr;
         for (const LiveEvent& candidate : g_LiveEvents)
@@ -367,7 +368,7 @@ static void CollectLiveEventPopups()
         std::string message = n.reporterName.empty() ? "Reported active!" : ("Reported by " + n.reporterName);
         std::string key = "Live:" + n.eventId + "#" + std::to_string(++s_liveNotifCounter);
 
-        SpawnPopup(key, ev->name, ev->chatCode, message, ToImVec4(SubscriptionsActiveColor), false,
+        SpawnPopup(key, ev->name, ev->chatCode, message, ToImVec4(SubscriptionsLiveColor), false,
                    SubscriptionKind::Live, std::string(), CyclicSubscriptionKey{}, n.eventId, n.reporterName);
     }
 }

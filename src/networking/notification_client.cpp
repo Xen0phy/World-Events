@@ -6,9 +6,9 @@
 // file's header for the WinHTTP-async rationale, which applies here unchanged.
 // The two differences that matter:
 //
-//   - This connection never sends anything (see notification_client.h) - no
-//     AsyncConn::sendMutex/sendInFlight/sendBuf, no WINHTTP_CALLBACK_STATUS_
-//     READ_COMPLETE handling.
+//   - This connection sends only a keepalive ping (SendKeepalivePing), not
+//     ws_client.cpp's full SendReport - AsyncConn's send fields and
+//     WINHTTP_CALLBACK_STATUS_READ_COMPLETE handling are trimmed to that.
 //   - The reconnect key is a region string ("EU"/"NA"), and whether a
 //     connection is wanted at all is this module's own decision (see
 //     RecomputeWantedLocked), not just externally supplied like ws_client's
@@ -46,6 +46,7 @@
 #include <cstdio>
 #include <deque>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -89,6 +90,15 @@ namespace
     //_ Ring-buffer cap for DrainLiveEventNotifications - a burst larger than this between two frames drops the oldest, same trim shape as ws_client.cpp's per-event history.
     constexpr size_t kMaxQueuedNotifications = 100;
 
+    //_ Fallback keepalive cadence when nothing arrives to trigger one - see SendKeepalivePing.
+    constexpr DWORD kPingFallbackIntervalMs = 45000;
+
+    //_ Backstop for a ping whose completion never arrives - mirrors ws_client.cpp's kSendStaleMs.
+    constexpr ULONGLONG kPingStaleMs = 5000;
+
+    //_ Content is ignored server-side (RegionHub.webSocketMessage) - only the send itself matters.
+    constexpr char kPingPayload[] = "0";
+
     //********************************************************************************
     // AsyncConn
     //--------------------------------------------------------------------------------
@@ -96,12 +106,13 @@ namespace
     //                        (handshake step, or a WebSocket receive)
     // ioError/ioBytes/       only meaningful immediately after hIoEvent
     //   ioBufferType         signals; read solely by the background thread
+    // sendMutex/sendInFlight/ guard the single in-flight keepalive ping issued
+    //   sendStartTick/sendBuf by SendKeepalivePing (trimmed ws_client.cpp fields)
     // hSessionHandle         identifies the last handle to close (StatusCallback)
     //--------------------------------------------------------------------------------
     // Per-connection-attempt state, heap-allocated in ConnectOne and freed exactly
     // once, from inside StatusCallback when HANDLE_CLOSING arrives for hSessionHandle
-    // - same lifecycle as ws_client.cpp's AsyncConn, minus the send fields this
-    // connection never needs (see file header).
+    // - same lifecycle as ws_client.cpp's AsyncConn.
     //--------------------------------------------------------------------------------
     struct AsyncConn
     {
@@ -110,6 +121,11 @@ namespace
         DWORD                          ioError      = 0; //. 0 = success
         DWORD                          ioBytes       = 0;
         WINHTTP_WEB_SOCKET_BUFFER_TYPE ioBufferType = WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE;
+
+        std::mutex        sendMutex;
+        bool              sendInFlight  = false; //. guarded by sendMutex
+        ULONGLONG         sendStartTick = 0;      //. guarded by sendMutex, GetTickCount64() at send start
+        std::vector<char> sendBuf;                //. guarded by sendMutex
 
         HINTERNET hSessionHandle   = nullptr;
         HINTERNET hWebSocketHandle = nullptr;
@@ -132,6 +148,9 @@ namespace
 
     std::atomic<WsConnectionState> s_connState{WsConnectionState::Disconnected};
 
+    //_ -1 = no presence data yet (fresh connection or disconnected) - see GetRegionViewerCount.
+    std::atomic<int> s_regionViewers{-1};
+
     std::mutex                          s_queueMutex;
     std::deque<LiveEventNotification>   s_queue; //. guarded by s_queueMutex, oldest first
 
@@ -153,8 +172,8 @@ namespace
 //--------------------------------------------------------------------------------
 // Single WINHTTP_STATUS_CALLBACK, registered once per session (ConnectOne) and
 // shared via WINHTTP_OPTION_CONTEXT_VALUE across every handle of one connection
-// attempt - same shape as ws_client.cpp's, minus the send-completion branch (this
-// connection never sends).
+// attempt - same shape as ws_client.cpp's, including the send-completion/-error
+// branches SendKeepalivePing needs.
 //--------------------------------------------------------------------------------
 static void CALLBACK StatusCallback(HINTERNET hInternet, DWORD_PTR dwContext,
     DWORD dwInternetStatus, LPVOID lpvStatusInformation, DWORD /*dwStatusInformationLength*/)
@@ -178,6 +197,7 @@ static void CALLBACK StatusCallback(HINTERNET hInternet, DWORD_PTR dwContext,
         SetEvent(conn->hIoEvent);
         return;
 
+    //_ Per WINHTTP_WEB_SOCKET_STATUS's own docs, receive completes via WRITE_COMPLETE and send via READ_COMPLETE - swapped relative to their names.
     case WINHTTP_CALLBACK_STATUS_WRITE_COMPLETE: //. WinHttpWebSocketReceive completed
     {
         auto* status = reinterpret_cast<WINHTTP_WEB_SOCKET_STATUS*>(lpvStatusInformation);
@@ -195,11 +215,30 @@ static void CALLBACK StatusCallback(HINTERNET hInternet, DWORD_PTR dwContext,
         return;
     }
 
+    case WINHTTP_CALLBACK_STATUS_READ_COMPLETE: //. WinHttpWebSocketSend (the keepalive ping) completed
+    {
+        std::lock_guard<std::mutex> lock(conn->sendMutex);
+        conn->sendInFlight = false; //. fire-and-forget, unobserved
+        return;
+    }
+
     case WINHTTP_CALLBACK_STATUS_REQUEST_ERROR:
     {
+        //_ Branch on handle identity first - pre-upgrade errors carry WINHTTP_ASYNC_RESULT, post-upgrade carry WINHTTP_WEB_SOCKET_ASYNC_RESULT.
         if (hInternet == conn->hWebSocketHandle)
         {
             auto* wsResult = reinterpret_cast<WINHTTP_WEB_SOCKET_ASYNC_RESULT*>(lpvStatusInformation);
+
+            //_ A ping-send error only clears sendInFlight - hIoEvent/ioError/ioBytes belong to the pending receive.
+            if (wsResult && wsResult->Operation == WINHTTP_WEB_SOCKET_SEND_OPERATION)
+            {
+                WsLogf(WsLogDir::Error, "[notify] Keepalive ping send completed with error (err=%lu)",
+                    wsResult->AsyncResult.dwError);
+                std::lock_guard<std::mutex> lock(conn->sendMutex);
+                conn->sendInFlight = false;
+                return;
+            }
+
             conn->ioError = (wsResult && wsResult->AsyncResult.dwError) ? wsResult->AsyncResult.dwError : ERROR_INTERNAL_ERROR;
             SetEvent(conn->hIoEvent);
             return;
@@ -252,10 +291,12 @@ static void PushNotificationLocked(LiveEventNotification&& incoming)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // HandleIncomingMessage
 //--------------------------------------------------------------------------------
-// Parses one complete text message and, if it's a well-formed "report", queues it
-// - unfiltered, see notification_client.h for why filtering isn't this module's
-// job. Anything else (malformed JSON, unknown type, missing fields) is silently
-// dropped, same best-effort stance as ws_client.cpp's own version.
+// Parses one complete text message. A well-formed "report" is queued -
+// unfiltered, see notification_client.h for why filtering isn't this module's
+// job. A "presence" message just updates s_regionViewers (GetRegionViewerCount)
+// in place - nothing to queue, it's replace-in-place standing state, not a one-
+// shot event. Anything else (malformed JSON, unknown type, missing fields) is
+// silently dropped, same best-effort stance as ws_client.cpp's own version.
 //--------------------------------------------------------------------------------
 static void HandleIncomingMessage(const std::string& text)
 {
@@ -269,10 +310,17 @@ static void HandleIncomingMessage(const std::string& text)
         return;
     }
 
-    if (j.value("type", "") != "report")
+    std::string type = j.value("type", "");
+
+    if (type == "presence")
     {
-        WsLogf(WsLogDir::Error, "[notify] Unrecognized message type \"%s\" - ignored",
-            j.value("type", "").c_str());
+        s_regionViewers.store(j.value("region_viewers", -1));
+        return;
+    }
+
+    if (type != "report")
+    {
+        WsLogf(WsLogDir::Error, "[notify] Unrecognized message type \"%s\" - ignored", type.c_str());
         return;
     }
 
@@ -375,13 +423,50 @@ static size_t FindJsonObjectEnd(const char* data, size_t len)
 constexpr DWORD kReceivePollMs = 200;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SendKeepalivePing
+//--------------------------------------------------------------------------------
+// Fire-and-forget send of kPingPayload, on this build's WinHTTP the only thing
+// observed to flush a receive whose completion callback is otherwise delayed
+// indefinitely (see file header). ReceiveLoop calls this right after dispatching
+// a message, so the next receive gets reissued within one round-trip instead of
+// waiting on kPingFallbackIntervalMs, and again on that fallback timer as a
+// backstop. No-op if a previous ping is still in flight and not yet stale by
+// kPingStaleMs.
+//--------------------------------------------------------------------------------
+static void SendKeepalivePing(HINTERNET hWebSocket, AsyncConn& conn)
+{
+    {
+        std::lock_guard<std::mutex> sendLock(conn.sendMutex);
+        ULONGLONG nowTick = GetTickCount64();
+        if (conn.sendInFlight && (nowTick - conn.sendStartTick) < kPingStaleMs)
+            return; //. previous ping still in flight, skip this one
+
+        conn.sendBuf.assign(kPingPayload, kPingPayload + sizeof(kPingPayload) - 1);
+        conn.sendInFlight  = true;
+        conn.sendStartTick = nowTick;
+    }
+
+    DWORD err = WinHttpWebSocketSend(hWebSocket, WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE,
+        conn.sendBuf.data(), (DWORD)conn.sendBuf.size());
+
+    //_ NO_ERROR means queued - completion arrives via StatusCallback's READ_COMPLETE.
+    if (err != NO_ERROR)
+    {
+        WsLogf(WsLogDir::Error, "[notify] Keepalive ping failed to submit (err=%lu)", err);
+        std::lock_guard<std::mutex> sendLock(conn.sendMutex);
+        conn.sendInFlight = false;
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ReceiveLoop
 //--------------------------------------------------------------------------------
 // Same shape/poll-workaround as ws_client.cpp's ReceiveLoop - see that file's
 // header. No history/report-storage step here: every complete message just goes
-// straight to HandleIncomingMessage. Returns true if cancelled with a receive
-// still pending (caller must hard-close hWebSocket); false if the connection
-// ended on its own.
+// straight to HandleIncomingMessage. Fires SendKeepalivePing after each dispatch
+// and on a low-frequency fallback timer - see that function for why. Returns true
+// if cancelled with a receive still pending (caller must hard-close hWebSocket);
+// false if the connection ended on its own.
 //--------------------------------------------------------------------------------
 static bool ReceiveLoop(HINTERNET hWebSocket, AsyncConn& conn, const std::string& connectedKey)
 {
@@ -390,6 +475,9 @@ static bool ReceiveLoop(HINTERNET hWebSocket, AsyncConn& conn, const std::string
 
     //_ Most recently dispatched message - see ws_client.cpp's ReceiveLoop for why this exists.
     std::string lastDispatched;
+
+    //_ Clock for kPingFallbackIntervalMs - reset by every SendKeepalivePing call below.
+    ULONGLONG lastSendTick = GetTickCount64();
 
     for (;;)
     {
@@ -411,13 +499,24 @@ static bool ReceiveLoop(HINTERNET hWebSocket, AsyncConn& conn, const std::string
             if (outcome != WaitOutcome::TimedOut) break; //. handled below
 
             size_t polledLen = FindJsonObjectEnd(reinterpret_cast<const char*>(chunk), sizeof(chunk));
-            if (polledLen == std::string::npos) continue; //. nothing complete sitting there yet
+            if (polledLen == std::string::npos)
+            {
+                //_ Nothing complete sitting there yet - still check the fallback keepalive clock.
+                if (GetTickCount64() - lastSendTick >= kPingFallbackIntervalMs)
+                {
+                    SendKeepalivePing(hWebSocket, conn);
+                    lastSendTick = GetTickCount64();
+                }
+                continue;
+            }
 
             std::string candidate(reinterpret_cast<const char*>(chunk), polledLen);
             if (candidate == lastDispatched) continue; //. already dispatched, not new
 
             HandleIncomingMessage(candidate);
             lastDispatched = candidate;
+            SendKeepalivePing(hWebSocket, conn);
+            lastSendTick = GetTickCount64();
             //_ The receive issued above is still genuinely pending - keep re-checking, don't reissue it.
         }
 
@@ -456,6 +555,8 @@ static bool ReceiveLoop(HINTERNET hWebSocket, AsyncConn& conn, const std::string
         HandleIncomingMessage(messageBuf);
         lastDispatched = messageBuf;
         messageBuf.clear();
+        SendKeepalivePing(hWebSocket, conn);
+        lastSendTick = GetTickCount64();
 
         //_ Courtesy early-out between messages, so a region switch doesn't wait for the next network event.
         if (ShouldExitForTargetChange(connectedKey)) return false;
@@ -629,6 +730,7 @@ static void ConnectLoop()
         {
             connectedKey.clear();
             s_connState.store(WsConnectionState::Disconnected);
+            s_regionViewers.store(-1);
             continue;
         }
 
@@ -664,6 +766,7 @@ static void ConnectLoop()
         WsLogf(WsLogDir::Info, "[notify] Disconnected (region=%s)", connectedKey.c_str());
 
         s_connState.store(WsConnectionState::Disconnected);
+        s_regionViewers.store(-1); //. stale count from connectedKey's region must not leak into the next one
         connectedKey.clear(); //. next iteration reconnects
     }
 }
@@ -779,4 +882,13 @@ std::vector<LiveEventNotification> DrainLiveEventNotifications()
 WsConnectionState GetNotificationConnectionState()
 {
     return s_connState.load();
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetRegionViewerCount   (see: notification_client.h)
+//--------------------------------------------------------------------------------
+std::optional<int> GetRegionViewerCount()
+{
+    int v = s_regionViewers.load();
+    return v < 0 ? std::nullopt : std::optional<int>(v);
 }

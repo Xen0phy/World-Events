@@ -10,10 +10,10 @@
 
 #include "addon.h"
 #include "events_live.h"
-#include "gw2_api.h" //. GetLiveEventsRegion, for the UpdateNotificationState call below; Gw2ApiKey gates report sending
+#include "gw2_api.h" //. GetLiveEventsRegion, for the UpdateNotificationState call below
 #include "imgui.h"
 #include "live_events_ui.h"
-#include "notification_client.h" //. UpdateNotificationState
+#include "notification_client.h" //. UpdateNotificationState, GetRegionViewerCount
 #include "settings.h"
 #include "shard_id.h"
 #include "subscriptions.h" //. GetMumbleCharacterName, read when ShareNameInReports is on
@@ -114,20 +114,20 @@ static void RenderLiveEventButtonMovePreview()
 //--------------------------------------------------------------------------------
 // See header. MumbleLink/NexusLink are null-checked here too - addon.cpp's
 // AddonRender already gates on both, but this file doesn't assume that ordering
-// holds forever. UpdateShard is throttled to ~1x/sec (the render- tick hook
-// networking-handoff.md section 9 #5 calls for) and runs regardless of
-// LiveEventsSubscribed, so unticking it disconnects an open shard within that
-// ~1s. Only issued with a real shard when liveEventsReady is true AND
-// MapHasLiveEvents (events_live.h) agrees the current map has one; a default
-// ShardIdentity is sent otherwise, itself a no-op if already disconnected.
-// UpdateNotificationState (notification_client.h) rides the same tick, called
-// unconditionally - it self-gates on GetLiveEventsRegion (gw2_api.h).
+// holds forever. UpdateShard runs regardless of LiveEventsSubscribed, throttled
+// to ~1x/sec (the render-tick hook networking-handoff.md section 9 #5 calls for),
+// so unticking it disconnects an open shard within ~1s. Only issued with a real
+// shard when liveEventsReady (== LiveEventsSubscribed, no API key needed) AND
+// MapHasLiveEvents (events_live.h) agree; a default ShardIdentity is sent
+// otherwise, a no-op if already disconnected. UpdateNotificationState
+// (notification_client.h) rides the same tick, self-gated on GetLiveEventsRegion
+// (gw2_api.h) - an empty key only drops the toast relay.
 //--------------------------------------------------------------------------------
 void RenderLiveEventButtons()
 {
     if (!MumbleLink || !NexusLink || !NexusLink->IsGameplay) return;
 
-    bool liveEventsReady = LiveEventsSubscribed && !Gw2ApiKey.empty();
+    bool liveEventsReady = LiveEventsSubscribed;
 
     static unsigned long long s_lastShardUpdateMs = 0;
     unsigned long long nowMs = GetTickCount64();
@@ -260,8 +260,10 @@ static const char* ConnectionStateLabel(WsConnectionState state)
 // g_LiveEvents by MumbleLink->Context.MapID - a report can still be worth
 // checking on a shard from across the map, not just in range.
 // LiveEventReportsWindowLocked (settings_table.h) strips the window down to bare,
-// click-through text pinned at its last position, and deregisters Escape-to-close
-// for as long as it stays locked - see "Lock window" in the options panel.
+// click-through text pinned at its last position, deregistering Escape- to-close
+// while locked - see "Lock window" in the options panel. The region- viewer
+// suffix is a separate connection (notification_client.h) from the "Server:"
+// line's shard connection (ws_client.h) - the two can disagree.
 //--------------------------------------------------------------------------------
 void RenderLiveEventReportsWindow()
 {
@@ -299,6 +301,14 @@ void RenderLiveEventReportsWindow()
     }
 
     ImGui::TextDisabled("Server: %s", ConnectionStateLabel(GetConnectionState()));
+
+    std::optional<int> regionViewers = GetRegionViewerCount();
+    if (regionViewers)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%d online in %s)", *regionViewers,
+            LiveEventsRegionToWireString(GetLiveEventsRegion()).c_str());
+    }
 
     if (!MumbleLink)
     {

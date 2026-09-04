@@ -14,6 +14,7 @@
 //   Connect:  GET /notify?region=EU -> WS upgrade (routing lives in index.ts)
 //   Server->client, broadcast, no filtering, no subscription state server-side:
 //     {"type":"report","event_id":"...","ts":...,"reporter_name":"...","map_id":...}
+//     {"type":"presence","region_viewers":...} - see broadcastPresence below
 // The client decides locally whether event_id is subscribed before spawning a
 // toast. This DO never receives a message from a /notify client - the only
 // input is relayReport(), called from index.ts's /relay handler.
@@ -63,7 +64,29 @@ export class RegionHub extends DurableObject<Env> {
     const region = new URL(request.url).searchParams.get("region");
     console.log(`[fetch] connect (region=${region}, liveSockets=${this.ctx.getWebSockets().length})`);
 
+    this.broadcastPresence();
+
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // broadcastPresence   (group: fetch, webSocketClose, webSocketError)
+  //--------------------------------------------------------------------------------
+  // Tells every socket currently connected to this region how many peers it has,
+  // itself included - "so users can see they're not alone" is the whole point,
+  // not precise concurrency. Called once after a connect completes and once after
+  // a close/error completes, so every remaining socket's count stays current;
+  // no periodic timer, since the count only ever changes on those two events.
+  //--------------------------------------------------------------------------------
+  private broadcastPresence(): void {
+    const msg = JSON.stringify({ type: "presence", region_viewers: this.ctx.getWebSockets().length });
+    for (const socket of this.ctx.getWebSockets()) {
+      try {
+        socket.send(msg);
+      } catch {
+        //_ dead socket - cleanup happens in webSocketClose/webSocketError
+      }
+    }
   }
 
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,8 +101,9 @@ export class RegionHub extends DurableObject<Env> {
     for (const socket of this.ctx.getWebSockets()) {
       try {
         socket.send(broadcast);
-      } catch {
-        //_ dead socket - cleanup happens in webSocketClose/webSocketError
+      } catch (err) {
+        //. dead socket - cleanup happens in webSocketClose/webSocketError
+        console.log(`[relayReport] send failed, skipping (event_id=${report.event_id}, err=${err})`);
       }
     }
   }
@@ -98,7 +122,9 @@ export class RegionHub extends DurableObject<Env> {
   // webSocketClose / webSocketError
   //--------------------------------------------------------------------------------
   // Same completion pattern as ShardObject: complete the closing handshake,
-  // swallow an already-closing/closed socket.
+  // swallow an already-closing/closed socket. broadcastPresence runs after the
+  // close completes, once the closing socket is out of getWebSockets(), so
+  // survivors see the count drop.
   //--------------------------------------------------------------------------------
   async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
     try {
@@ -106,6 +132,7 @@ export class RegionHub extends DurableObject<Env> {
     } catch {
       //_ already closing/closed, nothing to do
     }
+    this.broadcastPresence();
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
@@ -114,5 +141,6 @@ export class RegionHub extends DurableObject<Env> {
     } catch {
       //_ already closing/closed, nothing to do
     }
+    this.broadcastPresence();
   }
 }

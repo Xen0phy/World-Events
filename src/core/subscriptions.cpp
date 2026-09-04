@@ -5,7 +5,7 @@
 // subscriptions.h). No compiled-in defaults to merge against - like
 // events_categories.cpp, loading just replaces whatever's in memory with
 // whatever's on disk. Persisted in events.json alongside "events"/
-// "cyclicGroups"/"basicCategories"/"cyclicCategories", as six more top-level
+// "cyclicGroups"/"basicCategories"/"cyclicCategories", as eight more top-level
 // keys.
 //
 // The chat-paste helpers (PasteToChat, BuildChatPasteMessage,
@@ -44,6 +44,7 @@ std::vector<std::string>            g_SoundEnabledBasicEvents;
 std::vector<CyclicSubscriptionKey>  g_SoundEnabledCyclicSlots;
 
 std::vector<std::string>            g_SubscribedLiveEvents;
+std::vector<std::string>            g_NamedOnlyLiveEvents;
 
 //_ See GetSubscriptionListGeneration's comment in subscriptions.h.
 static uint64_t s_subscriptionListGeneration = 0;
@@ -113,6 +114,25 @@ void ToggleLiveEventSubscription(const std::string& eventId)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsLiveEventNamedOnly / ToggleLiveEventNamedOnly   (see: subscriptions.h)
+//--------------------------------------------------------------------------------
+bool IsLiveEventNamedOnly(const std::string& eventId)
+{
+    return std::find(g_NamedOnlyLiveEvents.begin(), g_NamedOnlyLiveEvents.end(), eventId)
+        != g_NamedOnlyLiveEvents.end();
+}
+
+void ToggleLiveEventNamedOnly(const std::string& eventId)
+{
+    auto it = std::find(g_NamedOnlyLiveEvents.begin(), g_NamedOnlyLiveEvents.end(), eventId);
+    if (it != g_NamedOnlyLiveEvents.end())
+        g_NamedOnlyLiveEvents.erase(it);
+    else
+        g_NamedOnlyLiveEvents.push_back(eventId);
+    s_subscriptionListGeneration++;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsCyclicSlotSubscribed / ToggleCyclicSlotSubscription   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsCyclicSlotSubscribed(const CyclicSubscriptionKey& key)
@@ -143,6 +163,7 @@ void ClearAllSubscriptions()
     g_SoundEnabledBasicEvents.clear();
     g_SoundEnabledCyclicSlots.clear();
     g_SubscribedLiveEvents.clear();
+    g_NamedOnlyLiveEvents.clear();
     s_subscriptionListGeneration++;
 }
 
@@ -317,6 +338,7 @@ bool SaveSubscriptionsData(const std::string& addonDir)
         j["soundEnabledCyclicSlots"] = soundCyclicArr;
 
         j["subscribedLiveEvents"] = g_SubscribedLiveEvents;
+        j["namedOnlyLiveEvents"] = g_NamedOnlyLiveEvents;
 
         fs::create_directories(addonDir);
         std::ofstream out(filepath);
@@ -359,6 +381,7 @@ bool LoadSubscriptionsData(const std::string& addonDir)
                 g_SoundEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
 
         g_SubscribedLiveEvents = j.value("subscribedLiveEvents", std::vector<std::string>{});
+        g_NamedOnlyLiveEvents = j.value("namedOnlyLiveEvents", std::vector<std::string>{});
 
         s_subscriptionListGeneration++;
         return true;

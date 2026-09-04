@@ -159,7 +159,16 @@ void AddonOptions()
                     
                 ImGui::SameLine();
                 ImGui::Checkbox("Notify on start", &NotificationOnStart);
-                
+
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+
+                //_ RGB only (feeds the toast's accent stripe via ToImVec4), same convention as the Active/Soon pickers above.
+                ImGui::ColorEdit3("Live report##sub_color_live", SubscriptionsLiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                Tooltip("Accent color for a subscribed Live Event's \"reported\\n"
+                        "active\" toast, separate from the Active color above so\\n"
+                        "a player report reads differently from a scheduled one.");
+
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
@@ -1030,10 +1039,11 @@ void AddonOptions()
             "address, never the raw address itself, so nobody can see who reported what unless you've opted "
             "into sharing your name. History is capped at the last 10 reports per event, and an instance with "
             "no viewers and no reports for 12 hours wipes its own data. Nothing is sent - no connection is "
-            "even made - unless \"Subscribe to live events\" below is ticked, which itself needs a GW2 API "
-            "key (with the \"account\" permission) entered above: reports and toasts are tagged NA/EU so they "
-            "route to the right region, and that region now comes from the API instead of Mumble Link, which "
-            "no longer exposes it. An up/downvote system for individual reports is planned.");
+            "even made - unless \"Subscribe to live events\" below is ticked; no GW2 API key is needed for "
+            "that, since reporting and receiving reports within your own map instance never involves NA/EU "
+            "region at all. A key only matters for the separate \"region-wide toast\" opt-in per event in the "
+            "Edit Subscriptions window's Live Events tab - see that checkbox's tooltip. An up/downvote system "
+            "for individual reports is planned.");
         ImGui::Spacing();
 
         ImGui::TextColored(kInfoHeaderColor, "Where this could go");
@@ -1049,17 +1059,16 @@ void AddonOptions()
         ImGui::Separator();
         ImGui::Spacing();
 
-        DisabledBlock(Gw2ApiKey.empty())
-        {
-            ImGui::Checkbox("Subscribe to live events", &LiveEventsSubscribed);
-        }
+        ImGui::Checkbox("Subscribe to live events", &LiveEventsSubscribed);
         Tooltip("Follows every compiled-in live event at once: shows a button\n"
                 "in the upper-right corner naming any of them while you're\n"
                 "within range, on any map that has one. Click it to report the\n"
                 "event as active to everyone else on your map instance and see\n"
                 "recent reports; right-click to just see recent reports without\n"
-                "reporting. Unticked, this feature does nothing at all - no\n"
-                "connection to the relay server is ever made.");
+                "reporting. No GW2 API key needed - that's only required for the\n"
+                "separate region-wide toast opt-in (Edit Subscriptions window).\n"
+                "Unticked, this feature does nothing at all - no connection to\n"
+                "the relay server is ever made.");
 
         ImGui::SameLine();
         if (ImGui::SmallButton("Debug WS Traffic..."))
@@ -1073,8 +1082,8 @@ void AddonOptions()
         if (Gw2ApiKey.empty())
         {
             ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
-                "Needs a GW2 API key (see the GW2 API key field above) - reports and toasts are tagged NA/EU,\n"
-                "and that region comes from the API now that Mumble Link no longer exposes it.");
+                "No GW2 API key set - reporting and recent-reports still work fine on your own map instance.\n"
+                "A key only adds region-wide toasts for events you opt into below in Edit Subscriptions.");
         }
         else if (GetLiveEventsRegion() == LiveEventsRegion::Unknown)
         {

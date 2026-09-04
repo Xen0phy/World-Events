@@ -349,6 +349,17 @@ SETTING_ARRAY(Subscriptions, SubscriptionsActiveColor, 4, ARR(0.400f, 1.000f, 0.
 SETTING_ARRAY(Subscriptions, SubscriptionsSoonColor,   4, ARR(1.000f, 0.549f, 0.000f, 1.000f)) //. matches BasicEventColorSoon's RGB
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsLiveColor
+//--------------------------------------------------------------------------------
+// Toast accent-stripe color for a subscribed Live Event report (subscriptions_
+// notification.cpp's CollectLiveEventPopups), distinct from SubscriptionsActive-
+// Color so a player-reported toast reads differently at a glance from a schedule-
+// driven "now active" one - see live-toast-handoff.md section 6. Not used by the
+// watchlist window/bar, which have no live-report row to begin with.
+//--------------------------------------------------------------------------------
+SETTING_ARRAY(Subscriptions, SubscriptionsLiveColor, 4, ARR(0.300f, 0.600f, 1.000f, 1.000f)) //. blue
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // WeeklyAutoTrackEnabled
 //--------------------------------------------------------------------------------
 // Master switch for the "auto-tracked weekly Wizard's Vault target" overlay
@@ -373,11 +384,11 @@ SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f
 // /mapchests), and is now also the only source for the live-event feature's NA/EU
 // region (GET /v2/account's home world - see GetLiveEventsRegion, gw2_api.h -
 // since Mumble Link's Identity JSON no longer carries a usable world_id). Empty =
-// all of that off, no requests made (PollGw2Api's early-out);
-// live_events_ui.cpp/subscriptions_edit_window.cpp disable their live-event
-// controls while this is empty for the same reason. Always holds the PLAINTEXT
-// key at runtime - see apikey_crypto.h/.cpp for the at-rest encryption, special-
-// cased out of settings.cpp's generic parse path.
+// all of that off, no requests made (PollGw2Api's early-out). Only gates
+// subscriptions_edit_window.cpp's per-event region-wide toast checkbox -
+// live_events_ui.cpp's report button needs no key. Always holds the PLAINTEXT key
+// at runtime - see apikey_crypto.h/.cpp for the at-rest encryption, special-cased
+// out of settings.cpp's generic parse path.
 //--------------------------------------------------------------------------------
 SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
@@ -498,9 +509,11 @@ SETTING(Notifications, NotificationSoundFile, std::string, std::string())
 // client from ever connecting to the relay server/Durable Object (see UpdateShard
 // call in live_events_ui.cpp) - not just hiding the button. True follows every
 // compiled-in LiveEvent (events_live.h) at once; there's no per-event opt-in
-// beneath this one. The options-panel checkbox for this is itself disabled while
-// Gw2ApiKey (above) is empty, and RenderLiveEventButtons treats an empty key the
-// same as this being false - see gw2_api.h's GetLiveEventsRegion for why.
+// beneath this one. Independent of Gw2ApiKey (above): reporting/receiving on your
+// own map instance needs no region, so the options-panel checkbox for this isn't
+// gated on a key - only the separate per-event toast-delivery opt-in
+// (subscriptions_edit_window.cpp) is, since that one needs GetLiveEventsRegion
+// (gw2_api.h) to route across maps.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, LiveEventsSubscribed, bool, false)
 

@@ -9,6 +9,7 @@ logs/
 Raidcore.html
 
 # safety net for lazyness
+*.bak
 *.gz
 *.tar
 *.md

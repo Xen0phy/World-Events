@@ -8,6 +8,8 @@
 // g_SoundEnabledBasicEvents/CyclicSlots      sound opt-in lists
 // g_SubscribedLiveEvents                     Live Events watchlist - toast
 //                                             opt-in only, see below
+// g_NamedOnlyLiveEvents                      per-event "drop unnamed reports"
+//                                             opt-in, Live Events
 // Get/SetBasicEventNotifyLevel               0..3 ladder, Basic Events
 // Get/SetCyclicSlotNotifyLevel               0..3 ladder, Cyclic slots
 // GetSubscriptionListGeneration()            change counter for the watchlist
@@ -102,10 +104,11 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key);
 // ClearAllSubscriptions
 //--------------------------------------------------------------------------------
 // Empties every list above (subscribed/toast/sound for Basic and Cyclic, plus the
-// Live Events watchlist) and bumps the generation counter once. Unlike calling
-// LoadSubscriptionsData with no file on disk - which leaves these lists untouched
-// instead of clearing them - this always empties them, so it's the right call for
-// an explicit "wipe subscriptions" action mid-session.
+// Live Events watchlist and its named-only opt-in list) and bumps the generation
+// counter once. Unlike calling LoadSubscriptionsData with no file on disk - which
+// leaves these lists untouched instead of clearing them - this always empties
+// them, so it's the right call for an explicit "wipe subscriptions" action mid-
+// session.
 //--------------------------------------------------------------------------------
 void ClearAllSubscriptions();
 
@@ -128,6 +131,22 @@ extern std::vector<std::string> g_SubscribedLiveEvents; //. keyed by LiveEvent::
 //--------------------------------------------------------------------------------
 bool IsLiveEventSubscribed(const std::string& eventId);
 void ToggleLiveEventSubscription(const std::string& eventId);
+
+extern std::vector<std::string> g_NamedOnlyLiveEvents; //. keyed by LiveEvent::eventId
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsLiveEventNamedOnly / ToggleLiveEventNamedOnly
+//--------------------------------------------------------------------------------
+// Query/toggle helpers over g_NamedOnlyLiveEvents. When true for an eventId, a
+// report whose reporterName came back empty (reporter had ShareNameInReports off,
+// or no Mumble identity) is dropped before it becomes a toast - see
+// CollectLiveEventPopups (subscriptions_notification.cpp) - since an unnamed
+// report can't be whispered/joined via WhisperToChat anyway. Independent of
+// IsLiveEventSubscribed and of the reports window, which still shows every report
+// regardless of this flag; only the toast is suppressed.
+//--------------------------------------------------------------------------------
+bool IsLiveEventNamedOnly(const std::string& eventId);
+void ToggleLiveEventNamedOnly(const std::string& eventId);
 
 extern std::vector<std::string>            g_ToastEnabledBasicEvents;  //. toast opt-in, Basic Events
 extern std::vector<CyclicSubscriptionKey>  g_ToastEnabledCyclicSlots;  //. toast opt-in, Cyclic slots
@@ -183,11 +202,11 @@ uint64_t GetSubscriptionListGeneration();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveSubscriptionsData / LoadSubscriptionsData
 //--------------------------------------------------------------------------------
-// Persists/loads the seven lists above (Basic/Cyclic subscribed+toast+sound, plus
-// g_SubscribedLiveEvents) as top-level keys in the same events.json used by
-// g_Events/g_CyclicGroups/categories. Call SaveEventsData() first - this reads
-// the file back in and rewrites it. Both swallow exceptions and return false on
-// failure.
+// Persists/loads the eight lists above (Basic/Cyclic subscribed+toast+sound, plus
+// g_SubscribedLiveEvents and g_NamedOnlyLiveEvents) as top-level keys in the same
+// events.json used by g_Events/g_CyclicGroups/categories. Call SaveEventsData()
+// first - this reads the file back in and rewrites it. Both swallow exceptions
+// and return false on failure.
 //--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir);
 bool LoadSubscriptionsData(const std::string& addonDir);

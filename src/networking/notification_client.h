@@ -12,17 +12,19 @@
 // DrainLiveEventNotifications()   thread-safe pop of every notification queued
 //                                 since the last call
 // GetNotificationConnectionState() for UI feedback
+// GetRegionViewerCount()          most recent RegionHub presence count, or
+//                                 nullopt (see below)
 //--------------------------------------------------------------------------------
 // Second, independent persistent WebSocket connection alongside ws_client.cpp's
 // per-shard one - see live-toast-handoff.md sections 2/5. Kept in its own file:
 // the shard connection follows map transitions every few minutes, this one
 // follows world transfers, almost never, and the two share little else - no
-// outgoing message (this connection only ever receives), no per-event history
-// (late joiners just wait for the next live report), keyed by region ("EU"/"NA")
-// instead of a per-shard hash. Built on the same WinHTTP asynchronous-mode
-// pattern as ws_client.cpp, for the same reason; not shared code, the two
-// connections' lifecycles differ enough that sharing would mostly add
-// indirection.
+// outgoing message beyond an internal keepalive ping (no SendReport-equivalent
+// exposed to callers), no per-event history (late joiners just wait for the next
+// live report), keyed by region ("EU"/"NA") instead of a per-shard hash. Built on
+// the same WinHTTP asynchronous-mode pattern as ws_client.cpp, for the same
+// reason; not shared code, the two connections' lifecycles differ enough that
+// sharing would mostly add indirection.
 //
 // This module decides on its own whether it should be connected at all (see
 // UpdateNotificationState), by reading g_SubscribedLiveEvents (subscriptions.h)
@@ -41,6 +43,7 @@
 #include "ws_client.h" //. WsConnectionState - same connection-lifecycle enum, shared rather than redeclared
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -117,3 +120,14 @@ std::vector<LiveEventNotification> DrainLiveEventNotifications();
 // ws_client.h's GetConnectionState.
 //--------------------------------------------------------------------------------
 WsConnectionState GetNotificationConnectionState();
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetRegionViewerCount
+//--------------------------------------------------------------------------------
+// Most recent "presence" count from the connected RegionHub (region-hub.ts),
+// itself included - nullopt until the first one arrives on a fresh connection,
+// and reset to nullopt on every disconnect/region change, so a stale count from
+// the old region never lingers into the new one. Cheap: reads an already-cached
+// value, safe to call every frame.
+//--------------------------------------------------------------------------------
+std::optional<int> GetRegionViewerCount();
