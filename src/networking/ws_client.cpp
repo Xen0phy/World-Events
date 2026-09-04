@@ -26,6 +26,7 @@
 #include "ws_client.h"
 
 #include "background_threads.h"
+#include "gw2_api.h" //. GetLiveEventsRegion/LiveEventsRegionToWireString, for the outgoing "region" field
 #include "host_config.h"
 #include <nlohmann/json.hpp>
 #include "ws_debug_log.h"
@@ -269,6 +270,26 @@ static bool s_wakeHookRegistered = ([]
 })();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ParseEventReportFields
+//--------------------------------------------------------------------------------
+// Pulls ts/reporter_name/region out of one report-shaped JSON object (a top-level
+// "report" message, or one entry of a "history" message's "reports" array - same
+// field set either way, see file header). reporter_name/region default to empty
+// instead of failing the whole entry, since a server that hasn't been upgraded to
+// send them yet (live-toast-handoff.md section 8) still sends a valid event_id/ts
+// otherwise.
+//--------------------------------------------------------------------------------
+static EventReport ParseEventReportFields(const std::string& eventId, const json& entry)
+{
+    EventReport report;
+    report.eventId       = eventId;
+    report.timestampUnix = entry.value("ts", (int64_t)0);
+    report.reporterName  = entry.value("reporter_name", "");
+    report.region        = entry.value("region", "");
+    return report;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PushReportsLocked
 //--------------------------------------------------------------------------------
 // Inserts `incoming` into s_reports[eventId], then sorts newest-first and trims
@@ -317,10 +338,9 @@ static void HandleIncomingMessage(const std::string& text)
             WsLog(WsLogDir::Error, "\"report\" message missing/empty event_id - dropped");
             return;
         }
-        int64_t ts = j.value("ts", (int64_t)0);
 
         std::lock_guard<std::mutex> lock(s_reportsMutex);
-        PushReportsLocked(eventId, {eventId, ts});
+        PushReportsLocked(eventId, ParseEventReportFields(eventId, j));
     }
     else if (type == "history")
     {
@@ -335,8 +355,7 @@ static void HandleIncomingMessage(const std::string& text)
         {
             std::string eventId = entry.value("event_id", "");
             if (eventId.empty()) continue;
-            int64_t ts = entry.value("ts", (int64_t)0);
-            PushReportsLocked(eventId, {eventId, ts});
+            PushReportsLocked(eventId, ParseEventReportFields(eventId, entry));
         }
     }
     else
@@ -863,11 +882,13 @@ void UpdateShard(const ShardIdentity& shard)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SendReport   (see: ws_client.h)
 //--------------------------------------------------------------------------------
-void SendReport(const std::string& eventId)
+void SendReport(const std::string& eventId, const std::string& reporterName)
 {
     json j;
-    j["type"]     = "report";
-    j["event_id"] = eventId;
+    j["type"]          = "report";
+    j["event_id"]      = eventId;
+    j["reporter_name"] = reporterName;
+    j["region"]        = LiveEventsRegionToWireString(GetLiveEventsRegion()); //. computed fresh at send time - see ws_client.h
     std::string payload = j.dump();
 
     std::lock_guard<std::mutex> lock(s_handleMutex); //. held across the send call

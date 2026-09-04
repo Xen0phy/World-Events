@@ -26,6 +26,7 @@ namespace fs = std::filesystem;
 //_ Local storage backing Is/Toggle*DoneToday (events_tracking.h).
 static std::vector<std::string>           s_DoneTodayBasicEvents;
 static std::vector<CyclicSubscriptionKey>  s_DoneTodayCyclicSlots;
+static std::vector<std::string>           s_DoneTodayLiveEvents;
 
 //_ See GetDoneMarkersGeneration's comment in events_tracking.h.
 static uint64_t s_doneMarkersGeneration = 0;
@@ -62,6 +63,7 @@ static void RollOverIfNewUtcDay()
     s_DoneTodayUtcDay = today;
     s_DoneTodayBasicEvents.clear();
     s_DoneTodayCyclicSlots.clear();
+    s_DoneTodayLiveEvents.clear();
     s_doneMarkersGeneration++;
 }
 
@@ -132,6 +134,27 @@ void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsLiveEventMarkedDoneToday / ToggleLiveEventDoneToday   (see: events_tracking.h)
+//--------------------------------------------------------------------------------
+bool IsLiveEventMarkedDoneToday(const std::string& eventId)
+{
+    RollOverIfNewUtcDay();
+    return std::find(s_DoneTodayLiveEvents.begin(), s_DoneTodayLiveEvents.end(), eventId)
+        != s_DoneTodayLiveEvents.end();
+}
+
+void ToggleLiveEventDoneToday(const std::string& eventId)
+{
+    RollOverIfNewUtcDay();
+    auto it = std::find(s_DoneTodayLiveEvents.begin(), s_DoneTodayLiveEvents.end(), eventId);
+    if (it != s_DoneTodayLiveEvents.end())
+        s_DoneTodayLiveEvents.erase(it);
+    else
+        s_DoneTodayLiveEvents.push_back(eventId);
+    s_doneMarkersGeneration++;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ClearAllDoneMarkers   (see: events_tracking.h)
 //--------------------------------------------------------------------------------
 void ClearAllDoneMarkers()
@@ -139,6 +162,7 @@ void ClearAllDoneMarkers()
     //_ Leaves s_DoneTodayUtcDay untouched - a manual reset, not a rollover.
     s_DoneTodayBasicEvents.clear();
     s_DoneTodayCyclicSlots.clear();
+    s_DoneTodayLiveEvents.clear();
     s_doneMarkersGeneration++;
 }
 
@@ -164,7 +188,7 @@ static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// SaveDailyTrackingData / LoadDailyTrackingData
+// SaveDailyTrackingData / LoadDailyTrackingData   (see: events_tracking.h)
 //--------------------------------------------------------------------------------
 bool SaveDailyTrackingData(const std::string& addonDir)
 {
@@ -192,6 +216,8 @@ bool SaveDailyTrackingData(const std::string& addonDir)
         for (const auto& key : s_DoneTodayCyclicSlots)
             cyclicArr.push_back(SerializeCyclicKey(key));
         j["doneTodayCyclicSlots"] = cyclicArr;
+
+        j["doneTodayLiveEvents"] = s_DoneTodayLiveEvents;
 
         fs::create_directories(addonDir);
         std::ofstream out(filepath);
@@ -227,6 +253,9 @@ bool LoadDailyTrackingData(const std::string& addonDir)
         if (j.contains("doneTodayCyclicSlots") && j["doneTodayCyclicSlots"].is_array())
             for (const auto& kj : j["doneTodayCyclicSlots"])
                 s_DoneTodayCyclicSlots.push_back(DeserializeCyclicKey(kj));
+
+        if (j.contains("doneTodayLiveEvents"))
+            s_DoneTodayLiveEvents = j.value("doneTodayLiveEvents", std::vector<std::string>{});
 
         s_doneMarkersGeneration++;
         return true;

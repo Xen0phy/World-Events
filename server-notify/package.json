@@ -1,0 +1,21 @@
+{
+  "name": "gw2-world-events-notify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker + Durable Object region hub for gw2-world-events live event toast notifications",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260825.1",
+    "typescript": "^5.6.3",
+    "wrangler": "^4.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260825.1": true
+  }
+}

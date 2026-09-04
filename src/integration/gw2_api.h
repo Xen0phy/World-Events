@@ -1,33 +1,37 @@
 //################################################################################
 // gw2_api.h
 //--------------------------------------------------------------------------------
-// PollGw2Api()                    call once per frame; polls all 3 endpoints
+// PollGw2Api()                    call once per frame; polls all 4 endpoints
 // GetGw2ApiStatus()               NoKey/Pending/Ok/InvalidKey/NetworkError
 // IsWorldBossCompletedToday(id)   true if boss killed since last UTC reset
 // IsMapChestClaimedToday(id)      true if chest claimed since last UTC reset
 // GetWeeklyObjectiveState(title)  Wizard's Vault weekly objective progress
 // GetLiveWeeklyObjectives()       snapshot of every live weekly objective
 // GetGw2ApiFetchGeneration()      bumped on each successful daily-data fetch
+// LiveEventsRegion                NA / EU / Unknown
+// GetLiveEventsRegion()           NA/EU derived from the account's home world
+// LiveEventsRegionToWireString    "NA"/"EU"/"" for the wire protocol
 //--------------------------------------------------------------------------------
-// Thin, narrowly-scoped client for three endpoints of the real, public GW2 API
-// (api.guildwars2.com): world-boss kills, Hero's Choice Chest claims, and this
-// week's live Wizard's Vault objectives, each scoped to what's already been done
-// since the last reset. See gw2_api.cpp for endpoint paths and matching details.
-//
-// Not a general GW2 API wrapper: everything else in this addon has no equivalent
-// "already done today" signal in the public API. A WorldEvent with an empty
-// apiWorldBossId, or a CyclicGroup with an empty apiMapChestId, is simply never
-// affected by this file.
+// Thin, narrowly-scoped client for four endpoints of the real, public GW2 API
+// (api.guildwars2.com): world-boss kills, Hero's Choice Chest claims, this week's
+// live Wizard's Vault objectives (each scoped to what's already been done since
+// the last reset), and the account's home world, for NA/EU region - see
+// gw2_api.cpp for endpoint paths and GetLiveEventsRegion below.
 //
 // Requires a user-supplied API key (Gw2ApiKey in settings_table.h) with at least
-// the "progression" permission. No key -> PollGw2Api is a permanent no-op and
-// every query function below always reports "not done"/"not found" - i.e. the
-// feature degrades to "off", never to "everything hidden".
+// the "progression" and "account" permissions. No key -> PollGw2Api is a
+// permanent no-op; every daily-completion query reports "not done"/"not found",
+// and GetLiveEventsRegion reports Unknown - features degrade to "off", never to
+// "everything hidden". Mumble Link's Identity JSON no longer carries a usable
+// world_id, so this is the only region source left, feeding only the cross-region
+// toast relay - subscriptions_edit_window.cpp gates on it for that;
+// live_events_ui.cpp's report button needs no key.
 //
-// Degradation rule used throughout this file: unknown, stale (cached for a
-// previous UTC day), or not-yet-fetched data is always treated the same as "not
-// completed"/"not found", never as "completed" - a broken key or a network hiccup
-// must never make a subscription silently disappear.
+// Degradation rule for the daily-completion queries: unknown/stale/not-yet-
+// fetched data is always "not completed"/"not found", never "completed" - a
+// broken key must never make a subscription silently disappear. The account-
+// world fetch isn't day-scoped (a home world rarely changes); it just reports
+// Unknown until the first successful fetch lands.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -143,3 +147,42 @@ std::vector<LiveWeeklyObjective> GetLiveWeeklyObjectives();
 // time, instead of re-deriving state every frame.
 //--------------------------------------------------------------------------------
 uint64_t GetGw2ApiFetchGeneration();
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LiveEventsRegion
+//--------------------------------------------------------------------------------
+// NA/EU are the wire values (live-toast-handoff.md section 2); Unknown covers no
+// key, a fetch that hasn't landed yet, an invalid/under-permissioned key, or a
+// home world outside both ranges. An enum, not a bare wire string: a typo'd
+// literal ("Na", "eu", ...) fails to compile instead of silently comparing false
+// everywhere - every comparison against a region goes through this type, and the
+// wire string is produced in exactly one place (LiveEventsRegionToWireString).
+//--------------------------------------------------------------------------------
+enum class LiveEventsRegion
+{
+    Unknown,
+    NA,
+    EU,
+};
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetLiveEventsRegion
+//--------------------------------------------------------------------------------
+// NA/EU home-world id ranges (1xxx/2xxx respectively - see live-toast- handoff.md
+// section 1 - the same grouping guesting already uses) applied to the most recent
+// successful /v2/account fetch's "world" field. Unknown wherever the degradation
+// rule (see file header) applies to that fetch - in particular, always Unknown
+// with no key set, so callers can gate on this alone instead of separately
+// checking Gw2ApiKey. Cheap: reads an already- cached value, safe to call every
+// frame.
+//--------------------------------------------------------------------------------
+LiveEventsRegion GetLiveEventsRegion();
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LiveEventsRegionToWireString
+//--------------------------------------------------------------------------------
+// "NA" / "EU" (live-toast-handoff.md section 2); empty for Unknown - callers must
+// check for that before sending/connecting. The only place a LiveEventsRegion
+// becomes a wire-protocol string.
+//--------------------------------------------------------------------------------
+std::string LiveEventsRegionToWireString(LiveEventsRegion region);

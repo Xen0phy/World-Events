@@ -29,7 +29,7 @@ std::vector<Category> g_BasicCategories;
 std::vector<Category> g_CyclicCategories;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// RenameCategoryMember
+// RenameCategoryMember   (see: events_categories.h)
 //--------------------------------------------------------------------------------
 void RenameCategoryMember(std::vector<Category>& categories, const std::string& oldName, const std::string& newName)
 {
@@ -43,7 +43,7 @@ void RenameCategoryMember(std::vector<Category>& categories, const std::string& 
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// MoveCategoryMember
+// MoveCategoryMember   (see: events_categories.h)
 //--------------------------------------------------------------------------------
 void MoveCategoryMember(std::vector<Category>& categories, const std::string& memberName, int targetCategoryIndex)
 {
@@ -188,7 +188,7 @@ static void ForceCategoryMembership(std::vector<Category>& categories, const std
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// SaveCategoriesData / LoadCategoriesData
+// SaveCategoriesData / LoadCategoriesData   (see: events_categories.h)
 //--------------------------------------------------------------------------------
 bool SaveCategoriesData(const std::string& addonDir)
 {

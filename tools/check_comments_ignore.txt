@@ -1,0 +1,23 @@
+# Accepted bare-block-no-crossref findings for check_comments.py.
+# One exact block NAME per line -- matched globally, only against the
+# bare-block-no-crossref check. See the "Accepted false positives"
+# section of check_comments.py's own docstring for details.
+
+# Settings macro-table entries: each block's NAME is the setting/section
+# key itself, and the body is just the table row for it - there's no
+# separate description or file to point a "(see: ...)" at.
+SETTING
+[Cyclic]
+[BasicEvents]
+[Subscriptions]
+[System]
+[Notifications]
+[LiveEvents]
+
+# Standard FNV-1a hash; already documented in this file's own Tier 1
+# CONTENT line, and self-explanatory given the name.
+Fnv1a64
+
+# Header-only version constants; no .cpp counterpart, and each constant
+# already carries its own Tier 4 trailing comment.
+version.h

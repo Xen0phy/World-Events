@@ -1,0 +1,29 @@
+name = "gw2-world-events-notify"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# Persists console.log output to your Cloudflare account so it can be viewed
+# in the dashboard (Workers & Pages -> gw2-world-events-notify -> Observability)
+# without needing `wrangler tail` running locally.
+[observability]
+enabled = true
+
+# One RegionHub per region ("EU"/"NA"), holding live WS connections only - no
+# SQLite, no history to replay (see live-toast-handoff.md section 3). Separate
+# Worker script from gw2-world-events/gw2-world-events-relay on purpose: a
+# broken deploy here can't affect the shipping shard worker's uptime.
+[[durable_objects.bindings]]
+name = "REGION_HUBS"
+class_name = "RegionHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RegionHub"]
+
+# RELAY_SECRET authenticates the shard worker's Service Binding call to
+# /relay. Set on both workers via:
+#   npx wrangler secret put RELAY_SECRET
+# Never in this file, never in the repo - see src/index.ts.
+
+# Uncomment to move off the free plan later if usage ever needs it.
+# workers_dev = true

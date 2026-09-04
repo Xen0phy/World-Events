@@ -40,6 +40,8 @@
 //               WorldEvent::continentX/Y, what actually places the dot
 // mapId         GW2 map id (API's map_id); gates which map's overlay/report
 //               button offers this dot - only relevant on the map it occurs on
+// chatCode      waypoint chat code pasted on a toast click when the reporter
+//               withheld their name (see live-toast-handoff.md #1); empty = unset
 // worldX/Y/Z    API's location.center, in-world (not continent) coordinates -
 //               same space as Mumble Link's raw avatar position (see below)
 // radius        API's location.radius, in meters - same units as
@@ -62,6 +64,8 @@ struct LiveEvent
     float       continentX;
     float       continentY;
     int         mapId;
+
+    std::string chatCode;
 
     float       worldX;
     float       worldY;

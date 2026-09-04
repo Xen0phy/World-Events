@@ -224,7 +224,8 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [Subscriptions]
 //--------------------------------------------------------------------------------
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~ DisableWindowWhenCompetitive / DisableBarWhenCompetitive /
 // DisableNotifyWhenCompetitive
 //--------------------------------------------------------------------------------
@@ -278,8 +279,9 @@ SETTING(Subscriptions, SubscriptionsBarBottomAnchored,  bool, false)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SubscriptionsBarDotColor
 //--------------------------------------------------------------------------------
-// Default dot color for the subscription bar (alpha suppressed in the
-// options UI for visibility); plain white by default, was 0xFEFFFEFFu.
+// Default dot color for the subscription bar (alpha suppressed in the options UI
+// for visibility); plain white by default, was 0xFEFFFEFFu.
+//--------------------------------------------------------------------------------
 SETTING_ARRAY(Subscriptions, SubscriptionsBarDotColor, 4, ARR(0.996f, 1.000f, 0.996f, 1.000f))
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -347,6 +349,17 @@ SETTING_ARRAY(Subscriptions, SubscriptionsActiveColor, 4, ARR(0.400f, 1.000f, 0.
 SETTING_ARRAY(Subscriptions, SubscriptionsSoonColor,   4, ARR(1.000f, 0.549f, 0.000f, 1.000f)) //. matches BasicEventColorSoon's RGB
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SubscriptionsLiveColor
+//--------------------------------------------------------------------------------
+// Toast accent-stripe color for a subscribed Live Event report (subscriptions_
+// notification.cpp's CollectLiveEventPopups), distinct from SubscriptionsActive-
+// Color so a player-reported toast reads differently at a glance from a schedule-
+// driven "now active" one - see live-toast-handoff.md section 6. Not used by the
+// watchlist window/bar, which have no live-report row to begin with.
+//--------------------------------------------------------------------------------
+SETTING_ARRAY(Subscriptions, SubscriptionsLiveColor, 4, ARR(0.300f, 0.600f, 1.000f, 1.000f)) //. blue
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // WeeklyAutoTrackEnabled
 //--------------------------------------------------------------------------------
 // Master switch for the "auto-tracked weekly Wizard's Vault target" overlay
@@ -366,14 +379,16 @@ SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Gw2ApiKey
 //--------------------------------------------------------------------------------
-// GW2 API key (needs the "progression" permission), used ONLY to call GET
-// /v2/account/worldbosses (gw2_api.h/.cpp) - drives auto-hiding a subscribed Core
-// Boss once the account has killed it since the last UTC reset. Empty = feature
-// off, no requests made (PollGw2Api's early-out). Always holds the PLAINTEXT key
-// at runtime; on disk it's AES-256-GCM- encrypted with the master key in a
-// separate "apikey.key" file (see apikey_crypto.h/.cpp), special-cased out of the
-// generic write/parse path in settings.cpp. Pre-encryption plaintext files still
-// load fine and get re-saved encrypted automatically.
+// GW2 API key (needs the "progression" and "account" permissions). Drives auto-
+// hiding a killed Core Boss/claimed map chest (GET /v2/account/ worldbosses,
+// /mapchests), and is now also the only source for the live-event feature's NA/EU
+// region (GET /v2/account's home world - see GetLiveEventsRegion, gw2_api.h -
+// since Mumble Link's Identity JSON no longer carries a usable world_id). Empty =
+// all of that off, no requests made (PollGw2Api's early-out). Only gates
+// subscriptions_edit_window.cpp's per-event region-wide toast checkbox -
+// live_events_ui.cpp's report button needs no key. Always holds the PLAINTEXT key
+// at runtime - see apikey_crypto.h/.cpp for the at-rest encryption, special-cased
+// out of settings.cpp's generic parse path.
 //--------------------------------------------------------------------------------
 SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
@@ -494,7 +509,11 @@ SETTING(Notifications, NotificationSoundFile, std::string, std::string())
 // client from ever connecting to the relay server/Durable Object (see UpdateShard
 // call in live_events_ui.cpp) - not just hiding the button. True follows every
 // compiled-in LiveEvent (events_live.h) at once; there's no per-event opt-in
-// beneath this one.
+// beneath this one. Independent of Gw2ApiKey (above): reporting/receiving on your
+// own map instance needs no region, so the options-panel checkbox for this isn't
+// gated on a key - only the separate per-event toast-delivery opt-in
+// (subscriptions_edit_window.cpp) is, since that one needs GetLiveEventsRegion
+// (gw2_api.h) to route across maps.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, LiveEventsSubscribed, bool, false)
 
@@ -543,3 +562,14 @@ SETTING(LiveEvents, LiveEventReportsWindowLocked, bool, false)
 // report feature at all, so they're visible even unsubscribed.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, ShowLiveEventMapDots, bool, false)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ShareNameInReports
+//--------------------------------------------------------------------------------
+// False (default) sends "" as reporter_name on every report - the reporter stays
+// anonymous, matching this feature's original trust model. True sends
+// GetMumbleCharacterName() (subscriptions.h) instead, letting a subscribed Live
+// Event toast whisper the reporter directly (WhisperToChat, subscriptions.h) -
+// see the report-button click in live_events_ui.cpp, the only place this is read.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, ShareNameInReports, bool, false)

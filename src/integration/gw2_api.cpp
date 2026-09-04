@@ -1,12 +1,17 @@
 //################################################################################
 // gw2_api.cpp   (see: gw2_api.h)
 //--------------------------------------------------------------------------------
-// This file talks to three endpoints of the real, public GW2 API:
+// This file talks to four endpoints of the real, public GW2 API:
 //   - GET /v2/account/worldbosses - world bosses killed since the last daily
 //     reset (UTC midnight).
 //   - GET /v2/account/mapchests - Hero's Choice Chests claimed since the last
 //     daily reset. Only the 8 HoT/PoF maps whose CyclicGroup has a non-empty
 //     apiMapChestId (events.h) are looked up; other ids are ignored.
+//   - GET /v2/account - just the "world" field, for GetLiveEventsRegion's
+//     NA/EU split. Not day-scoped like the two calls above (a home world
+//     rarely changes) and soft-fails independently, same as wizardsvault/
+//     weekly below - an under-permissioned key must not take down the two
+//     daily-completion checks.
 //   - GET /v2/account/wizardsvault/weekly - this week's live Wizard's Vault
 //     objectives, matched by display TITLE since ids aren't stable across
 //     ArenaNet's seasonal rotation (see GetWeeklyObjectiveState in gw2_api.h).
@@ -19,7 +24,9 @@
 // flight flag instead of overlapping requests).
 //
 // The completed-boss set is guarded by a mutex; the render thread only takes a
-// quick lock to read a handful of strings, so contention risk is minimal.
+// quick lock to read a handful of strings, so contention risk is minimal. The
+// cached account world id is its own std::atomic<int> instead - a single int, not
+// worth taking s_mutex for.
 //--------------------------------------------------------------------------------
 
 #pragma comment(lib, "winhttp.lib")
@@ -52,6 +59,9 @@ static std::unordered_map<std::string, bool> s_weeklyObjectiveComplete;
 
 static std::atomic<Gw2ApiStatus> s_status{Gw2ApiStatus::NoKey};
 static std::atomic<bool>         s_fetchInProgress{false};
+
+//_ -1 = unknown (no key, fetch pending/failed, or key lacks "account" permission).
+static std::atomic<int> s_accountWorldId{-1};
 
 //_ Bumped at the end of a successful poll - see GetGw2ApiFetchGeneration in gw2_api.h.
 static std::atomic<uint64_t> s_fetchGeneration{0};
@@ -219,14 +229,14 @@ static bool HttpsGetJson(const wchar_t* host, const wchar_t* path,
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PollGw2Api
 //--------------------------------------------------------------------------------
-// Fetches worldbosses, then mapchests, then wizardsvault/weekly, in that order,
-// from a detached background thread (see gw2_api.h for the public contract).
-// Either of the first two failing hard-fails the whole poll without touching
-// either cached set (stale-over-wrong); the third is a soft failure, since a
-// differently-scoped key or an ArenaNet-side change to just that endpoint must
-// not take down the two already-working daily checks. IsShuttingDown() is checked
-// between calls so an addon unload doesn't have to wait out a call it no longer
-// needs the result of.
+// Fetches worldbosses, then mapchests, then account (world id), then
+// wizardsvault/weekly, in that order, from a detached background thread (see
+// gw2_api.h for the public contract). Either of the first two failing hard-fails
+// the whole poll without touching either cached set (stale-over- wrong); the last
+// two are soft failures, since a differently-scoped key or an ArenaNet-side
+// change to just one endpoint must not take down the two already-working daily
+// checks. IsShuttingDown() is checked between calls so an addon unload doesn't
+// have to wait out a call it no longer needs the result of.
 //--------------------------------------------------------------------------------
 void PollGw2Api()
 {
@@ -316,7 +326,32 @@ void PollGw2Api()
             return;
         }
 
-        //_ Third call is a soft-fail - must not sink the two checks above.
+        //_ Third call (account world) is a soft-fail - must not sink the two checks above.
+        if (IsShuttingDown())
+        {
+            s_fetchInProgress.store(false);
+            return;
+        }
+
+        {
+            std::string body;
+            int acctStatusCode = 0;
+            bool transportOk = HttpsGetJson(L"api.guildwars2.com", L"/v2/account", apiKeyCopy, body, acctStatusCode);
+            if (transportOk && acctStatusCode == 200)
+            {
+                try
+                {
+                    json j = json::parse(body);
+                    if (j.contains("world") && j["world"].is_number_integer())
+                        s_accountWorldId.store(j["world"].get<int>());
+                }
+                //_ Malformed body on a 200 - cached world id, if any, stays as-is.
+                catch (...) { }
+            }
+            //. else: leaves s_accountWorldId untouched - a key without "account" permission just never resolves a region
+        }
+
+        //_ Fourth call is also a soft-fail - must not sink the two checks above.
         if (IsShuttingDown())
         {
             s_fetchInProgress.store(false);
@@ -438,4 +473,31 @@ std::vector<LiveWeeklyObjective> GetLiveWeeklyObjectives()
 uint64_t GetGw2ApiFetchGeneration()
 {
     return s_fetchGeneration.load(std::memory_order_relaxed);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetLiveEventsRegion   (see: gw2_api.h)
+//--------------------------------------------------------------------------------
+LiveEventsRegion GetLiveEventsRegion()
+{
+    if (Gw2ApiKey.empty()) return LiveEventsRegion::Unknown;
+
+    int worldId = s_accountWorldId.load();
+    //_ NA/EU home-world id ranges - anything else (unfetched, or a region GW2 doesn't ship to) is unrecognized.
+    if (worldId >= 1000 && worldId < 2000) return LiveEventsRegion::NA;
+    if (worldId >= 2000 && worldId < 3000) return LiveEventsRegion::EU;
+    return LiveEventsRegion::Unknown;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LiveEventsRegionToWireString   (see: gw2_api.h)
+//--------------------------------------------------------------------------------
+std::string LiveEventsRegionToWireString(LiveEventsRegion region)
+{
+    switch (region)
+    {
+        case LiveEventsRegion::NA: return "NA";
+        case LiveEventsRegion::EU: return "EU";
+        default:                   return "";
+    }
 }

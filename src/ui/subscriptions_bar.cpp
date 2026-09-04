@@ -1434,7 +1434,7 @@ void RenderSubscriptionsBar()
             }
             ImGui::Separator();
             if (ImGui::Selectable("Edit Subscriptions"))
-                OpenEditSubscriptionsWindow(s.isBasic, s.basicName, s.cyclicKey);
+                OpenEditSubscriptionsWindow(s.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, s.basicName, s.cyclicKey);
             ImGui::EndPopup();
         }
     }

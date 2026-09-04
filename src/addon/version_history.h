@@ -3,10 +3,10 @@
 //--------------------------------------------------------------------------------
 // kVersionHistory   manually-curated per-version release notes, newest first
 //--------------------------------------------------------------------------------
-// Backs the "What's New" dropdown (changelog_window.h/.cpp) - deliberately NOT
-// auto-generated from every release, since most (internal refactors, hotfixes)
-// have nothing worth surfacing in-game. Add an entry by hand at the TOP of the
-// array on any release worth mentioning; skip the rest.
+// Backs the "What's New" dropdown (changelog_window.h/.cpp) - not auto-generated
+// from every release, since most (internal refactors, hotfixes) have nothing
+// worth surfacing in-game. Add an entry by hand at the TOP of the array on any
+// release worth mentioning; skip the rest.
 //
 // Notes uses the same "\n"-separated format Split Wars' VersionNotice used: 2
 // leading spaces = one indent level, "* " marks a bullet, an unindented non-
@@ -33,6 +33,25 @@ struct VersionHistoryEntry
 
 //_ Newest first - RenderVersionHistoryWindow's dropdown defaults to index 0.
 static constexpr VersionHistoryEntry kVersionHistory[] = {
+    {
+        "1.7.0.0 - Live Event Notifications",
+        "New Features\n"
+        "  * Added region-wide live event toast notifications\n"
+        "    * Split by EU/NA, requires an API-key to know what region you're on\n"
+        "    * New Live Events tab in Edit Subscriptions (right-click subscription bar/toast/window), "
+        "optional name-sharing to enable whispers\n\n"
+        "Improvements\n"
+        "  * Added 6 more trackable live events\n"
+        "  * Bigger, size-matched live event map rings\n\n\n"
+        "Personal note:\n"
+        "  Some users have tried the new feature, myself included, and due to the mega server system "
+        "it happens way too often that someone arrives on a map that hasn't gotten any report yet. "
+        "So I decided to add a notification system, so you can subscribe to someone else reporting "
+        "an event that's live, and if they've decided to send their name with the report, you can "
+        "whisper them directly by clicking on that notification toast, so they can invite you. I also "
+        "added some more events from maps that don't create new instances that often. So I really hope "
+        "that those changes add more value to the feature.\n  Thank you"
+    },
     {
         "1.6.0.0 - Live Events",
         "New Features\n"

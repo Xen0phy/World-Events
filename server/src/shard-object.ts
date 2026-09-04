@@ -14,9 +14,12 @@
 //   Server->client on connect:
 //     {"type":"history","reports":[{"event_id":"...","ts":1234567890}, ...]}
 //   Client->server, report button press:
-//     {"type":"report","event_id":"..."}
+//     {"type":"report","event_id":"...","reporter_name":"...","region":"NA"|"EU"|""}
 //   Server->client broadcast (incl. sender), ts server-stamped at receipt:
 //     {"type":"report","event_id":"...","ts":1234567890}
+// reporter_name/region are relayed onward to the region hub (see
+// relayToNotify) - the shard's own broadcast above never repeats them, unlike
+// networking-handoff.md's not-yet-upgraded shard worker (see index.ts).
 //--------------------------------------------------------------------------------
 
 import { DurableObject } from "cloudflare:workers";
@@ -27,11 +30,17 @@ const MAX_REPORTS_PER_EVENT = 10;
 //_ Sanity bound so a malformed/malicious client can't stuff huge event ids
 const MAX_EVENT_ID_LENGTH = 128;
 
+//_ Mirrors MAX_REPORTER_NAME_LENGTH in the notify worker's index.ts
+const MAX_REPORTER_NAME_LENGTH = 64;
+
 //_ Min spacing between accepted reports from one connection, anti-spam guard
 const MIN_SECONDS_BETWEEN_REPORTS = 2;
 
 //_ Idle shard (no viewers, no reports) this long wipes its own storage
 const INACTIVITY_TIMEOUT_MS = 12 * 60 * 60 * 1000;
+
+//_ Matches this DO's own shard key format - see SHARD_KEY_PATTERN in index.ts
+const SHARD_KEY_MAP_ID_PATTERN = /^map(\d+)-/;
 
 //********************************************************************************
 // ReportRow
@@ -47,24 +56,31 @@ interface ReportRow extends Record<string, SqlStorageValue> {
 //********************************************************************************
 // ClientMessage
 //--------------------------------------------------------------------------------
-// type        unvalidated, checked against the literal "report"
-// event_id    unvalidated, checked to be a string in webSocketMessage
+// type            unvalidated, checked against the literal "report"
+// event_id        unvalidated, checked to be a string in webSocketMessage
+// reporter_name   unvalidated, empty-string default - see relayToNotify
+// region          unvalidated, empty-string default - see relayToNotify
 //--------------------------------------------------------------------------------
 interface ClientMessage {
   type?: unknown;
   event_id?: unknown;
+  reporter_name?: unknown;
+  region?: unknown;
 }
 
 //********************************************************************************
 // SocketAttachment
 //--------------------------------------------------------------------------------
 // lastReportTs   unix seconds of this connection's last accepted report
+// shardMapId     this shard's numeric map id, captured once in fetch() - see
+//                relayToNotify for why this lives here and not a class field
 //--------------------------------------------------------------------------------
 // Stashed via WebSocket attachments so per-connection state survives
 // hibernation.
 //--------------------------------------------------------------------------------
 interface SocketAttachment {
   lastReportTs?: number;
+  shardMapId?: number;
 }
 
 //********************************************************************************
@@ -85,7 +101,18 @@ export class ShardObject extends DurableObject<Env> {
     super(ctx, env);
     this.ctx.blockConcurrencyWhile(async () => {
       this.ensureSchema();
-      await this.scheduleIdleAlarm();
+      //. Defensive backstop only - do NOT unconditionally reschedule here.
+      //. The constructor reruns on *every* hibernation wake (any message,
+      //. webSocketClose, webSocketError, even a dropped/throttled message),
+      //. not just real activity. Real activity already reschedules
+      //. explicitly (see fetch() and webSocketMessage()); resetting the
+      //. alarm here too would push the 12h deadline out on every wake,
+      //. contradicting alarm()'s "nothing resets the deadline" invariant
+      //. and letting idle shards live indefinitely.
+      const existingAlarm = await this.ctx.storage.getAlarm();
+      if (existingAlarm === null) {
+        await this.scheduleIdleAlarm();
+      }
     });
   }
 
@@ -107,6 +134,17 @@ export class ShardObject extends DurableObject<Env> {
 
     this.ctx.acceptWebSocket(server);
     await this.scheduleIdleAlarm();  //. new connection counts as activity
+
+    //. Diagnostic only: if this count climbs above what's actually live
+    //. (e.g. 2, 3... on a shard with one real viewer), it's ghost sockets
+    //. from connections that died without a webSocketClose/webSocketError
+    //. ever reaching this DO - see shard-object.ts header notes.
+    const shardKey = new URL(request.url).searchParams.get("shard");
+    console.log(`[fetch] connect (shard=${shardKey}, liveSockets=${this.ctx.getWebSockets().length})`);
+
+    //_ Attachment, not a class field - relayToNotify needs this to survive a hibernation wake between fetch() and webSocketMessage().
+    const match = shardKey?.match(SHARD_KEY_MAP_ID_PATTERN);
+    if (match) server.serializeAttachment({ shardMapId: Number(match[1]) } satisfies SocketAttachment);
 
     server.send(JSON.stringify({ type: "history", reports: this.readHistory() }));
 
@@ -136,6 +174,11 @@ export class ShardObject extends DurableObject<Env> {
     const eventId = parsed.event_id.trim();
     if (eventId.length === 0 || eventId.length > MAX_EVENT_ID_LENGTH) return;
 
+    const reporterName = typeof parsed.reporter_name === "string"
+      ? parsed.reporter_name.slice(0, MAX_REPORTER_NAME_LENGTH)
+      : "";
+    const region = typeof parsed.region === "string" ? parsed.region : "";
+
     const nowSeconds = Math.floor(Date.now() / 1000);
 
     const attachment = (ws.deserializeAttachment() as SocketAttachment) ?? {};
@@ -158,6 +201,58 @@ export class ShardObject extends DurableObject<Env> {
       } catch {
         //_ dead socket - cleanup happens in webSocketClose/webSocketError
       }
+    }
+
+    await this.relayToNotify(eventId, nowSeconds, reporterName, region, attachment.shardMapId);
+  }
+
+  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // relayToNotify
+  //--------------------------------------------------------------------------------
+  // Forwards an already-accepted report to the region hub, on top of this
+  // shard's own broadcast above - a no-op, not an error, whenever the pieces
+  // needed for that aren't there: NOTIFY_RELAY unbound (relay disabled for
+  // this deployment - see env.d.ts), unrecognized region, or no shardMapId on
+  // this socket's attachment (only possible for a connection accepted before
+  // SocketAttachment gained that field - logged, since it shouldn't recur).
+  // Failures (network, non-204 response) are logged and swallowed - the
+  // shard's own report/broadcast already succeeded above and must not be
+  // undone by a downstream problem on the relay leg.
+  //--------------------------------------------------------------------------------
+  private async relayToNotify(
+    eventId: string,
+    ts: number,
+    reporterName: string,
+    region: string,
+    shardMapId: number | undefined
+  ): Promise<void> {
+    if (!this.env.NOTIFY_RELAY) return;             //. relay disabled for this deployment
+    if (region !== "EU" && region !== "NA") return; //. Unknown/missing - nowhere to relay to
+    if (shardMapId === undefined) {
+      console.log(`[relayToNotify] no shardMapId on this socket's attachment (event_id=${eventId})`);
+      return;
+    }
+
+    try {
+      const response = await this.env.NOTIFY_RELAY.fetch("https://internal/relay", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Relay-Secret": this.env.RELAY_SECRET ?? "",
+        },
+        body: JSON.stringify({
+          event_id: eventId,
+          ts,
+          reporter_name: reporterName,
+          region,
+          map_id: shardMapId,
+        }),
+      });
+      if (!response.ok) {
+        console.log(`[relayToNotify] non-OK response (status=${response.status}, event_id=${eventId})`);
+      }
+    } catch (err) {
+      console.log(`[relayToNotify] failed (event_id=${eventId}): ${err}`);
     }
   }
 
@@ -194,10 +289,13 @@ export class ShardObject extends DurableObject<Env> {
   // for this shard key just re-runs the constructor on a clean slate.
   //--------------------------------------------------------------------------------
   async alarm(): Promise<void> {
-    if (this.ctx.getWebSockets().length > 0) {
+    const socketCount = this.ctx.getWebSockets().length;
+    if (socketCount > 0) {
+      console.log(`[alarm] rescheduling, ${socketCount} socket(s) still connected`);
       await this.scheduleIdleAlarm();
       return;
     }
+    console.log("[alarm] no sockets connected, wiping storage");
     await this.ctx.storage.deleteAll();
     this.ensureSchema();
   }

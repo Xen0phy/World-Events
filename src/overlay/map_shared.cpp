@@ -12,7 +12,7 @@
 #include <cstdio>
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawEditPulseRing
+// DrawEditPulseRing   (see: map_shared.h)
 //--------------------------------------------------------------------------------
 void DrawEditPulseRing(ImDrawList* dl, ImVec2 center, float hoverRadius)
 {
@@ -23,7 +23,7 @@ void DrawEditPulseRing(ImDrawList* dl, ImVec2 center, float hoverRadius)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawDragAnchor
+// DrawDragAnchor   (see: map_shared.h)
 //--------------------------------------------------------------------------------
 void DrawDragAnchor(const char* idPrefix, int index, ImVec2 center, float hoverRadius,
     float* outContinentX, float* outContinentY)

@@ -5,7 +5,7 @@
 // subscriptions.h). No compiled-in defaults to merge against - like
 // events_categories.cpp, loading just replaces whatever's in memory with
 // whatever's on disk. Persisted in events.json alongside "events"/
-// "cyclicGroups"/"basicCategories"/"cyclicCategories", as six more top-level
+// "cyclicGroups"/"basicCategories"/"cyclicCategories", as eight more top-level
 // keys.
 //
 // The chat-paste helpers (PasteToChat, BuildChatPasteMessage,
@@ -18,6 +18,7 @@
 #include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for PasteToChat's /self fallback
 #include <nlohmann/json.hpp>
 #include "settings.h"
+#include "mumble_identity.h" //. ParseMumbleIdentity, for GetMumbleCharacterName below
 #include "subscriptions.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -27,6 +28,7 @@
 #include <atomic>
 #include <fstream>
 #include <filesystem>
+#include <optional>
 #include <thread>
 
 using json = nlohmann::json;
@@ -41,12 +43,15 @@ std::vector<CyclicSubscriptionKey>  g_ToastEnabledCyclicSlots;
 std::vector<std::string>            g_SoundEnabledBasicEvents;
 std::vector<CyclicSubscriptionKey>  g_SoundEnabledCyclicSlots;
 
+std::vector<std::string>            g_SubscribedLiveEvents;
+std::vector<std::string>            g_NamedOnlyLiveEvents;
+
 //_ See GetSubscriptionListGeneration's comment in subscriptions.h.
 static uint64_t s_subscriptionListGeneration = 0;
 uint64_t GetSubscriptionListGeneration() { return s_subscriptionListGeneration; }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBasicEventSubscribed / ToggleBasicEventSubscription
+// IsBasicEventSubscribed / ToggleBasicEventSubscription   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsBasicEventSubscribed(const std::string& eventName)
 {
@@ -90,7 +95,45 @@ void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& n
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsCyclicSlotSubscribed / ToggleCyclicSlotSubscription
+// IsLiveEventSubscribed / ToggleLiveEventSubscription   (see: subscriptions.h)
+//--------------------------------------------------------------------------------
+bool IsLiveEventSubscribed(const std::string& eventId)
+{
+    return std::find(g_SubscribedLiveEvents.begin(), g_SubscribedLiveEvents.end(), eventId)
+        != g_SubscribedLiveEvents.end();
+}
+
+void ToggleLiveEventSubscription(const std::string& eventId)
+{
+    auto it = std::find(g_SubscribedLiveEvents.begin(), g_SubscribedLiveEvents.end(), eventId);
+    if (it != g_SubscribedLiveEvents.end())
+        g_SubscribedLiveEvents.erase(it);
+    else
+        g_SubscribedLiveEvents.push_back(eventId);
+    s_subscriptionListGeneration++;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsLiveEventNamedOnly / ToggleLiveEventNamedOnly   (see: subscriptions.h)
+//--------------------------------------------------------------------------------
+bool IsLiveEventNamedOnly(const std::string& eventId)
+{
+    return std::find(g_NamedOnlyLiveEvents.begin(), g_NamedOnlyLiveEvents.end(), eventId)
+        != g_NamedOnlyLiveEvents.end();
+}
+
+void ToggleLiveEventNamedOnly(const std::string& eventId)
+{
+    auto it = std::find(g_NamedOnlyLiveEvents.begin(), g_NamedOnlyLiveEvents.end(), eventId);
+    if (it != g_NamedOnlyLiveEvents.end())
+        g_NamedOnlyLiveEvents.erase(it);
+    else
+        g_NamedOnlyLiveEvents.push_back(eventId);
+    s_subscriptionListGeneration++;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsCyclicSlotSubscribed / ToggleCyclicSlotSubscription   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsCyclicSlotSubscribed(const CyclicSubscriptionKey& key)
 {
@@ -109,7 +152,7 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ClearAllSubscriptions
+// ClearAllSubscriptions   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 void ClearAllSubscriptions()
 {
@@ -119,11 +162,13 @@ void ClearAllSubscriptions()
     g_ToastEnabledCyclicSlots.clear();
     g_SoundEnabledBasicEvents.clear();
     g_SoundEnabledCyclicSlots.clear();
+    g_SubscribedLiveEvents.clear();
+    g_NamedOnlyLiveEvents.clear();
     s_subscriptionListGeneration++;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBasicEventToastEnabled / IsCyclicSlotToastEnabled
+// IsBasicEventToastEnabled / IsCyclicSlotToastEnabled   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsBasicEventToastEnabled(const std::string& eventName)
 {
@@ -138,7 +183,7 @@ bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBasicEventSoundEnabled / IsCyclicSlotSoundEnabled
+// IsBasicEventSoundEnabled / IsCyclicSlotSoundEnabled   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
 bool IsBasicEventSoundEnabled(const std::string& eventName)
 {
@@ -228,6 +273,8 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
+// Deserialize defaults missing fields to empty string / 0 instead of throwing.
+//--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
     json j;
@@ -290,6 +337,9 @@ bool SaveSubscriptionsData(const std::string& addonDir)
             soundCyclicArr.push_back(SerializeCyclicKey(key));
         j["soundEnabledCyclicSlots"] = soundCyclicArr;
 
+        j["subscribedLiveEvents"] = g_SubscribedLiveEvents;
+        j["namedOnlyLiveEvents"] = g_NamedOnlyLiveEvents;
+
         fs::create_directories(addonDir);
         std::ofstream out(filepath);
         if (!out.is_open()) return false;
@@ -329,6 +379,9 @@ bool LoadSubscriptionsData(const std::string& addonDir)
         if (j.contains("soundEnabledCyclicSlots") && j["soundEnabledCyclicSlots"].is_array())
             for (const auto& kj : j["soundEnabledCyclicSlots"])
                 g_SoundEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
+
+        g_SubscribedLiveEvents = j.value("subscribedLiveEvents", std::vector<std::string>{});
+        g_NamedOnlyLiveEvents = j.value("namedOnlyLiveEvents", std::vector<std::string>{});
 
         s_subscriptionListGeneration++;
         return true;
@@ -404,29 +457,20 @@ std::string BuildChatPasteMessage(const std::string& name, const std::string& ch
 // GetMumbleCharacterName
 //--------------------------------------------------------------------------------
 // Mumble::Data::Identity (Mumble.h) is a UTF-16 JSON string, not a plain name
-// field - {"name":"...", "profession":N, ...}. Narrowed to UTF-8 to parse with
-// nlohmann_json, then narrowed again to the clipboard's ANSI codepage so accented
-// names survive CopyTextToClipboard's CF_TEXT write the same as any other pasted
-// segment. Returns empty on any failure: MumbleLink not ready yet,
-// malformed/empty identity, missing "name".
+// field - {"name":"...", "profession":N, ...}. ParseMumbleIdentity
+// (mumble_identity.h) does the UTF-16 -> UTF-8 -> JSON parse; "name" is then
+// narrowed again to the clipboard's ANSI codepage so accented names survive
+// CopyTextToClipboard's CF_TEXT write the same as any other pasted segment.
+// Returns empty on any failure: MumbleLink not ready yet, malformed/empty
+// identity, missing "name".
 //--------------------------------------------------------------------------------
 std::string GetMumbleCharacterName()
 {
-    if (!MumbleLink || MumbleLink->Identity[0] == L'\0')
+    std::optional<MumbleIdentity> id = ParseMumbleIdentity();
+    if (!id || id->name.empty())
         return "";
 
-    int utf8Len = WideCharToMultiByte(CP_UTF8, 0, MumbleLink->Identity, -1, nullptr, 0, nullptr, nullptr);
-    if (utf8Len <= 0)
-        return "";
-    std::string utf8Identity(utf8Len - 1, '\0');   //. -1 drops the counted null terminator
-    WideCharToMultiByte(CP_UTF8, 0, MumbleLink->Identity, -1, utf8Identity.data(), utf8Len, nullptr, nullptr);
-
-    std::string name;
-    try { name = json::parse(utf8Identity).value("name", ""); }
-    catch (...) { return ""; }
-
-    if (name.empty())
-        return "";
+    const std::string& name = id->name;
 
     int wideLen = MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, nullptr, 0);
     if (wideLen <= 0)
@@ -560,18 +604,16 @@ void PasteSegmentsToChat(std::vector<ChatPasteSegment> segments, std::chrono::mi
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PasteToChat   (pairs with: BuildChatPasteMessage, PasteSegmentsToChat)
 //--------------------------------------------------------------------------------
-// Applies Settings::ChatChannelPrefix to message and hands it to
-// PasteSegmentsToChat. Every prefix but "/w " is one segment: prefix and body
-// concatenated, pasted once. "/w " needs GW2's own whisper box, which takes the
-// target name and the message in two separate fields reached by pressing Tab
-// between them, so that case pastes three segments instead - "/w ", the Mumble-
-// reported character name, then message - with Tab after the name. If the
-// character name can't be read yet, the whisper is dropped instead of sent to
-// whatever box currently has focus. "/self " falls back to the unprefixed default
-// the same way if Better Chat's /self isn't available right now - the options
-// panel only offers that entry while it is (addon_options_helpers.cpp), but a
-// stale saved setting (Better Chat updated/disabled since) must not paste a dead
-// command into whatever box currently has focus either.
+// Applies Settings::ChatChannelPrefix to message, then hands it to
+// PasteSegmentsToChat. Every prefix but "/w " pastes as one segment: prefix and
+// body concatenated. "/w " needs GW2's own whisper box, which takes the target
+// name and message in two separate fields reached by pressing Tab between them,
+// so that case pastes three segments instead - "/w ", the Mumble-reported
+// character name, then message - with Tab after the name; an unreadable character
+// name drops the whisper instead of sending it to whatever box has focus. "/self
+// " falls back to the unprefixed default the same way when Better Chat's /self
+// command isn't available, since a stale saved setting must not paste a dead
+// command into whatever box has focus.
 //--------------------------------------------------------------------------------
 void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
 {
@@ -598,4 +640,20 @@ void PasteToChat(const std::string& message, std::chrono::milliseconds delay_ms)
     }
 
     PasteSegmentsToChat({ { ChatChannelPrefix + message, false } }, delay_ms);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// WhisperToChat   (see: subscriptions.h)
+//--------------------------------------------------------------------------------
+void WhisperToChat(const std::string& targetName, const std::string& message, std::chrono::milliseconds delay_ms)
+{
+    if (targetName.empty()) return; //. nothing to target
+
+    PasteSegmentsToChat(
+        {
+            { "/w ",      false },
+            { targetName, true  },
+            { message,    false }
+        },
+        delay_ms);
 }

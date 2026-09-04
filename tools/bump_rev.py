@@ -2,6 +2,7 @@
 """
 bump_rev.py  —  bumps Rev in version.h and refreshes the release
                 timestamp in build_info.h on every build.
+                Rolls Bld up by 1 whenever Rev would exceed 9.
 Run from project root.
 """
 
@@ -23,11 +24,22 @@ def get(name):
 maj, min_, bld, rev = get("Maj"), get("Min"), get("Bld"), get("Rev")
 
 rev += 1
-new_text, n = re.subn(
+if rev > 9:
+    rev = 0
+    bld += 1
+
+new_text, n_rev = re.subn(
     r"(const(?:expr)? int Rev\s*=\s*)-?\d+", rf"\g<1>{rev}", text
 )
-if n == 0:
+if n_rev == 0:
     raise SystemExit("[bump_rev] ERROR: no 'Rev' declaration found — check version.h syntax")
+
+new_text, n_bld = re.subn(
+    r"(const(?:expr)? int Bld\s*=\s*)-?\d+", rf"\g<1>{bld}", new_text
+)
+if n_bld == 0:
+    raise SystemExit("[bump_rev] ERROR: no 'Bld' declaration found — check version.h syntax")
+
 VERSION_FILE.write_text(new_text, encoding="utf-8")
 
 # --- regenerate build_info.h with the current timestamp ---

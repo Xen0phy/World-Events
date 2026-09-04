@@ -1,6 +1,7 @@
 # root/ folders
 backup/
 build/
+logs/
 
 # root/ files
 .backup-excludes
@@ -8,14 +9,17 @@ build/
 Raidcore.html
 
 # safety net for lazyness
+*.bak
 *.gz
 *.tar
 *.md
 !README.md
 
-# Real relay host -- see src/networking/host_config.example.h for the
-# committed template this is copied from. Never commit the real one.
+# Real relay hosts -- see src/networking/host_config.example.h and
+# src/networking/notify_host_config.example.h for the committed templates
+# these are copied from. Never commit the real ones.
 src/networking/host_config.h
+src/networking/notify_host_config.h
 
 # Regenerated from resources/textures/*.png on every build -- see
 # tools/generate_bundled_icons.py / src/core/bundled_icons.h.

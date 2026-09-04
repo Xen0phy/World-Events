@@ -159,7 +159,16 @@ void AddonOptions()
                     
                 ImGui::SameLine();
                 ImGui::Checkbox("Notify on start", &NotificationOnStart);
-                
+
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+
+                //_ RGB only (feeds the toast's accent stripe via ToImVec4), same convention as the Active/Soon pickers above.
+                ImGui::ColorEdit3("Live report##sub_color_live", SubscriptionsLiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                Tooltip("Accent color for a subscribed Live Event's \"reported\\n"
+                        "active\" toast, separate from the Active color above so\\n"
+                        "a player report reads differently from a scheduled one.");
+
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
@@ -1024,13 +1033,17 @@ void AddonOptions()
 
         ImGui::TextColored(kInfoHeaderColor, "What data this uses");
         ImGui::TextWrapped(
-            "A report is just an event id and a server-stamped timestamp - no account name, character name, "
-            "or exact position is ever sent. Your map instance is identified by a hash of the map ID and the "
-            "server address, never the raw address itself, so nobody can see who reported what. History is "
-            "capped at the last 10 reports per event, and an instance with no viewers and no reports for 12 "
-            "hours wipes its own data. Nothing is sent - no connection is even made - unless "
-            "\"Subscribe to live events\" below is ticked. An up/downvote system for individual reports is "
-            "planned.");
+            "A report is an event id, a server-stamped timestamp, and - only if \"Share my name in reports\" "
+            "below is ticked - your character name; it's blank by default. No account name or exact position "
+            "is ever sent either way. Your map instance is identified by a hash of the map ID and the server "
+            "address, never the raw address itself, so nobody can see who reported what unless you've opted "
+            "into sharing your name. History is capped at the last 10 reports per event, and an instance with "
+            "no viewers and no reports for 12 hours wipes its own data. Nothing is sent - no connection is "
+            "even made - unless \"Subscribe to live events\" below is ticked; no GW2 API key is needed for "
+            "that, since reporting and receiving reports within your own map instance never involves NA/EU "
+            "region at all. A key only matters for the separate \"region-wide toast\" opt-in per event in the "
+            "Edit Subscriptions window's Live Events tab - see that checkbox's tooltip. An up/downvote system "
+            "for individual reports is planned.");
         ImGui::Spacing();
 
         ImGui::TextColored(kInfoHeaderColor, "Where this could go");
@@ -1052,8 +1065,10 @@ void AddonOptions()
                 "within range, on any map that has one. Click it to report the\n"
                 "event as active to everyone else on your map instance and see\n"
                 "recent reports; right-click to just see recent reports without\n"
-                "reporting. Unticked, this feature does nothing at all - no\n"
-                "connection to the relay server is ever made.");
+                "reporting. No GW2 API key needed - that's only required for the\n"
+                "separate region-wide toast opt-in (Edit Subscriptions window).\n"
+                "Unticked, this feature does nothing at all - no connection to\n"
+                "the relay server is ever made.");
 
         ImGui::SameLine();
         if (ImGui::SmallButton("Debug WS Traffic..."))
@@ -1063,6 +1078,25 @@ void AddonOptions()
                 "moment the addon loaded. Also mirrored into Nexus's own log\n"
                 "under the \"WorldEvents-WS\" channel for a record that survives\n"
                 "a crash.");
+
+        if (Gw2ApiKey.empty())
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+                "No GW2 API key set - reporting and recent-reports still work fine on your own map instance.\n"
+                "A key only adds region-wide toasts for events you opt into below in Edit Subscriptions.");
+        }
+        else if (GetLiveEventsRegion() == LiveEventsRegion::Unknown)
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+                "Key set, but region not resolved yet - make sure it has the \"account\" permission and give\n"
+                "the next poll a moment.");
+        }
+
+        ImGui::Checkbox("Share my name in reports", &ShareNameInReports);
+        Tooltip("Off (default): reports are anonymous. On: your character name\n"
+                "goes out with every report you send, and anyone whose toast\n"
+                "notification it triggers can whisper you directly by clicking\n"
+                "it, instead of just pasting the waypoint.");
 
         ImGui::Checkbox("Move button", &LiveEventButtonMoveMode);
         Tooltip("Shows the report button at its current position - even when\n"
