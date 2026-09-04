@@ -156,7 +156,7 @@ static bool DrawSubscriptionRow(const std::string& name, const std::string& chat
         }
         ImGui::Separator();
         if (ImGui::Selectable("Edit Subscriptions"))
-            OpenEditSubscriptionsWindow(isBasic, basicName, cyclicKey);
+            OpenEditSubscriptionsWindow(isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, basicName, cyclicKey);
         ImGui::EndPopup();
     }
 

@@ -21,6 +21,7 @@
 #include "imgui.h"
 #include "live_events_ui.h"
 #include "maprender.h"
+#include "notification_client.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_edit_window.h"
@@ -55,9 +56,9 @@ float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 // the final merged state.
 //
 // Called from both AddonLoad (persisting merged defaults+disk state on first
-// write) and AddonUnload, kept as one function so the ordering can't drift between
-// callers. settings.ini isn't included - SaveSettings has no such dependency and
-// is only ever called from AddonUnload.
+// write) and AddonUnload, kept as one function so the ordering can't drift
+// between callers. settings.ini isn't included - SaveSettings has no such
+// dependency and is only ever called from AddonUnload.
 //--------------------------------------------------------------------------------
 static void SaveAllData(const std::string& addonDir)
 {
@@ -125,6 +126,9 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     //_ Idle until the first UpdateShard call, wired in alongside the report button UI (see ws_client.h).
     InitWsClient();
+
+    //_ Idle until the first UpdateNotificationState call, wired in alongside the Live Events tab (see notification_client.h).
+    InitNotificationClient();
 
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
 
@@ -196,6 +200,9 @@ void AddonUnload()
 
     //_ Explicit unbounded join for this one long-lived thread (see ws_client.h); after the call above, so its shutdown hook fires first and this join returns quickly.
     ShutdownWsClient();
+
+    //_ Same unbounded-join story as ShutdownWsClient, for the second connection (see notification_client.h).
+    ShutdownNotificationClient();
 
     //_ No-op, kept for symmetry with InitWsDebugLog (see ws_debug_log.h).
     ShutdownWsDebugLog();

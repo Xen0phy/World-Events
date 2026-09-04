@@ -91,6 +91,8 @@ add_library(gw2-world-events SHARED
     src/integration/gw2_api.cpp
     src/integration/weekly_vault.cpp
     src/networking/shard_id.cpp
+    src/networking/mumble_identity.cpp
+    src/networking/notification_client.cpp
     src/networking/ws_client.cpp
     src/networking/ws_debug_log.cpp
     src/overlay/cyclicrender.cpp

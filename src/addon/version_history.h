@@ -3,10 +3,10 @@
 //--------------------------------------------------------------------------------
 // kVersionHistory   manually-curated per-version release notes, newest first
 //--------------------------------------------------------------------------------
-// Backs the "What's New" dropdown (changelog_window.h/.cpp) - not
-// auto-generated from every release, since most (internal refactors, hotfixes)
-// have nothing worth surfacing in-game. Add an entry by hand at the TOP of the
-// array on any release worth mentioning; skip the rest.
+// Backs the "What's New" dropdown (changelog_window.h/.cpp) - not auto-generated
+// from every release, since most (internal refactors, hotfixes) have nothing
+// worth surfacing in-game. Add an entry by hand at the TOP of the array on any
+// release worth mentioning; skip the rest.
 //
 // Notes uses the same "\n"-separated format Split Wars' VersionNotice used: 2
 // leading spaces = one indent level, "* " marks a bullet, an unindented non-

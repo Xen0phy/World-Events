@@ -1024,13 +1024,16 @@ void AddonOptions()
 
         ImGui::TextColored(kInfoHeaderColor, "What data this uses");
         ImGui::TextWrapped(
-            "A report is just an event id and a server-stamped timestamp - no account name, character name, "
-            "or exact position is ever sent. Your map instance is identified by a hash of the map ID and the "
-            "server address, never the raw address itself, so nobody can see who reported what. History is "
-            "capped at the last 10 reports per event, and an instance with no viewers and no reports for 12 "
-            "hours wipes its own data. Nothing is sent - no connection is even made - unless "
-            "\"Subscribe to live events\" below is ticked. An up/downvote system for individual reports is "
-            "planned.");
+            "A report is an event id, a server-stamped timestamp, and - only if \"Share my name in reports\" "
+            "below is ticked - your character name; it's blank by default. No account name or exact position "
+            "is ever sent either way. Your map instance is identified by a hash of the map ID and the server "
+            "address, never the raw address itself, so nobody can see who reported what unless you've opted "
+            "into sharing your name. History is capped at the last 10 reports per event, and an instance with "
+            "no viewers and no reports for 12 hours wipes its own data. Nothing is sent - no connection is "
+            "even made - unless \"Subscribe to live events\" below is ticked, which itself needs a GW2 API "
+            "key (with the \"account\" permission) entered above: reports and toasts are tagged NA/EU so they "
+            "route to the right region, and that region now comes from the API instead of Mumble Link, which "
+            "no longer exposes it. An up/downvote system for individual reports is planned.");
         ImGui::Spacing();
 
         ImGui::TextColored(kInfoHeaderColor, "Where this could go");
@@ -1046,7 +1049,10 @@ void AddonOptions()
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::Checkbox("Subscribe to live events", &LiveEventsSubscribed);
+        DisabledBlock(Gw2ApiKey.empty())
+        {
+            ImGui::Checkbox("Subscribe to live events", &LiveEventsSubscribed);
+        }
         Tooltip("Follows every compiled-in live event at once: shows a button\n"
                 "in the upper-right corner naming any of them while you're\n"
                 "within range, on any map that has one. Click it to report the\n"
@@ -1063,6 +1069,25 @@ void AddonOptions()
                 "moment the addon loaded. Also mirrored into Nexus's own log\n"
                 "under the \"WorldEvents-WS\" channel for a record that survives\n"
                 "a crash.");
+
+        if (Gw2ApiKey.empty())
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+                "Needs a GW2 API key (see the GW2 API key field above) - reports and toasts are tagged NA/EU,\n"
+                "and that region comes from the API now that Mumble Link no longer exposes it.");
+        }
+        else if (GetLiveEventsRegion() == LiveEventsRegion::Unknown)
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+                "Key set, but region not resolved yet - make sure it has the \"account\" permission and give\n"
+                "the next poll a moment.");
+        }
+
+        ImGui::Checkbox("Share my name in reports", &ShareNameInReports);
+        Tooltip("Off (default): reports are anonymous. On: your character name\n"
+                "goes out with every report you send, and anyone whose toast\n"
+                "notification it triggers can whisper you directly by clicking\n"
+                "it, instead of just pasting the waypoint.");
 
         ImGui::Checkbox("Move button", &LiveEventButtonMoveMode);
         Tooltip("Shows the report button at its current position - even when\n"

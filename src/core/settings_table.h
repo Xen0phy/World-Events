@@ -368,14 +368,16 @@ SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Gw2ApiKey
 //--------------------------------------------------------------------------------
-// GW2 API key (needs the "progression" permission), used ONLY to call GET
-// /v2/account/worldbosses (gw2_api.h/.cpp) - drives auto-hiding a subscribed Core
-// Boss once the account has killed it since the last UTC reset. Empty = feature
-// off, no requests made (PollGw2Api's early-out). Always holds the PLAINTEXT key
-// at runtime; on disk it's AES-256-GCM- encrypted with the master key in a
-// separate "apikey.key" file (see apikey_crypto.h/.cpp), special-cased out of the
-// generic write/parse path in settings.cpp. Pre-encryption plaintext files still
-// load fine and get re-saved encrypted automatically.
+// GW2 API key (needs the "progression" and "account" permissions). Drives auto-
+// hiding a killed Core Boss/claimed map chest (GET /v2/account/ worldbosses,
+// /mapchests), and is now also the only source for the live-event feature's NA/EU
+// region (GET /v2/account's home world - see GetLiveEventsRegion, gw2_api.h -
+// since Mumble Link's Identity JSON no longer carries a usable world_id). Empty =
+// all of that off, no requests made (PollGw2Api's early-out);
+// live_events_ui.cpp/subscriptions_edit_window.cpp disable their live-event
+// controls while this is empty for the same reason. Always holds the PLAINTEXT
+// key at runtime - see apikey_crypto.h/.cpp for the at-rest encryption, special-
+// cased out of settings.cpp's generic parse path.
 //--------------------------------------------------------------------------------
 SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
@@ -496,7 +498,9 @@ SETTING(Notifications, NotificationSoundFile, std::string, std::string())
 // client from ever connecting to the relay server/Durable Object (see UpdateShard
 // call in live_events_ui.cpp) - not just hiding the button. True follows every
 // compiled-in LiveEvent (events_live.h) at once; there's no per-event opt-in
-// beneath this one.
+// beneath this one. The options-panel checkbox for this is itself disabled while
+// Gw2ApiKey (above) is empty, and RenderLiveEventButtons treats an empty key the
+// same as this being false - see gw2_api.h's GetLiveEventsRegion for why.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, LiveEventsSubscribed, bool, false)
 
@@ -545,3 +549,14 @@ SETTING(LiveEvents, LiveEventReportsWindowLocked, bool, false)
 // report feature at all, so they're visible even unsubscribed.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, ShowLiveEventMapDots, bool, false)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ShareNameInReports
+//--------------------------------------------------------------------------------
+// False (default) sends "" as reporter_name on every report - the reporter stays
+// anonymous, matching this feature's original trust model. True sends
+// GetMumbleCharacterName() (subscriptions.h) instead, letting a subscribed Live
+// Event toast whisper the reporter directly (WhisperToChat, subscriptions.h) -
+// see the report-button click in live_events_ui.cpp, the only place this is read.
+//--------------------------------------------------------------------------------
+SETTING(LiveEvents, ShareNameInReports, bool, false)

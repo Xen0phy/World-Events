@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------------------
 // IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday   Basic Event mark
 // IsCyclicSlotMarkedDoneToday / ToggleCyclicSlotDoneToday   Cyclic slot mark
+// IsLiveEventMarkedDoneToday / ToggleLiveEventDoneToday     Live Event mark
 // ClearAllDoneMarkers        clears every manual mark immediately
 // GetDoneMarkersGeneration   bumped on any actual change to the marks
 // SaveDailyTrackingData / LoadDailyTrackingData   JSON persistence in
@@ -62,6 +63,16 @@ bool IsCyclicSlotMarkedDoneToday(const CyclicSubscriptionKey& key);
 void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsLiveEventMarkedDoneToday / ToggleLiveEventDoneToday
+//--------------------------------------------------------------------------------
+// Query/toggle the manual "done today" mark for a Live Event, by
+// LiveEvent::eventId. No doneGroup indirection - unlike Basic Events, Live Events
+// don't share payouts across roster entries.
+//--------------------------------------------------------------------------------
+bool IsLiveEventMarkedDoneToday(const std::string& eventId);
+void ToggleLiveEventDoneToday(const std::string& eventId);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ClearAllDoneMarkers
 //--------------------------------------------------------------------------------
 // Clears every manual mark immediately, regardless of today's UTC day - the
@@ -85,11 +96,12 @@ uint64_t GetDoneMarkersGeneration();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveDailyTrackingData / LoadDailyTrackingData
 //--------------------------------------------------------------------------------
-// Persisted in events.json alongside subscriptions, as two more sibling top-level
-// keys ("doneTodayBasicEvents", "doneTodayCyclicSlots") plus the stored UTC day
-// number they're valid for ("doneTodayUtcDay"). Order relative to
-// Save/LoadSubscriptionsData doesn't matter - both just read-modify-write the
-// same file. Both swallow exceptions and return false on failure.
+// Persisted in events.json alongside subscriptions, as three more sibling top-
+// level keys ("doneTodayBasicEvents", "doneTodayCyclicSlots",
+// "doneTodayLiveEvents") plus the stored UTC day number they're valid for
+// ("doneTodayUtcDay"). Order relative to Save/LoadSubscriptionsData doesn't
+// matter - both just read-modify-write the same file. Both swallow exceptions and
+// return false on failure.
 //--------------------------------------------------------------------------------
 bool SaveDailyTrackingData(const std::string& addonDir);
 bool LoadDailyTrackingData(const std::string& addonDir);

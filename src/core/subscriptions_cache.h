@@ -16,13 +16,12 @@
 //
 // WHAT'S CACHED VS COMPUTED FRESH EVERY FRAME: everything in ResolvedSubscription
 // is resolved once at cache-rebuild time. active/secsUntilStart/secsUntilEnd
-// instead reflect "right now": GetSubscriptionActiveState computes these as
-// pure arithmetic against the fields already copied into ResolvedSubscription,
-// with no locks, allocations, or lookups into g_Events/g_CyclicGroups/gw2_api
-// involved.
+// instead reflect "right now": GetSubscriptionActiveState computes these as pure
+// arithmetic against the fields already copied into ResolvedSubscription, with no
+// locks, allocations, or lookups into g_Events/g_CyclicGroups/gw2_api involved.
 //
-// Every other frame, this is a handful of integer/atomic comparisons and
-// nothing else.
+// Every other frame, this is a handful of integer/atomic comparisons and nothing
+// else.
 //--------------------------------------------------------------------------------
 
 #pragma once

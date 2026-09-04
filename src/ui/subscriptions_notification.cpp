@@ -4,33 +4,40 @@
 // SpawnPopup               pushes one new toast onto the popup stack
 // CollectCandidates        (pairs with: UpdateNotifyStates)
 // UpdateNotifyStates       (pairs with: CollectCandidates)
+// CollectLiveEventPopups   drains the region connection's queue directly into
+//                          the popup stack, bypassing Candidate/NotifyState
 // DrawAndExpirePopups      draws/ages/dismisses the popup stack
 // RenderSubscriptionsNotifications   public entry point, called once per frame
 //--------------------------------------------------------------------------------
 // Toast-style popup notifications for subscribed Basic Events / Cyclic slots,
 // plus auto-tracked active-and-incomplete weekly Wizard's Vault targets
-// (weekly_vault.h) not already manually subscribed. A fourth view of the same
-// subscription data as subscriptions_window.cpp / subscriptions_bar.cpp - see
-// subscriptions.h.
+// (weekly_vault.h) not already manually subscribed, plus subscribed Live Events
+// (live-toast-handoff.md section 6). A fourth view of the same subscription data
+// as subscriptions_window.cpp / subscriptions_bar.cpp - see subscriptions.h.
 //
-// Fires two independent popups per occurrence: "starting soon"
+// Basic/Cyclic fire two independent popups per occurrence: "starting soon"
 // (NotificationLeadMinutes before start) and "now active" (on start), both gated
 // behind NotificationsEnabled and a per-event toast/sound opt-in for manually
 // subscribed items (see Candidate's own comment for that ladder). A weekly-auto-
 // track-only candidate isn't part of that opt-in and keeps its toast-only-
-// unconditional behavior.
+// unconditional behavior. Live Events skip this timer machinery entirely - a
+// report is a one-shot fact, not a recomputed-every-frame state - and instead go
+// through CollectLiveEventPopups (see its own comment).
 //
 // Popups stack in the lower-right corner, newest closest to the corner, auto-
-// dismissing after NotificationDisplaySeconds (plus a short fade), and paste the
-// same "<name>: <chatCode>" text on click as a row in the watchlist window / a
-// segment on the distribution bar.
+// dismissing after NotificationDisplaySeconds (plus a short fade). Click pastes
+// the same "<name>: <chatCode>" text as a row in the watchlist window / a segment
+// on the distribution bar - except a Live Event popup whose reporter shared their
+// name, which whispers them instead (see DrawAndExpirePopups).
 //--------------------------------------------------------------------------------
 
 //_ SubsNotifyDataTimer/SubsNotifyDrawTimer are declared here, see their comment in addon.h
 #include "addon.h"
 #include "color_utils.h"
+#include "events_live.h" //. g_LiveEvents, for CollectLiveEventPopups' name/chatCode lookup
 #include "events_tracking.h"
 #include "imgui.h"
+#include "notification_client.h" //. DrainLiveEventNotifications
 #include "notify_sound.h"
 #include "settings.h"
 #include "subscriptions.h"
@@ -76,11 +83,14 @@ static constexpr int kMaxVisiblePopups = 4;
 // chatCode       waypoint chat code pasted on click
 // message        e.g. "Starting in 4m 32s" or "Now active!"
 // color          plain ImVec4 RGBA - SubscriptionsSoonColor for the lead
-//                popup, SubscriptionsActiveColor for the start popup
+//                popup, SubscriptionsActiveColor for the start/Live popup
 // spawnedAtMs    GetTickCount64() timestamp, doubles as a pause mechanism
 // isWeekly       active-and-incomplete weekly Wizard's Vault target
-// isBasic, basicName, cyclicKey   identity for the right-click "Mark done
-//                for today" menu, mirroring Candidate's own copy
+// kind           SubscriptionKind (subscriptions.h): Basic/Cyclic/Live
+// basicName, cyclicKey, liveEventId   right-click "Mark done today" /
+//                deep-link identity, mirrors Candidate's own copy
+// reporterName   Live only; non-empty picks the WhisperToChat click path over
+//                the usual PasteToChat one (see DrawAndExpirePopups)
 //--------------------------------------------------------------------------------
 // While the mouse hovers a popup, DrawAndExpirePopups nudges spawnedAtMs forward
 // frame-by-frame instead of letting it age, so a popup the user is actively
@@ -102,9 +112,11 @@ struct Popup
     unsigned long long spawnedAtMs;
     bool isWeekly = false;
 
-    bool        isBasic = true;
-    std::string basicName;
-    CyclicSubscriptionKey cyclicKey;
+    SubscriptionKind       kind = SubscriptionKind::Basic;
+    std::string            basicName;
+    CyclicSubscriptionKey  cyclicKey;
+    std::string            liveEventId;
+    std::string            reporterName;
 };
 
 static std::vector<Popup> s_popups;   //. active/fading toast stack
@@ -118,7 +130,8 @@ static std::vector<Popup> s_popups;   //. active/fading toast stack
 //--------------------------------------------------------------------------------
 static void SpawnPopup(const std::string& key, const std::string& name, const std::string& chatCode,
                         const std::string& message, const ImVec4& color, bool isWeekly,
-                        bool isBasic, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey)
+                        SubscriptionKind kind, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey,
+                        const std::string& liveEventId, const std::string& reporterName)
 {
     Popup p;
     p.key          = key;
@@ -128,9 +141,11 @@ static void SpawnPopup(const std::string& key, const std::string& name, const st
     p.color        = color;
     p.spawnedAtMs  = GetTickCount64();
     p.isWeekly     = isWeekly;
-    p.isBasic      = isBasic;
+    p.kind         = kind;
     p.basicName    = basicName;
     p.cyclicKey    = cyclicKey;
+    p.liveEventId  = liveEventId;
+    p.reporterName = reporterName;
     s_popups.push_back(std::move(p));
 
     if ((int)s_popups.size() > kMaxVisiblePopups)
@@ -175,8 +190,8 @@ static uint64_t s_notifyGeneration = 0;   //. frame counter, see NotifyState::la
 //                             !active, 0 when active
 // isWeekly                   cosmetic only - drives the popup's red border
 // toastEnabled, soundEnabled per-event notify-level opt-ins (see below)
-// isBasic, basicName, cyclicKey   identity for the right-click "Mark done
-//                             for today" menu, carried into the spawned Popup
+// kind, basicName, cyclicKey   "Mark done today" identity, carried into the
+//                             spawned Popup - always Basic/Cyclic, never Live
 //--------------------------------------------------------------------------------
 // One notifiable Basic Event or Cyclic slot's current timing, collected fresh
 // every frame - mirrors the row/segment-building loops in
@@ -200,9 +215,9 @@ struct Candidate
     bool        toastEnabled = true;    //. per-event toast opt-in, see above
     bool        soundEnabled = false;   //. per-event sound opt-in, see above
 
-    bool        isBasic = true;
-    std::string basicName;
-    CyclicSubscriptionKey cyclicKey;
+    SubscriptionKind       kind = SubscriptionKind::Basic;
+    std::string            basicName;
+    CyclicSubscriptionKey  cyclicKey;
 };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -243,7 +258,8 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
 
         out.push_back({ sub.key, sub.label, sub.chatCode, as.active, as.secsUntilStart, sub.isWeeklyTarget,
                          toastEnabled, soundEnabled,
-                         sub.isBasic, sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
+                         sub.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic,
+                         sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
     }
 }
 
@@ -272,7 +288,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
             if (NotificationOnStart && c.toastEnabled)
             {
                 SpawnPopup(c.key, c.name, c.chatCode, "Now active!", ToImVec4(SubscriptionsActiveColor), c.isWeekly,
-                           c.isBasic, c.basicName, c.cyclicKey);
+                           c.kind, c.basicName, c.cyclicKey, std::string(), std::string());
                 if (c.soundEnabled)
                     PlayNotificationSound(NotificationSoundFile);
             }
@@ -296,7 +312,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
                     char buf[48];
                     snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
                     SpawnPopup(c.key, c.name, c.chatCode, buf, ToImVec4(SubscriptionsSoonColor), c.isWeekly,
-                               c.isBasic, c.basicName, c.cyclicKey);
+                               c.kind, c.basicName, c.cyclicKey, std::string(), std::string());
                     if (c.soundEnabled)
                         PlayNotificationSound(NotificationSoundFile);
                 }
@@ -315,6 +331,44 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
             it = s_notifyStates.erase(it);
         else
             ++it;
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// CollectLiveEventPopups
+//--------------------------------------------------------------------------------
+// Drains DrainLiveEventNotifications() (notification_client.h) and spawns one
+// popup per notification that's toast-worthy: subscribed and not already marked
+// done today - subscribing IS the toast opt-in for Live Events, one flat list, no
+// separate toast/sound tier (subscriptions.h) - and matched against a known
+// g_LiveEvents entry (an unrecognized eventId is silently dropped). Gated only
+// behind NotificationsEnabled (checked by the caller); a live report has no
+// schedule to draw a lead-time popup from, so NotificationLeadMinutes/
+// NotificationOnStart don't apply. No sound: Live Events have no per-event sound
+// opt-in. Each notification gets its own unique popup key - unlike Candidate's
+// reused-on-purpose key, a live report is a one-off fact.
+//--------------------------------------------------------------------------------
+static void CollectLiveEventPopups()
+{
+    static uint64_t s_liveNotifCounter = 0; //. see key-uniqueness note above
+
+    for (const LiveEventNotification& n : DrainLiveEventNotifications())
+    {
+        if (!IsLiveEventSubscribed(n.eventId)) continue;
+        if (IsLiveEventMarkedDoneToday(n.eventId)) continue;
+
+        const LiveEvent* ev = nullptr;
+        for (const LiveEvent& candidate : g_LiveEvents)
+        {
+            if (candidate.eventId == n.eventId) { ev = &candidate; break; }
+        }
+        if (!ev) continue; //. unrecognized eventId - see header comment
+
+        std::string message = n.reporterName.empty() ? "Reported active!" : ("Reported by " + n.reporterName);
+        std::string key = "Live:" + n.eventId + "#" + std::to_string(++s_liveNotifCounter);
+
+        SpawnPopup(key, ev->name, ev->chatCode, message, ToImVec4(SubscriptionsActiveColor), false,
+                   SubscriptionKind::Live, std::string(), CyclicSubscriptionKey{}, n.eventId, n.reporterName);
     }
 }
 
@@ -388,12 +442,13 @@ static void DrawAndExpirePopups()
         {
             if (ImGui::Selectable("Mark done for today"))
             {
-                if (p.isBasic) ToggleBasicEventDoneToday(p.basicName);
-                else           ToggleCyclicSlotDoneToday(p.cyclicKey);
+                if (p.kind == SubscriptionKind::Basic)      ToggleBasicEventDoneToday(p.basicName);
+                else if (p.kind == SubscriptionKind::Cyclic) ToggleCyclicSlotDoneToday(p.cyclicKey);
+                else                                          ToggleLiveEventDoneToday(p.liveEventId);
             }
             ImGui::Separator();
             if (ImGui::Selectable("Edit Subscriptions"))
-                OpenEditSubscriptionsWindow(p.isBasic, p.basicName, p.cyclicKey);
+                OpenEditSubscriptionsWindow(p.kind, p.basicName, p.cyclicKey, p.liveEventId);
             ImGui::EndPopup();
         }
 
@@ -412,8 +467,16 @@ static void DrawAndExpirePopups()
         //_ Clicking dismisses the popup immediately, same as acting on a watchlist row; skips drawing/fading it since it's already being removed this frame.
         if (clicked)
         {
-            std::string toCopy = BuildChatPasteMessage(p.name, p.chatCode);
-            PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
+            //_ A named Live Event reporter gets whispered directly instead of the usual chat-paste - see WhisperToChat's header (subscriptions.h).
+            if (p.kind == SubscriptionKind::Live && !p.reporterName.empty())
+            {
+                WhisperToChat(p.reporterName, p.name + " +", std::chrono::milliseconds(delayMilliseconds));
+            }
+            else
+            {
+                std::string toCopy = BuildChatPasteMessage(p.name, p.chatCode);
+                PasteToChat(toCopy, std::chrono::milliseconds(delayMilliseconds));
+            }
             toRemove.push_back(i);
             io.WantCaptureMouse = true;
             continue;
@@ -480,12 +543,16 @@ static void DrawAndExpirePopups()
 // session shouldn't lose already-fired-this-occurrence bookkeeping, and any popup
 // already on screen simply stops being drawn/aged until re-enabled, matching
 // ShowSubscriptionsWindow/Bar's own behavior of leaving their underlying data
-// untouched while hidden.
+// untouched while hidden. Still drains (and discards) the Live Event queue while
+// disabled though - unlike Basic/Cyclic's frame-recomputed state, a live report
+// is a one-shot fact that can't be recomputed later, so leaving it undrained
+// would just dump a stale burst of toasts the moment the feature is re-enabled.
 //--------------------------------------------------------------------------------
 void RenderSubscriptionsNotifications()
 {
     if (!NotificationsEnabled)
     {
+        DrainLiveEventNotifications(); //. discarded - see above
         return;
     }
 
@@ -498,6 +565,8 @@ void RenderSubscriptionsNotifications()
         std::vector<Candidate> candidates;
         CollectCandidates(candidates, now);
         UpdateNotifyStates(candidates);
+
+        CollectLiveEventPopups(); //. own path, bypasses Candidate/NotifyState - see its header
     }
 
     //_ Popup draw/fade/expire - see g_AvgSubsNotifyDrawMs's comment in addon.h.
