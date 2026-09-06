@@ -223,7 +223,7 @@ void RenderSubscriptionsWindow()
     SubsWindowDrawTimer drawTimer; //. no-op unless ShowDebug
 
     ImGui::SetNextWindowSize(ImVec2(320, 240), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("World Events — Subscriptions", &ShowSubscriptionsWindow))
+    if (!ImGui::Begin("World Events - Subscriptions", &ShowSubscriptionsWindow))
     {
         //_ Collapsed (not closed) - still need End() to balance Begin().
         ImGui::End();
@@ -236,13 +236,13 @@ void RenderSubscriptionsWindow()
 
         if (hasSubscriptions && SubscriptionsHideActive)
         {
-            ImGui::TextDisabled("Nothing upcoming — everything");
+            ImGui::TextDisabled("Nothing upcoming - everything");
             ImGui::TextDisabled("subscribed is currently active.");
         }
         else if (hasSubscriptions)
         {
             //_ Reachable when everything subscribed is done today, unlike having none at all below.
-            ImGui::TextDisabled("Nothing to show — everything");
+            ImGui::TextDisabled("Nothing to show - everything");
             ImGui::TextDisabled("subscribed is already done today.");
         }
         else

@@ -11,6 +11,7 @@
 #include "changelog_window.h"
 
 #include "imgui.h"
+#include "localization.h"
 #include "settings.h"
 #include "version.h"
 #include "version_history.h"
@@ -128,13 +129,13 @@ void RenderVersionHistoryWindow()
                ImGui::GetIO().DisplaySize.y * 0.5f),
         ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
-    if (ImGui::Begin(kVersionHistoryWindowTitle, nullptr,
+    if (ImGui::Begin(kVersionHistoryWindowId, nullptr,
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_NoMove       |
         ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Spacing();
-        ImGui::TextWrapped("%s", kVersionHistoryWindowTitle);
+        ImGui::TextWrapped("%s", Tr("WE_CHANGELOG_TITLE"));
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
@@ -150,7 +151,7 @@ void RenderVersionHistoryWindow()
             {
                 bool isSelected = (i == s_selectedIndex);
                 std::string label = std::string("v") + kVersionHistory[i].Version;
-                if (i == 0) label += " (latest)";
+                if (i == 0) label += Tr("WE_CHANGELOG_LATEST_SUFFIX");
                 if (ImGui::Selectable(label.c_str(), isSelected))
                     s_selectedIndex = i;
                 if (isSelected) ImGui::SetItemDefaultFocus();
@@ -169,7 +170,7 @@ void RenderVersionHistoryWindow()
         ImGui::Spacing();
 
         float btnW = ImGui::GetContentRegionAvail().x;
-        if (ImGui::Button("Got it", ImVec2(btnW, 0)))
+        if (ImGui::Button(Tr("WE_CHANGELOG_GOT_IT"), ImVec2(btnW, 0)))
             ShowVersionHistoryWindow = false;
 
         ImGui::Spacing();

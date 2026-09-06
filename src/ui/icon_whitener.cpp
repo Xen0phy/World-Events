@@ -274,7 +274,7 @@ void DrawIconWhitenerPopup()
 
     ImGui::TextWrapped(
         "Map icons are tinted at draw time with a multiplicative color blend. "
-        "This only looks correct when the icon's RGB is neutral gray — a "
+        "This only looks correct when the icon's RGB is neutral gray - a "
         "colored image will tint unpredictably instead of cleanly turning "
         "red / orange / gray.");
     ImGui::Spacing();

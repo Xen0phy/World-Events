@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-check_weekly_vault.py — validates weekly_vault.cpp's g_CyclicWeeklyObjectives
+check_weekly_vault.py - validates weekly_vault.cpp's g_CyclicWeeklyObjectives
 table against the real CyclicGroup/Slot names in events_cyclic.cpp, run from
 the project root as a build step that happens BEFORE bump_rev (see
-CMakeLists.txt) — a typo here fails the build with the specific bad name,
+CMakeLists.txt) - a typo here fails the build with the specific bad name,
 instead of silently shipping a target that can never light up at runtime
 (see weekly_vault.h's own comment on this).
 
 Does NOT (and can't) validate titleKeywords against ArenaNet's live wording
-— nothing offline can confirm that. This only checks the OTHER half of the
+- nothing offline can confirm that. This only checks the OTHER half of the
 table: that every `targets` entry still resolves to a real (group, slot)
 pair, and that no mapping is missing keywords/targets entirely. Core Boss
-matching needs no check at all — see weekly_vault.h for why that half of
+matching needs no check at all - see weekly_vault.h for why that half of
 the old table was removed rather than validated.
 
 Exits 0 and prints a one-line summary if everything resolves. Exits 1 and
@@ -28,7 +28,7 @@ WEEKLY_VAULT = Path("src/integration/weekly_vault.cpp")
 
 
 def strip_comments(text):
-    # Line comments only — this codebase has no /* */ comments in either
+    # Line comments only - this codebase has no /* */ comments in either
     # table, and no string literal in either file ever contains "//".
     return "\n".join(re.sub(r"//.*$", "", line) for line in text.splitlines())
 
@@ -123,7 +123,7 @@ def parse_cyclic_groups(text):
             )
 
         # The slots vector is whichever braced field's elements ALL start
-        # with a quoted string — every other field on a CyclicGroup
+        # with a quoted string - every other field on a CyclicGroup
         # (coordinates, period, color constant, std::nullopt, bool,
         # apiMapChestId) is either bare or not a list-of-quoted-things.
         slots = None
@@ -155,7 +155,7 @@ def parse_weekly_mappings(text):
         if len(parts) != 2:
             raise SystemExit(
                 f"[check_weekly_vault] ERROR: g_CyclicWeeklyObjectives mapping #{i + 1} "
-                f"doesn't have exactly 2 top-level fields (titleKeywords, targets) — "
+                f"doesn't have exactly 2 top-level fields (titleKeywords, targets) - "
                 f"found {len(parts)}. Check for a stray or missing comma."
             )
         keywords_part, targets_part = parts
@@ -169,7 +169,7 @@ def main():
     if not EVENTS_CYCLIC.exists() or not WEEKLY_VAULT.exists():
         raise SystemExit(
             f"[check_weekly_vault] ERROR: expected {EVENTS_CYCLIC} and {WEEKLY_VAULT} "
-            f"— run this from the project root."
+            f"- run this from the project root."
         )
 
     groups = parse_cyclic_groups(strip_comments(EVENTS_CYCLIC.read_text(encoding="utf-8")))
@@ -197,14 +197,14 @@ def main():
                 )
 
     if problems:
-        print("[check_weekly_vault] FAILED — weekly_vault.cpp's "
+        print("[check_weekly_vault] FAILED - weekly_vault.cpp's "
               "g_CyclicWeeklyObjectives table has a problem:", file=sys.stderr)
         for p in problems:
             print(f"  - {p}", file=sys.stderr)
         raise SystemExit(1)
 
     total_targets = sum(len(t) for _, _, t in mappings)
-    print(f"[check_weekly_vault] OK — {len(mappings)} mapping(s), "
+    print(f"[check_weekly_vault] OK - {len(mappings)} mapping(s), "
           f"{total_targets} target(s), all resolve against events_cyclic.cpp")
 
 

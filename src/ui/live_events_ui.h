@@ -44,7 +44,7 @@ void RenderLiveEventButtons();
 extern bool LiveEventButtonMoveMode;
 
 //_ Shared with addon.cpp's APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls.
-inline constexpr const char* kLiveEventReportsWindowTitle = "World Events — Live Reports";
+inline constexpr const char* kLiveEventReportsWindowTitle = "World Events - Live Reports";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenLiveEventReportsWindow

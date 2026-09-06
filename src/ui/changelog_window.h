@@ -1,10 +1,12 @@
 //################################################################################
 // changelog_window.h
 //--------------------------------------------------------------------------------
-// ShowVersionHistoryWindow        transient visibility flag (see below)
-// CheckForVersionHistoryOnLoad    call once from AddonLoad; opens the window if
-//                                  this is a new version since the last run
-// RenderVersionHistoryWindow      draws the window; no-op unless open
+// ShowVersionHistoryWindow      transient visibility flag (see below)
+// kVersionHistoryWindowId       stable ImGui window ID, independent of the
+//                               localized title (see below)
+// CheckForVersionHistoryOnLoad  call once from AddonLoad; opens the window if
+//                               this is a new version since the last run
+// RenderVersionHistoryWindow    draws the window; no-op unless open
 //--------------------------------------------------------------------------------
 // World Events' answer to Split Wars' single-string "Installation / Update
 // Notice" popup, but structured per-version: kVersionHistory (version_history.h)
@@ -16,17 +18,26 @@
 // persisted int compared the same way Split Wars compares its own currentVersion
 // - see CheckForVersionHistoryOnLoad. This flag itself always starts false; "have
 // we shown this version's notice" lives in LastKnownVersion.
+//
+// kVersionHistoryWindowId stays suffix-only and stable across languages: Dear
+// ImGui hashes a window's ID from only the text after "##"/"###", so keeping this
+// constant lets addon.cpp's GUI_RegisterCloseOnEscape/
+// GUI_DeregisterCloseOnEscape calls (baked in once, at whatever language was
+// active at AddonLoad) still find the right window no matter what language is
+// active when Escape is pressed or the game/Nexus language changes mid-session.
+// The localized title is drawn separately, via Tr("WE_CHANGELOG_TITLE") in
+// RenderVersionHistoryWindow.
 //--------------------------------------------------------------------------------
 
 #pragma once
 
 #include <string>
 
-//_ Transient only - see file header. Set true by CheckForVersionHistoryOnLoad, cleared by the window's own "Got it" button or Escape.
+//_ Set true by CheckForVersionHistoryOnLoad, cleared by the window's "Got it" button or Escape.
 extern bool ShowVersionHistoryWindow;
 
-//_ Shared with addon.cpp's APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls.
-inline constexpr const char* kVersionHistoryWindowTitle = "World Events — What's New";
+//_ See file header for why this ID is suffix-only and stable across languages.
+inline constexpr const char* kVersionHistoryWindowId = "##WorldEventsVersionHistory";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CheckForVersionHistoryOnLoad

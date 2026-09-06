@@ -74,6 +74,7 @@ add_custom_command(
 add_library(gw2-world-events SHARED
     src/addon/addon.cpp
     src/core/background_threads.cpp
+    src/core/localization.cpp
     src/core/notify_sound.cpp
     src/core/settings.cpp
     src/core/subscriptions.cpp

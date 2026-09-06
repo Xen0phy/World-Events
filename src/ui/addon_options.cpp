@@ -34,6 +34,7 @@
 #include "icon_whitener.h"
 #include "imgui.h"
 #include "live_events_ui.h"
+#include "localization.h"
 #include "notify_sound.h"
 #include "reset_defaults.h"
 #include "settings.h"
@@ -63,7 +64,7 @@ void AddonOptions()
     
     ImGui::Text("World Events");
     ImGui::SameLine();
-    ImGui::TextDisabled("Release: %s", DateAndTime.c_str());
+    ImGui::TextDisabled("%s: %s", Tr("WE_OPT_RELEASE"), DateAndTime.c_str());
     ImGui::SameLine();
     if constexpr (ShowDebug)
     {
@@ -85,7 +86,7 @@ void AddonOptions()
     
     //_ Master is a derived AND of the three settings, not its own.
     bool disableAllCompetitive = DisableWindowWhenCompetitive && DisableBarWhenCompetitive && DisableNotifyWhenCompetitive;
-    if (ImGui::Checkbox("Disable overlay in PvP/WvW", &disableAllCompetitive))
+    if (ImGui::Checkbox(Tr("WE_OPT_DISABLE_COMPETITIVE"), &disableAllCompetitive))
     {
         DisableWindowWhenCompetitive = disableAllCompetitive;
         DisableBarWhenCompetitive    = disableAllCompetitive;
@@ -96,17 +97,17 @@ void AddonOptions()
             "map. Doesn't change what's subscribed, only what shows.");
 
     ImGui::SameLine();
-    ImGui::Checkbox("Window##dis_comp_window", &DisableWindowWhenCompetitive);
+    ImGui::Checkbox(TrId("WE_OPT_WINDOW", "##dis_comp_window").c_str(), &DisableWindowWhenCompetitive);
     ImGui::SameLine();
-    ImGui::Checkbox("Toast##dis_comp_toast", &DisableNotifyWhenCompetitive);
+    ImGui::Checkbox(TrId("WE_OPT_TOAST", "##dis_comp_toast").c_str(), &DisableNotifyWhenCompetitive);
     ImGui::SameLine();
-    ImGui::Checkbox("Bar##dis_comp_bar", &DisableBarWhenCompetitive);
+    ImGui::Checkbox(TrId("WE_OPT_BAR", "##dis_comp_bar").c_str(), &DisableBarWhenCompetitive);
 
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
-    if (ImGui::CollapsingHeader("Overlay Settings"))
+    if (ImGui::CollapsingHeader(Tr("WE_OPT_OVERLAY_SETTINGS")))
     {
         //_ Table 1 - Subscriptions, always visible; split out since CollapsingHeader can't span table columns.
         if (ImGui::BeginTable("##subs_table", 2, ImGuiTableFlags_SizingStretchSame))
@@ -117,27 +118,27 @@ void AddonOptions()
             ImGui::TableSetColumnIndex(0);
 
             //_ Watchlist window toggle only opens/closes the window, not which events are subscribed (events.json data).
-            ImGui::Checkbox("Show subscriptions window", &ShowSubscriptionsWindow);
+            ImGui::Checkbox(Tr("WE_OPT_SHOW_SUBS_WINDOW"), &ShowSubscriptionsWindow);
             DisabledBlock(!ShowSubscriptionsWindow)
             {
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
-                ImGui::Checkbox("Hide active in window", &SubscriptionsHideActive);
+                ImGui::Checkbox(Tr("WE_OPT_HIDE_ACTIVE_IN_WINDOW"), &SubscriptionsHideActive);
                 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
 
                 //_ RGB only (feeds TextColored), not a tinted dot/icon like BasicEventColor* below, which need alpha.
-                ImGui::ColorEdit3("Active##sub_color_active", SubscriptionsActiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                ImGui::ColorEdit3(TrId("WE_OPT_ACTIVE", "##sub_color_active").c_str(), SubscriptionsActiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
                 ImGui::SameLine();
-                ImGui::ColorEdit3("Soon##sub_color_soon", SubscriptionsSoonColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                ImGui::ColorEdit3(TrId("WE_OPT_SOON", "##sub_color_soon").c_str(), SubscriptionsSoonColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
             }
 
             ImGui::Dummy(dummySquare);
 
             //_ Third, independent view of the same subscription data (toast popups); not gated by window/bar visibility.
-            ImGui::Checkbox("Enable notification popups", &NotificationsEnabled);
+            ImGui::Checkbox(Tr("WE_OPT_ENABLE_NOTIFY_POPUPS"), &NotificationsEnabled);
             Tooltip("Pops up a small toast in the lower-right corner for events\n"
                     "you have notifications enabled for, whether or not the\n"
                     "window or distribution line are open. Click a popup to paste\n"
@@ -148,7 +149,7 @@ void AddonOptions()
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
-                if (ImGui::InputInt("Warn before start (min)", &NotificationLeadMinutes, 0, 0))
+                if (ImGui::InputInt(Tr("WE_OPT_WARN_BEFORE_START"), &NotificationLeadMinutes, 0, 0))
                 {
                     //_ 0 is a valid value ("off"); floor is 0, not 1.
                     if (NotificationLeadMinutes < 0)   NotificationLeadMinutes = 0;
@@ -158,21 +159,15 @@ void AddonOptions()
                         "fire the \"starting soon\" popup. 0 disables it.");
                     
                 ImGui::SameLine();
-                ImGui::Checkbox("Notify on start", &NotificationOnStart);
+                ImGui::Checkbox(Tr("WE_OPT_NOTIFY_ON_START"), &NotificationOnStart);
 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
-
-                //_ RGB only (feeds the toast's accent stripe via ToImVec4), same convention as the Active/Soon pickers above.
-                ImGui::ColorEdit3("Live report##sub_color_live", SubscriptionsLiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-                Tooltip("Accent color for a subscribed Live Event's \"reported\\n"
-                        "active\" toast, separate from the Active color above so\\n"
-                        "a player report reads differently from a scheduled one.");
 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
-                if (ImGui::InputInt("Popup duration (sec)", &NotificationDisplaySeconds, 0, 0))
+                if (ImGui::InputInt(Tr("WE_OPT_POPUP_DURATION"), &NotificationDisplaySeconds, 0, 0))
                 {
                     if (NotificationDisplaySeconds < 1)   NotificationDisplaySeconds = 1;
                     if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
@@ -195,7 +190,7 @@ void AddonOptions()
                     ImGui::SameLine();
 
                     std::vector<const char*> soundLabels;
-                    soundLabels.push_back("(none)");
+                    soundLabels.push_back(Tr("WE_OPT_SOUND_NONE"));
                     for (const auto& fn : soundFiles)
                         soundLabels.push_back(fn.c_str());
 
@@ -205,13 +200,13 @@ void AddonOptions()
                             if (soundFiles[k] == NotificationSoundFile) { soundIndex = k + 1; break; }
 
                     ImGui::SetNextItemWidth(100.0f);
-                    if (ImGui::Combo("Sound", &soundIndex, soundLabels.data(), (int)soundLabels.size()))
+                    if (ImGui::Combo(Tr("WE_OPT_SOUND"), &soundIndex, soundLabels.data(), (int)soundLabels.size()))
                         NotificationSoundFile = (soundIndex == 0) ? std::string() : soundFiles[soundIndex - 1];
 
                     ImGui::SameLine();
                     ImGui::TextDisabled("(.wav)");
                     ImGui::SameLine();
-                    if (ImGui::Button("Rescan"))
+                    if (ImGui::Button(Tr("WE_OPT_RESCAN")))
                         ScanNotificationSoundFiles();
                     Tooltip("Re-scans \"<addon dir>/sounds\" for .wav files you've\n"
                             "dropped in since the dropdown was last built.");
@@ -219,13 +214,13 @@ void AddonOptions()
                     ImGui::SameLine();
                     DisabledBlock(NotificationSoundFile.empty())
                     {
-                        if (ImGui::Button("Test"))
+                        if (ImGui::Button(Tr("WE_OPT_TEST")))
                             PlayNotificationSound(NotificationSoundFile);
                     }
                     Tooltip("Drop .wav files into \"<addon dir>/sounds\" and pick one\n"
                             "here to preview it. Only .wav is supported (PlaySound has\n"
                             "no built-in decoder for mp3/ogg/etc). \"Test\" just plays it\n"
-                            "immediately — it also plays automatically alongside a real\n"
+                            "immediately - it also plays automatically alongside a real\n"
                             "notification popup, but only for events/slots whose own\n"
                             "notify level has sound enabled (see the speaker icon on\n"
                             "each row below).");
@@ -236,31 +231,31 @@ void AddonOptions()
             ImGui::TableSetColumnIndex(1);
 
             //_ Second, alternate view of subscription data: a thin animated line pinned to the screen edge, no titlebar.
-            ImGui::Checkbox("Show subscriptions bar", &ShowSubscriptionsBar);
+            ImGui::Checkbox(Tr("WE_OPT_SHOW_SUBS_BAR"), &ShowSubscriptionsBar);
 
             DisabledBlock(!ShowSubscriptionsBar)
             {
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
-                ImGui::Checkbox("Hide active on bar", &SubscriptionsBarHideActive);
+                ImGui::Checkbox(Tr("WE_OPT_HIDE_ACTIVE_ON_BAR"), &SubscriptionsBarHideActive);
                 Tooltip("Segments that are currently active are left off the bar entirely\n"
-                        "instead of showing as a dropped-to-startX line — only upcoming events\n"
+                        "instead of showing as a dropped-to-startX line - only upcoming events\n"
                         "are shown. Independent from \"Hide active in window\" above.");
 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
-                ImGui::Checkbox("Minimal Mode", &SubscriptionsBarMinimalMode);
+                ImGui::Checkbox(Tr("WE_OPT_MINIMAL_MODE"), &SubscriptionsBarMinimalMode);
                 ImGui::SameLine();
-                ImGui::Checkbox("Bottom Line", &SubscriptionsBarBottomAnchored);
+                ImGui::Checkbox(Tr("WE_OPT_BOTTOM_LINE"), &SubscriptionsBarBottomAnchored);
                 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
-                ImGui::ColorEdit4("Dot Color##bar_dot_color", SubscriptionsBarDotColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                ImGui::ColorEdit4(TrId("WE_OPT_DOT_COLOR", "##bar_dot_color").c_str(), SubscriptionsBarDotColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
                 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
-                if (ImGui::InputInt("Pop-out height (px)", &SubscriptionsBarMaxDropPx, 0, 0))
+                if (ImGui::InputInt(Tr("WE_OPT_POPOUT_HEIGHT"), &SubscriptionsBarMaxDropPx, 0, 0))
                 {
                     //_ Floored at 8, not 0: subscriptions_bar.cpp derives the pill's corner radius from half this value.
                     if (SubscriptionsBarMaxDropPx < 8)     SubscriptionsBarMaxDropPx = 8;
@@ -273,7 +268,7 @@ void AddonOptions()
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
-                if (ImGui::InputInt("Pop-out delay (ms)", &SubscriptionsBarHoverDelayMs, 0, 0))
+                if (ImGui::InputInt(Tr("WE_OPT_POPOUT_DELAY"), &SubscriptionsBarHoverDelayMs, 0, 0))
                 {
                     //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
                     if (SubscriptionsBarHoverDelayMs < 0)    SubscriptionsBarHoverDelayMs = 0;
@@ -287,12 +282,12 @@ void AddonOptions()
 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
-                ImGui::Text("Unsafe zone");
+                ImGui::Text("%s", Tr("WE_OPT_UNSAFE_ZONE"));
                 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
-                if (ImGui::DragInt("Left##leftuz", &SubscriptionsBarUnsafeLeftPx, 1, 0,0, "%dpx"))
+                if (ImGui::DragInt(TrId("WE_OPT_LEFT", "##leftuz").c_str(), &SubscriptionsBarUnsafeLeftPx, 1, 0,0, "%dpx"))
                 {
                     if (SubscriptionsBarUnsafeLeftPx < 0)           SubscriptionsBarUnsafeLeftPx = 0;
                     if (SubscriptionsBarUnsafeLeftPx > screenWidth)  SubscriptionsBarUnsafeLeftPx = (int)screenWidth;
@@ -307,7 +302,7 @@ void AddonOptions()
                 
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
-                if (ImGui::DragInt("Right##rightuz", &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
+                if (ImGui::DragInt(TrId("WE_OPT_RIGHT", "##rightuz").c_str(), &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
                 {
                     if (SubscriptionsBarUnsafeRightPx < 0)           SubscriptionsBarUnsafeRightPx = 0;
                     if (SubscriptionsBarUnsafeRightPx > screenWidth)  SubscriptionsBarUnsafeRightPx = (int)screenWidth;
@@ -323,7 +318,7 @@ void AddonOptions()
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
-                if (ImGui::DragInt("Height##heightuz", &SubscriptionsBarUnsafeHeightPx, 1, 0, 0, "%dpx"))
+                if (ImGui::DragInt(TrId("WE_OPT_HEIGHT", "##heightuz").c_str(), &SubscriptionsBarUnsafeHeightPx, 1, 0, 0, "%dpx"))
                 {
                     if (SubscriptionsBarUnsafeHeightPx < 0)    SubscriptionsBarUnsafeHeightPx = 0;
                     if (SubscriptionsBarUnsafeHeightPx > screenHeight) SubscriptionsBarUnsafeHeightPx = screenHeight;
@@ -362,7 +357,7 @@ void AddonOptions()
         }
     }
 
-    if (ImGui::CollapsingHeader("Events Settings (Basic|Cyclic)"))
+    if (ImGui::CollapsingHeader(Tr("WE_OPT_EVENTS_SETTINGS_HEADER")))
     {
         //_ Table 2 - Search/API key (Row 1) and section controls (Row 2); exists only while the header is expanded.
         if (ImGui::BeginTable("##world_events_table", 2, ImGuiTableFlags_SizingStretchSame))
@@ -372,7 +367,7 @@ void AddonOptions()
 
             ImGui::TableSetColumnIndex(0);
 
-            ImGui::Text("Chat settings:");
+            ImGui::Text("%s", Tr("WE_OPT_CHAT_SETTINGS"));
             static bool unlockDelay = false;
             ImGui::Checkbox("##lock_delay", &unlockDelay);
             Tooltip("Best to only change this if you have any issues.\n"
@@ -382,7 +377,7 @@ void AddonOptions()
             DisabledBlock(!unlockDelay)
             {
                 ImGui::SetNextItemWidth(50.0f);
-                ImGui::InputInt("Paste Delay", &delayMilliseconds, 0 , 0);
+                ImGui::InputInt(Tr("WE_OPT_PASTE_DELAY"), &delayMilliseconds, 0 , 0);
             }
 
             {
@@ -397,7 +392,7 @@ void AddonOptions()
                 }
 
                 ImGui::SetNextItemWidth(100.0f);
-                if (ImGui::Combo("Paste to", &chatChannelIndex, chatChannelLabels.data(), (int)chatChannelLabels.size()))
+                if (ImGui::Combo(Tr("WE_OPT_PASTE_TO"), &chatChannelIndex, chatChannelLabels.data(), (int)chatChannelLabels.size()))
                     ChatChannelPrefix = chatChannelPrefixes[chatChannelIndex];
 
                 Tooltip("Which chat channel a watchlist row/segment/toast click\n"
@@ -409,35 +404,35 @@ void AddonOptions()
                         "When Better Chat's \"/self\" is enabled, the option is\n"
                         "available here as well.");
                         
-                if (!IsBetterChatLoaded()) ImGui::TextDisabled("Better Chat not loaded (optional)");
-                else if (!IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("Better Chat loaded, /self disabled");
-                else if (IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("Better Chat loaded, /self enabled");
+                if (!IsBetterChatLoaded()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_NOT_LOADED"));
+                else if (!IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_SELF_DISABLED"));
+                else if (IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_SELF_ENABLED"));
             }
             
             ImGui::Dummy(dummySquare);
             
             //_ Zoom-based marker scaling; disabled by default keeps the old fixed-size behavior, just optional now.
             {
-                ImGui::Checkbox("Grow markers when zooming in##basic_zoom_scaling_enabled", &BasicEventZoomScalingEnabled);
+                ImGui::Checkbox(TrId("WE_OPT_GROW_MARKERS_ZOOM", "##basic_zoom_scaling_enabled").c_str(), &BasicEventZoomScalingEnabled);
     
                 DisabledBlock(!BasicEventZoomScalingEnabled)
                 {
                     ImGui::Dummy(dummySquare);
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(80.0f);
-                    ImGui::DragFloat("Start growing at##basic_zoom_start_pct", &BasicEventZoomStartPct, 1.0f, 0.0f, 100.0f, "%.0f%%");
+                    ImGui::DragFloat(TrId("WE_OPT_START_GROWING_AT", "##basic_zoom_start_pct").c_str(), &BasicEventZoomStartPct, 1.0f, 0.0f, 100.0f, "%.0f%%");
                     ImGui::Dummy(dummySquare);
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(80.0f);
-                    ImGui::DragFloat("Max size at 100\% zoom##basic_zoom_max_mult", &BasicEventZoomMaxMultiplier, 1.0f, 1.0f, 4.0f, "%.1fx");
+                    ImGui::DragFloat(TrId("WE_OPT_MAX_SIZE_AT_ZOOM", "##basic_zoom_max_mult").c_str(), &BasicEventZoomMaxMultiplier, 1.0f, 1.0f, 4.0f, "%.1fx");
                 }
             }
 
             ImGui::TableSetColumnIndex(1);
             //_ Not gated by window/bar/notifications visibility: drives auto-hiding completed content in all three.
-            ImGui::TextUnformatted("GW2 API key");
+            ImGui::TextUnformatted(Tr("WE_OPT_GW2_API_KEY"));
             ImGui::SameLine();
-            ImGui::TextDisabled("Can take up to 5min to take effect.");
+            ImGui::TextDisabled("%s", Tr("WE_OPT_API_KEY_DELAY_NOTE"));
 
             {
                 static char apiKeyBuf[128] = "";
@@ -471,24 +466,24 @@ void AddonOptions()
             switch (GetGw2ApiStatus())
             {
                 case Gw2ApiStatus::NoKey:
-                    ImGui::TextDisabled("No key set");
+                    ImGui::TextDisabled("%s", Tr("WE_OPT_API_NO_KEY"));
                     break;
                 case Gw2ApiStatus::Pending:
-                    ImGui::TextDisabled("Checking...");
+                    ImGui::TextDisabled("%s", Tr("WE_OPT_API_CHECKING"));
                     break;
                 case Gw2ApiStatus::Ok:
-                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "Connected");
+                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "%s", Tr("WE_OPT_API_CONNECTED"));
                     break;
                 case Gw2ApiStatus::InvalidKey:
-                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Invalid key / missing permission");
+                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", Tr("WE_OPT_API_INVALID_KEY"));
                     break;
                 case Gw2ApiStatus::NetworkError:
-                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "Network error, retrying");
+                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_OPT_API_NETWORK_ERROR"));
                     break;
             }
 
             //_ Whether the API half of doneToday is consulted at all; the manual mark always still applies.
-            ImGui::Checkbox("Automatically mark API-confirmed events done", &Gw2ApiAutoMarkDoneEnabled);
+            ImGui::Checkbox(Tr("WE_OPT_AUTO_MARK_API_DONE"), &Gw2ApiAutoMarkDoneEnabled);
             Tooltip("When on (default), any Basic Event/Cyclic group tagged\n"
                     "(auto) in the lists below still auto-hides once the GW2\n"
                     "API reports it done for the day. Turn this off to ignore\n"
@@ -496,7 +491,7 @@ void AddonOptions()
                     "today yourself (right-click a row/segment/popup).");
 
             //_ Master switch: drives whether any of the three subscription views auto-surfaces this week's Vault targets.
-            ImGui::Checkbox("Auto-track weekly Wizard's Vault targets", &WeeklyAutoTrackEnabled);
+            ImGui::Checkbox(Tr("WE_OPT_AUTO_TRACK_VAULT"), &WeeklyAutoTrackEnabled);
             Tooltip("When on (default), the subscriptions window, distribution\n"
                     "line, and notification popups all automatically surface any\n"
                     "Basic Event / Cyclic slot that's an active-and-incomplete\n"
@@ -505,12 +500,12 @@ void AddonOptions()
                     "dot/border. Turn this off to see only what you've actually\n"
                     "subscribed to by hand in all three views. Doesn't affect\n"
                     "the red marker on something you HAVE manually subscribed to\n"
-                    "that also happens to be a weekly target — that stays either way.");
+                    "that also happens to be a weekly target - that stays either way.");
             
             //_ Color swatch for the weekly Wizard's Vault tracked dot
             DisabledBlock(!WeeklyAutoTrackEnabled)
             {
-                ImGui::ColorEdit4("Weekly Color##weekly_tracking_color", WeeklyAutoTrackColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                ImGui::ColorEdit4(TrId("WE_OPT_WEEKLY_COLOR", "##weekly_tracking_color").c_str(), WeeklyAutoTrackColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
             }
             
             ImGui::Dummy(dummySquare);
@@ -522,12 +517,12 @@ void AddonOptions()
                     "distribution line, or notification popup to mark it done for\n"
                     "today. It then hides from all three views, the same way an\n"
                     "API-confirmed Core Boss kill or map chest claim does, until\n"
-                    "the next daily reset (00:00 UTC) — or until you clear it\n"
+                    "the next daily reset (00:00 UTC) - or until you clear it\n"
                     "below. Right-click the same row again to undo it before then.");
             ImGui::SameLine();
             DisabledBlock(!unlockMarkers)
             {
-                if (ImGui::Button("Clear events manually marked done"))
+                if (ImGui::Button(Tr("WE_OPT_CLEAR_DONE_MARKERS")))
                     ClearAllDoneMarkers();
             }
             //_ Row 2 - Basic Events controls (col 0), Cyclic Events controls (col 1)
@@ -551,7 +546,7 @@ void AddonOptions()
                 else
                     snprintf(label, sizeof(label), "%dm", m);
             
-                ImGui::Checkbox("Only show events starting in##basic_time_filter_enabled", &BasicEventTimeFilterEnabled);
+                ImGui::Checkbox(TrId("WE_OPT_ONLY_SHOW_STARTING_IN", "##basic_time_filter_enabled").c_str(), &BasicEventTimeFilterEnabled);
             
                 if (BasicEventTimeFilterEnabled)
                 {
@@ -568,22 +563,22 @@ void AddonOptions()
 
             //_ One shared color set for every Basic Event, matching the active/soon/waiting dot and icon-tint states.
             {
-                ImGui::ColorEdit4("Active##basic_color_active", BasicEventColorActive, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                ImGui::ColorEdit4(TrId("WE_OPT_ACTIVE", "##basic_color_active").c_str(), BasicEventColorActive, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
                 ImGui::SameLine();
-                ImGui::ColorEdit4("Soon##basic_color_soon", BasicEventColorSoon, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                ImGui::ColorEdit4(TrId("WE_OPT_SOON", "##basic_color_soon").c_str(), BasicEventColorSoon, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 
                 ImGui::SameLine();
-                ImGui::ColorEdit4("Waiting##basic_color_waiting", BasicEventColorWaiting, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                ImGui::ColorEdit4(TrId("WE_OPT_WAITING", "##basic_color_waiting").c_str(), BasicEventColorWaiting, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
             }
 
             //_ Independent settings, not derived from one another - dot and icon sizes can differ freely.
             {
                 ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat("Dot radius##basic_dot_radius", &BasicEventDotRadius, 1.0f, 2.0f, 30.0f, "%.0f px");
+                ImGui::DragFloat(TrId("WE_OPT_DOT_RADIUS", "##basic_dot_radius").c_str(), &BasicEventDotRadius, 1.0f, 2.0f, 30.0f, "%.0f px");
 
                 ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat("Icon size##basic_icon_size", &BasicEventIconSize, 1.0f, 2.0f, 40.0f, "%.0f px");
+                ImGui::DragFloat(TrId("WE_OPT_ICON_SIZE", "##basic_icon_size").c_str(), &BasicEventIconSize, 1.0f, 2.0f, 40.0f, "%.0f px");
             }
 
             DrawIconWhitenerButton();   //. opens the Icon Whitener modal
@@ -595,43 +590,43 @@ void AddonOptions()
             ImGui::Separator();
             ImGui::Spacing();
 
-            ImGui::Checkbox("Show cyclic events on map", &ShowCyclicOverlay);
+            ImGui::Checkbox(Tr("WE_OPT_SHOW_CYCLIC_ON_MAP"), &ShowCyclicOverlay);
             DisabledBlock(!ShowCyclicOverlay)
             {
-                ImGui::TextUnformatted("Ring appearance");
+                ImGui::TextUnformatted(Tr("WE_OPT_RING_APPEARANCE"));
                 ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat("Radius", &CyclicRadius, 1.0f, 5.0f, 50.0f, "%.0f px");
+                ImGui::DragFloat(Tr("WE_OPT_RADIUS"), &CyclicRadius, 1.0f, 5.0f, 50.0f, "%.0f px");
                 if ( CyclicRadius < CyclicThickness / 2 ) { CyclicThickness = CyclicRadius * 2; }
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat("Thickness", &CyclicThickness, 1.0f, 5.0f, 100.0f, "%.0f px");
+                ImGui::DragFloat(Tr("WE_OPT_THICKNESS"), &CyclicThickness, 1.0f, 5.0f, 100.0f, "%.0f px");
                 if ( CyclicThickness > CyclicRadius * 2 ) { CyclicRadius = CyclicThickness / 2; }
 
-                ImGui::TextUnformatted("Entry / exit window");
+                ImGui::TextUnformatted(Tr("WE_OPT_ENTRY_EXIT_WINDOW"));
                 ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat("Future window", &CyclicMaxFutureDeg,1.0f, 0.0f, 360.0f, "%.0f deg");
+                ImGui::DragFloat(Tr("WE_OPT_FUTURE_WINDOW"), &CyclicMaxFutureDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
                 if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxPastDeg = 360 - CyclicMaxFutureDeg; }
                 Tooltip("How far ahead an upcoming event starts fading into view.\n"
                         "Measured in degrees of the ring.");
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat("Past window", &CyclicMaxPastDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
+                ImGui::DragFloat(Tr("WE_OPT_PAST_WINDOW"), &CyclicMaxPastDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
                 if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxFutureDeg = 360 - CyclicMaxPastDeg; }
                 Tooltip("How long a finished event lingers before fading out.\n"
                         "Measured in degrees of the ring.");
 
-                ImGui::Checkbox("Fade past events##cyclic_past_fade_enabled", &CyclicPastFadeEnabled);
+                ImGui::Checkbox(TrId("WE_OPT_FADE_PAST_EVENTS", "##cyclic_past_fade_enabled").c_str(), &CyclicPastFadeEnabled);
                 Tooltip("Fades the past window from full opacity at the hand\n"
                         "down to transparent at its far edge. Turn off to keep\n"
                         "it solid across the whole past window instead.");
 
-                ImGui::TextUnformatted("Hand");
-                ImGui::ColorEdit4("Color##cyclic_hand_color", CyclicHandColor, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+                ImGui::TextUnformatted(Tr("WE_OPT_HAND"));
+                ImGui::ColorEdit4(TrId("WE_OPT_COLOR", "##cyclic_hand_color").c_str(), CyclicHandColor, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
                 Tooltip("Color of the fixed \"now\" hand at the top of every ring.\n"
                         "Also tints the hand image below, if enabled.");
                 
                 ImGui::SameLine();
-                ImGui::Checkbox("Use image##cyclic_hand_image_enabled", &CyclicHandImageEnabled);
+                ImGui::Checkbox(TrId("WE_OPT_USE_IMAGE", "##cyclic_hand_image_enabled").c_str(), &CyclicHandImageEnabled);
                 Tooltip("Draws an image instead of the plain hand tick. Like the\n"
                         "Basic Event icons, the source image's RGB should be a\n"
                         "neutral gray with the shape in the alpha channel.");
@@ -641,7 +636,7 @@ void AddonOptions()
                     //_ Same source list/folder as the Basic Event icon picker and the Ring edge image below.
                     const std::vector<std::string>& handIconFiles = GetEventIconFilenames();
                     std::vector<const char*> handIconLabels;
-                    handIconLabels.push_back("None");
+                    handIconLabels.push_back(Tr("WE_OPT_NONE"));
                     for (const auto& fn : handIconFiles)
                         handIconLabels.push_back(fn.c_str());
 
@@ -657,14 +652,14 @@ void AddonOptions()
 
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(50.0f);
-                    ImGui::DragFloat("Width##cyclic_hand_image_width", &CyclicHandImageWidth, 1.0f, 2.0f, 60.0f, "%.0f px");
+                    ImGui::DragFloat(TrId("WE_OPT_WIDTH", "##cyclic_hand_image_width").c_str(), &CyclicHandImageWidth, 1.0f, 2.0f, 60.0f, "%.0f px");
                     Tooltip("Length isn't separately adjustable - the image always\n"
                             "spans exactly from the ring's inner edge to its outer\n"
                             "edge, stretching automatically with Radius/Thickness.");
                 }
 
                 ImGui::Spacing();
-                ImGui::TextUnformatted("Ring edge image");
+                ImGui::TextUnformatted(Tr("WE_OPT_RING_EDGE_IMAGE"));
                 ImGui::Checkbox("##cyclic_ring_image_enabled", &CyclicRingImageEnabled);
                 Tooltip("Wraps an image around the ring's edge(s) instead of a\n"
                         "plain line. The image should be wider than it is tall - it\n"
@@ -678,7 +673,7 @@ void AddonOptions()
                     //_ Same source list as the Basic Event icon picker (maprender.h); "None" replaces "Dot" - no fallback shape here.
                     const std::vector<std::string>& iconFiles = GetEventIconFilenames();
                     std::vector<const char*> iconLabels;
-                    iconLabels.push_back("None");
+                    iconLabels.push_back(Tr("WE_OPT_NONE"));
                     for (const auto& fn : iconFiles)
                         iconLabels.push_back(fn.c_str());
 
@@ -690,12 +685,12 @@ void AddonOptions()
                                 
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(100.0f);
-                    if (ImGui::Combo("Image##cyclic_ring_image_file", &iconIndex, iconLabels.data(), (int)iconLabels.size()))
+                    if (ImGui::Combo(TrId("WE_OPT_IMAGE", "##cyclic_ring_image_file").c_str(), &iconIndex, iconLabels.data(), (int)iconLabels.size()))
                         CyclicRingImageFilename = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
 
                     //_ Its own row - the ONLY control over on-screen band thickness (CyclicRingImageThickness).
                     ImGui::SetNextItemWidth(50.0f);
-                    ImGui::DragFloat("Thickness##cyclic_ring_image_thickness", &CyclicRingImageThickness, 0.5f, 1.0f, 80.0f, "%.1f px");
+                    ImGui::DragFloat(TrId("WE_OPT_THICKNESS", "##cyclic_ring_image_thickness").c_str(), &CyclicRingImageThickness, 0.5f, 1.0f, 80.0f, "%.1f px");
                     Tooltip("On-screen thickness of the image band, centered on the\n"
                             "edge it's drawn on. This is independent of the source\n"
                             "image file's own pixel height - the image is always\n"
@@ -705,7 +700,7 @@ void AddonOptions()
                             
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(50.0f);
-                    ImGui::DragFloat("Offset##cyclic_ring_image_offset", &CyclicRingImageOffset, 0.1f, -5.0f, 5.0f, "%.1f px");
+                    ImGui::DragFloat(TrId("WE_OPT_OFFSET", "##cyclic_ring_image_offset").c_str(), &CyclicRingImageOffset, 0.1f, -5.0f, 5.0f, "%.1f px");
                     Tooltip("Nudges both copies radially outward from the ring's own\n"
                             "fill - the outer copy moves further out, the inner copy\n"
                             "further in - so they stay mirror-symmetric.\n"
@@ -713,7 +708,7 @@ void AddonOptions()
                 }
 
                 ImGui::Spacing();
-                ImGui::TextUnformatted("Fill texture");
+                ImGui::TextUnformatted(Tr("WE_OPT_FILL_TEXTURE"));
                 ImGui::Checkbox("##cyclic_fill_image_enabled", &CyclicFillImageEnabled);
                 Tooltip("Lays an image over the ring's own plain-color fill (the\n"
                         "track and slot arcs) to break it up with some texture or\n"
@@ -724,7 +719,7 @@ void AddonOptions()
                     //_ Same source list/folder as the other icon pickers above.
                     const std::vector<std::string>& fillIconFiles = GetEventIconFilenames();
                     std::vector<const char*> fillIconLabels;
-                    fillIconLabels.push_back("None");
+                    fillIconLabels.push_back(Tr("WE_OPT_NONE"));
                     for (const auto& fn : fillIconFiles)
                         fillIconLabels.push_back(fn.c_str());
 
@@ -741,7 +736,7 @@ void AddonOptions()
                         
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(50.0f);
-                    ImGui::DragFloat("Opacity##cyclic_fill_image_opacity", &CyclicFillImageOpacity, 0.01f, 0.0f, 1.0f, "%.2f");
+                    ImGui::DragFloat(TrId("WE_OPT_OPACITY", "##cyclic_fill_image_opacity").c_str(), &CyclicFillImageOpacity, 0.01f, 0.0f, 1.0f, "%.2f");
                 }
             }
             
@@ -1091,6 +1086,12 @@ void AddonOptions()
                 "Key set, but region not resolved yet - make sure it has the \"account\" permission and give\n"
                 "the next poll a moment.");
         }
+
+        //_ RGB only (feeds the toast's accent stripe via ToImVec4), same convention as the Active/Soon pickers above.
+        ImGui::ColorEdit3("Live report##sub_color_live", SubscriptionsLiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+        Tooltip("Accent color for a subscribed Live Event's \"reported\\n"
+                "active\" toast, separate from the Active color above so\\n"
+                "a player report reads differently from a scheduled one.");
 
         ImGui::Checkbox("Share my name in reports", &ShareNameInReports);
         Tooltip("Off (default): reports are anonymous. On: your character name\n"

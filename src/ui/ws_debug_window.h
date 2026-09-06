@@ -3,7 +3,7 @@
 //--------------------------------------------------------------------------------
 // ShowWsDebugWindow          visibility flag - toggle from AddonOptions or
 //                            anywhere else convenient
-// kWsDebugWindowTitle        registered with GUI_RegisterCloseOnEscape in
+// kWsDebugWindowId           registered with GUI_RegisterCloseOnEscape in
 //                            addon.cpp, same pattern as every other window
 // RenderWsDebugWindow()      draws the window if ShowWsDebugWindow is set -
 //                            see ws_debug_window.cpp for the render-callback details
@@ -18,6 +18,11 @@
 
 extern bool ShowWsDebugWindow;
 
-inline constexpr const char* kWsDebugWindowTitle = "World Events — WS Debug Log";
+//_ ImGui window identity, shared with addon.cpp's GUI_RegisterCloseOnEscape/DeregisterCloseOnEscape -
+//_ kept separate from the localized visible title for the same reason as changelog_window.h's
+//_ kVersionHistoryWindowId: ImGui hashes a window's ID from only the part of its label after "##",
+//_ so this stays stable across languages while RenderWsDebugWindow's titlebar text (Tr("WE_WSDEBUG_TITLE"))
+//_ can change with Nexus's active language.
+inline constexpr const char* kWsDebugWindowId = "##WorldEventsWsDebugLog";
 
 void RenderWsDebugWindow();

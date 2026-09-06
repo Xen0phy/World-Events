@@ -20,6 +20,7 @@
 #include "gw2_api.h"
 #include "imgui.h"
 #include "live_events_ui.h"
+#include "localization.h"
 #include "maprender.h"
 #include "notification_client.h"
 #include "settings.h"
@@ -119,6 +120,9 @@ void AddonLoad(AddonAPI_t* aAPI)
     MumbleLink = (Mumble::Data*)    APIDefs->DataLink_Get(DL_MUMBLE_LINK);
     NexusLink  = (NexusLinkData_t*) APIDefs->DataLink_Get(DL_NEXUS_LINK);
 
+    //_ Registers every kLocalizationTable row with Nexus - before anything below can render text via Tr().
+    Localization_Load();
+
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");
 
     //_ Resets the WS debug ring buffer; must precede InitWsClient so nothing it logs is dropped (see ws_debug_log.h).
@@ -165,10 +169,10 @@ void AddonLoad(AddonAPI_t* aAPI)
     APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow);
 
     //_ Same, for the WS debug log window (ws_debug_window.h).
-    APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowTitle, &ShowWsDebugWindow);
+    APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowId, &ShowWsDebugWindow);
 
     //_ Same, for the "What's New" version-history window (changelog_window.h).
-    APIDefs->GUI_RegisterCloseOnEscape(kVersionHistoryWindowTitle, &ShowVersionHistoryWindow);
+    APIDefs->GUI_RegisterCloseOnEscape(kVersionHistoryWindowId, &ShowVersionHistoryWindow);
 
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Loaded.");
 }
@@ -192,8 +196,8 @@ void AddonUnload()
     //_ Matches the GUI_RegisterCloseOnEscape calls in AddonLoad
     APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowTitle);
     APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
-    APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowTitle);
-    APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowId);
+    APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowId);
 
     //_ Bounded wait so a still-running thread can't resume in unloaded memory; 2s is generous headroom, not a timeout budget.
     WaitForBackgroundThreads(2000);

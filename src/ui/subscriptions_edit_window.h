@@ -36,7 +36,7 @@
 extern bool ShowEditSubscriptionsWindow;
 
 //_ Shared between the ImGui::Begin() call in RenderEditSubscriptionsWindow and the APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls in addon.cpp
-inline constexpr const char* kEditSubscriptionsWindowTitle = "World Events — Edit Subscriptions";
+inline constexpr const char* kEditSubscriptionsWindowTitle = "World Events - Edit Subscriptions";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenEditSubscriptionsWindow

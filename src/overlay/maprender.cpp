@@ -565,12 +565,12 @@ void RenderMapEvents()
             if (active)
             {
                 int secsUntilEnd = GetSecondsUntilEventEnd(ev, now);
-                ImGui::Text("%s — Active (ends in %s)",
+                ImGui::Text("%s - Active (ends in %s)",
                     ev.name.c_str(), FormatMinSec(secsUntilEnd).c_str());
             }
             else
             {
-                ImGui::Text("%s — in %s",
+                ImGui::Text("%s - in %s",
                     ev.name.c_str(), FormatCountdown(secs).c_str());
             }
             ImGui::EndTooltip();

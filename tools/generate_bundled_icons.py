@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-generate_bundled_icons.py  —  regenerates
+generate_bundled_icons.py  -  regenerates
     src/generated/bundled_icons.generated.cpp
 from every *.png in resources/textures/, embedding each as a raw byte array (see
 DefaultIconEntry in src/core/bundled_icons.h). Run from the project root; wired

@@ -704,7 +704,7 @@ void RenderCyclicGroups()
                 if (e.active)
                 {
                     ImGui::TextColored(ToImVec4(BasicEventColorActive),
-                        "%s — Active (ends in %s)",
+                        "%s - Active (ends in %s)",
                         e.name.c_str(), FormatMinSec(e.secs).c_str());
                 }
                 else
@@ -712,7 +712,7 @@ void RenderCyclicGroups()
                     const float* col = e.secs < 900 ? BasicEventColorSoon
                                                       : BasicEventColorWaiting;
                     ImGui::TextColored(ToImVec4(col),
-                        "%s — in %s",
+                        "%s - in %s",
                         e.name.c_str(), FormatCountdown(e.secs).c_str());
                 }
             }

@@ -334,9 +334,9 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
     {
         ImGui::SetTooltip(
             level == 0 ? "Click to subscribe" :
-            level == 1 ? "Subscribed — click to also show a toast notification\n(right-click the name for more options)" :
-            level == 2 ? "Subscribed + toast notification — click to also play a sound\n(right-click the name for more options)"
-                       : "Subscribed + toast + sound — click to unsubscribe\n(right-click the name for more options)");
+            level == 1 ? "Subscribed - click to also show a toast notification\n(right-click the name for more options)" :
+            level == 2 ? "Subscribed + toast notification - click to also play a sound\n(right-click the name for more options)"
+                       : "Subscribed + toast + sound - click to unsubscribe\n(right-click the name for more options)");
     }
 
     ImGui::PopID();
