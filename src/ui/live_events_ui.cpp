@@ -300,8 +300,9 @@ void RenderLiveEventReportsWindow()
         return;
     }
 
-    ImGui::TextDisabled("Server: %s", ConnectionStateLabel(GetConnectionState()));
+    ImGui::TextDisabled("Shard: %s", ConnectionStateLabel(GetConnectionState()));
 
+    ImGui::TextDisabled("Region: %s", ConnectionStateLabel(GetNotificationConnectionState()));
     std::optional<int> regionViewers = GetRegionViewerCount();
     if (regionViewers)
     {
