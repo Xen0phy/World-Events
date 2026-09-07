@@ -22,9 +22,8 @@
 // subscriptions UI (see ui/subscriptions_ui.h). References existing event/slot
 // data by id/key instead of owning a copy - the render code looks up the live
 // WorldEvent/CyclicGroup::Slot in g_Events/g_CyclicGroups every frame. Basic
-// Events are keyed by WorldEvent::id; Cyclic Events are keyed per occurrence
-// (group id, slot offset), since slot ids are only unique within a group but
-// offsets are unique regardless.
+// Events key on WorldEvent::id; Cyclic Events key on (group id, slot offset) per
+// occurrence, since slot ids are unique only within a group, not globally.
 //
 // A Basic/Cyclic subscription may also opt into a toast popup and, on top of
 // that, a notification sound - one 0..3 "notify level" instead of three
@@ -185,10 +184,9 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level);
 //--------------------------------------------------------------------------------
 // Bumped by exactly 1 on every change to the subscribed lists themselves
 // (Toggle.../LoadSubscriptionsData), so subscriptions_cache.cpp can cheaply
-// detect that without re-deriving anything.
-// NOT bumped by toast/sound-list-only changes: nothing in that cache reads those
-// lists, so subscriptions_notification.cpp just reads them directly every frame
-// instead.
+// detect that without re-deriving anything. NOT bumped by toast/sound-list-only
+// changes: nothing in that cache reads those lists, so
+// subscriptions_notification.cpp just reads them directly every frame instead.
 //--------------------------------------------------------------------------------
 uint64_t GetSubscriptionListGeneration();
 
@@ -202,9 +200,9 @@ uint64_t GetSubscriptionListGeneration();
 // and return false on failure.
 //
 // Load also migrates any pre-id Basic/Cyclic entry still keyed by name against
-// the now-populated g_Events/g_CyclicGroups, the same self-triggering approach
-// as MigrateMembersToIds (events_categories.cpp) - requires LoadEventsData to
-// have already run.
+// the now-populated g_Events/g_CyclicGroups, the same self-triggering approach as
+// MigrateMembersToIds (events_categories.cpp) - requires LoadEventsData to have
+// already run.
 //--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir);
 bool LoadSubscriptionsData(const std::string& addonDir);

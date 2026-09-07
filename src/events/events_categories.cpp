@@ -105,10 +105,10 @@ static Category CategoryDefaultToCategory(const CategoryDefault& def)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MigrateMembersToIds
 //--------------------------------------------------------------------------------
-// One-time upgrade for a pre-id-migration events.json, whose category members
-// are still WorldEvent::name/CyclicGroup::name values. Self-triggering, no
-// version gate: a member already found in validIds is left alone; only one that
-// misses as an id but hits nameToId gets rewritten. A member matching neither (an
+// One-time upgrade for a pre-id-migration events.json, whose category members are
+// still WorldEvent::name/CyclicGroup::name values. Self-triggering, no version
+// gate: a member already found in validIds is left alone; only one that misses as
+// an id but hits nameToId gets rewritten. A member matching neither (an
 // event/group the user has since removed) is left as-is, same as before this
 // migration existed.
 //--------------------------------------------------------------------------------
@@ -171,8 +171,8 @@ static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDef
 // ForceCategoryMembership
 //--------------------------------------------------------------------------------
 // Implements CategoryDefaultMember::forced (see events_categories.h):
-// unconditionally places memberId into categoryName, removing it from every
-// other category first. Creates categoryName if it isn't in the merged list yet
+// unconditionally places memberId into categoryName, removing it from every other
+// category first. Creates categoryName if it isn't in the merged list yet
 // (defensive; shouldn't normally happen). Only called once the caller has
 // confirmed the file predates EVENTS_DATA_VERSION.
 //--------------------------------------------------------------------------------

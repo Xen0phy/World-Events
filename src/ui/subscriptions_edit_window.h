@@ -45,9 +45,9 @@ inline constexpr const char* kEditSubscriptionsWindowTitle = "World Events - Edi
 // background right-click entry point (bar strip / window empty area).
 //
 // Four-argument overload: opens the window, switches to the matching tab, and on
-// the very next draw expands the row identified by (kind, basicId, cyclicKey)
-// for Basic/Cyclic - and, for a Cyclic slot, its enclosing group too - or
-// liveEventId for Live. Same identity trio (now three-way via SubscriptionKind,
+// the very next draw expands the row identified by (kind, basicId, cyclicKey) for
+// Basic/Cyclic - and, for a Cyclic slot, its enclosing group too - or liveEventId
+// for Live. Same identity trio (now three-way via SubscriptionKind,
 // subscriptions.h) already threaded through LineSegment/Row/Popup in
 // subscriptions_bar.cpp/subscriptions_window.cpp/subscriptions_notification.cpp;
 // liveEventId defaults to empty, meaningful only when kind is Live.

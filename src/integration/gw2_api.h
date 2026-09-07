@@ -5,7 +5,6 @@
 // GetGw2ApiStatus()               NoKey/Pending/Ok/InvalidKey/NetworkError
 // IsWorldBossCompletedToday(id)   true if boss killed since last UTC reset
 // IsMapChestClaimedToday(id)      true if chest claimed since last UTC reset
-// GetWeeklyObjectiveState(title)  Wizard's Vault weekly objective progress
 // GetLiveWeeklyObjectives()       snapshot of every live weekly objective
 // GetGw2ApiFetchGeneration()      bumped on each successful daily-data fetch
 // LiveEventsRegion                NA / EU / Unknown
@@ -81,33 +80,6 @@ Gw2ApiStatus GetGw2ApiStatus();
 bool IsWorldBossCompletedToday(const std::string& worldBossApiId);
 bool IsMapChestClaimedToday(const std::string& mapChestApiId);
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// WeeklyObjectiveState
-//--------------------------------------------------------------------------------
-// The third endpoint (see file header): fetched on the same cadence as
-// worldbosses/mapchests, but reporting by display TITLE instead of a stable id,
-// since Wizard's Vault objective ids aren't stable across ArenaNet's seasonal
-// rotation. See weekly_vault.h/.cpp for the addon-side table mapping titles to
-// actual WorldEvent/ CyclicGroup::Slot entries - this file only exposes the raw
-// API state.
-//--------------------------------------------------------------------------------
-enum class WeeklyObjectiveState
-{
-    NotThisWeek, //. not in the live objective list
-    Incomplete,
-    Complete,    //. progress_complete reached, or already claimed
-};
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// GetWeeklyObjectiveState
-//--------------------------------------------------------------------------------
-// `title` is matched case-insensitively (ASCII lowercasing only - every observed
-// title is plain ASCII) against each live objective's own "title" field. Exact
-// match, not substring - unlike weekly_vault.cpp's Cyclic mapping table, which
-// only needs a couple of keywords out of the title.
-//--------------------------------------------------------------------------------
-WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title);
-
 //********************************************************************************
 // LiveWeeklyObjective
 //--------------------------------------------------------------------------------
@@ -117,8 +89,7 @@ WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title);
 //--------------------------------------------------------------------------------
 // One live Wizard's Vault objective, with no title matching applied yet - for
 // callers that need to search across every live objective at once
-// (substring/keyword matching) instead of checking one exact, already-known title
-// (see GetWeeklyObjectiveState above for that case).
+// (substring/keyword matching, or an exact-title check of their own).
 //--------------------------------------------------------------------------------
 struct LiveWeeklyObjective
 {

@@ -103,10 +103,9 @@ uint64_t GetDoneMarkersGeneration();
 // matter - both just read-modify-write the same file. Both swallow exceptions and
 // return false on failure.
 //
-// Load also migrates any pre-id Basic/Cyclic mark still keyed by name against
-// the now-populated g_Events/g_CyclicGroups, the same self-triggering approach
-// as MigrateMembersToIds (events_categories.cpp) - requires LoadEventsData to
-// have already run.
+// Load also migrates any pre-id Basic/Cyclic mark still keyed by name, the same
+// self-triggering approach as MigrateMembersToIds (events_categories.cpp) -
+// requires LoadEventsData to have already run.
 //--------------------------------------------------------------------------------
 bool SaveDailyTrackingData(const std::string& addonDir);
 bool LoadDailyTrackingData(const std::string& addonDir);

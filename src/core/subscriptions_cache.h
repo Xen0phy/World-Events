@@ -68,12 +68,12 @@
 // WorldEvent/CyclicGroup::Slot at resolve time, so GetSubscriptionActiveState
 // never re-resolves into g_Events/g_CyclicGroups or touches a string.
 //
-// doneToday is a plain field since it can change without a rebuild; each of
-// the three views applies the skip itself at consumption time.
+// doneToday is a plain field since it can change without a rebuild; each of the
+// three views applies the skip itself at consumption time.
 //
 // basicId/cyclicGroupId are the identity fields (Toggle.../Is...Enabled/
-// OpenEditSubscriptionsWindow calls); basicName/cyclicGroupName stay
-// display-only (bar segment color hash, row label).
+// OpenEditSubscriptionsWindow calls); basicName/cyclicGroupName stay display-only
+// (bar segment color hash, row label).
 //--------------------------------------------------------------------------------
 struct ResolvedSubscription
 {

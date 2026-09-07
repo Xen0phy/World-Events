@@ -252,10 +252,10 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
 // Deserialize defaults missing fields to empty string / 0 instead of throwing.
-// Falls back to the legacy "groupName" key when "groupId" is absent, so a
-// pre-id-migration events.json still loads - the group NAME that lands in
-// key.groupId this way is converted to an id below, by the same self-triggering
-// migration LoadSubscriptionsData runs for the other lists.
+// Falls back to the legacy "groupName" key when "groupId" is absent, so a pre-id-
+// migration events.json still loads - the group NAME that lands in key.groupId
+// this way is converted to an id below, by the same self-triggering migration
+// LoadSubscriptionsData runs for the other lists.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
@@ -280,9 +280,9 @@ static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 // subscription and toast/sound lists are still WorldEvent::name/
 // CyclicGroup::name values. Self-triggering, no version gate: an entry already
 // found in validIds is left alone; only one that misses as an id but hits
-// nameToId gets rewritten. An entry matching neither (an event/group the user
-// has since removed) is left as-is, same as before this migration existed -
-// mirrors MigrateMembersToIds (events_categories.cpp).
+// nameToId gets rewritten. An entry matching neither (an event/group the user has
+// since removed) is left as-is, same as before this migration existed - mirrors
+// MigrateMembersToIds (events_categories.cpp).
 //--------------------------------------------------------------------------------
 static void MigrateBasicEntriesToIds(std::vector<std::string>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
 {

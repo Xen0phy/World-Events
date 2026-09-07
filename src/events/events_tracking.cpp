@@ -73,9 +73,9 @@ static void RollOverIfNewUtcDay()
 // ResolveBasicDoneKey
 //--------------------------------------------------------------------------------
 // Maps a Basic Event's own id to the key its "done today" mark is actually
-// stored/looked-up under: g_Events[id].doneGroup if that event has one set,
-// else the id itself unchanged. See WorldEvent::doneGroup (events.h) and this
-// file's header comment for the Ley Line Anomaly case this exists for.
+// stored/looked-up under: g_Events[id].doneGroup if that event has one set, else
+// the id itself unchanged. See WorldEvent::doneGroup (events.h) and this file's
+// header comment for the Ley Line Anomaly case this exists for.
 //
 // Plain linear scan over g_Events - same cost class as the lookups
 // GetDefaultEvent (events_storage.cpp) already does for the options panel, and
@@ -193,13 +193,13 @@ static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MigrateBasicMarksToIds / MigrateCyclicMarksToIds
 //--------------------------------------------------------------------------------
-// One-time upgrade for a pre-id-migration events.json, whose done-today marks
-// are still WorldEvent::name/CyclicGroup::name values. Self-triggering, no
-// version gate: an entry already found in validIds is left alone (also true of
-// any doneGroup value, which was never name-shaped to begin with); only an
-// entry that misses as an id but hits nameToId gets rewritten. An entry
-// matching neither (a doneGroup value, or a removed event/group) is left as-is
-// - mirrors MigrateMembersToIds (events_categories.cpp).
+// One-time upgrade for a pre-id-migration events.json, whose done-today marks are
+// still WorldEvent::name/CyclicGroup::name values. Self-triggering, no version
+// gate: an entry already found in validIds is left alone (also true of any
+// doneGroup value, which was never name-shaped to begin with); only an entry that
+// misses as an id but hits nameToId gets rewritten. An entry matching neither (a
+// doneGroup value, or a removed event/group) is left as-is - mirrors
+// MigrateMembersToIds (events_categories.cpp).
 //--------------------------------------------------------------------------------
 static void MigrateBasicMarksToIds(std::vector<std::string>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
 {

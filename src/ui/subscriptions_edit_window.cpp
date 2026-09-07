@@ -40,6 +40,9 @@
 #include "settings.h" //. Gw2ApiKey, gates the live-event subscribe checkbox below
 #include "subscriptions.h"
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 #include <algorithm>
 #include <cctype>
 #include <optional>
@@ -69,6 +72,12 @@ struct EditSubscriptionsTarget
 
 static EditSubscriptionsTarget s_pendingTarget;
 static bool                    s_hasPendingTarget = false;
+
+//_ Live tab has no row to expand (see DrawLeanLiveEventRow) - scrolled-to id and its GetTickCount64() flash deadline instead.
+static std::string        s_liveHighlightEventId;
+static unsigned long long s_liveHighlightUntil = 0;
+
+static constexpr unsigned long long kLiveHighlightDurationMs = 1500;   //. deep-link scroll-to flash duration
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenEditSubscriptionsWindow
@@ -244,19 +253,29 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawLeanLiveEventRow
 //--------------------------------------------------------------------------------
-// One table row per compiled-in LiveEvent - subscribe checkbox, name, "Only
-// named" gate, and the done-today toggle, one per column (see the "Event" header
-// row set up by the caller). No notify-level ladder - subscribing IS the toast
-// opt-in, one flat list (subscriptions.h) - and no category tree (g_LiveEvents
-// carries none), so unlike DrawLeanBasicEventRow/DrawLeanCyclicSlotRow there's
-// nothing to collapse. The subscribe checkbox is disabled while Gw2ApiKey
-// (settings.h) is empty - region-wide toast delivery needs GetLiveEventsRegion
-// (gw2_api.h), which needs that key now that Mumble no longer provides one. See
-// IsLiveEventNamedOnly (subscriptions.h) for what "Only named" gates.
+// One table row per compiled-in LiveEvent: subscribe checkbox, name, "Only named"
+// gate, and done-today toggle. No notify-level ladder or category tree -
+// subscribing IS the toast opt-in, one flat list (subscriptions.h), so unlike
+// DrawLeanBasicEventRow/DrawLeanCyclicSlotRow there's nothing to collapse. The
+// subscribe checkbox is disabled while Gw2ApiKey (settings.h) is empty -
+// GetLiveEventsRegion (gw2_api.h) needs it for region-wide toast delivery. See
+// IsLiveEventNamedOnly (subscriptions.h) for what "Only named" gates. isTarget is
+// true for exactly one row, on the frame a deep-link target lands on it - scrolls
+// to it and starts the s_liveHighlightEventId/Until flash, since there's no row
+// here to expand.
 //--------------------------------------------------------------------------------
-static void DrawLeanLiveEventRow(const LiveEvent& ev)
+static void DrawLeanLiveEventRow(const LiveEvent& ev, bool isTarget)
 {
     ImGui::TableNextRow();
+
+    if (isTarget)
+    {
+        ImGui::SetScrollHereY(0.5f);
+        s_liveHighlightEventId = ev.eventId;
+        s_liveHighlightUntil   = GetTickCount64() + kLiveHighlightDurationMs;
+    }
+    if (ev.eventId == s_liveHighlightEventId && GetTickCount64() < s_liveHighlightUntil)
+        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
 
     ImGui::TableSetColumnIndex(0);
     bool subscribed = IsLiveEventSubscribed(ev.eventId);
@@ -560,7 +579,9 @@ void RenderEditSubscriptionsWindow()
             for (const LiveEvent& ev : g_LiveEvents)
             {
                 ImGui::PushID(ev.eventId.c_str());
-                DrawLeanLiveEventRow(ev);
+                bool isTarget = pendingTarget && pendingTarget->kind == SubscriptionKind::Live
+                    && ev.eventId == pendingTarget->liveEventId;
+                DrawLeanLiveEventRow(ev, isTarget);
                 ImGui::PopID();
             }
 

@@ -154,8 +154,8 @@ class Issue:
         self.context = context
         self.name_text = name_text  # set for checks an ignore-by-name file can match against
 
-    def format(self):
-        out = f'  line {self.line_no:<5} [{self.check_id}] {self.message}'
+    def format(self, path):
+        out = f'{path}:{self.line_no} [{self.check_id}] {self.message}'
         if self.context:
             out += f'\n              context: "{self.context}"'
         return out
@@ -690,11 +690,8 @@ def main():
         if issues:
             total_issue_files += 1
             total_issues += len(issues)
-            header = f'{path}  ({len(issues)} issue(s))'
-            log_lines.append(header)
-            print('\n' + header)
             for iss in issues:
-                text = iss.format()
+                text = iss.format(path)
                 log_lines.append(text)
                 print(text)
 

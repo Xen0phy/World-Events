@@ -8,11 +8,11 @@
 // replaced outright - see MergeByKey/MergeGroups for the rule. Merge keys are
 // WorldEvent::id/CyclicGroup::id/Slot::id, not name (see EventKey/GroupKey/
 // SlotKey) - name is display-only. A loaded file saved before the id field
-// existed has none; SlugifyName/UniqueId and the backfill pass in
-// LoadEventsData give every such entry one, matching it to a compiled-in
-// default by name where possible so identity survives the upgrade. The result
-// becomes g_Events/g_CyclicGroups and is written back, so a first run writes
-// exactly the compiled-in defaults and every run after keeps merging forward.
+// existed has none; SlugifyName/UniqueId and the backfill pass in LoadEventsData
+// give every such entry one, matching it to a compiled-in default by name where
+// possible so identity survives the upgrade. The result becomes
+// g_Events/g_CyclicGroups and is written back, so a first run writes exactly the
+// compiled-in defaults and every run after keeps merging forward.
 //
 // EVENTS_DATA_VERSION (events.h) gates the merge, shared with
 // events_categories.cpp via the same "data_version" key. All functions here
@@ -179,12 +179,11 @@ static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
 // (De)serializes one CyclicGroup::Slot. id is the merge/identity key, unique
 // within the group (see SlotKey); left empty on deserialize for a pre-migration
 // file, same deferred-backfill reasoning as SerializeEvent/DeserializeEvent
-// above. customColor is presence-checked (j.contains), not defaulted, so
-// "unset" round-trips exactly; chatCode is omitted when empty and shown when
-// true (the default), same convention as WorldEvent above. isVarying/
-// varyingTimes follow the exact same convention as WorldEvent's own pair:
-// isVarying always written, varyingTimes only written/read when isVarying is
-// true.
+// above. customColor is presence-checked (j.contains), not defaulted, so "unset"
+// round-trips exactly; chatCode is omitted when empty and shown when true (the
+// default), same convention as WorldEvent above. isVarying/ varyingTimes follow
+// the exact same convention as WorldEvent's own pair: isVarying always written,
+// varyingTimes only written/read when isVarying is true.
 //--------------------------------------------------------------------------------
 static json SerializeSlot(const CyclicGroup::Slot& slot)
 {
@@ -241,9 +240,9 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
 // (De)serializes one CyclicGroup, including its nested slots array via
 // SerializeSlot/DeserializeSlot. id is the merge/identity key (see GroupKey),
 // left empty on deserialize for a pre-migration file - same deferred-backfill
-// reasoning as SerializeEvent/DeserializeEvent above. idleColor is
-// presence-checked like Slot::customColor above; shown is omitted when true
-// (the default), same convention as WorldEvent above.
+// reasoning as SerializeEvent/DeserializeEvent above. idleColor is presence-
+// checked like Slot::customColor above; shown is omitted when true (the default),
+// same convention as WorldEvent above.
 //--------------------------------------------------------------------------------
 static json SerializeGroup(const CyclicGroup& grp)
 {
@@ -355,8 +354,8 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
 // - for slots this means unique WITHIN the group, not globally (see
 // CyclicGroup::Slot::id, events.h). name is display-only and can change (user
 // rename, localization) without breaking the merge match. MergeByKey collapses
-// same-key duplicates from a pre-migration file back down to the single
-// compiled-in default (see MergeByKey above), not the old multi-entry shape.
+// same-key duplicates from a pre-migration file back down to the single compiled-
+// in default (see MergeByKey above), not the old multi-entry shape.
 //--------------------------------------------------------------------------------
 static std::string GroupKey(const CyclicGroup& g) { return g.id; }
 static std::string SlotKey(const CyclicGroup::Slot& s) { return s.id; }
@@ -545,10 +544,10 @@ static std::string UniqueId(const std::string& candidate, std::unordered_set<std
 // via MergeByKey/MergeGroups, using resurrectMissingDefaults = (saved
 // data_version < EVENTS_DATA_VERSION), then restamps apiWorldBossId/doneGroup/
 // apiMapChestId from the compiled-in defaults by id, since those cross-reference
-// fields are never read from or written to the file.
-// A missing file isn't an error - g_Events/g_CyclicGroups are simply left at
-// their compiled-in defaults; the caller (addon.cpp) is expected to call
-// SaveEventsData right after so the file exists from then on.
+// fields are never read from or written to the file. A missing file isn't an
+// error - g_Events/g_CyclicGroups are simply left at their compiled-in defaults;
+// the caller (addon.cpp) is expected to call SaveEventsData right after so the
+// file exists from then on.
 //--------------------------------------------------------------------------------
 bool SaveEventsData(const std::string& addonDir)
 {

@@ -76,10 +76,10 @@ extern std::vector<CategoryDefault> g_DefaultCyclicCategories;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MoveCategoryMember
 //--------------------------------------------------------------------------------
-// Moves memberId into targetCategoryIndex, removing it from every other
-// category first - membership is exclusive. Pass -1 for "uncategorized": removes
-// without adding anywhere. Pure data operation; the drag-and-drop UI in
-// addon_options.cpp calls this on drop.
+// Moves memberId into targetCategoryIndex, removing it from every other category
+// first - membership is exclusive. Pass -1 for "uncategorized": removes without
+// adding anywhere. Pure data operation; the drag-and-drop UI in addon_options.cpp
+// calls this on drop.
 //--------------------------------------------------------------------------------
 void MoveCategoryMember(std::vector<Category>& categories, const std::string& memberId, int targetCategoryIndex);
 
@@ -87,14 +87,14 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 // SaveCategoriesData / LoadCategoriesData
 //--------------------------------------------------------------------------------
 // Persisted in events.json alongside g_Events/g_CyclicGroups (see
-// events_storage.cpp), as extra "basicCategories"/"cyclicCategories" keys.
-// Call SaveEventsData() before SaveCategoriesData(): the latter reads the file
-// first to avoid clobbering events/cyclicGroups, so the reverse order would
-// drop the category keys.
+// events_storage.cpp), as extra "basicCategories"/"cyclicCategories" keys. Call
+// SaveEventsData() before SaveCategoriesData(): the latter reads the file first
+// to avoid clobbering events/cyclicGroups, so the reverse order would drop the
+// category keys.
 //
-// LoadCategoriesData needs g_Events/g_CyclicGroups already populated - call
-// after LoadEventsData - since it migrates any pre-id member to an id first
-// (see MigrateMembersToIds), then merges compiled-in defaults with the JSON by
+// LoadCategoriesData needs g_Events/g_CyclicGroups already populated - call after
+// LoadEventsData - since it migrates any pre-id member to an id first (see
+// MigrateMembersToIds), then merges compiled-in defaults with the JSON by
 // category name and applies forced members. Both swallow exceptions.
 //--------------------------------------------------------------------------------
 bool SaveCategoriesData(const std::string& addonDir);
