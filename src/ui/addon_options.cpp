@@ -92,9 +92,7 @@ void AddonOptions()
         DisableBarWhenCompetitive    = disableAllCompetitive;
         DisableNotifyWhenCompetitive = disableAllCompetitive;
     }
-    Tooltip("Hides map events, cyclic rings, and all subscriptions\n"
-            "views (window/bar/toast) while you're on a PvP or WvW\n"
-            "map. Doesn't change what's subscribed, only what shows.");
+    Tooltip(Tr("WE_TIP_DISABLE_COMPETITIVE"));
 
     ImGui::SameLine();
     ImGui::Checkbox(TrId("WE_OPT_WINDOW", "##dis_comp_window").c_str(), &DisableWindowWhenCompetitive);
@@ -139,10 +137,7 @@ void AddonOptions()
 
             //_ Third, independent view of the same subscription data (toast popups); not gated by window/bar visibility.
             ImGui::Checkbox(Tr("WE_OPT_ENABLE_NOTIFY_POPUPS"), &NotificationsEnabled);
-            Tooltip("Pops up a small toast in the lower-right corner for events\n"
-                    "you have notifications enabled for, whether or not the\n"
-                    "window or distribution line are open. Click a popup to paste\n"
-                    "its waypoint code, same as clicking a row/segment there.");
+            Tooltip(Tr("WE_TIP_NOTIFY_POPUPS"));
 
             DisabledBlock(!NotificationsEnabled)
             {
@@ -155,8 +150,7 @@ void AddonOptions()
                     if (NotificationLeadMinutes < 0)   NotificationLeadMinutes = 0;
                     if (NotificationLeadMinutes > 120) NotificationLeadMinutes = 120;
                 }
-                Tooltip("How long before a subscribed event/slot starts to\n"
-                        "fire the \"starting soon\" popup. 0 disables it.");
+                Tooltip(Tr("WE_TIP_WARN_BEFORE_START"));
                     
                 ImGui::SameLine();
                 ImGui::Checkbox(Tr("WE_OPT_NOTIFY_ON_START"), &NotificationOnStart);
@@ -172,8 +166,7 @@ void AddonOptions()
                     if (NotificationDisplaySeconds < 1)   NotificationDisplaySeconds = 1;
                     if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
                 }
-                Tooltip("How long a popup stays fully visible before it fades out.\n"
-                        "Hovering a popup pauses its timer.");
+                Tooltip(Tr("WE_TIP_POPUP_DURATION"));
 
                 //_ Single .wav file, picked from "<addon dir>/sounds"; which events play it is each row's notify level.
                 {
@@ -208,8 +201,7 @@ void AddonOptions()
                     ImGui::SameLine();
                     if (ImGui::Button(Tr("WE_OPT_RESCAN")))
                         ScanNotificationSoundFiles();
-                    Tooltip("Re-scans \"<addon dir>/sounds\" for .wav files you've\n"
-                            "dropped in since the dropdown was last built.");
+                    Tooltip(Tr("WE_TIP_RESCAN_SOUNDS"));
                             
                     ImGui::SameLine();
                     DisabledBlock(NotificationSoundFile.empty())
@@ -217,13 +209,7 @@ void AddonOptions()
                         if (ImGui::Button(Tr("WE_OPT_TEST")))
                             PlayNotificationSound(NotificationSoundFile);
                     }
-                    Tooltip("Drop .wav files into \"<addon dir>/sounds\" and pick one\n"
-                            "here to preview it. Only .wav is supported (PlaySound has\n"
-                            "no built-in decoder for mp3/ogg/etc). \"Test\" just plays it\n"
-                            "immediately - it also plays automatically alongside a real\n"
-                            "notification popup, but only for events/slots whose own\n"
-                            "notify level has sound enabled (see the speaker icon on\n"
-                            "each row below).");
+                    Tooltip(Tr("WE_TIP_TEST_SOUND"));
                 }
             }
 
@@ -238,9 +224,7 @@ void AddonOptions()
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 ImGui::Checkbox(Tr("WE_OPT_HIDE_ACTIVE_ON_BAR"), &SubscriptionsBarHideActive);
-                Tooltip("Segments that are currently active are left off the bar entirely\n"
-                        "instead of showing as a dropped-to-startX line - only upcoming events\n"
-                        "are shown. Independent from \"Hide active in window\" above.");
+                Tooltip(Tr("WE_TIP_HIDE_ACTIVE_ON_BAR"));
 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
@@ -261,9 +245,7 @@ void AddonOptions()
                     if (SubscriptionsBarMaxDropPx < 8)     SubscriptionsBarMaxDropPx = 8;
                     if (SubscriptionsBarMaxDropPx > 300)   SubscriptionsBarMaxDropPx = 300;
                 }
-                Tooltip("How tall the dropped block/pill is, in px.\n"
-                        "Sized by default to fit two centered lines of label text;\n"
-                        "raise it if your font/DPI needs more room.");
+                Tooltip(Tr("WE_TIP_POPOUT_HEIGHT"));
                     
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
@@ -274,8 +256,7 @@ void AddonOptions()
                     if (SubscriptionsBarHoverDelayMs < 0)    SubscriptionsBarHoverDelayMs = 0;
                     if (SubscriptionsBarHoverDelayMs > 5000) SubscriptionsBarHoverDelayMs = 5000;
                 }
-                Tooltip("How long the mouse has to sit still over a segment or dot\n"
-                        "before it pops out. 0 = instant.");
+                Tooltip(Tr("WE_TIP_POPOUT_DELAY"));
 
                 float screenWidth = ImGui::GetIO().DisplaySize.x;
                 float screenHeight = ImGui::GetIO().DisplaySize.y;
@@ -295,10 +276,7 @@ void AddonOptions()
                         SubscriptionsBarUnsafeRightPx = (int)screenWidth - SubscriptionsBarUnsafeLeftPx;
                 }
                 bool leftActive = ImGui::IsItemActive();
-                Tooltip("Width from the LEFT screen edge, in px, treated as\n"
-                        "covered by your own GW2 UI (e.g. party/buffs). Segments\n"
-                        "in this zone drop lower instead of covering it.\n"
-                        "0 disables the left zone.");
+                Tooltip(Tr("WE_TIP_UNSAFE_LEFT"));
                 
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50);
@@ -310,10 +288,7 @@ void AddonOptions()
                         SubscriptionsBarUnsafeLeftPx = (int)screenWidth - SubscriptionsBarUnsafeRightPx;
                 }
                 bool rightActive = ImGui::IsItemActive();
-                Tooltip("Width from the RIGHT screen edge, in px, treated as\n"
-                        "covered by your own GW2 UI (e.g. minimap/compass).\n"
-                        "Segments in this zone drop lower instead of covering it.\n"
-                        "0 disables the right zone.");
+                Tooltip(Tr("WE_TIP_UNSAFE_RIGHT"));
                 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
@@ -324,10 +299,7 @@ void AddonOptions()
                     if (SubscriptionsBarUnsafeHeightPx > screenHeight) SubscriptionsBarUnsafeHeightPx = screenHeight;
                 }
                 bool heightActive = ImGui::IsItemActive();
-                Tooltip("How tall your corner UI is, in px. Segments inside\n"
-                        "either unsafe zone start their drop this far down\n"
-                        "instead of from the line itself, so the popped-out\n"
-                        "block clears your UI.");
+                Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT"));
                 
                 //_ Live preview, shown only while one of the three fields above is focused; mirrors subscriptions_bar.cpp's anchor math.
                 if (leftActive || rightActive || heightActive)
@@ -370,9 +342,7 @@ void AddonOptions()
             ImGui::Text("%s", Tr("WE_OPT_CHAT_SETTINGS"));
             static bool unlockDelay = false;
             ImGui::Checkbox("##lock_delay", &unlockDelay);
-            Tooltip("Best to only change this if you have any issues.\n"
-                    "Defines the internal delay set to properly paste text to chatbox.\n"
-                    "Default = 20ms");
+            Tooltip(Tr("WE_TIP_UNLOCK_PASTE_DELAY"));
             ImGui::SameLine();
             DisabledBlock(!unlockDelay)
             {
@@ -395,14 +365,7 @@ void AddonOptions()
                 if (ImGui::Combo(Tr("WE_OPT_PASTE_TO"), &chatChannelIndex, chatChannelLabels.data(), (int)chatChannelLabels.size()))
                     ChatChannelPrefix = chatChannelPrefixes[chatChannelIndex];
 
-                Tooltip("Which chat channel a watchlist row/segment/toast click\n"
-                        "pastes into, regardless of whatever channel is currently\n"
-                        "selected in-game. Prepends that channel's slash command\n"
-                        "(e.g. \"/p \") before the name/waypoint. \"Current chat\"\n"
-                        "pastes exactly as before, into whichever channel already\n"
-                        "has focus.\n\n"
-                        "When Better Chat's \"/self\" is enabled, the option is\n"
-                        "available here as well.");
+                Tooltip(Tr("WE_TIP_PASTE_TO"));
                         
                 if (!IsBetterChatLoaded()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_NOT_LOADED"));
                 else if (!IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_SELF_DISABLED"));
@@ -448,19 +411,7 @@ void AddonOptions()
                 if (ImGui::InputText("##gw2_api_key", apiKeyBuf, sizeof(apiKeyBuf), ImGuiInputTextFlags_Password))
                     Gw2ApiKey = apiKeyBuf;
             }
-            Tooltip("Needs the \"progression\" permission. When set, a subscribed\n"
-                    "Core Boss (Admiral Taidha Covington, Tequatl, etc.) is\n"
-                    "automatically left off the watchlist window and bar once\n"
-                    "your account has already killed it since the last daily\n"
-                    "reset. The same applies to any subscribed slot in Verdant\n"
-                    "Brink, Auric Basin, Tangled Depths, Dragon's Stand, Crystal\n"
-                    "Oasis, Elon Riverlands, The Desolation, or Domain of Vabbi,\n"
-                    "once that map's Hero's Choice Chest has already been\n"
-                    "claimed today (the whole ring hides together, not just the\n"
-                    "one slot). Nothing else is affected: the public API has no\n"
-                    "\"already done today\" signal for any other event type in\n"
-                    "this addon (other map metas, invasions, LLA, convergences),\n"
-                    "so those are never hidden by this.");
+            Tooltip(Tr("WE_TIP_GW2_API_KEY"));
 
             ImGui::SameLine();
             switch (GetGw2ApiStatus())
@@ -484,23 +435,11 @@ void AddonOptions()
 
             //_ Whether the API half of doneToday is consulted at all; the manual mark always still applies.
             ImGui::Checkbox(Tr("WE_OPT_AUTO_MARK_API_DONE"), &Gw2ApiAutoMarkDoneEnabled);
-            Tooltip("When on (default), any Basic Event/Cyclic group tagged\n"
-                    "(auto) in the lists below still auto-hides once the GW2\n"
-                    "API reports it done for the day. Turn this off to ignore\n"
-                    "that signal and rely only on marking events done for\n"
-                    "today yourself (right-click a row/segment/popup).");
+            Tooltip(Tr("WE_TIP_AUTO_MARK_API_DONE"));
 
             //_ Master switch: drives whether any of the three subscription views auto-surfaces this week's Vault targets.
             ImGui::Checkbox(Tr("WE_OPT_AUTO_TRACK_VAULT"), &WeeklyAutoTrackEnabled);
-            Tooltip("When on (default), the subscriptions window, distribution\n"
-                    "line, and notification popups all automatically surface any\n"
-                    "Basic Event / Cyclic slot that's an active-and-incomplete\n"
-                    "target of this week's Wizard's Vault rotation, even if you\n"
-                    "never subscribed to it yourself, marked with a small red\n"
-                    "dot/border. Turn this off to see only what you've actually\n"
-                    "subscribed to by hand in all three views. Doesn't affect\n"
-                    "the red marker on something you HAVE manually subscribed to\n"
-                    "that also happens to be a weekly target - that stays either way.");
+            Tooltip(Tr("WE_TIP_AUTO_TRACK_VAULT"));
             
             //_ Color swatch for the weekly Wizard's Vault tracked dot
             DisabledBlock(!WeeklyAutoTrackEnabled)
@@ -513,12 +452,7 @@ void AddonOptions()
             //_ Manual counterpart to the API-based hiding above; covers everything the API doesn't, key or no key.
             static bool unlockMarkers = false;
             ImGui::Checkbox("##lock_markers", &unlockMarkers);
-            Tooltip("Right-click any row in the watchlist window, segment on the\n"
-                    "distribution line, or notification popup to mark it done for\n"
-                    "today. It then hides from all three views, the same way an\n"
-                    "API-confirmed Core Boss kill or map chest claim does, until\n"
-                    "the next daily reset (00:00 UTC) - or until you clear it\n"
-                    "below. Right-click the same row again to undo it before then.");
+            Tooltip(Tr("WE_TIP_UNLOCK_DONE_MARKERS"));
             ImGui::SameLine();
             DisabledBlock(!unlockMarkers)
             {
@@ -606,30 +540,23 @@ void AddonOptions()
                 ImGui::SetNextItemWidth(50.0f);
                 ImGui::DragFloat(Tr("WE_OPT_FUTURE_WINDOW"), &CyclicMaxFutureDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
                 if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxPastDeg = 360 - CyclicMaxFutureDeg; }
-                Tooltip("How far ahead an upcoming event starts fading into view.\n"
-                        "Measured in degrees of the ring.");
+                Tooltip(Tr("WE_TIP_FUTURE_WINDOW"));
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50.0f);
                 ImGui::DragFloat(Tr("WE_OPT_PAST_WINDOW"), &CyclicMaxPastDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
                 if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxFutureDeg = 360 - CyclicMaxPastDeg; }
-                Tooltip("How long a finished event lingers before fading out.\n"
-                        "Measured in degrees of the ring.");
+                Tooltip(Tr("WE_TIP_PAST_WINDOW"));
 
                 ImGui::Checkbox(TrId("WE_OPT_FADE_PAST_EVENTS", "##cyclic_past_fade_enabled").c_str(), &CyclicPastFadeEnabled);
-                Tooltip("Fades the past window from full opacity at the hand\n"
-                        "down to transparent at its far edge. Turn off to keep\n"
-                        "it solid across the whole past window instead.");
+                Tooltip(Tr("WE_TIP_FADE_PAST_EVENTS"));
 
                 ImGui::TextUnformatted(Tr("WE_OPT_HAND"));
                 ImGui::ColorEdit4(TrId("WE_OPT_COLOR", "##cyclic_hand_color").c_str(), CyclicHandColor, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-                Tooltip("Color of the fixed \"now\" hand at the top of every ring.\n"
-                        "Also tints the hand image below, if enabled.");
+                Tooltip(Tr("WE_TIP_HAND_COLOR"));
                 
                 ImGui::SameLine();
-                ImGui::Checkbox(TrId("WE_OPT_USE_IMAGE", "##cyclic_hand_image_enabled").c_str(), &CyclicHandImageEnabled);
-                Tooltip("Draws an image instead of the plain hand tick. Like the\n"
-                        "Basic Event icons, the source image's RGB should be a\n"
-                        "neutral gray with the shape in the alpha channel.");
+                ImGui::Checkbox(TrId("WE_OPT_USE_TEXTURE", "##cyclic_hand_image_enabled").c_str(), &CyclicHandImageEnabled);
+                Tooltip(Tr("WE_TIP_HAND_USE_TEXTURE"));
 
                 DisabledBlock(!CyclicHandImageEnabled)
                 {
@@ -653,20 +580,13 @@ void AddonOptions()
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(50.0f);
                     ImGui::DragFloat(TrId("WE_OPT_WIDTH", "##cyclic_hand_image_width").c_str(), &CyclicHandImageWidth, 1.0f, 2.0f, 60.0f, "%.0f px");
-                    Tooltip("Length isn't separately adjustable - the image always\n"
-                            "spans exactly from the ring's inner edge to its outer\n"
-                            "edge, stretching automatically with Radius/Thickness.");
+                    Tooltip(Tr("WE_TIP_HAND_TEXTURE_WIDTH"));
                 }
 
                 ImGui::Spacing();
-                ImGui::TextUnformatted(Tr("WE_OPT_RING_EDGE_IMAGE"));
+                ImGui::TextUnformatted(Tr("WE_OPT_RING_EDGE_TEXTURE"));
                 ImGui::Checkbox("##cyclic_ring_image_enabled", &CyclicRingImageEnabled);
-                Tooltip("Wraps an image around the ring's edge(s) instead of a\n"
-                        "plain line. The image should be wider than it is tall - it\n"
-                        "is stretched around exactly the portion of the circle\n"
-                        "shown by the Future/Past window above, and rescales with\n"
-                        "Radius/Thickness. Drop a .png/.jpg into this addon's\n"
-                        "\"textures\" folder to make it available below.");
+                Tooltip(Tr("WE_TIP_RING_EDGE_TEXTURE"));
 
                 DisabledBlock(!CyclicRingImageEnabled)
                 {
@@ -685,34 +605,24 @@ void AddonOptions()
                                 
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(100.0f);
-                    if (ImGui::Combo(TrId("WE_OPT_IMAGE", "##cyclic_ring_image_file").c_str(), &iconIndex, iconLabels.data(), (int)iconLabels.size()))
+                    if (ImGui::Combo(TrId("WE_OPT_TEXTURE", "##cyclic_ring_image_file").c_str(), &iconIndex, iconLabels.data(), (int)iconLabels.size()))
                         CyclicRingImageFilename = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
 
                     //_ Its own row - the ONLY control over on-screen band thickness (CyclicRingImageThickness).
                     ImGui::SetNextItemWidth(50.0f);
                     ImGui::DragFloat(TrId("WE_OPT_THICKNESS", "##cyclic_ring_image_thickness").c_str(), &CyclicRingImageThickness, 0.5f, 1.0f, 80.0f, "%.1f px");
-                    Tooltip("On-screen thickness of the image band, centered on the\n"
-                            "edge it's drawn on. This is independent of the source\n"
-                            "image file's own pixel height - the image is always\n"
-                            "stretched to fill this value, so swapping in a\n"
-                            "shorter/taller source PNG has no effect on its own;\n"
-                            "drag this down to make the band thinner.");
+                    Tooltip(Tr("WE_TIP_RING_TEXTURE_THICKNESS"));
                             
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(50.0f);
                     ImGui::DragFloat(TrId("WE_OPT_OFFSET", "##cyclic_ring_image_offset").c_str(), &CyclicRingImageOffset, 0.1f, -5.0f, 5.0f, "%.1f px");
-                    Tooltip("Nudges both copies radially outward from the ring's own\n"
-                            "fill - the outer copy moves further out, the inner copy\n"
-                            "further in - so they stay mirror-symmetric.\n"
-                            "Negative values pull both back in toward the ring instead.");
+                    Tooltip(Tr("WE_TIP_RING_TEXTURE_OFFSET"));
                 }
 
                 ImGui::Spacing();
                 ImGui::TextUnformatted(Tr("WE_OPT_FILL_TEXTURE"));
                 ImGui::Checkbox("##cyclic_fill_image_enabled", &CyclicFillImageEnabled);
-                Tooltip("Lays an image over the ring's own plain-color fill (the\n"
-                        "track and slot arcs) to break it up with some texture or\n"
-                        "grain.");
+                Tooltip(Tr("WE_TIP_FILL_TEXTURE"));
 
                 DisabledBlock(!CyclicFillImageEnabled)
                 {

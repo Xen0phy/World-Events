@@ -41,6 +41,7 @@
 #include "events.h"
 #include "events_live.h"
 #include "imgui.h"
+#include "localization.h"
 #include "map_shared.h"
 #include "maprender.h"
 #include "settings.h"
@@ -49,6 +50,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <ctime>
 #include <filesystem>
 #include <mutex>
@@ -565,13 +567,17 @@ void RenderMapEvents()
             if (active)
             {
                 int secsUntilEnd = GetSecondsUntilEventEnd(ev, now);
-                ImGui::Text("%s - Active (ends in %s)",
+                char tipBuf[160];
+                snprintf(tipBuf, sizeof(tipBuf), Tr("WE_TIP_MAP_ACTIVE_FMT"),
                     ev.name.c_str(), FormatMinSec(secsUntilEnd).c_str());
+                ImGui::TextUnformatted(tipBuf);
             }
             else
             {
-                ImGui::Text("%s - in %s",
+                char tipBuf[160];
+                snprintf(tipBuf, sizeof(tipBuf), Tr("WE_TIP_MAP_UPCOMING_FMT"),
                     ev.name.c_str(), FormatCountdown(secs).c_str());
+                ImGui::TextUnformatted(tipBuf);
             }
             ImGui::EndTooltip();
         }

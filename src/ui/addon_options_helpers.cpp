@@ -15,6 +15,7 @@
 #include "events_storage.h" //. GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot
 #include "events_tracking.h"
 #include "imgui_internal.h" //. for internal-only ImGui APIs
+#include "localization.h"
 #include "subscriptions.h"
 
 #include <algorithm>
@@ -332,11 +333,11 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
 
     if (hovered)
     {
-        ImGui::SetTooltip(
-            level == 0 ? "Click to subscribe" :
-            level == 1 ? "Subscribed - click to also show a toast notification\n(right-click the name for more options)" :
-            level == 2 ? "Subscribed + toast notification - click to also play a sound\n(right-click the name for more options)"
-                       : "Subscribed + toast + sound - click to unsubscribe\n(right-click the name for more options)");
+        ImGui::SetTooltip("%s",
+            level == 0 ? Tr("WE_TIP_NOTIFY_ICON_LVL0") :
+            level == 1 ? Tr("WE_TIP_NOTIFY_ICON_LVL1") :
+            level == 2 ? Tr("WE_TIP_NOTIFY_ICON_LVL2")
+                       : Tr("WE_TIP_NOTIFY_ICON_LVL3"));
     }
 
     ImGui::PopID();
@@ -360,11 +361,11 @@ int DrawNotifyLevelButtons(const char* idSuffix, int level)
     float sq = ImGui::GetFrameHeight();
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
-    static const char* const kTooltips[4] = {
-        "Unsubscribed",
-        "Subscribed \xE2\x80\x94 silent",
-        "Subscribed + toast notification",
-        "Subscribed + toast + sound"
+    static const char* const kTooltipIds[4] = {
+        "WE_TIP_NOTIFY_BTN_LVL0",
+        "WE_TIP_NOTIFY_BTN_LVL1",
+        "WE_TIP_NOTIFY_BTN_LVL2",
+        "WE_TIP_NOTIFY_BTN_LVL3"
     };
 
     int newLevel = level;
@@ -420,7 +421,7 @@ int DrawNotifyLevelButtons(const char* idSuffix, int level)
             newLevel = lvl;
 
         if (hovered)
-            ImGui::SetTooltip("%s", kTooltips[lvl]);
+            ImGui::SetTooltip("%s", Tr(kTooltipIds[lvl]));
 
         ImGui::PopID();
     }
@@ -457,10 +458,7 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix)
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        if (isBeingEdited)
-            ImGui::TextUnformatted("Click to stop dragging on the map.");
-        else
-            ImGui::TextUnformatted("Click, then left-click-drag this marker\non the map to reposition it.");
+        ImGui::TextUnformatted(isBeingEdited ? Tr("WE_TIP_DRAG_STOP") : Tr("WE_TIP_DRAG_START"));
         ImGui::EndTooltip();
     }
 }
@@ -535,9 +533,7 @@ NameRowResult DrawNameAndContextMenu(
     }
     bool open = ImGui::TreeNode(treeNodeId, "%s", label.c_str());
     if (autoTag && ImGui::IsItemHovered())
-        ImGui::SetTooltip("Automatically tracked via the GW2 API.\n"
-                          "Drops off the Subscriptions bar/window on its own\n"
-                          "once claimed today (no need to check it off by hand).");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_AUTO_TRACKED"));
 
     //_ Drag source is optional; categories are drop targets only and pass dragType = nullptr to skip it.
     if (dragType)
@@ -660,7 +656,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     //_ Map-only show/hide; the Subscriptions bar/window are unaffected (that's the checkbox above). ev.shown defaults to true.
     DrawSubscribeCheckbox("##show_on_map", ev.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show on the map overlay\n(Subscriptions bar/window are unaffected)");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_ON_MAP"));
     ImGui::SameLine();
 
     std::string oldName = ev.name;
@@ -851,13 +847,13 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         }
     }
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Subscribe/unsubscribe every occurrence in this cycle at once\n(checked only when all of them already are)");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SUBSCRIBE_CYCLE"));
     ImGui::SameLine();
 
     //_ Show/hide the ENTIRE ring (track + every slot); see CyclicGroup::shown in events.h.
     DrawSubscribeCheckbox("##show_group_on_map", grp.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show/hide this entire ring on the map overlay\n(no circle drawn at all while unchecked)");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_RING"));
     ImGui::SameLine();
 
     std::string oldGroupName = grp.name;
@@ -947,7 +943,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             //_ Show/hide just THIS occurrence; the rest of the ring still draws (see CyclicGroup::Slot::shown in events.h).
             DrawSubscribeCheckbox("##show_slot_on_map", slot.shown);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Show/hide this occurrence on the map overlay");
+                ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_OCCURRENCE"));
             ImGui::SameLine();
 
             int slotEditKey = i * 100000 + s;
@@ -1009,9 +1005,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                             fixed--;
                         slot.repeat = fixed;
                     }
-                    Tooltip("How often the event repeats in the set period.\n"
-                            "Has to fit perfectly, if not possible make a second entry instead.\n"
-                            "Example: Event repeats exactly every hour. So 2 repeats in a 2h period.");
+                    Tooltip(Tr("WE_TIP_REPETITION"));
                 }
                 else
                 {

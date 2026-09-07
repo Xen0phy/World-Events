@@ -17,6 +17,7 @@
 #include "cyclicrender.h"
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "localization.h"
 #include "map_shared.h"
 #include "maprender.h"
 #include "settings.h"
@@ -24,6 +25,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <ctime>
 #include <string>
 #include <vector>
@@ -703,17 +705,19 @@ void RenderCyclicGroups()
                 //_ Same status swatches/threshold as the Basic Events map dots (maprender.cpp)
                 if (e.active)
                 {
-                    ImGui::TextColored(ToImVec4(BasicEventColorActive),
-                        "%s - Active (ends in %s)",
+                    char tipBuf[160];
+                    snprintf(tipBuf, sizeof(tipBuf), Tr("WE_TIP_MAP_ACTIVE_FMT"),
                         e.name.c_str(), FormatMinSec(e.secs).c_str());
+                    ImGui::TextColored(ToImVec4(BasicEventColorActive), "%s", tipBuf);
                 }
                 else
                 {
                     const float* col = e.secs < 900 ? BasicEventColorSoon
                                                       : BasicEventColorWaiting;
-                    ImGui::TextColored(ToImVec4(col),
-                        "%s - in %s",
+                    char tipBuf[160];
+                    snprintf(tipBuf, sizeof(tipBuf), Tr("WE_TIP_MAP_UPCOMING_FMT"),
                         e.name.c_str(), FormatCountdown(e.secs).c_str());
+                    ImGui::TextColored(ToImVec4(col), "%s", tipBuf);
                 }
             }
 

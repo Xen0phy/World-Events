@@ -31,9 +31,7 @@ void DrawResetToDefaultsButton()
     ImGui::PopStyleColor(3);
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Wipe all Basic Events, Cyclic Groups, categories,\n"
-                           "subscriptions, and done-today markers, restoring\n"
-                           "everything to what's compiled into the addon.");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_RESET_WIPE"));
 }
 
 void DrawResetToDefaultsPopup()

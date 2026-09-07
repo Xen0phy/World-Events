@@ -36,6 +36,7 @@
 #include "events_live.h" //. g_LiveEvents, for the Live Events tab
 #include "events_tracking.h"
 #include "imgui.h"
+#include "localization.h"
 #include "settings.h" //. Gw2ApiKey, gates the live-event subscribe checkbox below
 #include "subscriptions.h"
 
@@ -111,7 +112,7 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
 
     DrawSubscribeCheckbox("##edit_show_on_map", ev.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show on the map overlay\n(Subscriptions bar/window are unaffected)");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_ON_MAP"));
     ImGui::SameLine();
 
     if (forceOpen)
@@ -155,7 +156,7 @@ static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
 
     DrawSubscribeCheckbox("##edit_show_slot_on_map", slot.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show/hide this occurrence on the map overlay");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_OCCURRENCE"));
     ImGui::SameLine();
 
     if (forceOpen)
@@ -197,7 +198,7 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
 
     DrawSubscribeCheckbox("##edit_show_group_on_map", grp.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show/hide this entire ring on the map overlay\n(no circle drawn at all while unchecked)");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_RING"));
     ImGui::SameLine();
 
     if (forceOpenGroup)
@@ -225,7 +226,7 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
             }
         }
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Subscribe/unsubscribe every occurrence in this cycle at once\n(checked only when all of them already are)");
+            ImGui::SetTooltip("%s", Tr("WE_TIP_SUBSCRIBE_CYCLE"));
         ImGui::SameLine();
         ImGui::TextUnformatted("Subscribe all");
 

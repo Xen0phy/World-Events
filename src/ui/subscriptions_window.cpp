@@ -18,6 +18,7 @@
 #include "color_utils.h"
 #include "events_tracking.h"
 #include "imgui.h"
+#include "localization.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_ui.h"
@@ -66,7 +67,7 @@ static bool DrawSubscriptionRow(const std::string& name, const std::string& chat
         ImVec4 weeklyDotColor = ToImVec4Opaque(WeeklyAutoTrackColor);
         ImGui::TextColored(weeklyDotColor, "*");
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Counts toward this week's Wizard's Vault objectives.");
+            ImGui::SetTooltip("%s", Tr("WE_TIP_WEEKLY_VAULT"));
         ImGui::SameLine(0.0f, 4.0f);
     }
 

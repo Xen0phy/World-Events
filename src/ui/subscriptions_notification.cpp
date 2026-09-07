@@ -37,6 +37,7 @@
 #include "events_live.h" //. g_LiveEvents, for CollectLiveEventPopups' name/chatCode lookup
 #include "events_tracking.h"
 #include "imgui.h"
+#include "localization.h"
 #include "notification_client.h" //. DrainLiveEventNotifications
 #include "notify_sound.h"
 #include "settings.h"
@@ -462,7 +463,7 @@ static void DrawAndExpirePopups()
 
             //_ Same red-border meaning as the window's red dot tooltip.
             if (p.isWeekly)
-                ImGui::SetTooltip("Counts toward this week's Wizard's Vault objectives.");
+                ImGui::SetTooltip("%s", Tr("WE_TIP_WEEKLY_VAULT"));
         }
 
         //_ Clicking dismisses the popup immediately, same as acting on a watchlist row; skips drawing/fading it since it's already being removed this frame.
