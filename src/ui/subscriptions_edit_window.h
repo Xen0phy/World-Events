@@ -3,7 +3,7 @@
 //--------------------------------------------------------------------------------
 // ShowEditSubscriptionsWindow    transient visibility flag (see below)
 // OpenEditSubscriptionsWindow()  open with no particular row targeted
-// OpenEditSubscriptionsWindow(kind, basicName, cyclicKey, liveEventId)
+// OpenEditSubscriptionsWindow(kind, basicId, cyclicKey, liveEventId)
 //                                 open with that row already expanded
 // RenderEditSubscriptionsWindow  draws the window; no-op unless open
 //--------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ inline constexpr const char* kEditSubscriptionsWindowTitle = "World Events - Edi
 // background right-click entry point (bar strip / window empty area).
 //
 // Four-argument overload: opens the window, switches to the matching tab, and on
-// the very next draw expands the row identified by (kind, basicName, cyclicKey)
+// the very next draw expands the row identified by (kind, basicId, cyclicKey)
 // for Basic/Cyclic - and, for a Cyclic slot, its enclosing group too - or
 // liveEventId for Live. Same identity trio (now three-way via SubscriptionKind,
 // subscriptions.h) already threaded through LineSegment/Row/Popup in
@@ -53,7 +53,7 @@ inline constexpr const char* kEditSubscriptionsWindowTitle = "World Events - Edi
 // liveEventId defaults to empty, meaningful only when kind is Live.
 //--------------------------------------------------------------------------------
 void OpenEditSubscriptionsWindow();
-void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicName,
+void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicId,
     const CyclicSubscriptionKey& cyclicKey, const std::string& liveEventId = std::string());
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

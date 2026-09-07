@@ -116,8 +116,11 @@ extern const char* const kCyclicGroupDragType;
 // Drag-and-drop: moving an item into/out of a category. MakeDragSource goes right
 // after the draggable widget; MakeDropTarget goes on whatever should accept the
 // drop (a category header, or a section's "drop here to uncategorize" target).
+//
+// itemId is the payload (matches Category::members); displayName is only the
+// text shown under the cursor while dragging.
 //--------------------------------------------------------------------------------
-void MakeDragSource(const char* dragType, const std::string& itemName);
+void MakeDragSource(const char* dragType, const std::string& itemId, const std::string& displayName);
 bool MakeDropTarget(const char* dragType, std::vector<Category>& categories, int targetCategoryIndex);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -200,9 +203,10 @@ struct NameRowResult { bool open; std::string newName; };
 //--------------------------------------------------------------------------------
 // Shared expand/collapse + name + right-click "Edit name"/"Reset"/"Delete" row,
 // used for Basic Events, Cyclic Groups, Cyclic slots, and both category lists.
-// See the .cpp for the full contract on editBuffers/ editKey/removeIndex,
-// autoTag, toggleDone, notifyLevel/setNotifyLevel, and
-// resetToDefault/resetAvailable.
+// dragId is the MakeDragSource payload; only meaningful (and only read) when
+// dragType is non-null - the two category-list callers pass neither. See the
+// .cpp for the full contract on editBuffers/editKey/removeIndex, autoTag,
+// toggleDone, notifyLevel/setNotifyLevel, and resetToDefault/resetAvailable.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
     const char*                 treeNodeId,
@@ -212,6 +216,7 @@ NameRowResult DrawNameAndContextMenu(
     std::map<int, std::string>& editBuffers,
     int&                        pendingRemoveIndex,
     const char*                 dragType        = nullptr,
+    const std::string&          dragId          = std::string(),
     const char*                 autoTag         = nullptr,
     std::function<void()>       toggleDone      = nullptr,
     int                         notifyLevel     = -1,

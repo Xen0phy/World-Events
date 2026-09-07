@@ -52,8 +52,8 @@ bool ShowEditSubscriptionsWindow = false;
 //********************************************************************************
 // EditSubscriptionsTarget
 //--------------------------------------------------------------------------------
-// kind/basicName/cyclicKey/liveEventId   identity, four-way via
-//                                          SubscriptionKind (subscriptions.h)
+// kind/basicId/cyclicKey/liveEventId   identity, four-way via
+//                                        SubscriptionKind (subscriptions.h)
 //--------------------------------------------------------------------------------
 // The row a deep-linking open() call wants expanded on the next draw. Consumed
 // exactly once by RenderEditSubscriptionsWindow (see s_hasPendingTarget below),
@@ -62,7 +62,7 @@ bool ShowEditSubscriptionsWindow = false;
 struct EditSubscriptionsTarget
 {
     SubscriptionKind kind = SubscriptionKind::Basic;
-    std::string basicName;
+    std::string basicId;
     CyclicSubscriptionKey cyclicKey;
     std::string liveEventId;
 };
@@ -81,11 +81,11 @@ void OpenEditSubscriptionsWindow()
     s_hasPendingTarget = false; //. no row to land on - background right-click entry point
 }
 
-void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicName,
+void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicId,
     const CyclicSubscriptionKey& cyclicKey, const std::string& liveEventId)
 {
     ShowEditSubscriptionsWindow = true;
-    s_pendingTarget = EditSubscriptionsTarget{ kind, basicName, cyclicKey, liveEventId };
+    s_pendingTarget = EditSubscriptionsTarget{ kind, basicId, cyclicKey, liveEventId };
     s_hasPendingTarget = true;
 }
 
@@ -104,10 +104,10 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
 {
     WorldEvent& ev = g_Events[i];
 
-    int notifyLevel = GetBasicEventNotifyLevel(ev.name);
+    int notifyLevel = GetBasicEventNotifyLevel(ev.id);
     int newNotifyLevel = DrawNotifyLevelIcon("##edit_notify", notifyLevel);
     if (newNotifyLevel != notifyLevel)
-        SetBasicEventNotifyLevel(ev.name, newNotifyLevel);
+        SetBasicEventNotifyLevel(ev.id, newNotifyLevel);
     ImGui::SameLine();
 
     DrawSubscribeCheckbox("##edit_show_on_map", ev.shown);
@@ -123,14 +123,14 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
     if (open)
     {
         //_ Re-reads notifyLevel/newNotifyLevel fresh - the front-of-row icon above may have just changed it this same frame.
-        int notifyLevel2 = GetBasicEventNotifyLevel(ev.name);
+        int notifyLevel2 = GetBasicEventNotifyLevel(ev.id);
         int newLevel = DrawNotifyLevelButtons("##edit_notify_buttons", notifyLevel2);
         if (newLevel != notifyLevel2)
-            SetBasicEventNotifyLevel(ev.name, newLevel);
+            SetBasicEventNotifyLevel(ev.id, newLevel);
 
-        bool doneToday = IsBasicEventMarkedDoneToday(ev.name);
+        bool doneToday = IsBasicEventMarkedDoneToday(ev.id);
         if (ImGui::Checkbox("Done for today", &doneToday))
-            ToggleBasicEventDoneToday(ev.name);
+            ToggleBasicEventDoneToday(ev.id);
 
         ImGui::TreePop();
     }
@@ -146,7 +146,7 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
 static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
 {
     CyclicGroup::Slot& slot = grp.slots[s];
-    CyclicSubscriptionKey key{ grp.name, slot.offset };
+    CyclicSubscriptionKey key{ grp.id, slot.offset };
 
     int notifyLevel = GetCyclicSlotNotifyLevel(key);
     int newNotifyLevel = DrawNotifyLevelIcon("##edit_notify", notifyLevel);
@@ -211,13 +211,13 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
         bool allSlotsSubscribed = !grp.slots.empty() &&
             std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
             {
-                return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.name, slot.offset });
+                return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.offset });
             });
         if (DrawSubscribeCheckbox("##edit_subscribe_group", allSlotsSubscribed))
         {
             for (const auto& slot : grp.slots)
             {
-                CyclicSubscriptionKey key{ grp.name, slot.offset };
+                CyclicSubscriptionKey key{ grp.id, slot.offset };
                 //_ Same post-click semantics as DrawCyclicGroupRow: unticking drops every slot to 0, ticking only raises 0 -> 1.
                 if (!allSlotsSubscribed)
                     SetCyclicSlotNotifyLevel(key, 0);
@@ -383,9 +383,9 @@ void RenderEditSubscriptionsWindow()
                     ImGui::PushID(c);
 
                     std::vector<int> memberIndices;
-                    for (const std::string& memberName : cat.members)
+                    for (const std::string& memberId : cat.members)
                         for (int mi = 0; mi < (int)g_Events.size(); mi++)
-                            if (g_Events[mi].name == memberName) { memberIndices.push_back(mi); break; }
+                            if (g_Events[mi].id == memberId) { memberIndices.push_back(mi); break; }
 
                     bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
                     bool categoryHasMatch = categoryNameMatches;
@@ -397,7 +397,7 @@ void RenderEditSubscriptionsWindow()
                     bool categoryHasTarget = false;
                     if (pendingTarget && pendingTarget->kind == SubscriptionKind::Basic)
                         for (int mi : memberIndices)
-                            if (g_Events[mi].name == pendingTarget->basicName)
+                            if (g_Events[mi].id == pendingTarget->basicId)
                                 categoryHasTarget = true;
 
                     //_ Same search-skip / unconditional-bookkeeping split as addon_options.cpp's Table 3.
@@ -423,7 +423,7 @@ void RenderEditSubscriptionsWindow()
                         if (catOpen && memberMatches)
                         {
                             ImGui::PushID(mi);
-                            bool forceOpen = pendingTarget && pendingTarget->kind == SubscriptionKind::Basic && g_Events[mi].name == pendingTarget->basicName;
+                            bool forceOpen = pendingTarget && pendingTarget->kind == SubscriptionKind::Basic && g_Events[mi].id == pendingTarget->basicId;
                             DrawLeanBasicEventRow(mi, forceOpen);
                             ImGui::PopID();
                         }
@@ -438,7 +438,7 @@ void RenderEditSubscriptionsWindow()
                     if (!EventMatchesSearch(g_Events[i], searchQueryLower)) continue;
 
                     ImGui::PushID(i);
-                    bool forceOpen = pendingTarget && pendingTarget->kind == SubscriptionKind::Basic && g_Events[i].name == pendingTarget->basicName;
+                    bool forceOpen = pendingTarget && pendingTarget->kind == SubscriptionKind::Basic && g_Events[i].id == pendingTarget->basicId;
                     DrawLeanBasicEventRow(i, forceOpen);
                     ImGui::PopID();
                 }
@@ -464,15 +464,15 @@ void RenderEditSubscriptionsWindow()
                     bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
                     bool categoryHasMatch = categoryNameMatches;
                     if (!categoryHasMatch)
-                        for (const std::string& memberName : cat.members)
+                        for (const std::string& memberId : cat.members)
                             for (const auto& grp : g_CyclicGroups)
-                                if (grp.name == memberName && GroupMatchesSearch(grp, searchQueryLower))
+                                if (grp.id == memberId && GroupMatchesSearch(grp, searchQueryLower))
                                     categoryHasMatch = true;
 
                     bool categoryHasTarget = false;
                     if (pendingTarget && pendingTarget->kind == SubscriptionKind::Cyclic)
-                        for (const std::string& memberName : cat.members)
-                            if (memberName == pendingTarget->cyclicKey.groupName)
+                        for (const std::string& memberId : cat.members)
+                            if (memberId == pendingTarget->cyclicKey.groupId)
                                 categoryHasTarget = true;
 
                     bool catOpen = false;
@@ -488,11 +488,11 @@ void RenderEditSubscriptionsWindow()
                         catOpen = ImGui::CollapsingHeader(cat.name.empty() ? "(unnamed)" : cat.name.c_str());
                     }
 
-                    for (const std::string& memberName : cat.members)
+                    for (const std::string& memberId : cat.members)
                     {
                         for (int i = 0; i < (int)g_CyclicGroups.size(); i++)
                         {
-                            if (g_CyclicGroups[i].name != memberName) continue;
+                            if (g_CyclicGroups[i].id != memberId) continue;
                             isGroupCategorized[i] = true;
 
                             bool memberMatches = categoryNameMatches || GroupMatchesSearch(g_CyclicGroups[i], searchQueryLower);
@@ -501,7 +501,7 @@ void RenderEditSubscriptionsWindow()
                             {
                                 ImGui::PushID(i);
                                 bool forceOpenGroup = pendingTarget && pendingTarget->kind == SubscriptionKind::Cyclic
-                                    && g_CyclicGroups[i].name == pendingTarget->cyclicKey.groupName;
+                                    && g_CyclicGroups[i].id == pendingTarget->cyclicKey.groupId;
                                 DrawLeanCyclicGroupRow(i, forceOpenGroup, forceOpenGroup,
                                     pendingTarget ? pendingTarget->cyclicKey.slotOffset : 0);
                                 ImGui::PopID();
@@ -520,7 +520,7 @@ void RenderEditSubscriptionsWindow()
 
                     ImGui::PushID(i);
                     bool forceOpenGroup = pendingTarget && pendingTarget->kind == SubscriptionKind::Cyclic
-                        && g_CyclicGroups[i].name == pendingTarget->cyclicKey.groupName;
+                        && g_CyclicGroups[i].id == pendingTarget->cyclicKey.groupId;
                     DrawLeanCyclicGroupRow(i, forceOpenGroup, forceOpenGroup,
                         pendingTarget ? pendingTarget->cyclicKey.slotOffset : 0);
                     ImGui::PopID();

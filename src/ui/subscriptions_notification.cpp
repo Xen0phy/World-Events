@@ -88,7 +88,7 @@ static constexpr int kMaxVisiblePopups = 4;
 // spawnedAtMs    GetTickCount64() timestamp, doubles as a pause mechanism
 // isWeekly       active-and-incomplete weekly Wizard's Vault target
 // kind           SubscriptionKind (subscriptions.h): Basic/Cyclic/Live
-// basicName, cyclicKey, liveEventId   right-click "Mark done today" /
+// basicId, cyclicKey, liveEventId   right-click "Mark done today" /
 //                deep-link identity, mirrors Candidate's own copy
 // reporterName   Live only; non-empty picks the WhisperToChat click path over
 //                the usual PasteToChat one (see DrawAndExpirePopups)
@@ -114,7 +114,7 @@ struct Popup
     bool isWeekly = false;
 
     SubscriptionKind       kind = SubscriptionKind::Basic;
-    std::string            basicName;
+    std::string            basicId;
     CyclicSubscriptionKey  cyclicKey;
     std::string            liveEventId;
     std::string            reporterName;
@@ -131,7 +131,7 @@ static std::vector<Popup> s_popups;   //. active/fading toast stack
 //--------------------------------------------------------------------------------
 static void SpawnPopup(const std::string& key, const std::string& name, const std::string& chatCode,
                         const std::string& message, const ImVec4& color, bool isWeekly,
-                        SubscriptionKind kind, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey,
+                        SubscriptionKind kind, const std::string& basicId, const CyclicSubscriptionKey& cyclicKey,
                         const std::string& liveEventId, const std::string& reporterName)
 {
     Popup p;
@@ -143,7 +143,7 @@ static void SpawnPopup(const std::string& key, const std::string& name, const st
     p.spawnedAtMs  = GetTickCount64();
     p.isWeekly     = isWeekly;
     p.kind         = kind;
-    p.basicName    = basicName;
+    p.basicId      = basicId;
     p.cyclicKey    = cyclicKey;
     p.liveEventId  = liveEventId;
     p.reporterName = reporterName;
@@ -191,7 +191,7 @@ static uint64_t s_notifyGeneration = 0;   //. frame counter, see NotifyState::la
 //                             !active, 0 when active
 // isWeekly                   cosmetic only - drives the popup's red border
 // toastEnabled, soundEnabled per-event notify-level opt-ins (see below)
-// kind, basicName, cyclicKey   "Mark done today" identity, carried into the
+// kind, basicId, cyclicKey   "Mark done today" identity, carried into the
 //                             spawned Popup - always Basic/Cyclic, never Live
 //--------------------------------------------------------------------------------
 // One notifiable Basic Event or Cyclic slot's current timing, collected fresh
@@ -217,7 +217,7 @@ struct Candidate
     bool        soundEnabled = false;   //. per-event sound opt-in, see above
 
     SubscriptionKind       kind = SubscriptionKind::Basic;
-    std::string            basicName;
+    std::string            basicId;
     CyclicSubscriptionKey  cyclicKey;
 };
 
@@ -248,19 +248,19 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         bool soundEnabled = false;
         if (sub.manuallySubscribed)
         {
-            CyclicSubscriptionKey key{ sub.cyclicGroupName, sub.cyclicSlotOffset };
+            CyclicSubscriptionKey key{ sub.cyclicGroupId, sub.cyclicSlotOffset };
             toastEnabled = sub.isBasic
-                ? IsBasicEventToastEnabled(sub.basicName)
+                ? IsBasicEventToastEnabled(sub.basicId)
                 : IsCyclicSlotToastEnabled(key);
             soundEnabled = sub.isBasic
-                ? IsBasicEventSoundEnabled(sub.basicName)
+                ? IsBasicEventSoundEnabled(sub.basicId)
                 : IsCyclicSlotSoundEnabled(key);
         }
 
         out.push_back({ sub.key, sub.label, sub.chatCode, as.active, as.secsUntilStart, sub.isWeeklyTarget,
                          toastEnabled, soundEnabled,
                          sub.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic,
-                         sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
+                         sub.basicId, CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotOffset } });
     }
 }
 
@@ -289,7 +289,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
             if (NotificationOnStart && c.toastEnabled)
             {
                 SpawnPopup(c.key, c.name, c.chatCode, "Now active!", ToImVec4(SubscriptionsActiveColor), c.isWeekly,
-                           c.kind, c.basicName, c.cyclicKey, std::string(), std::string());
+                           c.kind, c.basicId, c.cyclicKey, std::string(), std::string());
                 if (c.soundEnabled)
                     PlayNotificationSound(NotificationSoundFile);
             }
@@ -313,7 +313,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
                     char buf[48];
                     snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
                     SpawnPopup(c.key, c.name, c.chatCode, buf, ToImVec4(SubscriptionsSoonColor), c.isWeekly,
-                               c.kind, c.basicName, c.cyclicKey, std::string(), std::string());
+                               c.kind, c.basicId, c.cyclicKey, std::string(), std::string());
                     if (c.soundEnabled)
                         PlayNotificationSound(NotificationSoundFile);
                 }
@@ -444,13 +444,13 @@ static void DrawAndExpirePopups()
         {
             if (ImGui::Selectable("Mark done for today"))
             {
-                if (p.kind == SubscriptionKind::Basic)      ToggleBasicEventDoneToday(p.basicName);
+                if (p.kind == SubscriptionKind::Basic)      ToggleBasicEventDoneToday(p.basicId);
                 else if (p.kind == SubscriptionKind::Cyclic) ToggleCyclicSlotDoneToday(p.cyclicKey);
                 else                                          ToggleLiveEventDoneToday(p.liveEventId);
             }
             ImGui::Separator();
             if (ImGui::Selectable("Edit Subscriptions"))
-                OpenEditSubscriptionsWindow(p.kind, p.basicName, p.cyclicKey, p.liveEventId);
+                OpenEditSubscriptionsWindow(p.kind, p.basicId, p.cyclicKey, p.liveEventId);
             ImGui::EndPopup();
         }
 

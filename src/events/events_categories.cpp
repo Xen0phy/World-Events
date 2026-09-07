@@ -10,7 +10,7 @@
 //
 // Persisted in events.json alongside "events"/"cyclicGroups", as two sibling
 // arrays "basicCategories"/"cyclicCategories" - the existing arrays are never
-// touched; categories only reference names that live there.
+// touched; categories only reference ids that live there.
 //--------------------------------------------------------------------------------
 
 #include "events.h"   //. EVENTS_DATA_VERSION
@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -29,34 +30,20 @@ std::vector<Category> g_BasicCategories;
 std::vector<Category> g_CyclicCategories;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// RenameCategoryMember   (see: events_categories.h)
-//--------------------------------------------------------------------------------
-void RenameCategoryMember(std::vector<Category>& categories, const std::string& oldName, const std::string& newName)
-{
-    if (oldName == newName) return;
-
-    //_ No break - every occurrence gets patched if oldName appears in multiple/repeated categories, not just the first.
-    for (auto& cat : categories)
-        for (auto& member : cat.members)
-            if (member == oldName)
-                member = newName;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MoveCategoryMember   (see: events_categories.h)
 //--------------------------------------------------------------------------------
-void MoveCategoryMember(std::vector<Category>& categories, const std::string& memberName, int targetCategoryIndex)
+void MoveCategoryMember(std::vector<Category>& categories, const std::string& memberId, int targetCategoryIndex)
 {
     //_ Remove from every category first so exclusivity holds; also handles targetCategoryIndex == -1 (uncategorized) for free.
     for (auto& cat : categories)
     {
-        auto it = std::find(cat.members.begin(), cat.members.end(), memberName);
+        auto it = std::find(cat.members.begin(), cat.members.end(), memberId);
         if (it != cat.members.end())
             cat.members.erase(it);
     }
 
     if (targetCategoryIndex >= 0 && targetCategoryIndex < (int)categories.size())
-        categories[targetCategoryIndex].members.push_back(memberName);
+        categories[targetCategoryIndex].members.push_back(memberId);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -111,8 +98,31 @@ static Category CategoryDefaultToCategory(const CategoryDefault& def)
     Category cat;
     cat.name = def.name;
     for (const auto& m : def.members)
-        cat.members.push_back(m.name);
+        cat.members.push_back(m.id);
     return cat;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// MigrateMembersToIds
+//--------------------------------------------------------------------------------
+// One-time upgrade for a pre-id-migration events.json, whose category members
+// are still WorldEvent::name/CyclicGroup::name values. Self-triggering, no
+// version gate: a member already found in validIds is left alone; only one that
+// misses as an id but hits nameToId gets rewritten. A member matching neither (an
+// event/group the user has since removed) is left as-is, same as before this
+// migration existed.
+//--------------------------------------------------------------------------------
+static void MigrateMembersToIds(std::vector<Category>& categories, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
+{
+    for (auto& cat : categories)
+        for (auto& member : cat.members)
+        {
+            if (validIds.count(member)) continue;
+
+            auto it = nameToId.find(member);
+            if (it != nameToId.end())
+                member = it->second;
+        }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -161,16 +171,16 @@ static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDef
 // ForceCategoryMembership
 //--------------------------------------------------------------------------------
 // Implements CategoryDefaultMember::forced (see events_categories.h):
-// unconditionally places memberName into categoryName, removing it from every
+// unconditionally places memberId into categoryName, removing it from every
 // other category first. Creates categoryName if it isn't in the merged list yet
 // (defensive; shouldn't normally happen). Only called once the caller has
 // confirmed the file predates EVENTS_DATA_VERSION.
 //--------------------------------------------------------------------------------
-static void ForceCategoryMembership(std::vector<Category>& categories, const std::string& categoryName, const std::string& memberName)
+static void ForceCategoryMembership(std::vector<Category>& categories, const std::string& categoryName, const std::string& memberId)
 {
     for (auto& cat : categories)
     {
-        auto it = std::find(cat.members.begin(), cat.members.end(), memberName);
+        auto it = std::find(cat.members.begin(), cat.members.end(), memberId);
         if (it != cat.members.end())
             cat.members.erase(it);
     }
@@ -179,12 +189,12 @@ static void ForceCategoryMembership(std::vector<Category>& categories, const std
     {
         if (cat.name == categoryName)
         {
-            cat.members.push_back(memberName);
+            cat.members.push_back(memberId);
             return;
         }
     }
 
-    categories.push_back({categoryName, {memberName}});
+    categories.push_back({categoryName, {memberId}});
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -248,6 +258,25 @@ bool LoadCategoriesData(const std::string& addonDir)
         //_ Same rule as LoadEventsData: an up-to-date file means the user's own edits win, so forced members aren't re-applied.
         bool resurrectMissingDefaults = savedVersion < EVENTS_DATA_VERSION;
 
+        //_ Requires g_Events/g_CyclicGroups already populated - see LoadCategoriesData's own comment (events_categories.h) on load order.
+        std::unordered_map<std::string, std::string> eventNameToId;
+        std::unordered_set<std::string> eventIds;
+        for (const auto& ev : g_Events)
+        {
+            eventNameToId[ev.name] = ev.id;
+            eventIds.insert(ev.id);
+        }
+        MigrateMembersToIds(loadedBasic, eventNameToId, eventIds);
+
+        std::unordered_map<std::string, std::string> groupNameToId;
+        std::unordered_set<std::string> groupIds;
+        for (const auto& grp : g_CyclicGroups)
+        {
+            groupNameToId[grp.name] = grp.id;
+            groupIds.insert(grp.id);
+        }
+        MigrateMembersToIds(loadedCyclic, groupNameToId, groupIds);
+
         g_BasicCategories  = MergeCategoryDefaults(g_DefaultBasicCategories,  loadedBasic,  resurrectMissingDefaults);
         g_CyclicCategories = MergeCategoryDefaults(g_DefaultCyclicCategories, loadedCyclic, resurrectMissingDefaults);
 
@@ -256,12 +285,12 @@ bool LoadCategoriesData(const std::string& addonDir)
             for (const auto& def : g_DefaultBasicCategories)
                 for (const auto& m : def.members)
                     if (m.forced)
-                        ForceCategoryMembership(g_BasicCategories, def.name, m.name);
+                        ForceCategoryMembership(g_BasicCategories, def.name, m.id);
 
             for (const auto& def : g_DefaultCyclicCategories)
                 for (const auto& m : def.members)
                     if (m.forced)
-                        ForceCategoryMembership(g_CyclicCategories, def.name, m.name);
+                        ForceCategoryMembership(g_CyclicCategories, def.name, m.id);
         }
 
         return fileExisted;

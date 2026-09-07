@@ -45,6 +45,7 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 //********************************************************************************
 // WorldEvent
 //--------------------------------------------------------------------------------
+// id             stable identity key; snake_case, hand-written
 // name           display name
 // continentX/Y   map coords (continent 1 / Tyria)
 // isVarying      true = irregular schedule (see varyingTimes), false = periodic
@@ -71,6 +72,7 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 //--------------------------------------------------------------------------------
 struct WorldEvent
 {
+    std::string id;
     std::string name;
     float       continentX;
     float       continentY;
@@ -118,6 +120,7 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 //********************************************************************************
 // CyclicGroup
 //--------------------------------------------------------------------------------
+// id                stable identity key; snake_case, hand-written
 // name              cycle name, e.g. "Domain of Vabbi"
 // continentX/Y      map coords (continent 1 / Tyria)
 // period            seconds per full cycle
@@ -140,6 +143,7 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 //--------------------------------------------------------------------------------
 struct CyclicGroup
 {
+    std::string id;
     std::string name;
     float continentX;
     float continentY;
@@ -149,6 +153,7 @@ struct CyclicGroup
     //********************************************************************************
     // Slot
     //--------------------------------------------------------------------------------
+    // id            stable identity key; snake_case, unique within the group
     // name          slot/event name
     // offset        seconds from UTC midnight of the first occurrence;
     //               ignored when isVarying is true
@@ -175,6 +180,7 @@ struct CyclicGroup
     //--------------------------------------------------------------------------------
     struct Slot
     {
+        std::string id;
         std::string name;
         int         offset;
         int         duration;
@@ -221,7 +227,7 @@ extern std::vector<CyclicGroup> g_CyclicGroups;
 //********************************************************************************
 // SlotOverride
 //--------------------------------------------------------------------------------
-// groupName/slotName   must match CyclicGroup::name / Slot::name exactly
+// groupId/slotId       must match CyclicGroup::id / Slot::id exactly
 // offset/duration      one-time-pushed onto the matching Slot when set
 //--------------------------------------------------------------------------------
 // Same purpose and version gate as CategoryDefaultMember::offset/duration
@@ -235,8 +241,8 @@ extern std::vector<CyclicGroup> g_CyclicGroups;
 //--------------------------------------------------------------------------------
 struct SlotOverride
 {
-    std::string groupName;
-    std::string slotName;
+    std::string groupId;
+    std::string slotId;
     std::optional<int> offset;
     std::optional<int> duration;
 };

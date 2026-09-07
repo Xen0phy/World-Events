@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 check_weekly_vault.py - validates weekly_vault.cpp's g_CyclicWeeklyObjectives
-table against the real CyclicGroup/Slot names in events_cyclic.cpp, run from
+table against the real CyclicGroup/Slot ids in events_cyclic.cpp, run from
 the project root as a build step that happens BEFORE bump_rev (see
-CMakeLists.txt) - a typo here fails the build with the specific bad name,
+CMakeLists.txt) - a typo here fails the build with the specific bad id,
 instead of silently shipping a target that can never light up at runtime
 (see weekly_vault.h's own comment on this).
 
@@ -104,7 +104,7 @@ def first_string(s):
 
 
 def parse_cyclic_groups(text):
-    """Returns {group_name: set(slot_names)} from events_cyclic.cpp."""
+    """Returns {group_id: set(slot_ids)} from events_cyclic.cpp."""
     body = extract_braced(text, "g_CyclicGroups")
     groups = {}
     for i, block in enumerate(split_top_level(body)):
@@ -113,13 +113,16 @@ def parse_cyclic_groups(text):
             continue
         inner = unwrap_braces(block, f"g_CyclicGroups entry #{i + 1}")
         parts = split_top_level(inner)
-        if not parts:
-            continue
-        group_name = first_string(parts[0])
-        if group_name is None:
+        if len(parts) < 2:
             raise SystemExit(
                 f"[check_weekly_vault] ERROR: g_CyclicGroups entry #{i + 1} doesn't "
-                f"start with a quoted group name."
+                f"start with quoted id and name fields."
+            )
+        group_id = first_string(parts[0])   # parts[1] is CyclicGroup::name, behind id
+        if group_id is None:
+            raise SystemExit(
+                f"[check_weekly_vault] ERROR: g_CyclicGroups entry #{i + 1} doesn't "
+                f"start with quoted id and name fields."
             )
 
         # The slots vector is whichever braced field's elements ALL start
@@ -134,16 +137,16 @@ def parse_cyclic_groups(text):
             slot_entries = [e for e in split_top_level(part[1:-1]) if e.strip()]
             if not slot_entries:
                 continue
-            names = [first_string(e) for e in slot_entries]
-            if all(n is not None for n in names):
-                slots = names
+            ids = [first_string(e) for e in slot_entries]   # Slot::id, ahead of name
+            if all(n is not None for n in ids):
+                slots = ids
                 break
-        groups[group_name] = set(slots or [])
+        groups[group_id] = set(slots or [])
     return groups
 
 
 def parse_weekly_mappings(text):
-    """Returns [(mapping_index, [keyword,...], [(group,slot), ...]), ...]."""
+    """Returns [(mapping_index, [keyword,...], [(group_id,slot_id), ...]), ...]."""
     body = extract_braced(text, "g_CyclicWeeklyObjectives")
     mappings = []
     for i, block in enumerate(split_top_level(body)):
@@ -182,17 +185,17 @@ def main():
         if not targets:
             problems.append(f"mapping #{mapping_idx}: targets is empty")
 
-        for group_name, slot_name in targets:
-            if group_name not in groups:
+        for group_id, slot_id in targets:
+            if group_id not in groups:
                 problems.append(
                     f"mapping #{mapping_idx} ({', '.join(keywords)!s}): "
-                    f"group {group_name!r} not found in events_cyclic.cpp"
+                    f"group id {group_id!r} not found in events_cyclic.cpp"
                 )
                 continue
-            if slot_name not in groups[group_name]:
+            if slot_id not in groups[group_id]:
                 problems.append(
                     f"mapping #{mapping_idx} ({', '.join(keywords)!s}): "
-                    f"slot {slot_name!r} not found in group {group_name!r} "
+                    f"slot id {slot_id!r} not found in group {group_id!r} "
                     f"(events_cyclic.cpp)"
                 )
 

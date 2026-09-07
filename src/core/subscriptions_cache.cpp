@@ -44,7 +44,7 @@ namespace
     };
 }
 
-static std::unordered_map<std::string, WeeklyTargetInfo> s_weeklyCache;   //. key: "Basic:<name>" / "Cyclic:<group>:<offset>"
+static std::unordered_map<std::string, WeeklyTargetInfo> s_weeklyCache;   //. key: "Basic:<id>" / "Cyclic:<groupId>:<offset>"
 static std::vector<ResolvedSubscription>                 s_resolved;
 
 //_ Recorded after each rebuild; compared against current values in
@@ -104,8 +104,7 @@ static time_t GetCurrentWeeklyResetEpoch(time_t now)
 // (IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget) which Basic Events/ Cyclic
 // slots are live weekly targets. Basic: every Core Boss is checked, the whole
 // candidate set. Cyclic: only slots referenced by g_CyclicWeeklyObjectives are
-// walked, resolving each target's slot NAME to the stable slot OFFSET against
-// g_CyclicGroups. Only called from a full rebuild, never per-frame.
+// walked, resolving each target's id straight into g_CyclicGroups.
 //--------------------------------------------------------------------------------
 static void RebuildWeeklyCache()
 {
@@ -116,10 +115,10 @@ static void RebuildWeeklyCache()
         if (ev.apiWorldBossId.empty()) continue;   //. not a Core Boss
 
         WeeklyTargetInfo info;
-        if (!IsBasicEventWeeklyTarget(ev.name, info.complete)) continue;
+        if (!IsBasicEventWeeklyTarget(ev.id, info.complete)) continue;
 
         info.mappingTitle = ev.name;   //. no separate mapping object
-        s_weeklyCache["Basic:" + ev.name] = info;
+        s_weeklyCache["Basic:" + ev.id] = info;
     }
 
     for (const auto& mapping : g_CyclicWeeklyObjectives)
@@ -127,21 +126,21 @@ static void RebuildWeeklyCache()
         for (const auto& target : mapping.targets)
         {
             WeeklyTargetInfo info;
-            if (!IsCyclicSlotWeeklyTarget(target.groupName, target.slotName, info.complete)) continue;
+            if (!IsCyclicSlotWeeklyTarget(target.groupId, target.slotId, info.complete)) continue;
 
             auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-                [&](const CyclicGroup& g) { return g.name == target.groupName; });
-            if (grpIt == g_CyclicGroups.end()) continue;   //. group renamed or deleted
+                [&](const CyclicGroup& g) { return g.id == target.groupId; });
+            if (grpIt == g_CyclicGroups.end()) continue;   //. group deleted
 
             auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
-                [&](const CyclicGroup::Slot& s) { return s.name == target.slotName; });
-            if (slotIt == grpIt->slots.end()) continue;   //. slot renamed or deleted
+                [&](const CyclicGroup::Slot& s) { return s.id == target.slotId; });
+            if (slotIt == grpIt->slots.end()) continue;   //. slot deleted
 
             char offsetBuf[16];
             snprintf(offsetBuf, sizeof(offsetBuf), "%d", slotIt->offset);
 
-            info.mappingTitle = target.groupName + " - " + target.slotName;   //. internal-only label
-            s_weeklyCache["Cyclic:" + grpIt->name + ":" + offsetBuf] = info;
+            info.mappingTitle = grpIt->name + " - " + slotIt->name;   //. internal-only label
+            s_weeklyCache["Cyclic:" + grpIt->id + ":" + offsetBuf] = info;
         }
     }
 }
@@ -158,8 +157,9 @@ static void RebuildWeeklyCache()
 static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubscribed)
 {
     ResolvedSubscription r;
-    r.key                = "Basic:" + ev.name;
+    r.key                = "Basic:" + ev.id;
     r.isBasic            = true;
+    r.basicId            = ev.id;
     r.basicName          = ev.name;
     r.label              = ev.name;
     r.chatCode           = ev.chatCode;
@@ -169,7 +169,7 @@ static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubs
         r.isWeeklyTarget = !it->second.complete;
 
     bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId);
-    bool manualDone = IsBasicEventMarkedDoneToday(ev.name);
+    bool manualDone = IsBasicEventMarkedDoneToday(ev.id);
     r.doneToday = apiDone || manualDone;
 
     r.isVarying    = ev.isVarying;
@@ -188,8 +188,9 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
     snprintf(offsetBuf, sizeof(offsetBuf), "%d", slot.offset);
 
     ResolvedSubscription r;
-    r.key                = "Cyclic:" + grp.name + ":" + offsetBuf;
+    r.key                = "Cyclic:" + grp.id + ":" + offsetBuf;
     r.isBasic            = false;
+    r.cyclicGroupId      = grp.id;
     r.cyclicGroupName    = grp.name;
     r.cyclicSlotOffset   = slot.offset;
     r.label              = grp.name + " - " + slot.name;
@@ -200,7 +201,7 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
         r.isWeeklyTarget = !it->second.complete;
 
     bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId);
-    bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset });
+    bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.id, slot.offset });
     r.doneToday = apiDone || manualDone;
 
     r.isVarying    = slot.isVarying;
@@ -226,10 +227,10 @@ static void RebuildResolvedSubscriptions()
     s_resolved.clear();
 
     //_ Manually subscribed Basic Events.
-    for (const auto& evName : g_SubscribedBasicEvents)
+    for (const auto& evId : g_SubscribedBasicEvents)
     {
         auto it = std::find_if(g_Events.begin(), g_Events.end(),
-            [&](const WorldEvent& ev) { return ev.name == evName; });
+            [&](const WorldEvent& ev) { return ev.id == evId; });
         if (it == g_Events.end()) continue;   //. deleted since subscribing
 
         s_resolved.push_back(ResolveBasic(*it, true));
@@ -239,7 +240,7 @@ static void RebuildResolvedSubscriptions()
     for (const auto& subKey : g_SubscribedCyclicSlots)
     {
         auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-            [&](const CyclicGroup& grp) { return grp.name == subKey.groupName; });
+            [&](const CyclicGroup& grp) { return grp.id == subKey.groupId; });
         if (grpIt == g_CyclicGroups.end()) continue;   //. group deleted since subscribing
 
         auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
@@ -268,24 +269,24 @@ static void RebuildResolvedSubscriptions()
 
             if (cacheKey.rfind("Basic:", 0) == 0)
             {
-                std::string name = cacheKey.substr(6);
+                std::string id = cacheKey.substr(6);
                 auto evIt = std::find_if(g_Events.begin(), g_Events.end(),
-                    [&](const WorldEvent& e) { return e.name == name; });
-                if (evIt == g_Events.end()) continue;   //. event renamed or deleted
+                    [&](const WorldEvent& e) { return e.id == id; });
+                if (evIt == g_Events.end()) continue;   //. event removed
 
                 s_resolved.push_back(ResolveBasic(*evIt, false));
             }
             else
             {
-                //_ "Cyclic:<group>:<offset>" - split on the LAST ':' since
-                // a group name could itself contain one.
+                //_ "Cyclic:<groupId>:<offset>" - split on the LAST ':' since
+                // a group id could itself contain one.
                 size_t lastColon = cacheKey.rfind(':');
-                std::string groupName = cacheKey.substr(7, lastColon - 7);   //. 7 == strlen("Cyclic:")
+                std::string groupId = cacheKey.substr(7, lastColon - 7);   //. 7 == strlen("Cyclic:")
                 int offset = atoi(cacheKey.c_str() + lastColon + 1);
 
                 auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-                    [&](const CyclicGroup& g) { return g.name == groupName; });
-                if (grpIt == g_CyclicGroups.end()) continue;   //. group renamed or deleted
+                    [&](const CyclicGroup& g) { return g.id == groupId; });
+                if (grpIt == g_CyclicGroups.end()) continue;   //. group removed
 
                 auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
                     [&](const CyclicGroup::Slot& s) { return s.offset == offset; });

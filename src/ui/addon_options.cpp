@@ -719,9 +719,9 @@ void AddonOptions()
 
                 //_ Resolved once up front: reused by the bulk icon picker and the membership loop instead of re-searching.
                 std::vector<int> memberIndices;
-                for (const std::string& memberName : cat.members)
+                for (const std::string& memberId : cat.members)
                     for (int mi = 0; mi < (int)g_Events.size(); mi++)
-                        if (g_Events[mi].name == memberName) { memberIndices.push_back(mi); break; }
+                        if (g_Events[mi].id == memberId) { memberIndices.push_back(mi); break; }
 
                 bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
                 bool categoryHasMatch = categoryNameMatches;
@@ -836,9 +836,9 @@ void AddonOptions()
                 bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
                 bool categoryHasMatch = categoryNameMatches;
                 if (!categoryHasMatch)
-                    for (const std::string& memberName : cat.members)
+                    for (const std::string& memberId : cat.members)
                         for (const auto& grp : g_CyclicGroups)
-                            if (grp.name == memberName && GroupMatchesSearch(grp, searchQueryLower))
+                            if (grp.id == memberId && GroupMatchesSearch(grp, searchQueryLower))
                                 categoryHasMatch = true;
 
                 //_ Same search-skip behavior as Basic Events above.
@@ -856,11 +856,11 @@ void AddonOptions()
                 }
 
                 //_ Same unconditional-bookkeeping/gated-draw split as Basic Events above.
-                for (const std::string& memberName : cat.members)
+                for (const std::string& memberId : cat.members)
                 {
                     for (int i = 0; i < (int)g_CyclicGroups.size(); i++)
                     {
-                        if (g_CyclicGroups[i].name != memberName) continue;
+                        if (g_CyclicGroups[i].id != memberId) continue;
                         isGroupCategorized[i] = true;
 
                         bool memberMatches = categoryNameMatches || GroupMatchesSearch(g_CyclicGroups[i], searchQueryLower);

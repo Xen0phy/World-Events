@@ -53,7 +53,7 @@ float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 //--------------------------------------------------------------------------------
 // Writes every on-disk JSON file this addon owns, in the one safe order: events
 // first, then categories/subscriptions/tracking, since those three reference
-// g_Events/g_CyclicGroups by name and need events.json's keys already reflecting
+// g_Events/g_CyclicGroups by id and need events.json's keys already reflecting
 // the final merged state.
 //
 // Called from both AddonLoad (persisting merged defaults+disk state on first
@@ -139,10 +139,10 @@ void AddonLoad(AddonAPI_t* aAPI)
     //_ Shows the "What's New" notice at most once per version - see changelog_window.h. Runs after LoadSettings (needs the persisted LastKnownVersion) and before anything renders.
     CheckForVersionHistoryOnLoad(g_AddonDir);
 
-    //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by name, saved back below.
+    //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by id, saved back below.
     LoadEventsData(g_AddonDir);
 
-    //_ Compiled-in category defaults merged with events.json by name; reads data_version, so load order doesn't matter.
+    //_ Compiled-in category defaults merged with events.json by id; must run after LoadEventsData - it migrates any pre-id member against the now-populated g_Events/g_CyclicGroups.
     LoadCategoriesData(g_AddonDir);
 
     //_ No compiled-in defaults to merge (see subscriptions.h); read-order doesn't matter, only save order does.

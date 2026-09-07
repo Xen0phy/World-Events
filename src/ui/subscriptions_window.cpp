@@ -59,7 +59,7 @@ static std::string s_leftPressedKey;
 // rewrite IsItemClicked() behavior exactly.
 //--------------------------------------------------------------------------------
 static bool DrawSubscriptionRow(const std::string& name, const std::string& chatCode, bool active, int secs, bool isWeekly,
-    bool isBasic, const std::string& basicName, const CyclicSubscriptionKey& cyclicKey)
+    bool isBasic, const std::string& basicId, const CyclicSubscriptionKey& cyclicKey)
 {
     if (isWeekly)
     {
@@ -152,12 +152,12 @@ static bool DrawSubscriptionRow(const std::string& name, const std::string& chat
     {
         if (ImGui::Selectable("Mark done for today"))
         {
-            if (isBasic) ToggleBasicEventDoneToday(basicName);
+            if (isBasic) ToggleBasicEventDoneToday(basicId);
             else         ToggleCyclicSlotDoneToday(cyclicKey);
         }
         ImGui::Separator();
         if (ImGui::Selectable("Edit Subscriptions"))
-            OpenEditSubscriptionsWindow(isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, basicName, cyclicKey);
+            OpenEditSubscriptionsWindow(isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, basicId, cyclicKey);
         ImGui::EndPopup();
     }
 
@@ -168,11 +168,11 @@ static bool DrawSubscriptionRow(const std::string& name, const std::string& chat
 // Row
 //--------------------------------------------------------------------------------
 // name, chatCode, active, secs, isWeekly    display + timing state for the row
-// isBasic, basicName, cyclicKey             which flavor this row is, for the
+// isBasic, basicId, cyclicKey               which flavor this row is, for the
 //                                           right-click "mark done" toggle
 //--------------------------------------------------------------------------------
 struct Row { std::string name; std::string chatCode; bool active; int secs; bool isWeekly;
-             bool isBasic = true; std::string basicName; CyclicSubscriptionKey cyclicKey; };
+             bool isBasic = true; std::string basicId; CyclicSubscriptionKey cyclicKey; };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderSubscriptionsWindow
@@ -181,7 +181,7 @@ struct Row { std::string name; std::string chatCode; bool active; int secs; bool
 // "what's coming up soonest" reads as one list instead of two sections the user
 // has to visually merge themselves - active entries first, then soonest-upcoming,
 // matching the sort already used for the per-group tooltip in cyclicrender.cpp.
-// isBasic/basicName/cyclicKey identify each row for
+// isBasic/basicId/cyclicKey identify each row for
 // ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday - see the right-click "Mark
 // done for today" menu in DrawSubscriptionRow.
 //--------------------------------------------------------------------------------
@@ -210,7 +210,7 @@ void RenderSubscriptionsWindow()
             if (as.active && SubscriptionsHideActive) continue; //. hides already-active subscriptions
 
             rows.push_back({ sub.label, sub.chatCode, as.active, secs, sub.isWeeklyTarget,
-                              sub.isBasic, sub.basicName, CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset } });
+                              sub.isBasic, sub.basicId, CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotOffset } });
         }
 
         std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b)
@@ -258,7 +258,7 @@ void RenderSubscriptionsWindow()
     {
         for (const auto& row : rows)
             anyRowHovered |= DrawSubscriptionRow(row.name, row.chatCode, row.active, row.secs, row.isWeekly,
-                                                  row.isBasic, row.basicName, row.cyclicKey);
+                                                  row.isBasic, row.basicId, row.cyclicKey);
 
         ImGui::Separator();
         ImGui::TextDisabled("Click a row to copy its waypoint code.");

@@ -5,10 +5,14 @@
 // file: "<addonDir>/events.json".
 //
 // On load, compiled-in defaults are merged with disk contents by key, not
-// replaced outright - see MergeByKey/MergeGroups for the rule and why a plain
-// name isn't always a safe key. The result becomes g_Events/g_CyclicGroups and is
-// written back, so a first run writes exactly the compiled-in defaults and every
-// run after keeps merging forward.
+// replaced outright - see MergeByKey/MergeGroups for the rule. Merge keys are
+// WorldEvent::id/CyclicGroup::id/Slot::id, not name (see EventKey/GroupKey/
+// SlotKey) - name is display-only. A loaded file saved before the id field
+// existed has none; SlugifyName/UniqueId and the backfill pass in
+// LoadEventsData give every such entry one, matching it to a compiled-in
+// default by name where possible so identity survives the upgrade. The result
+// becomes g_Events/g_CyclicGroups and is written back, so a first run writes
+// exactly the compiled-in defaults and every run after keeps merging forward.
 //
 // EVENTS_DATA_VERSION (events.h) gates the merge, shared with
 // events_categories.cpp via the same "data_version" key. All functions here
@@ -20,9 +24,11 @@
 #include "events_categories.h"
 #include <nlohmann/json.hpp>
 
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -30,14 +36,18 @@ namespace fs = std::filesystem;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeEvent / DeserializeEvent
 //--------------------------------------------------------------------------------
-// (De)serializes one WorldEvent. iconTexture/chatCode are omitted when empty and
-// shown is omitted when true (the default) - all three fall through cleanly via
+// (De)serializes one WorldEvent. id is the merge/identity key (see EventKey);
+// DeserializeEvent leaves it empty when absent from a pre-migration file rather
+// than guessing - LoadEventsData backfills it afterward, once defaults are in
+// scope to match against. iconTexture/chatCode are omitted when empty and shown
+// is omitted when true (the default) - all three fall through cleanly via
 // j.value() on load. isVarying selects varyingTimes vs period/offset (see
 // WorldEvent in events.h).
 //--------------------------------------------------------------------------------
 static json SerializeEvent(const WorldEvent& ev)
 {
     json j;
+    j["id"]         = ev.id;
     j["name"]       = ev.name;
     j["continentX"] = ev.continentX;
     j["continentY"] = ev.continentY;
@@ -66,6 +76,7 @@ static json SerializeEvent(const WorldEvent& ev)
 static WorldEvent DeserializeEvent(const json& j)
 {
     WorldEvent ev{};
+    ev.id          = j.value("id", std::string());
     ev.name        = j.value("name", std::string("Unnamed Event"));
     ev.continentX  = j.value("continentX", 0.0f);
     ev.continentY  = j.value("continentY", 0.0f);
@@ -165,16 +176,20 @@ static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeSlot / DeserializeSlot
 //--------------------------------------------------------------------------------
-// (De)serializes one CyclicGroup::Slot. customColor is presence-checked
-// (j.contains), not defaulted, so "unset" round-trips exactly; chatCode is
-// omitted when empty and shown when true (the default), same convention as
-// WorldEvent above. isVarying/varyingTimes follow the exact same convention as
-// WorldEvent's own pair: isVarying always written, varyingTimes only written/read
-// when isVarying is true.
+// (De)serializes one CyclicGroup::Slot. id is the merge/identity key, unique
+// within the group (see SlotKey); left empty on deserialize for a pre-migration
+// file, same deferred-backfill reasoning as SerializeEvent/DeserializeEvent
+// above. customColor is presence-checked (j.contains), not defaulted, so
+// "unset" round-trips exactly; chatCode is omitted when empty and shown when
+// true (the default), same convention as WorldEvent above. isVarying/
+// varyingTimes follow the exact same convention as WorldEvent's own pair:
+// isVarying always written, varyingTimes only written/read when isVarying is
+// true.
 //--------------------------------------------------------------------------------
 static json SerializeSlot(const CyclicGroup::Slot& slot)
 {
     json j;
+    j["id"]        = slot.id;
     j["name"]      = slot.name;
     j["offset"]    = slot.offset;
     j["duration"]  = slot.duration;
@@ -200,6 +215,7 @@ static json SerializeSlot(const CyclicGroup::Slot& slot)
 static CyclicGroup::Slot DeserializeSlot(const json& j)
 {
     CyclicGroup::Slot slot{};
+    slot.id        = j.value("id", std::string());
     slot.name      = j.value("name", std::string("Unnamed Event"));
     slot.offset    = j.value("offset", 0);
     slot.duration  = j.value("duration", 0);
@@ -223,13 +239,16 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
 // SerializeGroup / DeserializeGroup
 //--------------------------------------------------------------------------------
 // (De)serializes one CyclicGroup, including its nested slots array via
-// SerializeSlot/DeserializeSlot. idleColor is presence-checked like
-// Slot::customColor above; shown is omitted when true (the default), same
-// convention as WorldEvent above.
+// SerializeSlot/DeserializeSlot. id is the merge/identity key (see GroupKey),
+// left empty on deserialize for a pre-migration file - same deferred-backfill
+// reasoning as SerializeEvent/DeserializeEvent above. idleColor is
+// presence-checked like Slot::customColor above; shown is omitted when true
+// (the default), same convention as WorldEvent above.
 //--------------------------------------------------------------------------------
 static json SerializeGroup(const CyclicGroup& grp)
 {
     json j;
+    j["id"]         = grp.id;
     j["name"]       = grp.name;
     j["continentX"] = grp.continentX;
     j["continentY"] = grp.continentY;
@@ -253,6 +272,7 @@ static json SerializeGroup(const CyclicGroup& grp)
 static CyclicGroup DeserializeGroup(const json& j)
 {
     CyclicGroup grp{};
+    grp.id         = j.value("id", std::string());
     grp.name       = j.value("name", std::string("Unnamed Group"));
     grp.continentX = j.value("continentX", 0.0f);
     grp.continentY = j.value("continentY", 0.0f);
@@ -331,19 +351,16 @@ static std::vector<T> MergeByKey(const std::vector<T>& defaults, const std::vect
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GroupKey / SlotKey / EventKey
 //--------------------------------------------------------------------------------
-// Merge keys for MergeGroups/MergeByKey. Groups, events, and slots all key on
-// name alone - for slots this means unique WITHIN the group, not globally. Two
-// slots sharing a name used to be legitimate (e.g. Dry Top's "Clear Prosperity",
-// Dragon's End's "Jade Maw" firing twice at different offsets) before isVarying
-// existed; now that case collapses into one isVarying slot instead, so treat any
-// future same-name collision within a group as a bug to fix via isVarying, not a
-// case to re-support. MergeByKey collapses same-key duplicates from a pre-
-// migration file back down to the single compiled-in default (see MergeByKey
-// above), not the old multi-entry shape.
+// Merge keys for MergeGroups/MergeByKey. Groups, events, and slots all key on id
+// - for slots this means unique WITHIN the group, not globally (see
+// CyclicGroup::Slot::id, events.h). name is display-only and can change (user
+// rename, localization) without breaking the merge match. MergeByKey collapses
+// same-key duplicates from a pre-migration file back down to the single
+// compiled-in default (see MergeByKey above), not the old multi-entry shape.
 //--------------------------------------------------------------------------------
-static std::string GroupKey(const CyclicGroup& g) { return g.name; }
-static std::string SlotKey(const CyclicGroup::Slot& s) { return s.name; }
-static std::string EventKey(const WorldEvent& e) { return e.name; }
+static std::string GroupKey(const CyclicGroup& g) { return g.id; }
+static std::string SlotKey(const CyclicGroup::Slot& s) { return s.id; }
+static std::string EventKey(const WorldEvent& e) { return e.id; }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MergeGroups
@@ -422,7 +439,7 @@ static void ApplyCategoryOffsetOverrides(std::vector<WorldEvent>& events, int64_
         for (const auto& m : def.members)
             if (m.offset.has_value())
                 for (auto& ev : events)
-                    if (ev.name == m.name)
+                    if (ev.id == m.id)
                         ev.offset = *m.offset;
 }
 
@@ -434,7 +451,7 @@ static void ApplyCategoryDurationOverrides(std::vector<WorldEvent>& events, int6
         for (const auto& m : def.members)
             if (m.duration.has_value())
                 for (auto& ev : events)
-                    if (ev.name == m.name)
+                    if (ev.id == m.id)
                         ev.duration = *m.duration;
 }
 
@@ -452,9 +469,9 @@ static void ApplySlotOverrides(std::vector<CyclicGroup>& groups, int64_t savedVe
 
     for (const auto& ov : g_SlotOverrides)
         for (auto& grp : groups)
-            if (grp.name == ov.groupName)
+            if (grp.id == ov.groupId)
                 for (auto& slot : grp.slots)
-                    if (slot.name == ov.slotName)
+                    if (slot.id == ov.slotId)
                     {
                         if (ov.offset.has_value())
                             slot.offset = *ov.offset;
@@ -464,13 +481,71 @@ static void ApplySlotOverrides(std::vector<CyclicGroup>& groups, int64_t savedVe
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SlugifyName
+//--------------------------------------------------------------------------------
+// Lowercases, drops apostrophes, and collapses every other non-alphanumeric run
+// to a single underscore (leading/trailing underscores stripped). Same scheme
+// used by hand for the compiled-in ids (events_basic.cpp/events_cyclic.cpp).
+// Migration fallback only, for a loaded name that doesn't match any compiled-in
+// default - see LoadEventsData.
+//--------------------------------------------------------------------------------
+static std::string SlugifyName(const std::string& name)
+{
+    std::string out;
+    out.reserve(name.size());
+    bool pendingUnderscore = false;
+
+    for (char c : name)
+    {
+        if (c == '\'') continue;
+
+        char lower = (char)std::tolower((unsigned char)c);
+        bool isAlnum = (lower >= 'a' && lower <= 'z') || (lower >= '0' && lower <= '9');
+        if (isAlnum)
+        {
+            if (pendingUnderscore && !out.empty())
+                out += '_';
+            pendingUnderscore = false;
+            out += lower;
+        }
+        else
+        {
+            pendingUnderscore = true;
+        }
+    }
+    return out;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// UniqueId
+//--------------------------------------------------------------------------------
+// Returns `candidate`, or "candidate_2"/"_3"/... if it's already in `used`, and
+// reserves whichever id it returns. Only matters for SlugifyName fallbacks - two
+// differently-punctuated names can slugify to the same string.
+//--------------------------------------------------------------------------------
+static std::string UniqueId(const std::string& candidate, std::unordered_set<std::string>& used)
+{
+    if (used.insert(candidate).second)
+        return candidate;
+
+    for (int n = 2; ; n++)
+    {
+        std::string next = candidate + "_" + std::to_string(n);
+        if (used.insert(next).second)
+            return next;
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveEventsData / LoadEventsData
 //--------------------------------------------------------------------------------
 // SaveEventsData serializes g_Events/g_CyclicGroups straight to events.json.
-// LoadEventsData instead merges them from disk via MergeByKey/MergeGroups, using
-// resurrectMissingDefaults = (saved data_version < EVENTS_DATA_VERSION), then
-// restamps apiWorldBossId/doneGroup/apiMapChestId from the compiled-in defaults,
-// since those cross-reference fields are never read from or written to the file.
+// LoadEventsData backfills a missing id (pre-migration file - see
+// SlugifyName/UniqueId above) before anything else runs, then merges from disk
+// via MergeByKey/MergeGroups, using resurrectMissingDefaults = (saved
+// data_version < EVENTS_DATA_VERSION), then restamps apiWorldBossId/doneGroup/
+// apiMapChestId from the compiled-in defaults by id, since those cross-reference
+// fields are never read from or written to the file.
 // A missing file isn't an error - g_Events/g_CyclicGroups are simply left at
 // their compiled-in defaults; the caller (addon.cpp) is expected to call
 // SaveEventsData right after so the file exists from then on.
@@ -538,21 +613,74 @@ bool LoadEventsData(const std::string& addonDir)
             for (const auto& gj : j["cyclicGroups"])
                 loadedGroups.push_back(DeserializeGroup(gj));
 
+        //_ Pre-migration file (no "id" key): backfill by matching the compiled-in
+        //_ default's name, or slugify the loaded name when nothing matches (user
+        //_ renamed or added it). Must run before EventKey/GroupKey/SlotKey are
+        //_ used below, since those key on id.
+        std::unordered_set<std::string> usedEventIds;
+        for (const auto& d : g_Events)
+            usedEventIds.insert(d.id);
+
+        for (auto& ev : loadedEvents)
+        {
+            if (!ev.id.empty()) { usedEventIds.insert(ev.id); continue; }
+
+            const WorldEvent* def = nullptr;
+            for (const auto& d : g_Events)
+                if (d.name == ev.name) { def = &d; break; }
+
+            ev.id = def ? def->id : UniqueId(SlugifyName(ev.name), usedEventIds);
+        }
+
+        std::unordered_set<std::string> usedGroupIds;
+        for (const auto& d : g_CyclicGroups)
+            usedGroupIds.insert(d.id);
+
+        for (auto& grp : loadedGroups)
+        {
+            const CyclicGroup* defGroup = nullptr;
+            for (const auto& d : g_CyclicGroups)
+                if (d.name == grp.name) { defGroup = &d; break; }
+
+            if (grp.id.empty())
+                grp.id = defGroup ? defGroup->id : UniqueId(SlugifyName(grp.name), usedGroupIds);
+            else
+                usedGroupIds.insert(grp.id);
+
+            //_ Slot ids only need to be unique within this group.
+            std::unordered_set<std::string> usedSlotIds;
+            if (defGroup)
+                for (const auto& s : defGroup->slots)
+                    usedSlotIds.insert(s.id);
+
+            for (auto& slot : grp.slots)
+            {
+                if (!slot.id.empty()) { usedSlotIds.insert(slot.id); continue; }
+
+                const CyclicGroup::Slot* defSlot = nullptr;
+                if (defGroup)
+                    for (const auto& s : defGroup->slots)
+                        if (s.name == slot.name) { defSlot = &s; break; }
+
+                slot.id = defSlot ? defSlot->id : UniqueId(SlugifyName(slot.name), usedSlotIds);
+            }
+        }
+
         //_ Snapshotted before the merge overwrites them - restamped below.
-        std::unordered_map<std::string, std::string> defaultWorldBossIdByName;
-        std::unordered_map<std::string, std::string> defaultDoneGroupByName;
+        std::unordered_map<std::string, std::string> defaultWorldBossIdById;
+        std::unordered_map<std::string, std::string> defaultDoneGroupById;
         for (const auto& ev : g_Events)
         {
             if (!ev.apiWorldBossId.empty())
-                defaultWorldBossIdByName[ev.name] = ev.apiWorldBossId;
+                defaultWorldBossIdById[ev.id] = ev.apiWorldBossId;
             if (!ev.doneGroup.empty())
-                defaultDoneGroupByName[ev.name] = ev.doneGroup;
+                defaultDoneGroupById[ev.id] = ev.doneGroup;
         }
 
-        std::unordered_map<std::string, std::string> defaultMapChestIdByName;
+        std::unordered_map<std::string, std::string> defaultMapChestIdById;
         for (const auto& grp : g_CyclicGroups)
             if (!grp.apiMapChestId.empty())
-                defaultMapChestIdByName[grp.name] = grp.apiMapChestId;
+                defaultMapChestIdById[grp.id] = grp.apiMapChestId;
 
         g_Events = MergeByKey(g_Events, loadedEvents, EventKey, resurrectMissingDefaults);
         ApplyCategoryOffsetOverrides(g_Events, savedVersion);
@@ -564,18 +692,18 @@ bool LoadEventsData(const std::string& addonDir)
         //_ Restamps the fields the merge above just overwrote - see snapshot.
         for (auto& ev : g_Events)
         {
-            auto it = defaultWorldBossIdByName.find(ev.name);
-            if (it != defaultWorldBossIdByName.end())
+            auto it = defaultWorldBossIdById.find(ev.id);
+            if (it != defaultWorldBossIdById.end())
                 ev.apiWorldBossId = it->second;
 
-            auto git = defaultDoneGroupByName.find(ev.name);
-            if (git != defaultDoneGroupByName.end())
+            auto git = defaultDoneGroupById.find(ev.id);
+            if (git != defaultDoneGroupById.end())
                 ev.doneGroup = git->second;
         }
         for (auto& grp : g_CyclicGroups)
         {
-            auto it = defaultMapChestIdByName.find(grp.name);
-            if (it != defaultMapChestIdByName.end())
+            auto it = defaultMapChestIdById.find(grp.id);
+            if (it != defaultMapChestIdById.end())
                 grp.apiMapChestId = it->second;
         }
 
@@ -599,35 +727,36 @@ void ResetEventsToDefaults()
 // GetDefaultEvent / GetDefaultCyclicGroup / GetDefaultCyclicSlot
 //--------------------------------------------------------------------------------
 // Plain linear scan over s_compiledDefaultEvents/s_compiledDefaultGroups - small,
-// options-panel-only lookups, not worth an index.
+// options-panel-only lookups, not worth an index. Keyed on id, not name (see
+// events_storage.h) - a renamed row still matches its compiled-in default.
 //--------------------------------------------------------------------------------
-const WorldEvent* GetDefaultEvent(const std::string& name)
+const WorldEvent* GetDefaultEvent(const std::string& id)
 {
     if (!s_compiledDefaultsCaptured) return nullptr;
 
     for (const auto& ev : s_compiledDefaultEvents)
-        if (ev.name == name)
+        if (ev.id == id)
             return &ev;
     return nullptr;
 }
 
-const CyclicGroup* GetDefaultCyclicGroup(const std::string& name)
+const CyclicGroup* GetDefaultCyclicGroup(const std::string& id)
 {
     if (!s_compiledDefaultsCaptured) return nullptr;
 
     for (const auto& grp : s_compiledDefaultGroups)
-        if (grp.name == name)
+        if (grp.id == id)
             return &grp;
     return nullptr;
 }
 
-const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupName, const std::string& slotName)
+const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const std::string& slotId)
 {
-    const CyclicGroup* grp = GetDefaultCyclicGroup(groupName);
+    const CyclicGroup* grp = GetDefaultCyclicGroup(groupId);
     if (!grp) return nullptr;
 
     for (const auto& slot : grp->slots)
-        if (slot.name == slotName)
+        if (slot.id == slotId)
             return &slot;
     return nullptr;
 }

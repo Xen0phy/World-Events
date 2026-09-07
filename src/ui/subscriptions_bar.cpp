@@ -84,7 +84,7 @@ static ImU32 BasicEventColorFor(const std::string& name)
 //               lane 0, shown only via dot marker + hover
 // isWeekly      active-and-incomplete weekly Wizard's Vault target this
 //               week (weekly_vault.h) - draws an extra small red marker
-// isBasic/basicName/cyclicKey
+// isBasic/basicId/cyclicKey
 //               identity for the right-click "Mark done for today" menu
 //               (see click hit-testing near the end of this file); mirrors
 //               the same trio in subscriptions_window.cpp's Row
@@ -106,7 +106,7 @@ struct LineSegment
     bool        isWeekly = false;
 
     bool        isBasic = true;
-    std::string basicName;
+    std::string basicId;
     CyclicSubscriptionKey cyclicKey;
 };
 
@@ -310,7 +310,7 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             //_ resolved is already filtered to subscribed/auto-tracked items, so this linear scan over g_CyclicGroups stays small.
             color = IM_COL32(255, 255, 255, 255);
             auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-                [&](const CyclicGroup& g) { return g.name == sub.cyclicGroupName; });
+                [&](const CyclicGroup& g) { return g.id == sub.cyclicGroupId; });
             if (grpIt != g_CyclicGroups.end())
             {
                 auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
@@ -327,8 +327,8 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         };
         seg.isWeekly  = sub.isWeeklyTarget;
         seg.isBasic   = sub.isBasic;
-        seg.basicName = sub.basicName;
-        seg.cyclicKey = CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset };
+        seg.basicId   = sub.basicId;
+        seg.cyclicKey = CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotOffset };
         segs.push_back(seg);
     }
 
@@ -1429,12 +1429,12 @@ void RenderSubscriptionsBar()
         {
             if (ImGui::Selectable("Mark done for today"))
             {
-                if (s.isBasic) ToggleBasicEventDoneToday(s.basicName);
+                if (s.isBasic) ToggleBasicEventDoneToday(s.basicId);
                 else           ToggleCyclicSlotDoneToday(s.cyclicKey);
             }
             ImGui::Separator();
             if (ImGui::Selectable("Edit Subscriptions"))
-                OpenEditSubscriptionsWindow(s.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, s.basicName, s.cyclicKey);
+                OpenEditSubscriptionsWindow(s.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, s.basicId, s.cyclicKey);
             ImGui::EndPopup();
         }
     }

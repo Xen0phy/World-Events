@@ -16,6 +16,7 @@
 #include "addon.h"
 #include "background_threads.h"
 #include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for PasteToChat's /self fallback
+#include "events.h" //. g_Events/g_CyclicGroups, for LoadSubscriptionsData's name->id migration
 #include <nlohmann/json.hpp>
 #include "settings.h"
 #include "mumble_identity.h" //. ParseMumbleIdentity, for GetMumbleCharacterName below
@@ -30,6 +31,8 @@
 #include <filesystem>
 #include <optional>
 #include <thread>
+#include <unordered_map>
+#include <unordered_set>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -53,44 +56,19 @@ uint64_t GetSubscriptionListGeneration() { return s_subscriptionListGeneration; 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventSubscribed / ToggleBasicEventSubscription   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
-bool IsBasicEventSubscribed(const std::string& eventName)
+bool IsBasicEventSubscribed(const std::string& eventId)
 {
-    return std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventName)
+    return std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventId)
         != g_SubscribedBasicEvents.end();
 }
 
-void ToggleBasicEventSubscription(const std::string& eventName)
+void ToggleBasicEventSubscription(const std::string& eventId)
 {
-    auto it = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventName);
+    auto it = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventId);
     if (it != g_SubscribedBasicEvents.end())
         g_SubscribedBasicEvents.erase(it);
     else
-        g_SubscribedBasicEvents.push_back(eventName);
-    s_subscriptionListGeneration++;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// RenameSubscribedBasicEvent
-//--------------------------------------------------------------------------------
-// Patches every occurrence in each list, not just the first, in case of a prior
-// data inconsistency; see subscriptions.h for what gets patched.
-//--------------------------------------------------------------------------------
-void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName)
-{
-    if (oldName == newName) return;
-
-    for (auto& name : g_SubscribedBasicEvents)
-        if (name == oldName)
-            name = newName;
-
-    for (auto& name : g_ToastEnabledBasicEvents)
-        if (name == oldName)
-            name = newName;
-
-    for (auto& name : g_SoundEnabledBasicEvents)
-        if (name == oldName)
-            name = newName;
-
+        g_SubscribedBasicEvents.push_back(eventId);
     s_subscriptionListGeneration++;
 }
 
@@ -170,9 +148,9 @@ void ClearAllSubscriptions()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventToastEnabled / IsCyclicSlotToastEnabled   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
-bool IsBasicEventToastEnabled(const std::string& eventName)
+bool IsBasicEventToastEnabled(const std::string& eventId)
 {
-    return std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventName)
+    return std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventId)
         != g_ToastEnabledBasicEvents.end();
 }
 
@@ -185,9 +163,9 @@ bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventSoundEnabled / IsCyclicSlotSoundEnabled   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
-bool IsBasicEventSoundEnabled(const std::string& eventName)
+bool IsBasicEventSoundEnabled(const std::string& eventId)
 {
-    return std::find(g_SoundEnabledBasicEvents.begin(), g_SoundEnabledBasicEvents.end(), eventName)
+    return std::find(g_SoundEnabledBasicEvents.begin(), g_SoundEnabledBasicEvents.end(), eventId)
         != g_SoundEnabledBasicEvents.end();
 }
 
@@ -222,25 +200,25 @@ static void SetMembership(std::vector<T>& list, const T& value, bool want)
 // then brings subscribed/toast/sound into agreement via
 // ToggleBasicEventSubscription (bumps the generation) and SetMembership.
 //--------------------------------------------------------------------------------
-int GetBasicEventNotifyLevel(const std::string& eventName)
+int GetBasicEventNotifyLevel(const std::string& eventId)
 {
-    if (!IsBasicEventSubscribed(eventName)) return 0;
-    if (!IsBasicEventToastEnabled(eventName)) return 1;
-    return IsBasicEventSoundEnabled(eventName) ? 3 : 2;
+    if (!IsBasicEventSubscribed(eventId)) return 0;
+    if (!IsBasicEventToastEnabled(eventId)) return 1;
+    return IsBasicEventSoundEnabled(eventId) ? 3 : 2;
 }
 
-void SetBasicEventNotifyLevel(const std::string& eventName, int level)
+void SetBasicEventNotifyLevel(const std::string& eventId, int level)
 {
     level = level < 0 ? 0 : (level > 3 ? 3 : level);
     bool wantSubscribed = level >= 1;
     bool wantToast      = level >= 2;
     bool wantSound      = level >= 3;
 
-    if (IsBasicEventSubscribed(eventName) != wantSubscribed)
-        ToggleBasicEventSubscription(eventName);
+    if (IsBasicEventSubscribed(eventId) != wantSubscribed)
+        ToggleBasicEventSubscription(eventId);
 
-    SetMembership(g_ToastEnabledBasicEvents, eventName, wantSubscribed && wantToast);
-    SetMembership(g_SoundEnabledBasicEvents, eventName, wantSubscribed && wantSound);
+    SetMembership(g_ToastEnabledBasicEvents, eventId, wantSubscribed && wantToast);
+    SetMembership(g_SoundEnabledBasicEvents, eventId, wantSubscribed && wantSound);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -274,11 +252,15 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
 // Deserialize defaults missing fields to empty string / 0 instead of throwing.
+// Falls back to the legacy "groupName" key when "groupId" is absent, so a
+// pre-id-migration events.json still loads - the group NAME that lands in
+// key.groupId this way is converted to an id below, by the same self-triggering
+// migration LoadSubscriptionsData runs for the other lists.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
     json j;
-    j["groupName"]  = key.groupName;
+    j["groupId"]    = key.groupId;
     j["slotOffset"] = key.slotOffset;
     return j;
 }
@@ -286,9 +268,44 @@ static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 {
     CyclicSubscriptionKey key;
-    key.groupName  = j.value("groupName", std::string());
+    key.groupId    = j.value("groupId", j.value("groupName", std::string()));
     key.slotOffset = j.value("slotOffset", 0);
     return key;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// MigrateBasicEntriesToIds / MigrateCyclicEntriesToIds
+//--------------------------------------------------------------------------------
+// One-time upgrade for a pre-id-migration events.json, whose Basic/Cyclic
+// subscription and toast/sound lists are still WorldEvent::name/
+// CyclicGroup::name values. Self-triggering, no version gate: an entry already
+// found in validIds is left alone; only one that misses as an id but hits
+// nameToId gets rewritten. An entry matching neither (an event/group the user
+// has since removed) is left as-is, same as before this migration existed -
+// mirrors MigrateMembersToIds (events_categories.cpp).
+//--------------------------------------------------------------------------------
+static void MigrateBasicEntriesToIds(std::vector<std::string>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
+{
+    for (auto& value : list)
+    {
+        if (validIds.count(value)) continue;
+
+        auto it = nameToId.find(value);
+        if (it != nameToId.end())
+            value = it->second;
+    }
+}
+
+static void MigrateCyclicEntriesToIds(std::vector<CyclicSubscriptionKey>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
+{
+    for (auto& key : list)
+    {
+        if (validIds.count(key.groupId)) continue;
+
+        auto it = nameToId.find(key.groupId);
+        if (it != nameToId.end())
+            key.groupId = it->second;
+    }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -382,6 +399,29 @@ bool LoadSubscriptionsData(const std::string& addonDir)
 
         g_SubscribedLiveEvents = j.value("subscribedLiveEvents", std::vector<std::string>{});
         g_NamedOnlyLiveEvents = j.value("namedOnlyLiveEvents", std::vector<std::string>{});
+
+        //_ Requires g_Events/g_CyclicGroups already populated - see LoadSubscriptionsData's own comment (subscriptions.h) on load order.
+        std::unordered_map<std::string, std::string> eventNameToId;
+        std::unordered_set<std::string> eventIds;
+        for (const auto& ev : g_Events)
+        {
+            eventNameToId[ev.name] = ev.id;
+            eventIds.insert(ev.id);
+        }
+        MigrateBasicEntriesToIds(g_SubscribedBasicEvents, eventNameToId, eventIds);
+        MigrateBasicEntriesToIds(g_ToastEnabledBasicEvents, eventNameToId, eventIds);
+        MigrateBasicEntriesToIds(g_SoundEnabledBasicEvents, eventNameToId, eventIds);
+
+        std::unordered_map<std::string, std::string> groupNameToId;
+        std::unordered_set<std::string> groupIds;
+        for (const auto& grp : g_CyclicGroups)
+        {
+            groupNameToId[grp.name] = grp.id;
+            groupIds.insert(grp.id);
+        }
+        MigrateCyclicEntriesToIds(g_SubscribedCyclicSlots, groupNameToId, groupIds);
+        MigrateCyclicEntriesToIds(g_ToastEnabledCyclicSlots, groupNameToId, groupIds);
+        MigrateCyclicEntriesToIds(g_SoundEnabledCyclicSlots, groupNameToId, groupIds);
 
         s_subscriptionListGeneration++;
         return true;

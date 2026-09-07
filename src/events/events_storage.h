@@ -34,12 +34,11 @@ void ResetEventsToDefaults();
 // GetDefaultEvent / GetDefaultCyclicGroup / GetDefaultCyclicSlot
 //--------------------------------------------------------------------------------
 // Look up a single entry in the same compiled-in snapshot ResetEventsToDefaults
-// restores from, keyed by name the same way MergeByKey/MergeGroups match on load.
+// restores from, keyed by id the same way MergeByKey/MergeGroups match on load.
 // Returns nullptr if the snapshot hasn't been captured yet, or no compiled-in
-// entry has that name (a purely user-added event/group/slot, or one renamed away
-// from its default name) - the per-row "Reset" menu item in
-// addon_options_helpers.cpp uses that to disable itself.
+// entry has that id (a purely user-added event/group/slot) - the per-row
+// "Reset" menu item in addon_options_helpers.cpp uses that to disable itself.
 //--------------------------------------------------------------------------------
-const WorldEvent* GetDefaultEvent(const std::string& name);
-const CyclicGroup* GetDefaultCyclicGroup(const std::string& name);
-const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupName, const std::string& slotName);
+const WorldEvent* GetDefaultEvent(const std::string& id);
+const CyclicGroup* GetDefaultCyclicGroup(const std::string& id);
+const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const std::string& slotId);

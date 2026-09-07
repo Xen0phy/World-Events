@@ -116,8 +116,10 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsDuplicateEventName / IsDuplicateGroupName / IsDuplicateSlotKey / DrawDuplicateWarning
 //--------------------------------------------------------------------------------
-// Match the merge keys from events_storage.cpp: groups/events/slots all by name
-// alone (GroupKey/EventKey/SlotKey) - for slots this means unique WITHIN the
+// Display-only warning: flags two entries sharing a visible name, so the player
+// can tell them apart in the UI. Not a merge-key check - GroupKey/EventKey/
+// SlotKey (events_storage.cpp) key on id, not name, so a duplicate name here
+// doesn't mean a duplicate identity. For slots this means unique WITHIN the
 // group, not globally. selfIndex excludes the entry being checked from its own
 // comparison.
 //--------------------------------------------------------------------------------
@@ -160,7 +162,7 @@ void DrawDuplicateWarning()
 //********************************************************************************
 // DragPayload
 //--------------------------------------------------------------------------------
-// name   fixed-size copy of the dragged item's current name
+// id   fixed-size copy of the dragged item's id
 //--------------------------------------------------------------------------------
 // SetDragDropPayload copies a fixed-size raw blob - it has no idea about
 // std::string, so the payload is a small POD struct with a fixed char[] buffer,
@@ -169,7 +171,7 @@ void DrawDuplicateWarning()
 //--------------------------------------------------------------------------------
 struct DragPayload
 {
-    char name[128];
+    char id[128];
 };
 
 //_ Two distinct types, not one with a discriminator - AcceptDragDropPayload filters by type, rejecting cross-list drops for free.
@@ -180,20 +182,21 @@ const char* const kCyclicGroupDragType = "WE_DRAG_CYCLIC_GROUP";
 // MakeDragSource / MakeDropTarget
 //--------------------------------------------------------------------------------
 // MakeDragSource: call right after the widget being dragged (e.g. a row's
-// TreeNode). itemName is the event/group name to move on drop.
+// TreeNode). itemId is the payload moved into Category::members on drop;
+// displayName is only the text shown under the cursor while dragging.
 //
 // MakeDropTarget: call right after the widget accepting a drop (a category
 // header, or "drop here to uncategorize"). Performs the MoveCategoryMember() call
 // itself; the bool return is informational.
 //--------------------------------------------------------------------------------
-void MakeDragSource(const char* dragType, const std::string& itemName)
+void MakeDragSource(const char* dragType, const std::string& itemId, const std::string& displayName)
 {
     if (ImGui::BeginDragDropSource())
     {
         DragPayload payload{};
-        strncpy(payload.name, itemName.c_str(), sizeof(payload.name) - 1);
+        strncpy(payload.id, itemId.c_str(), sizeof(payload.id) - 1);
         ImGui::SetDragDropPayload(dragType, &payload, sizeof(payload));
-        ImGui::TextUnformatted(itemName.c_str()); //. preview text following the cursor
+        ImGui::TextUnformatted(displayName.c_str()); //. preview text following the cursor
         ImGui::EndDragDropSource();
     }
 }
@@ -206,7 +209,7 @@ bool MakeDropTarget(const char* dragType, std::vector<Category>& categories, int
         if (const ImGuiPayload* imguiPayload = ImGui::AcceptDragDropPayload(dragType))
         {
             const DragPayload* payload = (const DragPayload*)imguiPayload->Data;
-            MoveCategoryMember(categories, std::string(payload->name), targetCategoryIndex);
+            MoveCategoryMember(categories, std::string(payload->id), targetCategoryIndex);
             dropped = true;
         }
         ImGui::EndDragDropTarget();
@@ -518,6 +521,7 @@ NameRowResult DrawNameAndContextMenu(
     std::map<int, std::string>& editBuffers,
     int&                        pendingRemoveIndex,
     const char*                 dragType,
+    const std::string&          dragId,
     const char*                 autoTag,
     std::function<void()>       toggleDone,
     int                         notifyLevel,
@@ -537,7 +541,7 @@ NameRowResult DrawNameAndContextMenu(
 
     //_ Drag source is optional; categories are drop targets only and pass dragType = nullptr to skip it.
     if (dragType)
-        MakeDragSource(dragType, currentName);
+        MakeDragSource(dragType, dragId, currentName);
 
     if (ImGui::BeginPopupContextItem("##name_context_menu"))
     {
@@ -647,10 +651,10 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     WorldEvent& ev = g_Events[i];
 
     //_ Drawn before the name/tree-arrow, in the slot DrawSubscribeCheckbox used to occupy; see subscriptions.h for what each level touches.
-    int notifyLevel = GetBasicEventNotifyLevel(ev.name);
+    int notifyLevel = GetBasicEventNotifyLevel(ev.id);
     int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
     if (newNotifyLevel != notifyLevel)
-        SetBasicEventNotifyLevel(ev.name, newNotifyLevel);
+        SetBasicEventNotifyLevel(ev.id, newNotifyLevel);
     ImGui::SameLine();
 
     //_ Map-only show/hide; the Subscriptions bar/window are unaffected (that's the checkbox above). ev.shown defaults to true.
@@ -660,19 +664,17 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     ImGui::SameLine();
 
     std::string oldName = ev.name;
-    const WorldEvent* defaultEv = GetDefaultEvent(ev.name);
-    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType,
+    const WorldEvent* defaultEv = GetDefaultEvent(ev.id);
+    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType, ev.id,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
-        [&ev]() { ToggleBasicEventDoneToday(ev.name); },
-        notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.name, lvl); },
-        [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. name unchanged - defaultEv was found BY ev.name
+        [&ev]() { ToggleBasicEventDoneToday(ev.id); },
+        notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.id, lvl); },
+        [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. name unchanged - defaultEv was found BY ev.id
         defaultEv != nullptr);
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
         ev.name = nameResult.newName;
-        RenameCategoryMember(g_BasicCategories, oldName, ev.name);
-        RenameSubscribedBasicEvent(oldName, ev.name);
     }
 
     if (IsDuplicateEventName(g_Events, i))
@@ -828,13 +830,13 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     bool allSlotsSubscribed = !grp.slots.empty() &&
         std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
         {
-            return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.name, slot.offset });
+            return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.offset });
         });
     if (DrawSubscribeCheckbox("##subscribe_group", allSlotsSubscribed))
     {
         for (const auto& slot : grp.slots)
         {
-            CyclicSubscriptionKey key{ grp.name, slot.offset };
+            CyclicSubscriptionKey key{ grp.id, slot.offset };
             //_ allSlotsSubscribed already holds the post-click state: unticking drops every slot to 0, ticking only raises 0 -> 1.
             if (!allSlotsSubscribed)
             {
@@ -857,18 +859,15 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     ImGui::SameLine();
 
     std::string oldGroupName = grp.name;
-    const CyclicGroup* defaultGrp = GetDefaultCyclicGroup(grp.name);
-    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, grp.name, editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType,
+    const CyclicGroup* defaultGrp = GetDefaultCyclicGroup(grp.id);
+    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, grp.name, editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
         grp.apiMapChestId.empty() ? nullptr : "(auto)",
         nullptr, -1, nullptr,
-        [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. name unchanged - defaultGrp was found BY grp.name
+        [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. name unchanged - defaultGrp was found BY grp.id
         defaultGrp != nullptr);
     bool open = nameResult.open;
     if (nameResult.newName != oldGroupName)
-    {
         grp.name = nameResult.newName;
-        RenameCategoryMember(g_CyclicCategories, oldGroupName, grp.name);
-    }
 
     if (IsDuplicateGroupName(g_CyclicGroups, i))
         DrawDuplicateWarning();
@@ -933,7 +932,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             ImGui::PushID(s);
 
             //_ Per SLOT, not per group; the group checkbox above is a bulk convenience over these same per-slot subscriptions.
-            CyclicSubscriptionKey subKey{ grp.name, slot.offset };
+            CyclicSubscriptionKey subKey{ grp.id, slot.offset };
             int notifyLevel = GetCyclicSlotNotifyLevel(subKey);
             int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
             if (newNotifyLevel != notifyLevel)
@@ -947,14 +946,15 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             ImGui::SameLine();
 
             int slotEditKey = i * 100000 + s;
-            const CyclicGroup::Slot* defaultSlot = GetDefaultCyclicSlot(grp.name, slot.name);
+            const CyclicGroup::Slot* defaultSlot = GetDefaultCyclicSlot(grp.id, slot.id);
+            //_ Slot rows aren't draggable (dragType left null) - a slot moves with its group, not independently between categories.
             NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, slot.name, editingSlotNames, pendingRemoveSlotIndex,
-                nullptr, nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
+                nullptr, std::string(), nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
                 notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); },
-                [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. name unchanged - defaultSlot was found BY (grp.name, slot.name)
+                [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. name unchanged - defaultSlot was found BY (grp.id, slot.id)
                 defaultSlot != nullptr);
             bool slotOpen = slotNameResult.open;
-            //_ Slots aren't categorized and subscriptions key on (group name, offset), not name, so no rename fixups are needed.
+            //_ Slots aren't categorized and subscriptions key on (group id, offset), not name, so no rename fixups are needed.
             if (slotNameResult.newName != slot.name)
                 slot.name = slotNameResult.newName;
 

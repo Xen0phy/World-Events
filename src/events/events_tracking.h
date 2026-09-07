@@ -30,7 +30,7 @@
 
 #pragma once
 
-//_ CyclicSubscriptionKey - same (groupName, slotOffset) key shape.
+//_ CyclicSubscriptionKey - same (groupId, slotOffset) key shape.
 #include "subscriptions.h"
 
 #include <string>
@@ -39,7 +39,7 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday
 //--------------------------------------------------------------------------------
-// Query/toggle the manual "done today" mark for a Basic Event, by name.
+// Query/toggle the manual "done today" mark for a Basic Event, by id.
 //
 // Internally resolved through that event's WorldEvent::doneGroup (events.h)
 // before touching storage: events that share a doneGroup - e.g. the three Ley
@@ -47,16 +47,16 @@
 // are marked/checked as one unit, so marking any one of them done marks all of
 // them done, and un-marking any one un-marks all of them. Events with no
 // doneGroup set (the common case) behave exactly as before, keyed on their own
-// name. Callers don't need to know or care which case applies; pass the specific
-// event's own name either way.
+// id. Callers don't need to know or care which case applies; pass the specific
+// event's own id either way.
 //--------------------------------------------------------------------------------
-bool IsBasicEventMarkedDoneToday(const std::string& eventName);
-void ToggleBasicEventDoneToday(const std::string& eventName);
+bool IsBasicEventMarkedDoneToday(const std::string& eventId);
+void ToggleBasicEventDoneToday(const std::string& eventId);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsCyclicSlotMarkedDoneToday / ToggleCyclicSlotDoneToday
 //--------------------------------------------------------------------------------
-// Query/toggle the manual "done today" mark for a Cyclic slot, by (groupName,
+// Query/toggle the manual "done today" mark for a Cyclic slot, by (groupId,
 // slotOffset) key.
 //--------------------------------------------------------------------------------
 bool IsCyclicSlotMarkedDoneToday(const CyclicSubscriptionKey& key);
@@ -102,6 +102,11 @@ uint64_t GetDoneMarkersGeneration();
 // ("doneTodayUtcDay"). Order relative to Save/LoadSubscriptionsData doesn't
 // matter - both just read-modify-write the same file. Both swallow exceptions and
 // return false on failure.
+//
+// Load also migrates any pre-id Basic/Cyclic mark still keyed by name against
+// the now-populated g_Events/g_CyclicGroups, the same self-triggering approach
+// as MigrateMembersToIds (events_categories.cpp) - requires LoadEventsData to
+// have already run.
 //--------------------------------------------------------------------------------
 bool SaveDailyTrackingData(const std::string& addonDir);
 bool LoadDailyTrackingData(const std::string& addonDir);

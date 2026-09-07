@@ -1,7 +1,7 @@
 //################################################################################
 // subscriptions.h
 //--------------------------------------------------------------------------------
-// CyclicSubscriptionKey                     (group name, slot offset) key
+// CyclicSubscriptionKey                     (group id, slot offset) key
 // SubscriptionKind                          Basic / Cyclic / Live
 // g_SubscribedBasicEvents/CyclicSlots        the watchlist itself
 // g_ToastEnabledBasicEvents/CyclicSlots      toast opt-in lists
@@ -20,10 +20,11 @@
 //--------------------------------------------------------------------------------
 // Data model for the user's subscribed-events watchlist, surfaced in the
 // subscriptions UI (see ui/subscriptions_ui.h). References existing event/slot
-// data by name/key instead of owning a copy - the render code looks up the live
+// data by id/key instead of owning a copy - the render code looks up the live
 // WorldEvent/CyclicGroup::Slot in g_Events/g_CyclicGroups every frame. Basic
-// Events are keyed by name; Cyclic Events are keyed per occurrence (group name,
-// slot offset), since slot names aren't unique within a group but offsets are.
+// Events are keyed by WorldEvent::id; Cyclic Events are keyed per occurrence
+// (group id, slot offset), since slot ids are only unique within a group but
+// offsets are unique regardless.
 //
 // A Basic/Cyclic subscription may also opt into a toast popup and, on top of
 // that, a notification sound - one 0..3 "notify level" instead of three
@@ -50,17 +51,17 @@
 //********************************************************************************
 // CyclicSubscriptionKey
 //--------------------------------------------------------------------------------
-// groupName    name of the cyclic group
+// groupId      id of the cyclic group
 // slotOffset   offset of the slot within that group
 //--------------------------------------------------------------------------------
 struct CyclicSubscriptionKey
 {
-    std::string groupName;
+    std::string groupId;
     int         slotOffset = 0;
 
     bool operator==(const CyclicSubscriptionKey& other) const
     {
-        return groupName == other.groupName && slotOffset == other.slotOffset;
+        return groupId == other.groupId && slotOffset == other.slotOffset;
     }
 };
 
@@ -68,7 +69,7 @@ struct CyclicSubscriptionKey
 // SubscriptionKind
 //--------------------------------------------------------------------------------
 // Which of the three event flavors a row/candidate/popup/deep-link target
-// identifies (live-toast-handoff.md section 6). Basic/Cyclic identify by name /
+// identifies (live-toast-handoff.md section 6). Basic/Cyclic identify by id /
 // CyclicSubscriptionKey as before; Live identifies by LiveEvent::eventId, carried
 // alongside as a plain string wherever this enum appears - an enum instead of the
 // old binary isBasic bool, so a Live identity has somewhere to go instead of
@@ -81,16 +82,16 @@ enum class SubscriptionKind
     Live,
 };
 
-extern std::vector<std::string>            g_SubscribedBasicEvents; //. keyed by WorldEvent::name
-extern std::vector<CyclicSubscriptionKey>  g_SubscribedCyclicSlots; //. keyed by group/offset
+extern std::vector<std::string>            g_SubscribedBasicEvents; //. keyed by WorldEvent::id
+extern std::vector<CyclicSubscriptionKey>  g_SubscribedCyclicSlots; //. keyed by group id/offset
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventSubscribed / ToggleBasicEventSubscription
 //--------------------------------------------------------------------------------
 // Query/toggle helpers over g_SubscribedBasicEvents.
 //--------------------------------------------------------------------------------
-bool IsBasicEventSubscribed(const std::string& eventName);
-void ToggleBasicEventSubscription(const std::string& eventName);
+bool IsBasicEventSubscribed(const std::string& eventId);
+void ToggleBasicEventSubscription(const std::string& eventId);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsCyclicSlotSubscribed / ToggleCyclicSlotSubscription
@@ -111,14 +112,6 @@ void ToggleCyclicSlotSubscription(const CyclicSubscriptionKey& key);
 // session.
 //--------------------------------------------------------------------------------
 void ClearAllSubscriptions();
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// RenameSubscribedBasicEvent
-//--------------------------------------------------------------------------------
-// Patches a Basic Event subscription from oldName to newName, including its
-// toast/sound entries. No-op if oldName isn't subscribed.
-//--------------------------------------------------------------------------------
-void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName);
 
 extern std::vector<std::string> g_SubscribedLiveEvents; //. keyed by LiveEvent::eventId
 
@@ -159,7 +152,7 @@ extern std::vector<CyclicSubscriptionKey>  g_SoundEnabledCyclicSlots;  //. sound
 //--------------------------------------------------------------------------------
 // Query helpers over the toast opt-in lists above.
 //--------------------------------------------------------------------------------
-bool IsBasicEventToastEnabled(const std::string& eventName);
+bool IsBasicEventToastEnabled(const std::string& eventId);
 bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -167,7 +160,7 @@ bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key);
 //--------------------------------------------------------------------------------
 // Query helpers over the sound opt-in lists above.
 //--------------------------------------------------------------------------------
-bool IsBasicEventSoundEnabled(const std::string& eventName);
+bool IsBasicEventSoundEnabled(const std::string& eventId);
 bool IsCyclicSlotSoundEnabled(const CyclicSubscriptionKey& key);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -176,8 +169,8 @@ bool IsCyclicSlotSoundEnabled(const CyclicSubscriptionKey& key);
 // 0..3 notify level for a Basic Event subscription (see file header). Set clamps
 // level to 0..3 and brings the toast/sound lists into agreement.
 //--------------------------------------------------------------------------------
-int  GetBasicEventNotifyLevel(const std::string& eventName);
-void SetBasicEventNotifyLevel(const std::string& eventName, int level);
+int  GetBasicEventNotifyLevel(const std::string& eventId);
+void SetBasicEventNotifyLevel(const std::string& eventId, int level);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetCyclicSlotNotifyLevel / SetCyclicSlotNotifyLevel
@@ -191,8 +184,8 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level);
 // GetSubscriptionListGeneration
 //--------------------------------------------------------------------------------
 // Bumped by exactly 1 on every change to the subscribed lists themselves
-// (Toggle.../RenameSubscribedBasicEvent/LoadSubscriptionsData), so
-// subscriptions_cache.cpp can cheaply detect that without re-deriving anything.
+// (Toggle.../LoadSubscriptionsData), so subscriptions_cache.cpp can cheaply
+// detect that without re-deriving anything.
 // NOT bumped by toast/sound-list-only changes: nothing in that cache reads those
 // lists, so subscriptions_notification.cpp just reads them directly every frame
 // instead.
@@ -207,6 +200,11 @@ uint64_t GetSubscriptionListGeneration();
 // events.json used by g_Events/g_CyclicGroups/categories. Call SaveEventsData()
 // first - this reads the file back in and rewrites it. Both swallow exceptions
 // and return false on failure.
+//
+// Load also migrates any pre-id Basic/Cyclic entry still keyed by name against
+// the now-populated g_Events/g_CyclicGroups, the same self-triggering approach
+// as MigrateMembersToIds (events_categories.cpp) - requires LoadEventsData to
+// have already run.
 //--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir);
 bool LoadSubscriptionsData(const std::string& addonDir);

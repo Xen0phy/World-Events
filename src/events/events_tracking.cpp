@@ -19,6 +19,8 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <unordered_map>
+#include <unordered_set>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -70,40 +72,40 @@ static void RollOverIfNewUtcDay()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ResolveBasicDoneKey
 //--------------------------------------------------------------------------------
-// Maps a Basic Event's own name to the key its "done today" mark is actually
-// stored/looked-up under: g_Events[name].doneGroup if that event has one set,
-// else the name itself unchanged. See WorldEvent::doneGroup (events.h) and this
+// Maps a Basic Event's own id to the key its "done today" mark is actually
+// stored/looked-up under: g_Events[id].doneGroup if that event has one set,
+// else the id itself unchanged. See WorldEvent::doneGroup (events.h) and this
 // file's header comment for the Ley Line Anomaly case this exists for.
 //
 // Plain linear scan over g_Events - same cost class as the lookups
 // GetDefaultEvent (events_storage.cpp) already does for the options panel, and
 // this runs on the same rare "user right-clicked a row" path, not per-frame.
 //--------------------------------------------------------------------------------
-static std::string ResolveBasicDoneKey(const std::string& eventName)
+static std::string ResolveBasicDoneKey(const std::string& eventId)
 {
     for (const auto& ev : g_Events)
     {
-        if (ev.name != eventName) continue;
-        return ev.doneGroup.empty() ? eventName : ev.doneGroup;
+        if (ev.id != eventId) continue;
+        return ev.doneGroup.empty() ? eventId : ev.doneGroup;
     }
-    return eventName; //. stale/unknown name - unchanged
+    return eventId; //. stale/unknown id - unchanged
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday (see: events_tracking.h)
 //--------------------------------------------------------------------------------
-bool IsBasicEventMarkedDoneToday(const std::string& eventName)
+bool IsBasicEventMarkedDoneToday(const std::string& eventId)
 {
     RollOverIfNewUtcDay();
-    const std::string key = ResolveBasicDoneKey(eventName);
+    const std::string key = ResolveBasicDoneKey(eventId);
     return std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), key)
         != s_DoneTodayBasicEvents.end();
 }
 
-void ToggleBasicEventDoneToday(const std::string& eventName)
+void ToggleBasicEventDoneToday(const std::string& eventId)
 {
     RollOverIfNewUtcDay();
-    const std::string key = ResolveBasicDoneKey(eventName);
+    const std::string key = ResolveBasicDoneKey(eventId);
     auto it = std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), key);
     if (it != s_DoneTodayBasicEvents.end())
         s_DoneTodayBasicEvents.erase(it);
@@ -169,12 +171,13 @@ void ClearAllDoneMarkers()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
-// Same (groupName, slotOffset) key shape as subscriptions.cpp.
+// Same (groupId, slotOffset) key shape as subscriptions.cpp, including the same
+// legacy-"groupName"-field fallback on read for a pre-id-migration events.json.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
     json j;
-    j["groupName"]  = key.groupName;
+    j["groupId"]    = key.groupId;
     j["slotOffset"] = key.slotOffset;
     return j;
 }
@@ -182,9 +185,44 @@ static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 {
     CyclicSubscriptionKey key;
-    key.groupName  = j.value("groupName", std::string());
+    key.groupId    = j.value("groupId", j.value("groupName", std::string()));
     key.slotOffset = j.value("slotOffset", 0);
     return key;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// MigrateBasicMarksToIds / MigrateCyclicMarksToIds
+//--------------------------------------------------------------------------------
+// One-time upgrade for a pre-id-migration events.json, whose done-today marks
+// are still WorldEvent::name/CyclicGroup::name values. Self-triggering, no
+// version gate: an entry already found in validIds is left alone (also true of
+// any doneGroup value, which was never name-shaped to begin with); only an
+// entry that misses as an id but hits nameToId gets rewritten. An entry
+// matching neither (a doneGroup value, or a removed event/group) is left as-is
+// - mirrors MigrateMembersToIds (events_categories.cpp).
+//--------------------------------------------------------------------------------
+static void MigrateBasicMarksToIds(std::vector<std::string>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
+{
+    for (auto& value : list)
+    {
+        if (validIds.count(value)) continue;
+
+        auto it = nameToId.find(value);
+        if (it != nameToId.end())
+            value = it->second;
+    }
+}
+
+static void MigrateCyclicMarksToIds(std::vector<CyclicSubscriptionKey>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
+{
+    for (auto& key : list)
+    {
+        if (validIds.count(key.groupId)) continue;
+
+        auto it = nameToId.find(key.groupId);
+        if (it != nameToId.end())
+            key.groupId = it->second;
+    }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -256,6 +294,25 @@ bool LoadDailyTrackingData(const std::string& addonDir)
 
         if (j.contains("doneTodayLiveEvents"))
             s_DoneTodayLiveEvents = j.value("doneTodayLiveEvents", std::vector<std::string>{});
+
+        //_ Requires g_Events/g_CyclicGroups already populated - see LoadDailyTrackingData's own comment (events_tracking.h) on load order.
+        std::unordered_map<std::string, std::string> eventNameToId;
+        std::unordered_set<std::string> eventIds;
+        for (const auto& ev : g_Events)
+        {
+            eventNameToId[ev.name] = ev.id;
+            eventIds.insert(ev.id);
+        }
+        MigrateBasicMarksToIds(s_DoneTodayBasicEvents, eventNameToId, eventIds);
+
+        std::unordered_map<std::string, std::string> groupNameToId;
+        std::unordered_set<std::string> groupIds;
+        for (const auto& grp : g_CyclicGroups)
+        {
+            groupNameToId[grp.name] = grp.id;
+            groupIds.insert(grp.id);
+        }
+        MigrateCyclicMarksToIds(s_DoneTodayCyclicSlots, groupNameToId, groupIds);
 
         s_doneMarkersGeneration++;
         return true;
