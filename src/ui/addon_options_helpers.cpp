@@ -60,7 +60,7 @@ int PeriodSecondsToHours(int periodSeconds)
 void DrawPeriodHoursDragInt(int* periodSeconds)
 {
     int hours = PeriodSecondsToHours(*periodSeconds);
-    if (ImGui::DragInt("Period", &hours, 0.1f, kMinPeriodHours, kMaxPeriodHours, "%dh"))
+    if (ImGui::DragInt(Tr("WE_PERIOD_LABEL"), &hours, 0.1f, kMinPeriodHours, kMaxPeriodHours, "%dh"))
     {
         //_ DragInt's min/max only clamp the drag gesture; a typed (ctrl+click) value can still land outside range, so clamp explicitly.
         if (hours < kMinPeriodHours) hours = kMinPeriodHours;
@@ -683,7 +683,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     if (open)
     {
         ImGui::SetNextItemWidth(100.0f);
-        ImGui::InputFloat2("Location", &ev.continentX, "%.0f");
+        ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &ev.continentX, "%.0f");
 
         ImGui::SameLine();
         {
@@ -694,20 +694,20 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
         ImGui::SetNextItemWidth(50.0f);
         int durationMinutes = ev.duration / 60;
-        if (ImGui::InputInt("Duration (min)", &durationMinutes,0,0))
+        if (ImGui::InputInt(Tr("WE_DURATION_MIN_LABEL"), &durationMinutes,0,0))
         {
             if (durationMinutes < 1) durationMinutes = 1;
             ev.duration = durationMinutes * 60;
         }
 
         ImGui::SameLine();
-        ImGui::Checkbox("Varying", &ev.isVarying);
+        ImGui::Checkbox(Tr("WE_VARYING_CHECKBOX"), &ev.isVarying);
 
         if (ev.isVarying)
         {
             //_ Sorted HH:MM start times, labeled UTC and not auto-converted; the schedule is UTC by design.
             ImGui::Spacing();
-            ImGui::TextUnformatted("Times (UTC)");
+            ImGui::TextUnformatted(Tr("WE_TIMES_UTC_LABEL"));
             ImGui::SameLine();
             bool pendingAddTime = ImGui::SmallButton("+##add_time");
 
@@ -760,7 +760,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
         {
             ImGui::SetNextItemWidth(50.0f);
             int offsetMinutes = ev.offset / 60;
-            if (ImGui::InputInt("Offset (min)", &offsetMinutes, 0, 0))
+            if (ImGui::InputInt(Tr("WE_OFFSET_MIN_LABEL"), &offsetMinutes, 0, 0))
             {
                 if (offsetMinutes < 0) offsetMinutes = 0;
                 ev.offset = offsetMinutes * 60;
@@ -876,7 +876,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     {
         //_ Compact row: Location, Period, Color, Idle override share one line; swatches use NoInputs (small square, full picker on click).
         ImGui::SetNextItemWidth(100.0f);
-        ImGui::InputFloat2("Location", &grp.continentX, "%.0f");
+        ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &grp.continentX, "%.0f");
 
         ImGui::SameLine();
         {
@@ -889,7 +889,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         DrawPeriodHoursDragInt(&grp.period);
 
         //_ colors.base is a plain ImVec4, so ColorEdit4 binds to it directly; no read/convert/write-back round trip needed.
-        ImGui::ColorEdit4("Color", &grp.colors.base.x, ImGuiColorEditFlags_AlphaBar |
+        ImGui::ColorEdit4(Tr("WE_COLOR_LABEL"), &grp.colors.base.x, ImGuiColorEditFlags_AlphaBar |
                                                                          ImGuiColorEditFlags_NoInputs |
                                                                          ImGuiColorEditFlags_PickerHueWheel);
 
@@ -909,7 +909,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         {
             ImU32 idleU32 = grp.idleColor.has_value() ? *grp.idleColor : grp.colors.ter();
             ImVec4 idleColorVec = ColorFloat4(idleU32);
-            if (ImGui::ColorEdit4("Custom Color##group", &idleColorVec.x, ImGuiColorEditFlags_AlphaBar |
+            if (ImGui::ColorEdit4(TrId("WE_CUSTOM_COLOR_LABEL", "##group").c_str(), &idleColorVec.x, ImGuiColorEditFlags_AlphaBar |
                                                                                             ImGuiColorEditFlags_NoInputs |
                                                                                             ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
                 grp.idleColor = ColorU32(idleColorVec);
@@ -917,7 +917,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
         //_ Slots are the individual events within this cycle; same deferred add/remove pattern, nested one PushID level deeper.
         ImGui::Spacing();
-        ImGui::TextUnformatted("Events");
+        ImGui::TextUnformatted(Tr("WE_GROUP_EVENTS_LABEL"));
         ImGui::SameLine();
         bool pendingAddSlot = ImGui::SmallButton("+##add_slot");
 
@@ -965,20 +965,20 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             {
                 ImGui::SetNextItemWidth(50.0f);
                 int durationMinutes = slot.duration / 60;
-                if (ImGui::DragInt("Duration (min)", &durationMinutes, 0, 0, 0, "%dmin"))
+                if (ImGui::DragInt(Tr("WE_DURATION_MIN_LABEL"), &durationMinutes, 0, 0, 0, "%dmin"))
                 {
                     if (durationMinutes < 1) durationMinutes = 1;
                     slot.duration = durationMinutes * 60;
                 }
 
                 ImGui::SameLine();
-                ImGui::Checkbox("Varying", &slot.isVarying);
+                ImGui::Checkbox(Tr("WE_VARYING_CHECKBOX"), &slot.isVarying);
 
                 if (!slot.isVarying)
                 {
                     ImGui::SetNextItemWidth(50.0f);
                     int offsetMinutes = slot.offset / 60;
-                    if (ImGui::DragInt("Offset", &offsetMinutes, 0, 0, 0, "%dmin"))
+                    if (ImGui::DragInt(Tr("WE_OFFSET_LABEL"), &offsetMinutes, 0, 0, 0, "%dmin"))
                     {
                         if (offsetMinutes < 0) offsetMinutes = 0;
                         slot.offset = offsetMinutes * 60;
@@ -988,7 +988,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(50.0f);
                     int repeatInput = slot.repeat;
-                    if (ImGui::InputInt("Repetition", &repeatInput, 0, 0))
+                    if (ImGui::InputInt(Tr("WE_REPETITION_LABEL"), &repeatInput, 0, 0))
                     {
                         if (repeatInput < 1) repeatInput = 1;
                         if (repeatInput > grp.period) repeatInput = grp.period;
@@ -1011,7 +1011,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 {
                     //_ Sorted minute-into-period times, not HH:MM (period isn't always 24h); offset/repeat are unused while isVarying is set (see events.h).
                     ImGui::Spacing();
-                    ImGui::TextUnformatted("Times (min into period)");
+                    ImGui::TextUnformatted(Tr("WE_TIMES_MIN_INTO_PERIOD_LABEL"));
                     ImGui::SameLine();
                     bool pendingAddTime = ImGui::SmallButton("+##add_slot_time");
 
@@ -1031,7 +1031,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                             changed = true;
                         }
                         ImGui::SameLine();
-                        ImGui::TextUnformatted("min");
+                        ImGui::TextUnformatted(Tr("WE_MINUTES_UNIT_LABEL"));
                         ImGui::SameLine();
                         if (ImGui::SmallButton("-##remove_slot_time"))
                             pendingRemoveTimeIndex = t;
@@ -1074,7 +1074,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 {
                     ImU32 slotU32 = slot.customColor.has_value() ? *slot.customColor : grp.SlotColor(slot);
                     ImVec4 slotColorVec = ColorFloat4(slotU32);
-                    if (ImGui::ColorEdit4("Custom Color##slot", &slotColorVec.x, ImGuiColorEditFlags_AlphaBar |
+                    if (ImGui::ColorEdit4(TrId("WE_CUSTOM_COLOR_LABEL", "##slot").c_str(), &slotColorVec.x, ImGuiColorEditFlags_AlphaBar |
                                                                                                    ImGuiColorEditFlags_NoInputs |
                                                                                                    ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
                         slot.customColor = ColorU32(slotColorVec);

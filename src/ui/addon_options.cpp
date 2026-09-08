@@ -62,7 +62,7 @@ void AddonOptions()
     OptionsRenderTimer optionsRenderTimer; //. no-op unless ShowDebug
     ImVec2 dummySquare = ImVec2(ImGui::GetFrameHeight(),ImGui::GetFrameHeight());
     
-    ImGui::Text("World Events");
+    ImGui::Text("%s", Tr("WE_OPT_PANEL_TITLE"));
     ImGui::SameLine();
     ImGui::TextDisabled("%s: %s", Tr("WE_OPT_RELEASE"), DateAndTime.c_str());
     ImGui::SameLine();
@@ -921,131 +921,71 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
 
-    if (ImGui::CollapsingHeader("Live Events (Experimental)"))
+    if (ImGui::CollapsingHeader(Tr("WE_OPT_LIVE_EVENTS_HEADER")))
     {
         //_ Informational panel above the controls - explains the feature before the checkboxes, not a control itself.
         static const ImVec4 kInfoHeaderColor(0.65f, 0.80f, 1.00f, 1.0f);
 
-        ImGui::TextColored(kInfoHeaderColor, "How it works");
-        ImGui::TextWrapped(
-            "GW2 doesn't expose a schedule for these events, so instead of predicting them, players report "
-            "\"it's up right now\". Get within range of a compiled-in event - or turn on map markers below to "
-            "see where they are - and a button appears in the upper-right corner (draggable to wherever you "
-            "want it); click it to report the event as active, or right-click to just see recent reports "
-            "without reporting yourself. Every report is broadcast in real time to everyone else on your "
-            "exact map instance.");
+        ImGui::TextColored(kInfoHeaderColor, "%s", Tr("WE_OPT_LIVE_HOW_IT_WORKS_HEADING"));
+        ImGui::TextWrapped("%s", Tr("WE_OPT_LIVE_HOW_IT_WORKS_BODY"));
         ImGui::Spacing();
 
-        ImGui::TextColored(kInfoHeaderColor, "What data this uses");
-        ImGui::TextWrapped(
-            "A report is an event id, a server-stamped timestamp, and - only if \"Share my name in reports\" "
-            "below is ticked - your character name; it's blank by default. No account name or exact position "
-            "is ever sent either way. Your map instance is identified by a hash of the map ID and the server "
-            "address, never the raw address itself, so nobody can see who reported what unless you've opted "
-            "into sharing your name. History is capped at the last 10 reports per event, and an instance with "
-            "no viewers and no reports for 12 hours wipes its own data. Nothing is sent - no connection is "
-            "even made - unless \"Subscribe to live events\" below is ticked; no GW2 API key is needed for "
-            "that, since reporting and receiving reports within your own map instance never involves NA/EU "
-            "region at all. A key only matters for the separate \"region-wide toast\" opt-in per event in the "
-            "Edit Subscriptions window's Live Events tab - see that checkbox's tooltip. An up/downvote system "
-            "for individual reports is planned.");
+        ImGui::TextColored(kInfoHeaderColor, "%s", Tr("WE_OPT_LIVE_WHAT_DATA_HEADING"));
+        ImGui::TextWrapped("%s", Tr("WE_OPT_LIVE_WHAT_DATA_BODY"));
         ImGui::Spacing();
 
-        ImGui::TextColored(kInfoHeaderColor, "Where this could go");
-        ImGui::TextWrapped(
-            "The roster below is small, compiled-in, and all-or-nothing for now - there's no picking "
-            "individual events. As the reporting pipeline proves reliable, this could grow into a larger "
-            "roster, per-event opt-in, and toast notifications like the ones Basic/Cyclic subscriptions "
-            "already get - eventually graduating out of Experimental. This is a project that relies on "
-            "trust: the more players trust it, the more precise the reports get, and the more players "
-            "might join in turn. Feedback of any kind, and wishes for events worth adding, are welcome - "
-            "message Xenophy.2716 in-game or find me on the Raidcore Discord.");
+        ImGui::TextColored(kInfoHeaderColor, "%s", Tr("WE_OPT_LIVE_WHERE_HEADING"));
+        ImGui::TextWrapped("%s", Tr("WE_OPT_LIVE_WHERE_BODY"));
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::Checkbox("Subscribe to live events", &LiveEventsSubscribed);
-        Tooltip("Follows every compiled-in live event at once: shows a button\n"
-                "in the upper-right corner naming any of them while you're\n"
-                "within range, on any map that has one. Click it to report the\n"
-                "event as active to everyone else on your map instance and see\n"
-                "recent reports; right-click to just see recent reports without\n"
-                "reporting. No GW2 API key needed - that's only required for the\n"
-                "separate region-wide toast opt-in (Edit Subscriptions window).\n"
-                "Unticked, this feature does nothing at all - no connection to\n"
-                "the relay server is ever made.");
+        ImGui::Checkbox(Tr("WE_OPT_LIVE_SUBSCRIBE_CHECKBOX"), &LiveEventsSubscribed);
+        Tooltip(Tr("WE_OPT_LIVE_SUBSCRIBE_TIP"));
 
         ImGui::SameLine();
-        if (ImGui::SmallButton("Debug WS Traffic..."))
+        if (ImGui::SmallButton(Tr("WE_OPT_LIVE_DEBUG_WS_BUTTON")))
             ShowWsDebugWindow = true;
-        Tooltip("Opens a window showing every message sent/received on the live-\n"
-                "events WebSocket connection (Cloudflare Durable Object), from the\n"
-                "moment the addon loaded. Also mirrored into Nexus's own log\n"
-                "under the \"WorldEvents-WS\" channel for a record that survives\n"
-                "a crash.");
+        Tooltip(Tr("WE_OPT_LIVE_DEBUG_WS_TIP"));
 
         if (Gw2ApiKey.empty())
         {
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
-                "No GW2 API key set - reporting and recent-reports still work fine on your own map instance.\n"
-                "A key only adds region-wide toasts for events you opt into below in Edit Subscriptions.");
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_OPT_LIVE_NO_API_KEY_WARNING"));
         }
         else if (GetLiveEventsRegion() == LiveEventsRegion::Unknown)
         {
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
-                "Key set, but region not resolved yet - make sure it has the \"account\" permission and give\n"
-                "the next poll a moment.");
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_OPT_LIVE_REGION_UNKNOWN_WARNING"));
         }
 
         //_ RGB only (feeds the toast's accent stripe via ToImVec4), same convention as the Active/Soon pickers above.
-        ImGui::ColorEdit3("Live report##sub_color_live", SubscriptionsLiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-        Tooltip("Accent color for a subscribed Live Event's \"reported\\n"
-                "active\" toast, separate from the Active color above so\\n"
-                "a player report reads differently from a scheduled one.");
+        ImGui::ColorEdit3(TrId("WE_LIVE_REPORT_COLOR", "##sub_color_live").c_str(), SubscriptionsLiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+        Tooltip(Tr("WE_LIVE_REPORT_COLOR_TIP"));
 
-        ImGui::Checkbox("Share my name in reports", &ShareNameInReports);
-        Tooltip("Off (default): reports are anonymous. On: your character name\n"
-                "goes out with every report you send, and anyone whose toast\n"
-                "notification it triggers can whisper you directly by clicking\n"
-                "it, instead of just pasting the waypoint.");
+        ImGui::Checkbox(Tr("WE_LIVE_SHARE_NAME_REPORTS"), &ShareNameInReports);
+        Tooltip(Tr("WE_LIVE_SHARE_NAME_REPORTS_TIP"));
 
-        ImGui::Checkbox("Move button", &LiveEventButtonMoveMode);
-        Tooltip("Shows the report button at its current position - even when\n"
-                "you're not subscribed or not near an event - so you can drag\n"
-                "it wherever you'd like. Untick when you're done positioning it;\n"
-                "the position is remembered.");
+        ImGui::Checkbox(Tr("WE_OPT_LIVE_MOVE_BUTTON"), &LiveEventButtonMoveMode);
+        Tooltip(Tr("WE_OPT_LIVE_MOVE_BUTTON_TIP"));
 
-        ImGui::Checkbox("Show live event reports window", &ShowLiveEventReportsWindow);
-        Tooltip("Keeps the reports window (server status, every live event on\n"
-                "your current map instance) open regardless of proximity to any\n"
-                "event. Left unticked here, the window still opens on its own\n"
-                "whenever you click a report button, and stays open across\n"
-                "restarts if you leave this ticked.");
+        ImGui::Checkbox(Tr("WE_OPT_LIVE_SHOW_REPORTS_WINDOW"), &ShowLiveEventReportsWindow);
+        Tooltip(Tr("WE_OPT_LIVE_SHOW_REPORTS_WINDOW_TIP"));
 
         DisabledBlock(!ShowLiveEventReportsWindow)
         {
-            ImGui::Checkbox("Lock window", &LiveEventReportsWindowLocked);
-            Tooltip("Drops the title bar, background, and resize/move handles,\n"
-                    "leaving just the report text pinned in place - a low-profile\n"
-                    "always-on HUD instead of an interactive window. Position it\n"
-                    "by dragging the title bar before ticking this.");
+            ImGui::Checkbox(Tr("WE_OPT_LIVE_LOCK_WINDOW"), &LiveEventReportsWindowLocked);
+            Tooltip(Tr("WE_OPT_LIVE_LOCK_WINDOW_TIP"));
         }
 
-        ImGui::Checkbox("Show live event locations on map", &ShowLiveEventMapDots);
-        Tooltip("Draws a ring at each live event's location while the\n"
-                "full-screen map is open - just a rough visual hint of\n"
-                "where to watch. Purely decorative; works whether or not\n"
-                "you're subscribed above.");
+        ImGui::Checkbox(Tr("WE_OPT_LIVE_SHOW_MAP_DOTS"), &ShowLiveEventMapDots);
+        Tooltip(Tr("WE_OPT_LIVE_SHOW_MAP_DOTS_TIP"));
         ImGui::Spacing();
 
-        ImGui::TextDisabled("Compiled-in, player-reportable events with no fixed schedule.\n"
-                             "Subscribing above follows all of them - there's no picking\n"
-                             "individual ones.");
+        ImGui::TextDisabled("%s", Tr("WE_OPT_LIVE_ROSTER_NOTE"));
         ImGui::Spacing();
 
         if (g_LiveEvents.empty())
         {
-            ImGui::TextDisabled("None compiled in yet.");
+            ImGui::TextDisabled("%s", Tr("WE_LIVE_NONE_COMPILED"));
         }
         else
         {

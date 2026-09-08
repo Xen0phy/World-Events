@@ -27,6 +27,8 @@ Two independent passes:
     - two same-marker blocks sitting back-to-back on one construct
       (cap-dodging)
     - a bare (contentless) block with no "(see: ...)" cross-reference
+    - a run of 2+ consecutive '//_' inline-comment lines (that marker is
+      meant for a single line; a multi-line run needs review)
 
 The advisory log is always printed, with or without --auto, and always saved
 to <root>/logs/check_comments.log (created if needed) -- that's the file
@@ -87,6 +89,14 @@ import sys
 DASH_LINE_RE = re.compile(r'^(?P<indent>[ \t]*)//(?P<dashes>-{10,})[ \t]*$')
 MARKER_LINE_RE = re.compile(r'^(?P<indent>[ \t]*)//(?P<mchar>[#*~])(?P=mchar){9,}[ \t]*$')
 COMMENT_LINE_RE = re.compile(r'^(?P<indent>[ \t]*)//(?P<rest>.*)$')
+
+# A single-line inline comment marker, e.g. "//_ this is some proper
+# comment". The codebase's convention is that '//_' is used for one-line
+# inline comments only; a run of two or more of these back-to-back
+# usually means someone wrote a multi-line comment using the inline
+# marker on every line, which should be reviewed (see
+# check_inline_comment_runs below).
+INLINE_MARKER_RE = re.compile(r'^(?P<indent>[ \t]*)//_(?:[ \t]|$)')
 
 # A '//' line whose content is *only* whitespace and separator/marker
 # characters -- catches a run that would otherwise match DASH_LINE_RE or
@@ -251,6 +261,45 @@ def scan_global(lines):
                 break
 
     return issues, fixed_lines
+
+
+def check_inline_comment_runs(lines):
+    """Advisory: a run of 2+ consecutive '//_' inline-comment lines.
+
+    The codebase's '//_' marker is meant for a single-line comment (e.g.
+    "//_ this is some proper comment"). If someone wrote a bigger comment
+    across multiple lines, each prefixed with '//_', that's a run like:
+
+        //_ sometext
+        //_ moretext
+        //_ evenmore
+
+    Each such run is flagged once, at its first line, so it can be
+    reviewed and (usually) rewritten as a proper block comment instead.
+    """
+    issues = []
+    i = 0
+    n = len(lines)
+
+    while i < n:
+        if INLINE_MARKER_RE.match(lines[i]):
+            start = i
+            while i < n and INLINE_MARKER_RE.match(lines[i]):
+                i += 1
+            run_len = i - start
+            if run_len > 1:
+                issues.append(Issue(
+                    start + 1, 'inline-comment-multiline',
+                    f"{run_len} consecutive '//_' lines (lines {start + 1}-{i}) -- "
+                    f"'//_' is meant for a single-line comment; this looks like a "
+                    f"multi-line comment split across several '//_' lines and "
+                    f"should be reviewed / rewritten as a proper block comment",
+                    context=lines[start].strip(),
+                ))
+        else:
+            i += 1
+
+    return issues
 
 
 # ---------------------------------------------------------------------------
@@ -592,6 +641,7 @@ def process_file(path, auto=False):
     lines = original_text.splitlines()
 
     global_issues, ascii_fixed_lines = scan_global(lines)
+    inline_run_issues = check_inline_comment_runs(lines)
     blocks, malformed = find_blocks(ascii_fixed_lines)
     block_issues, mech_fixes = check_blocks(ascii_fixed_lines, blocks, malformed)
 
@@ -599,7 +649,7 @@ def process_file(path, auto=False):
     for idx, new_text in mech_fixes:
         fixed_lines[idx] = new_text
 
-    all_issues = sorted(global_issues + block_issues, key=lambda iss: iss.line_no)
+    all_issues = sorted(global_issues + inline_run_issues + block_issues, key=lambda iss: iss.line_no)
     changed = fixed_lines != lines
 
     if changed:

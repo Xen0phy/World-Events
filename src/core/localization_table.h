@@ -173,8 +173,8 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
         "um es hier hinzuzufügen." },
 
     { "WE_SUBS_HINT_CLICK",
-        "Click a row to copy its waypoint code into the chat.",
-        "Klicke eine Zeile an, um deren Wegpunkt-Code in den Chat zu kopieren." },
+        "Click a row to copy its waypoint code.",
+        "Klicke eine Zeile an, um deren Wegpunkt-Code zu kopieren." },
 
     { "WE_SUBS_HINT_RIGHT_CLICK",
         "Right-click a row to mark it done for today.",
@@ -195,8 +195,8 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
         "Heute erledigt" },
 
 
-    //_ subscriptions_edit_window.cpp - Live Events tab. WE_LIVE_* rows are shared with addon_options.cpp's Live Events
-    //  (Experimental) section once that's localized - same checkbox/tooltip/empty-state there.
+    //_ subscriptions_edit_window.cpp - Live Events tab. WE_LIVE_* rows are shared with addon_options.cpp's Live
+    //  Events (Experimental) section - same checkbox/tooltip/empty-state there.
     { "WE_EDIT_TAB_LIVE",
         "Live Events",
         "Live-Events" },
@@ -766,7 +766,65 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
         "2-Stunden-Periode wiederholt sich zweimal." },
 
 
+    //_ addon_options_helpers.cpp - widget labels on the Basic Event / Cyclic Group / Cyclic Slot editing rows
+    { "WE_PERIOD_LABEL",
+        "Period",
+        "Periode" },
+
+    { "WE_LOCATION_LABEL",
+        "Location",
+        "Position" },
+
+    { "WE_DURATION_MIN_LABEL",
+        "Duration (min)",
+        "Dauer (Min.)" },
+
+    { "WE_VARYING_CHECKBOX",
+        "Varying",
+        "Variabel" },
+
+    { "WE_TIMES_UTC_LABEL",
+        "Times (UTC)",
+        "Zeiten (UTC)" },
+
+    { "WE_OFFSET_MIN_LABEL",
+        "Offset (min)",
+        "Versatz (Min.)" },
+
+    { "WE_OFFSET_LABEL",
+        "Offset",
+        "Versatz" },
+
+    { "WE_COLOR_LABEL",
+        "Color",
+        "Farbe" },
+
+    { "WE_CUSTOM_COLOR_LABEL",
+        "Custom Color",
+        "Eigene Farbe" },
+
+    { "WE_GROUP_EVENTS_LABEL",
+        "Events",
+        "Events" },
+
+    { "WE_REPETITION_LABEL",
+        "Repetition",
+        "Wiederholung" },
+
+    { "WE_TIMES_MIN_INTO_PERIOD_LABEL",
+        "Times (min into period)",
+        "Zeiten (Minuten im Zyklus)" },
+
+    { "WE_MINUTES_UNIT_LABEL",
+        "min",
+        "Min." },
+
+
     //_ addon_options.cpp - the Nexus options panel. Only the generic settings.
+    { "WE_OPT_PANEL_TITLE",
+        "World Events",
+        "World Events" },
+
     { "WE_OPT_RELEASE",
         "Release",
         "Version" },
@@ -1082,6 +1140,264 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
         "Deckkraft" },
 
 
+    //_ addon_options.cpp - Live Events (Experimental) section: header, the three
+    //  informational paragraphs, and the section's own controls/warnings. WE_LIVE_*
+    //  rows further below (shared with live_events_ui.cpp) cover the report button,
+    //  its tooltips, and the reports window.
+    { "WE_OPT_LIVE_EVENTS_HEADER",
+        "Live Events (Experimental only EU/NA)",
+        "Live-Events (Experimentell nur EU/NA)" },
+
+    { "WE_OPT_LIVE_HOW_IT_WORKS_HEADING",
+        "How it works",
+        "So funktioniert es" },
+
+    { "WE_OPT_LIVE_HOW_IT_WORKS_BODY",
+        "GW2 doesn't expose a schedule for these events, so instead of predicting them, players report "
+        "\"it's up right now\". Get within range of a compiled-in event - or turn on map markers below to "
+        "see where they are - and a button appears in the upper-right corner (draggable to wherever you "
+        "want it); click it to report the event as active, or right-click to just see recent reports "
+        "without reporting yourself. Every report is broadcast in real time to everyone else on your "
+        "exact map instance.",
+        "GW2 stellt für diese Events keinen Zeitplan bereit, daher melden Spieler statt einer Vorhersage "
+        "\"gerade jetzt aktiv\". Komm in Reichweite eines kompilierten Events - oder aktiviere unten die "
+        "Kartenmarkierungen, um zu sehen, wo sie liegen - und ein Button erscheint oben rechts (per Ziehen "
+        "frei platzierbar); klick ihn, um das Event als aktiv zu melden, oder per Rechtsklick, um nur die "
+        "letzten Meldungen zu sehen, ohne selbst zu melden. Jede Meldung wird in Echtzeit an alle anderen "
+        "auf deiner genauen Karteninstanz übertragen." },
+
+    { "WE_OPT_LIVE_WHAT_DATA_HEADING",
+        "What data this uses",
+        "Welche Daten genutzt werden" },
+
+    { "WE_OPT_LIVE_WHAT_DATA_BODY",
+        "A report is an event id, a server-stamped timestamp, and - only if \"Share my name in reports\" "
+        "below is ticked - your character name; it's blank by default. No account name or exact position "
+        "is ever sent either way. Your map instance is identified by a hash of the map ID and the server "
+        "address, never the raw address itself, so nobody can see who reported what unless you've opted "
+        "into sharing your name. History is capped at the last 10 reports per event, and an instance with "
+        "no viewers and no reports for 12 hours wipes its own data. Nothing is sent - no connection is "
+        "even made - unless \"Use Live-Events\" below is ticked; no GW2 API key is needed for "
+        "that, since reporting and receiving reports within your own map instance never involves NA/EU "
+        "region at all. A key only matters for the separate \"region-wide toast\" opt-in per event in the "
+        "Edit Subscriptions window's Live Events tab - see that checkbox's tooltip.",
+        "Eine Meldung besteht aus einer Event-ID, einem serverseitigen Zeitstempel und - nur wenn unten "
+        "\"Meinen Namen in Meldungen teilen\" aktiviert ist - deinem Charakternamen; standardmäßig ist er "
+        "leer. Weder Account-Name noch genaue Position werden jemals übertragen. Deine Karteninstanz wird "
+        "über einen Hash aus Karten-ID und Serveradresse identifiziert, nie über die Adresse selbst, sodass "
+        "niemand sehen kann, wer was gemeldet hat, außer du hast dich fürs Teilen deines Namens entschieden. "
+        "Der Verlauf ist auf die letzten 10 Meldungen pro Event begrenzt, und eine Instanz ohne Zuschauer "
+        "und ohne Meldungen für 12 Stunden löscht ihre eigenen Daten. Es wird nichts gesendet - es wird "
+        "nicht einmal eine Verbindung aufgebaut - solange unten nicht \"Live-Events abonnieren\" aktiviert "
+        "ist; dafür ist kein GW2-API-Schlüssel nötig, da Melden und Empfangen innerhalb deiner eigenen "
+        "Karteninstanz nie die Region NA/EU betrifft. Ein Schlüssel ist nur für das separate "
+        "\"regionsweite Benachrichtigung\"-Opt-in pro Event im Live-Events-Tab des Fensters \"Abos "
+        "bearbeiten\" relevant - siehe den Tooltip dieser Checkbox." },
+
+    { "WE_OPT_LIVE_WHERE_HEADING",
+        "What this could become",
+        "Was das werden könnte" },
+
+    { "WE_OPT_LIVE_WHERE_BODY",
+        "The roster below is small, compiled-in, and all-or-nothing for now - there's no picking "
+        "individual events. As the reporting pipeline proves reliable, this could grow into a larger "
+        "roster, per-event opt-in, and toast notifications like the ones Basic/Cyclic subscriptions "
+        "already get - eventually graduating out of Experimental. This is a project that relies on "
+        "trust: the more players trust it, the more precise the reports get, and the more players "
+        "might join in turn. Feedback of any kind, and wishes for events worth adding, are welcome - "
+        "message Xenophy.2716 in-game or find me on the Raidcore Discord.",
+        "Die Liste unten ist klein, fest kompiliert und derzeit nur als Ganzes an- oder abschaltbar - "
+        "einzelne Events lassen sich nicht auswählen. Sobald sich die Melde-Pipeline als zuverlässig "
+        "erweist, könnte daraus eine größere Liste mit Opt-in pro Event und Benachrichtigungen wie bei "
+        "Normal-/Zyklischen Abos werden - und irgendwann aus dem Experimentell-Status herauswachsen. "
+        "Dieses Projekt lebt von Vertrauen: Je mehr Spieler es nutzen, desto genauer werden die Meldungen, "
+        "und desto mehr Spieler steigen im Gegenzug ein. Feedback jeder Art sowie Wünsche für "
+        "hinzuzufügende Events sind willkommen - schreib Xenophy.2716 im Spiel an oder finde mich auf dem "
+        "Raidcore-Discord." },
+
+    { "WE_OPT_LIVE_SUBSCRIBE_CHECKBOX",
+        "Use Live-Events",
+        "Live-Events nutzen" },
+
+    { "WE_OPT_LIVE_SUBSCRIBE_TIP",
+        "Follows each live event while on their map: shows a button\n"
+        "in the upper-right corner naming any of them while you're\n"
+        "within range, on any map that has one. Click it to report the\n"
+        "event as active to everyone else on your map instance and see\n"
+        "recent reports; right-click to just see recent reports without\n"
+        "reporting. No GW2 API key needed - that's only required for the\n"
+        "separate region-wide toast opt-in (Edit Subscriptions window).\n"
+        "Unticked, this feature does nothing at all - no connection to\n"
+        "the relay server is ever made.",
+        "Folgt jedem Live-Event auf deren Karte: zeigt oben rechts\n"
+        "einen Button mit dem Namen des jeweiligen Events, sobald du\n"
+        "in Reichweite bist, auf jeder Karte, die eins hat. Klicken\n"
+        "meldet das Event als aktiv an alle anderen auf deiner\n"
+        "Karteninstanz und zeigt die letzten Meldungen; Rechtsklick zeigt\n"
+        "nur die letzten Meldungen, ohne selbst zu melden. Kein\n"
+        "GW2-API-Schlüssel nötig - der wird nur für das separate\n"
+        "regionsweite Benachrichtigungs-Opt-in gebraucht (Fenster \"Abos\n"
+        "bearbeiten\"). Deaktiviert macht dieses Feature gar nichts - es\n"
+        "wird nie eine Verbindung zum Relay-Server aufgebaut." },
+
+    { "WE_OPT_LIVE_DEBUG_WS_BUTTON",
+        "Debug WS Traffic...",
+        "WS-Traffic debuggen..." },
+
+    { "WE_OPT_LIVE_DEBUG_WS_TIP",
+        "Opens a window showing every message sent/received on the live-\n"
+        "events WebSocket connection (Cloudflare Durable Object), from the\n"
+        "moment the addon loaded. Also mirrored into Nexus's own log\n"
+        "under the \"WorldEvents-WS\" channel for a record that survives\n"
+        "a crash.",
+        "Öffnet ein Fenster mit jeder gesendeten/empfangenen Nachricht der\n"
+        "Live-Events-WebSocket-Verbindung (Cloudflare Durable Object), ab\n"
+        "dem Moment, in dem das Addon geladen wurde. Wird außerdem in\n"
+        "Nexus' eigenes Log unter dem Kanal \"WorldEvents-WS\" gespiegelt,\n"
+        "für einen Verlauf, der einen Absturz übersteht." },
+
+    { "WE_OPT_LIVE_NO_API_KEY_WARNING",
+        "No GW2 API key set - reporting and recent-reports still work fine on your own map instance.\n"
+        "A key only adds region-wide toasts for events you opt into below in Edit Subscriptions.",
+        "Kein GW2-API-Schlüssel gesetzt - Melden und die letzten Meldungen funktionieren trotzdem auf\n"
+        "deiner eigenen Karteninstanz. Ein Schlüssel fügt nur regionsweite Benachrichtigungen für Events\n"
+        "hinzu, die du unten im Fenster \"Abos bearbeiten\" abonnierst." },
+
+    { "WE_OPT_LIVE_REGION_UNKNOWN_WARNING",
+        "Key set, but region not resolved yet - make sure it has the \"account\" permission and give\n"
+        "the next poll a moment.",
+        "Schlüssel gesetzt, aber Region noch nicht ermittelt - stelle sicher, dass er die\n"
+        "\"account\"-Berechtigung hat, und gib der nächsten Abfrage einen Moment." },
+
+    { "WE_LIVE_REPORT_COLOR",
+        "Live report",
+        "Live-Meldung" },
+
+    { "WE_LIVE_REPORT_COLOR_TIP",
+        "Accent color for a subscribed Live Event's \"reported\n"
+        "active\" toast, separate from the Active color above so\n"
+        "a player report reads differently from a scheduled one.",
+        "Akzentfarbe für die \"gerade aktiv gemeldet\"-Benachrichtigung\n"
+        "eines abonnierten Live-Events, getrennt von der Farbe \"Aktiv\"\n"
+        "oben, damit eine Spielermeldung sich von einer geplanten\n"
+        "unterscheidet." },
+
+    { "WE_OPT_LIVE_MOVE_BUTTON",
+        "Move button",
+        "Button verschieben" },
+
+    { "WE_OPT_LIVE_MOVE_BUTTON_TIP",
+        "Shows the report button at its current position - even when\n"
+        "you're not subscribed or not near an event - so you can drag\n"
+        "it wherever you'd like. Untick when you're done positioning it;\n"
+        "the position is remembered.",
+        "Zeigt den Melde-Button an seiner aktuellen Position - auch wenn\n"
+        "du nicht abonniert hast oder nicht in Eventnähe bist - damit du\n"
+        "ihn frei verschieben kannst. Deaktiviere die Option, wenn du\n"
+        "fertig bist; die Position wird gespeichert." },
+
+    { "WE_OPT_LIVE_SHOW_REPORTS_WINDOW",
+        "Show live event reports window",
+        "Live-Event-Meldefenster anzeigen" },
+
+    { "WE_OPT_LIVE_SHOW_REPORTS_WINDOW_TIP",
+        "Keeps the reports window (server status, every live event on\n"
+        "your current map instance) open regardless of proximity to any\n"
+        "event. Left unticked here, the window still opens on its own\n"
+        "whenever you click a report button, and stays open across\n"
+        "restarts if you leave this ticked.",
+        "Hält das Meldefenster (Serverstatus, jedes Live-Event auf deiner\n"
+        "aktuellen Karteninstanz) unabhängig von der Nähe zu einem Event\n"
+        "geöffnet. Bleibt diese Option deaktiviert, öffnet sich das Fenster\n"
+        "trotzdem von selbst, sobald du einen Melde-Button klickst, und\n"
+        "bleibt über Neustarts hinweg geöffnet, wenn diese Option aktiv ist." },
+
+    { "WE_OPT_LIVE_LOCK_WINDOW",
+        "Lock window",
+        "Fenster sperren" },
+
+    { "WE_OPT_LIVE_LOCK_WINDOW_TIP",
+        "Drops the title bar, background, and resize/move handles,\n"
+        "leaving just the report text pinned in place - a low-profile\n"
+        "always-on HUD instead of an interactive window. Position it\n"
+        "by dragging the title bar before ticking this.",
+        "Entfernt Titelleiste, Hintergrund und Griffe zum Verschieben/\n"
+        "Skalieren, sodass nur der Meldetext fest an Ort und Stelle bleibt\n"
+        "- ein unauffälliges Dauer-HUD statt eines interaktiven Fensters.\n"
+        "Positioniere es per Ziehen an der Titelleiste, bevor du dies\n"
+        "aktivierst." },
+
+    { "WE_OPT_LIVE_SHOW_MAP_DOTS",
+        "Show live event locations on map",
+        "Live-Event-Standorte auf der Karte anzeigen" },
+
+    { "WE_OPT_LIVE_SHOW_MAP_DOTS_TIP",
+        "Draws a ring at each live event's location while the\n"
+        "full-screen map is open - just a rough visual hint of\n"
+        "where to watch. Purely decorative; works whether or not\n"
+        "you're subscribed above.",
+        "Zeichnet bei geöffneter Vollbildkarte einen Ring an jedem\n"
+        "Live-Event-Standort - nur ein grober visueller Hinweis, wo\n"
+        "man hinschauen sollte. Rein dekorativ; funktioniert unabhängig\n"
+        "davon, ob du oben abonniert hast." },
+
+    { "WE_OPT_LIVE_ROSTER_NOTE",
+        "Compiled-in, player-reportable events with no fixed schedule.",
+        "Fest kompilierte, von Spielern meldbare Events ohne festen Zeitplan." },
+
+
+    //_ live_events_ui.cpp - report button (upper-right corner overlay) and its tooltips/reports window.
+    { "WE_LIVE_DRAG_BUTTON",
+        "Drag to move",
+        "Ziehen zum Verschieben" },
+
+    { "WE_LIVE_DRAG_TOOLTIP",
+        "Drag to reposition the live-event report button.\n"
+        "Untick \"Move button\" in options when done.",
+        "Ziehen, um den Live-Event-Melde-Button neu zu positionieren.\n"
+        "Deaktiviere \"Button verschieben\" in den Optionen, wenn fertig." },
+
+    { "WE_LIVE_COOLDOWN_TOOLTIP_FMT",
+        "Reported recently - %llu s before you can report \"%s\" again.\n"
+        "Right-click: just show recent reports.",
+        "Kürzlich gemeldet - noch %llu s, bevor du \"%s\" erneut melden kannst.\n"
+        "Rechtsklick: nur die letzten Meldungen anzeigen." },
+
+    { "WE_LIVE_REPORT_TOOLTIP_FMT",
+        "Click: report \"%s\" as active and show recent reports.\n"
+        "Right-click: just show recent reports, without reporting.",
+        "Klicken: \"%s\" als aktiv melden und die letzten Meldungen anzeigen.\n"
+        "Rechtsklick: nur die letzten Meldungen anzeigen, ohne zu melden." },
+
+    { "WE_LIVE_SHARD_LABEL_FMT",
+        "Shard: %s",
+        "Shard: %s" },
+
+    { "WE_LIVE_REGION_LABEL_FMT",
+        "Region: %s",
+        "Region: %s" },
+
+    { "WE_LIVE_ONLINE_COUNT_FMT",
+        "(%d online in %s)",
+        "(%d online in %s)" },
+
+    { "WE_LIVE_NOT_IN_GAME",
+        "Not in game.",
+        "Nicht im Spiel." },
+
+    { "WE_LIVE_EMPTY_SUFFIX",
+        "(empty)",
+        "(leer)" },
+
+    { "WE_LIVE_AGO_FMT",
+        "%s ago",
+        "vor %s" },
+
+    { "WE_LIVE_NO_EVENTS_ON_MAP",
+        "No live events on this map.",
+        "Keine Live-Events auf dieser Karte." },
+
+
     //_ icon_whitener.cpp - Icon Whitener tool (options panel button + its popup).
     { "WE_ICONWHITE_TITLE",
         "Icon Whitener",
@@ -1092,16 +1408,17 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
         "This only looks correct when the icon's RGB is neutral gray - a "
         "colored image will tint unpredictably instead of cleanly turning "
         "red / orange / gray.",
-        "Kartensymbole werden beim Rendern eingefärbt. Das sieht nur korrekt "
-        "aus, wenn das RGB des Symbols neutral grau ist - ein farbiges Bild färbt "
-        "sich unvorhersehbar ein, statt sauber rot, orange oder grau zu werden." },
+        "Kartensymbole werden beim Zeichnen mit einer multiplikativen Farbmischung "
+        "eingefärbt. Das sieht nur korrekt aus, wenn das RGB des Symbols neutral grau "
+        "ist - ein farbiges Bild färbt sich unvorhersehbar ein, statt sauber rot, "
+        "orange oder grau zu werden." },
 
     { "WE_ICONWHITE_INSTRUCTIONS",
-        "Pick an icon from the \"textures\" folder and press Convert. "
+        "Pick an icon from the textures/ folder and press Convert. "
         "The image will be desaturated to luminance and normalized so the "
         "brightest pixel becomes white. "
         "The result is saved as <name>_white.png next to the original.",
-        "Wähle ein Symbol aus dem \"textures\"-Ordner und drücke Konvertieren. "
+        "Wähle ein Symbol aus dem textures/-Ordner und drücke Konvertieren. "
         "Das Bild wird auf Helligkeit entsättigt und so normalisiert, dass der "
         "hellste Pixel weiß wird. "
         "Das Ergebnis wird als <Name>_white.png neben dem Original gespeichert." },
