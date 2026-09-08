@@ -4,9 +4,9 @@
 // kLanguageProbeIdentifier   internal-only identifier GetActiveLanguage reads
 //                            back to detect language
 //--------------------------------------------------------------------------------
-// Registering "de" for just this one identifier lets GetActiveLanguage answer
-// with a single string-compare instead of enumerating every language Nexus itself
-// supports.
+// Registering each non-default kLanguageSlots entry for this one identifier lets
+// GetActiveLanguage answer by comparing Translate()'s result against
+// kLanguageSlots, instead of enumerating every language Nexus itself supports.
 //--------------------------------------------------------------------------------
 
 #include "localization.h"
@@ -26,26 +26,31 @@ void Localization_Load()
 {
     if (!APIDefs) return;
 
-    APIDefs->Localization_Set(kLanguageProbeIdentifier, "de", "de");
+    for (size_t li = 1; li < kLanguageCount; li++)
+        APIDefs->Localization_Set(kLanguageProbeIdentifier, kLanguageSlots[li].Code, kLanguageSlots[li].Code);
 
     for (int i = 0; i < kLocalizationCount; i++)
     {
         const LocalizationEntry& entry = kLocalizationTable[i];
-        APIDefs->Localization_Set(entry.Identifier, "en", entry.English);
-        APIDefs->Localization_Set(entry.Identifier, "de", entry.German);
+        for (size_t li = 0; li < kLanguageCount; li++)
+            APIDefs->Localization_Set(entry.Identifier, kLanguageSlots[li].Code, entry.*kLanguageSlots[li].Field);
     }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetActiveLanguage   (see: localization.h)
 //--------------------------------------------------------------------------------
-ELanguage GetActiveLanguage()
+size_t GetActiveLanguage()
 {
-    if (!APIDefs) return ELanguage::English;
+    if (!APIDefs) return 0;
 
     const char* probe = APIDefs->Localization_Translate(kLanguageProbeIdentifier);
-    if (probe && std::strcmp(probe, "de") == 0) return ELanguage::German;
-    return ELanguage::English;
+    if (probe)
+    {
+        for (size_t li = 1; li < kLanguageCount; li++)
+            if (std::strcmp(probe, kLanguageSlots[li].Code) == 0) return li;
+    }
+    return 0;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -55,8 +60,7 @@ const char* Tr(const char* aIdentifier)
 {
     if (!APIDefs) return aIdentifier;
 
-    const char* lang = (GetActiveLanguage() == ELanguage::German) ? "de" : "en";
-    return APIDefs->Localization_TranslateTo(aIdentifier, lang);
+    return APIDefs->Localization_TranslateTo(aIdentifier, kLanguageSlots[GetActiveLanguage()].Code);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

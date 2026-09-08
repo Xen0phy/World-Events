@@ -1,14 +1,24 @@
 //################################################################################
 // localization_table.h
 //--------------------------------------------------------------------------------
-// LocalizationEntry    one row of the table: an identifier plus its languages
-//                      text (see below)
-// kLocalizationTable   every user-facing string World Events translates, one
-//                      row per identifier
-// kLocalizationCount   number of rows in kLocalizationTable
+// WE_LANGUAGE_LIST      every language World Events ships text for: field name +
+//                       Nexus code, in the order each row's fields follow it
+// LocalizationEntry     one row of the table: an identifier plus one named field
+//                       per WE_LANGUAGE_LIST entry (see below)
+// kLanguageSlots        WE_LANGUAGE_LIST as a runtime array of {code, field}
+// kLanguageCount        number of entries in kLanguageSlots
+// kLocalizationTable    every user-facing string World Events translates, one
+//                       row per identifier
+// kLocalizationCount    number of rows in kLocalizationTable
 //--------------------------------------------------------------------------------
 // One flat table for the whole addon: Localization_Load (localization.cpp) walks
 // it once at AddonLoad, and a single file is easier to keep languages in sync.
+// This file is the only place touched to add a language: add a line to
+// WE_LANGUAGE_LIST, then add the matching string to every row below (same
+// position as the new line). LocalizationEntry and kLanguageSlots are both
+// generated from WE_LANGUAGE_LIST, so the field and its Nexus code can't drift
+// out of sync with each other; localization.h/.cpp read kLanguageSlots
+// generically and need no changes.
 //
 // Identifier is World Events' own key, not shown to the user - prefixed "WE_" so
 // it can't collide with Nexus's own identifiers (Nexus's are either short
@@ -24,19 +34,47 @@
 
 #pragma once
 
+#include <cstddef>
+
+//_ Nexus language codes (see Nexus-Translations on GitHub). First entry is the default and fallback language.
+#define WE_LANGUAGE_LIST \
+    WE_LANG(English, "en") \
+    WE_LANG(German,  "de")
+
 //********************************************************************************
 // LocalizationEntry
 //--------------------------------------------------------------------------------
-// Identifier   World Events' own key, passed to Tr()
-// English      shown when Nexus's active language is English or as fallback
-// German       shown when Nexus's active language is German
+// Identifier     World Events' own key, passed to Tr()
+// (per-language) one field per WE_LANGUAGE_LIST entry, same order; the first
+//                (English) is also the fallback for any other Nexus language
 //--------------------------------------------------------------------------------
 struct LocalizationEntry
 {
     const char* Identifier;
-    const char* English;
-    const char* German;
+#define WE_LANG(aName, aCode) const char* aName;
+    WE_LANGUAGE_LIST
+#undef WE_LANG
 };
+
+//********************************************************************************
+// LanguageSlot / kLanguageSlots
+//--------------------------------------------------------------------------------
+// WE_LANGUAGE_LIST as data: pairs each Nexus language code with the
+// LocalizationEntry field that holds that language's text, so localization.cpp
+// can loop over every language without knowing their field names.
+//--------------------------------------------------------------------------------
+struct LanguageSlot
+{
+    const char* Code;
+    const char* LocalizationEntry::* Field;
+};
+
+static constexpr LanguageSlot kLanguageSlots[] = {
+#define WE_LANG(aName, aCode) { aCode, &LocalizationEntry::aName },
+    WE_LANGUAGE_LIST
+#undef WE_LANG
+};
+static constexpr size_t kLanguageCount = sizeof(kLanguageSlots) / sizeof(kLanguageSlots[0]);
 
 static constexpr LocalizationEntry kLocalizationTable[] = {
 

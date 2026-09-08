@@ -1,39 +1,28 @@
 //################################################################################
 // localization.h
 //--------------------------------------------------------------------------------
-// ELanguage           the two languages World Events ships text for
 // Localization_Load   call once from AddonLoad, after APIDefs is set
-// GetActiveLanguage   Nexus's active language, collapsed to English/German
+// GetActiveLanguage   index into kLanguageSlots for Nexus's active language
 // Tr                  translate aIdentifier into the addon's active language
 // TrId                Tr(aIdentifier) plus a stable, untranslated ID suffix
 //--------------------------------------------------------------------------------
 // Nexus's own Localization_Translate() follows whatever language a player picked
 // in Nexus's own Options (see localization.cpp), and for any of those it returns
 // the bare identifier if nothing is registered for it. World Events only ever
-// authors some languages's text, so as fallback Nexus install must still get
-// readable output - Tr() resolves that itself with Localization_TranslateTo
-// instead of leaning on Translate's own current-language fallback.
+// authors text for the languages in WE_LANGUAGE_LIST, so any other Nexus install
+// must still get readable output - Tr() resolves that itself with
+// Localization_TranslateTo instead of leaning on Translate's own current-language
+// fallback.
 //
-// All strings live in localization_table.h, one identifier+languages row per
-// user-facing piece of text - start there to add or change a string.
+// All strings and supported languages live in localization_table.h, one
+// identifier+languages row per user-facing piece of text - start there to add or
+// change a string, or to add a language.
 //--------------------------------------------------------------------------------
 
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <string>
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ELanguage
-//--------------------------------------------------------------------------------
-// English is the default, and the fallback for any Nexus language World Events
-// has no text for (French, Spanish, Chinese, ...).
-//--------------------------------------------------------------------------------
-enum class ELanguage : uint8_t
-{
-    English,
-    German
-};
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Localization_Load
@@ -49,24 +38,23 @@ void Localization_Load();
 // GetActiveLanguage
 //--------------------------------------------------------------------------------
 // Reads Nexus's current active language back out via a probe identifier that's
-// only ever registered for "de" (see localization.cpp) - if Nexus's active
-// language is German, Translate() returns "de"; for every other Nexus language
-// (English included) there's nothing registered right now, so Translate() returns
-// the identifier itself, which this reports as English. No caching: this is a
-// cheap lookup and Nexus has no "language changed" event to invalidate a cache
-// on, so checking fresh every call is simpler than tracking staleness.
+// only ever registered for kLanguageSlots[1..] (see localization.cpp) - returns
+// the matching index into kLanguageSlots, or 0 (the default/fallback language) if
+// Nexus's active language isn't one World Events has text for. No caching: this
+// is a cheap lookup and Nexus has no "language changed" event to invalidate a
+// cache on, so checking fresh every call is simpler than tracking staleness.
 //--------------------------------------------------------------------------------
-ELanguage GetActiveLanguage();
+size_t GetActiveLanguage();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Tr
 //--------------------------------------------------------------------------------
 // Translates aIdentifier (see localization_table.h) into languages per
-// GetActiveLanguage, via Localization_TranslateTo - explicit about which of the
-// two languages it wants instead of trusting Nexus's own active-language
-// fallback, so a third-language Nexus install still reads English, not a raw
-// "((identifier))"-style placeholder. Returns aIdentifier itself if APIDefs isn't
-// set yet (shouldn't happen post-AddonLoad) or the identifier has no row in
+// GetActiveLanguage, via Localization_TranslateTo - explicit about which language
+// it wants instead of trusting Nexus's own active-language fallback, so a Nexus
+// install on a language World Events has no text for still reads English, not a
+// raw "((identifier))"-style placeholder. Returns aIdentifier itself if APIDefs
+// isn't set yet (shouldn't happen post-AddonLoad) or the identifier has no row in
 // kLocalizationTable.
 //--------------------------------------------------------------------------------
 const char* Tr(const char* aIdentifier);
