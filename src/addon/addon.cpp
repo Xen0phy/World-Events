@@ -163,10 +163,10 @@ void AddonLoad(AddonAPI_t* aAPI)
     APIDefs->GUI_Register(RT_Render, RenderVersionHistoryWindow);
 
     //_ Grants Esc-to-close to the Edit Subscriptions window.
-    APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowTitle, &ShowEditSubscriptionsWindow);
+    APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowId, &ShowEditSubscriptionsWindow);
 
     //_ Same, for the live-event recent-reports window (live_events_ui.h).
-    APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow);
+    APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowId, &ShowLiveEventReportsWindow);
 
     //_ Same, for the WS debug log window (ws_debug_window.h).
     APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowId, &ShowWsDebugWindow);
@@ -194,8 +194,8 @@ void AddonUnload()
     APIDefs->GUI_Deregister(RenderVersionHistoryWindow);
 
     //_ Matches the GUI_RegisterCloseOnEscape calls in AddonLoad
-    APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowTitle);
-    APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowId);
+    APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowId);
     APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowId);
     APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowId);
 

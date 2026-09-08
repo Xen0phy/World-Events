@@ -28,6 +28,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+//_ Untranslated on purpose (see WE_SUBS_WINDOW_TITLE, localization_table.h) - ImGui hashes a window's ID from only the text after "##", so this stays stable across languages while the title bar text translates.
+static constexpr const char* kSubscriptionsWindowId = "##WorldEventsSubscriptions";
+
 #include <algorithm>
 #include <ctime>
 #include <string>
@@ -150,13 +153,13 @@ static bool DrawSubscriptionRow(const std::string& name, const std::string& chat
     //_ Runs every frame regardless of hover, so an open popup keeps rendering off-row.
     if (ImGui::BeginPopup(popupId.c_str()))
     {
-        if (ImGui::Selectable("Mark done for today"))
+        if (ImGui::Selectable(Tr("WE_SUBS_MARK_DONE_TODAY")))
         {
             if (isBasic) ToggleBasicEventDoneToday(basicId);
             else         ToggleCyclicSlotDoneToday(cyclicKey);
         }
         ImGui::Separator();
-        if (ImGui::Selectable("Edit Subscriptions"))
+        if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
             OpenEditSubscriptionsWindow(isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, basicId, cyclicKey);
         ImGui::EndPopup();
     }
@@ -224,7 +227,7 @@ void RenderSubscriptionsWindow()
     SubsWindowDrawTimer drawTimer; //. no-op unless ShowDebug
 
     ImGui::SetNextWindowSize(ImVec2(320, 240), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("World Events - Subscriptions", &ShowSubscriptionsWindow))
+    if (!ImGui::Begin(TrId("WE_SUBS_WINDOW_TITLE", kSubscriptionsWindowId).c_str(), &ShowSubscriptionsWindow))
     {
         //_ Collapsed (not closed) - still need End() to balance Begin().
         ImGui::End();
@@ -237,20 +240,16 @@ void RenderSubscriptionsWindow()
 
         if (hasSubscriptions && SubscriptionsHideActive)
         {
-            ImGui::TextDisabled("Nothing upcoming - everything");
-            ImGui::TextDisabled("subscribed is currently active.");
+            ImGui::TextWrapped("%s", Tr("WE_SUBS_EMPTY_ACTIVE"));
         }
         else if (hasSubscriptions)
         {
             //_ Reachable when everything subscribed is done today, unlike having none at all below.
-            ImGui::TextDisabled("Nothing to show - everything");
-            ImGui::TextDisabled("subscribed is already done today.");
+            ImGui::TextWrapped("%s", Tr("WE_SUBS_EMPTY_DONE"));
         }
         else
         {
-            ImGui::TextDisabled("No subscribed events yet.");
-            ImGui::TextDisabled("Check the box next to an event's name");
-            ImGui::TextDisabled("in the options panel to add it here.");
+            ImGui::TextWrapped("%s", Tr("WE_SUBS_EMPTY_NONE"));
         }
     }
     bool anyRowHovered = false;
@@ -261,8 +260,8 @@ void RenderSubscriptionsWindow()
                                                   row.isBasic, row.basicId, row.cyclicKey);
 
         ImGui::Separator();
-        ImGui::TextDisabled("Click a row to copy its waypoint code.");
-        ImGui::TextDisabled("Right-click to mark done for today.");
+        ImGui::TextDisabled("%s", Tr("WE_SUBS_HINT_CLICK"));
+        ImGui::TextDisabled("%s", Tr("WE_SUBS_HINT_RIGHT_CLICK"));
     }
 
     //_ Clears a press that released off any row, so a stale key can't match a future row by name.
@@ -273,7 +272,7 @@ void RenderSubscriptionsWindow()
         ImGui::OpenPopup("##we_edit_subs_bg_popup");
     if (ImGui::BeginPopup("##we_edit_subs_bg_popup"))
     {
-        if (ImGui::Selectable("Edit Subscriptions"))
+        if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
             OpenEditSubscriptionsWindow();
         ImGui::EndPopup();
     }

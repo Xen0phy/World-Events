@@ -29,6 +29,7 @@
 #include "events.h"
 #include "events_tracking.h"
 #include "imgui.h"
+#include "localization.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
@@ -1341,7 +1342,7 @@ void RenderSubscriptionsBar()
         }
         if (ImGui::BeginPopup("##we_subbar_bg_edit_popup"))
         {
-            if (ImGui::Selectable("Edit Subscriptions"))
+            if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
                 OpenEditSubscriptionsWindow();
             ImGui::EndPopup();
         }
@@ -1427,13 +1428,13 @@ void RenderSubscriptionsBar()
         }
         if (ImGui::BeginPopup(("##we_subbar_done_popup_" + s.key).c_str()))
         {
-            if (ImGui::Selectable("Mark done for today"))
+            if (ImGui::Selectable(Tr("WE_SUBS_MARK_DONE_TODAY")))
             {
                 if (s.isBasic) ToggleBasicEventDoneToday(s.basicId);
                 else           ToggleCyclicSlotDoneToday(s.cyclicKey);
             }
             ImGui::Separator();
-            if (ImGui::Selectable("Edit Subscriptions"))
+            if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
                 OpenEditSubscriptionsWindow(s.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, s.basicId, s.cyclicKey);
             ImGui::EndPopup();
         }

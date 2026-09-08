@@ -654,12 +654,12 @@ void AddonOptions()
         }
     }
 
-    if (ImGui::CollapsingHeader("Event Lists (Basic|Cyclic)"))
+    if (ImGui::CollapsingHeader(Tr("WE_OPT_EVENT_LISTS_HEADER")))
     {
         //_ Transient UI state (not persisted); filters both trees - event name for Basic, group+slot for Cyclic.
         static char searchBuf[128] = "";
         ImGui::SetNextItemWidth(200.0f);
-        ImGui::InputText("Search##global_search", searchBuf, sizeof(searchBuf));
+        ImGui::InputText(TrId("WE_OPT_SEARCH_LABEL", "##global_search").c_str(), searchBuf, sizeof(searchBuf));
         std::string searchQueryLower = searchBuf;
         std::transform(searchQueryLower.begin(), searchQueryLower.end(), searchQueryLower.begin(),
             [](unsigned char c) { return (char)std::tolower(c); });
@@ -670,7 +670,7 @@ void AddonOptions()
         DrawResetToDefaultsPopup(); //. no-op unless the confirm popup is open
 
         ImGui::SameLine();
-        ImGui::TextDisabled("(right-click an entry below for more options)");
+        ImGui::TextDisabled("%s", Tr("WE_OPT_RIGHT_CLICK_HINT"));
 
         //_ Table 3 - Basic Events tree (col 0), Cyclic Events tree (col 1); split out so search can filter both.
         if (ImGui::BeginTable("##world_events_data", 2, ImGuiTableFlags_SizingStretchSame))
@@ -685,7 +685,7 @@ void AddonOptions()
             ImGui::Spacing();
 
             //_ Basic Events header + add buttons; add/remove is deferred until after the tree loop to avoid index invalidation.
-            ImGui::TextUnformatted("Basic Events");
+            ImGui::TextUnformatted(Tr("WE_OPT_BASIC_EVENTS"));
             MakeDropTarget(kBasicEventDragType, g_BasicCategories, -1);
             ImGui::SameLine();
             bool pendingAdd = ImGui::SmallButton("+##add_basic_event");
@@ -693,7 +693,7 @@ void AddonOptions()
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
-            ImGui::TextUnformatted("Categories");
+            ImGui::TextUnformatted(Tr("WE_OPT_CATEGORIES"));
             ImGui::SameLine();
             bool pendingAddBasicCategory = ImGui::SmallButton("+##add_basic_category");
         
@@ -809,7 +809,7 @@ void AddonOptions()
             ImGui::Spacing();
         
             //_ Cyclic Events header + add buttons; same deferred add/remove pattern as Basic Events above.
-            ImGui::TextUnformatted("Cyclic Events");
+            ImGui::TextUnformatted(Tr("WE_OPT_CYCLIC_EVENTS"));
             MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, -1); //. drop here to uncategorize
             ImGui::SameLine();
             bool pendingAddGroup = ImGui::SmallButton("+##add_cyclic_group");
@@ -817,7 +817,7 @@ void AddonOptions()
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
-            ImGui::TextUnformatted("Categories");
+            ImGui::TextUnformatted(Tr("WE_OPT_CATEGORIES"));
             ImGui::SameLine();
             bool pendingAddCyclicCategory = ImGui::SmallButton("+##add_cyclic_category");
 

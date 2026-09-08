@@ -442,14 +442,14 @@ static void DrawAndExpirePopups()
         }
         if (ImGui::BeginPopup(("##we_notif_done_popup_" + p.key).c_str()))
         {
-            if (ImGui::Selectable("Mark done for today"))
+            if (ImGui::Selectable(Tr("WE_SUBS_MARK_DONE_TODAY")))
             {
                 if (p.kind == SubscriptionKind::Basic)      ToggleBasicEventDoneToday(p.basicId);
                 else if (p.kind == SubscriptionKind::Cyclic) ToggleCyclicSlotDoneToday(p.cyclicKey);
                 else                                          ToggleLiveEventDoneToday(p.liveEventId);
             }
             ImGui::Separator();
-            if (ImGui::Selectable("Edit Subscriptions"))
+            if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
                 OpenEditSubscriptionsWindow(p.kind, p.basicId, p.cyclicKey, p.liveEventId);
             ImGui::EndPopup();
         }

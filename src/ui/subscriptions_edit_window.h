@@ -35,8 +35,8 @@
 //_ Transient only - see file header for why this isn't a SETTING().
 extern bool ShowEditSubscriptionsWindow;
 
-//_ Shared between the ImGui::Begin() call in RenderEditSubscriptionsWindow and the APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls in addon.cpp
-inline constexpr const char* kEditSubscriptionsWindowTitle = "World Events - Edit Subscriptions";
+//_ Untranslated on purpose (see WE_EDIT_SUBS_WINDOW_TITLE, localization_table.h) - ImGui hashes a window's ID from only the text after "##", so this stays stable across languages. Shared between the ImGui::Begin() call in RenderEditSubscriptionsWindow and the APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls in addon.cpp
+inline constexpr const char* kEditSubscriptionsWindowId = "##WorldEventsEditSubscriptions";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenEditSubscriptionsWindow

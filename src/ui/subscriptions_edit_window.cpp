@@ -127,7 +127,7 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
     if (forceOpen)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 
-    bool open = ImGui::TreeNode("##edit_event_node", "%s", ev.name.empty() ? "(unnamed)" : ev.name.c_str());
+    bool open = ImGui::TreeNode("##edit_event_node", "%s", ev.name.empty() ? Tr("WE_UNNAMED") : ev.name.c_str());
 
     if (open)
     {
@@ -138,7 +138,7 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
             SetBasicEventNotifyLevel(ev.id, newLevel);
 
         bool doneToday = IsBasicEventMarkedDoneToday(ev.id);
-        if (ImGui::Checkbox("Done for today", &doneToday))
+        if (ImGui::Checkbox(Tr("WE_EDIT_DONE_TODAY"), &doneToday))
             ToggleBasicEventDoneToday(ev.id);
 
         ImGui::TreePop();
@@ -171,7 +171,7 @@ static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
     if (forceOpen)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always); //. see DrawLeanBasicEventRow's header comment for why _Always, not _Once
 
-    bool open = ImGui::TreeNode("##edit_slot_node", "%s", slot.name.empty() ? "(unnamed)" : slot.name.c_str());
+    bool open = ImGui::TreeNode("##edit_slot_node", "%s", slot.name.empty() ? Tr("WE_UNNAMED") : slot.name.c_str());
 
     if (open)
     {
@@ -182,7 +182,7 @@ static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
             SetCyclicSlotNotifyLevel(key, newLevel);
 
         bool doneToday = IsCyclicSlotMarkedDoneToday(key);
-        if (ImGui::Checkbox("Done for today", &doneToday))
+        if (ImGui::Checkbox(Tr("WE_EDIT_DONE_TODAY"), &doneToday))
             ToggleCyclicSlotDoneToday(key);
 
         ImGui::TreePop();
@@ -213,7 +213,7 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
     if (forceOpenGroup)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always); //. see DrawLeanBasicEventRow's header comment for why _Always, not _Once
 
-    bool open = ImGui::TreeNode("##edit_group_node", "%s", grp.name.empty() ? "(unnamed)" : grp.name.c_str());
+    bool open = ImGui::TreeNode("##edit_group_node", "%s", grp.name.empty() ? Tr("WE_UNNAMED") : grp.name.c_str());
 
     if (open)
     {
@@ -237,7 +237,7 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", Tr("WE_TIP_SUBSCRIBE_CYCLE"));
         ImGui::SameLine();
-        ImGui::TextUnformatted("Subscribe all");
+        ImGui::TextUnformatted(Tr("WE_EDIT_SUBSCRIBE_ALL"));
 
         for (int s = 0; s < (int)grp.slots.size(); s++)
         {
@@ -286,29 +286,27 @@ static void DrawLeanLiveEventRow(const LiveEvent& ev, bool isTarget)
     }
     if (ImGui::IsItemHovered())
     {
-        ImGui::SetTooltip(Gw2ApiKey.empty()
-            ? "Requires a GW2 API key (options panel) - region-wide toast\ndelivery needs it to tell NA and EU apart."
-            : "Subscribe to region-wide toast notifications for this event,\nregardless of which map you're currently on.");
+        ImGui::SetTooltip("%s", Gw2ApiKey.empty()
+            ? Tr("WE_EDIT_LIVE_SUBSCRIBE_TIP_NO_KEY")
+            : Tr("WE_EDIT_LIVE_SUBSCRIBE_TIP"));
     }
 
     ImGui::TableSetColumnIndex(1);
-    ImGui::TextUnformatted(ev.name.empty() ? "(unnamed)" : ev.name.c_str());
+    ImGui::TextUnformatted(ev.name.empty() ? Tr("WE_UNNAMED") : ev.name.c_str());
 
     ImGui::TableSetColumnIndex(2);
     bool namedOnly = IsLiveEventNamedOnly(ev.eventId);
     if (ImGui::Checkbox("##edit_live_named_only", &namedOnly))
         ToggleLiveEventNamedOnly(ev.eventId);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Only notify me when the reporter shared their name.\n"
-                           "An unnamed report can't be whispered or joined directly,\n"
-                           "so skip its toast rather than show one you can't act on.");
+        ImGui::SetTooltip("%s", Tr("WE_EDIT_LIVE_NAMED_ONLY_TIP"));
 
     ImGui::TableSetColumnIndex(3);
     bool doneToday = IsLiveEventMarkedDoneToday(ev.eventId);
     if (ImGui::Checkbox("##edit_live_done", &doneToday))
         ToggleLiveEventDoneToday(ev.eventId);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Done for today - mutes toasts for this event until the daily reset.");
+        ImGui::SetTooltip("%s", Tr("WE_EDIT_LIVE_DONE_TIP"));
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -335,7 +333,7 @@ void RenderEditSubscriptionsWindow()
     if (s_hasPendingTarget)
         ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
 
-    if (!ImGui::Begin(kEditSubscriptionsWindowTitle, &ShowEditSubscriptionsWindow))
+    if (!ImGui::Begin(TrId("WE_EDIT_SUBS_WINDOW_TITLE", kEditSubscriptionsWindowId).c_str(), &ShowEditSubscriptionsWindow))
     {
         //_ Collapsed, not closed - still balance Begin() with End().
         ImGui::End();
@@ -366,12 +364,12 @@ void RenderEditSubscriptionsWindow()
             basicCyclicTabFlags = ImGuiTabItemFlags_SetSelected;
     }
 
-    if (ImGui::BeginTabItem("Basic & Cyclic", nullptr, basicCyclicTabFlags))
+    if (ImGui::BeginTabItem(Tr("WE_EDIT_TAB_BASIC_CYCLIC"), nullptr, basicCyclicTabFlags))
     {
         //_ Transient UI state; filters both trees, same as addon_options.cpp's Table 3 search box.
         static char searchBuf[128] = "";
         ImGui::SetNextItemWidth(200.0f);
-        ImGui::InputText("Search##edit_subs_search", searchBuf, sizeof(searchBuf));
+        ImGui::InputText(TrId("WE_OPT_SEARCH_LABEL", "##edit_subs_search").c_str(), searchBuf, sizeof(searchBuf));
         std::string searchQueryLower = searchBuf;
         std::transform(searchQueryLower.begin(), searchQueryLower.end(), searchQueryLower.begin(),
             [](unsigned char c) { return (char)std::tolower(c); });
@@ -388,7 +386,7 @@ void RenderEditSubscriptionsWindow()
 
             //_ Column 0 - Basic Events, category-aware draw order (categorized members first, then leftovers).
             ImGui::TableSetColumnIndex(0);
-            ImGui::TextUnformatted("Basic Events");
+            ImGui::TextUnformatted(Tr("WE_OPT_BASIC_EVENTS"));
             ImGui::Separator();
 
             {
@@ -430,7 +428,7 @@ void RenderEditSubscriptionsWindow()
                         else if (searchJustCleared)
                             ImGui::SetNextItemOpen(false, ImGuiCond_Always);
 
-                        catOpen = ImGui::CollapsingHeader(cat.name.empty() ? "(unnamed)" : cat.name.c_str());
+                        catOpen = ImGui::CollapsingHeader(cat.name.empty() ? Tr("WE_UNNAMED") : cat.name.c_str());
                     }
 
                     for (int mi : memberIndices)
@@ -467,7 +465,7 @@ void RenderEditSubscriptionsWindow()
 
             //_ Column 1 - Cyclic Events, same category-aware shape, nested one level deeper for slots.
             ImGui::TableSetColumnIndex(1);
-            ImGui::TextUnformatted("Cyclic Events");
+            ImGui::TextUnformatted(Tr("WE_OPT_CYCLIC_EVENTS"));
             ImGui::Separator();
 
             {
@@ -504,7 +502,7 @@ void RenderEditSubscriptionsWindow()
                         else if (searchJustCleared)
                             ImGui::SetNextItemOpen(false, ImGuiCond_Always);
 
-                        catOpen = ImGui::CollapsingHeader(cat.name.empty() ? "(unnamed)" : cat.name.c_str());
+                        catOpen = ImGui::CollapsingHeader(cat.name.empty() ? Tr("WE_UNNAMED") : cat.name.c_str());
                     }
 
                     for (const std::string& memberId : cat.members)
@@ -554,26 +552,23 @@ void RenderEditSubscriptionsWindow()
         ImGui::EndTabItem();
     }
 
-    if (ImGui::BeginTabItem("Live Events", nullptr, liveTabFlags))
+    if (ImGui::BeginTabItem(Tr("WE_EDIT_TAB_LIVE"), nullptr, liveTabFlags))
     {
-        ImGui::Checkbox("Share my name in reports", &ShareNameInReports);
-        Tooltip("Off (default): reports are anonymous. On: your character name\n"
-                "goes out with every report you send, and anyone whose toast\n"
-                "notification it triggers can whisper you directly by clicking\n"
-                "it, instead of just pasting the waypoint.");
+        ImGui::Checkbox(Tr("WE_LIVE_SHARE_NAME_REPORTS"), &ShareNameInReports);
+        Tooltip(Tr("WE_LIVE_SHARE_NAME_REPORTS_TIP"));
         ImGui::Spacing();
 
         if (g_LiveEvents.empty())
         {
-            ImGui::TextDisabled("No live events compiled in.");
+            ImGui::TextDisabled("%s", Tr("WE_LIVE_NONE_COMPILED"));
         }
         else if (ImGui::BeginTable("##edit_live_events", 4,
             ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingFixedFit))
         {
             ImGui::TableSetupColumn("##edit_live_subscribe_col", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("Event", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Only named", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("Done today", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_EVENT"), ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_ONLY_NAMED"), ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_DONE_TODAY"), ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableHeadersRow();
 
             for (const LiveEvent& ev : g_LiveEvents)

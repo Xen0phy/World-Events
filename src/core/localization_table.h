@@ -129,6 +129,134 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
         "Zählt zu den Gewölbe des Zauberers-Zielen dieser Woche." },
 
 
+    //_ subscriptions_window.cpp / subscriptions_bar.cpp / subscriptions_notification.cpp / addon_options_helpers.cpp - shared right-click menu entries.
+    { "WE_SUBS_MARK_DONE_TODAY",
+        "Mark done for today",
+        "Heute als erledigt markieren" },
+
+    { "WE_SUBS_EDIT_SUBSCRIPTIONS",
+        "Edit Subscriptions",
+        "Abos bearbeiten" },
+
+
+    //_ Title bar text for the addon's three player-facing windows. Drawn via TrId()
+    //  alongside a stable, untranslated ImGui ID suffix (see kSubscriptionsWindowId/
+    //  kLiveEventReportsWindowId/kEditSubscriptionsWindowId) so window position/size
+    //  persistence and Nexus's GUI_RegisterCloseOnEscape lookup survive a language change.
+    { "WE_SUBS_WINDOW_TITLE",
+        "World Events - Subscriptions",
+        "World Events - Abos" },
+
+    { "WE_LIVE_REPORTS_WINDOW_TITLE",
+        "World Events - Live Reports",
+        "World Events - Live-Meldungen" },
+
+    { "WE_EDIT_SUBS_WINDOW_TITLE",
+        "World Events - Edit Subscriptions",
+        "World Events - Abos bearbeiten" },
+
+
+    //_ subscriptions_window.cpp - watchlist empty states and row hints.
+    { "WE_SUBS_EMPTY_ACTIVE",
+        "Nothing upcoming - everything subscribed is currently active.",
+        "Nichts Bevorstehendes - alles Abonnierte ist derzeit aktiv." },
+
+    { "WE_SUBS_EMPTY_DONE",
+        "Nothing to show - everything subscribed is already done today.",
+        "Nichts anzuzeigen - alles Abonnierte ist heute bereits erledigt." },
+
+    { "WE_SUBS_EMPTY_NONE",
+        "No subscribed events yet. Check the box next to an event's name in\n"
+        "the options panel or Edit Subscriptions window to add it here.",
+        "Noch keine abonnierten Events. Aktiviere das Kästchen neben einem\n"
+        "Event-Namen im Optionsfenster oder im Fenster \"Abos bearbeiten\",\n"
+        "um es hier hinzuzufügen." },
+
+    { "WE_SUBS_HINT_CLICK",
+        "Click a row to copy its waypoint code into the chat.",
+        "Klicke eine Zeile an, um deren Wegpunkt-Code in den Chat zu kopieren." },
+
+    { "WE_SUBS_HINT_RIGHT_CLICK",
+        "Right-click a row to mark it done for today.",
+        "Rechtsklick auf eine Zeile, um sie als heute erledigt zu markieren." },
+
+
+    //_ subscriptions_edit_window.cpp - Basic & Cyclic tab (shares WE_OPT_SEARCH_LABEL/WE_OPT_BASIC_EVENTS/WE_OPT_CYCLIC_EVENTS with addon_options.cpp).
+    { "WE_EDIT_TAB_BASIC_CYCLIC",
+        "Basic & Cyclic",
+        "Normal & Zyklisch" },
+
+    { "WE_EDIT_SUBSCRIBE_ALL",
+        "Subscribe all",
+        "Alle abonnieren" },
+
+    { "WE_EDIT_DONE_TODAY",
+        "Done for today",
+        "Heute erledigt" },
+
+
+    //_ subscriptions_edit_window.cpp - Live Events tab. WE_LIVE_* rows are shared with addon_options.cpp's Live Events
+    //  (Experimental) section once that's localized - same checkbox/tooltip/empty-state there.
+    { "WE_EDIT_TAB_LIVE",
+        "Live Events",
+        "Live-Events" },
+
+    { "WE_LIVE_SHARE_NAME_REPORTS",
+        "Share my name in reports",
+        "Meinen Namen in Meldungen teilen" },
+
+    { "WE_LIVE_SHARE_NAME_REPORTS_TIP",
+        "Off (default): reports are anonymous. On: your character name\n"
+        "goes out with every report you send, and anyone whose toast\n"
+        "notification it triggers can whisper you directly by clicking\n"
+        "it, instead of just pasting the waypoint.",
+        "Aus (Standard): Meldungen sind anonym. An: Dein Charaktername\n"
+        "wird bei jeder gesendeten Meldung mitgeschickt, und wer die\n"
+        "dadurch ausgelöste Benachrichtigung erhält, kann dich durch\n"
+        "Anklicken direkt anflüstern, statt nur den Wegpunkt einzufügen." },
+
+    { "WE_LIVE_NONE_COMPILED",
+        "No live events compiled in yet.",
+        "Noch keine Live-Events kompiliert." },
+
+    { "WE_EDIT_LIVE_SUBSCRIBE_TIP_NO_KEY",
+        "Requires a GW2 API key (options panel) - region-wide toast\n"
+        "delivery needs it to tell NA and EU apart.",
+        "Erfordert einen GW2-API-Schlüssel (Optionsfenster) - die\n"
+        "regionsweite Zustellung braucht ihn, um NA und EU zu unterscheiden." },
+
+    { "WE_EDIT_LIVE_SUBSCRIBE_TIP",
+        "Subscribe to region-wide toast notifications for this event,\n"
+        "regardless of which map you're currently on.",
+        "Abonniere regionsweite Benachrichtigungen für dieses Event,\n"
+        "unabhängig davon, auf welcher Karte du dich gerade befindest." },
+
+    { "WE_EDIT_LIVE_NAMED_ONLY_TIP",
+        "Only notify me when the reporter shared their name.\n"
+        "An unnamed report can't be whispered or joined directly,\n"
+        "so skip its toast rather than show one you can't act on.",
+        "Nur benachrichtigen, wenn der Meldende seinen Namen geteilt hat.\n"
+        "Eine anonyme Meldung kann nicht direkt angeflüstert oder\n"
+        "verfolgt werden, daher entfällt ihre Benachrichtigung, statt\n"
+        "eine zu zeigen, auf die du nicht reagieren kannst." },
+
+    { "WE_EDIT_LIVE_DONE_TIP",
+        "Done for today - mutes toasts for this event until the daily reset.",
+        "Heute erledigt - stummt Benachrichtigungen für dieses Event bis zum täglichen Reset." },
+
+    { "WE_EDIT_LIVE_COL_EVENT",
+        "Event",
+        "Event" },
+
+    { "WE_EDIT_LIVE_COL_ONLY_NAMED",
+        "Only named",
+        "Nur benannt" },
+
+    { "WE_EDIT_LIVE_COL_DONE_TODAY",
+        "Done today",
+        "Heute erledigt" },
+
+
     //_ addon_options.cpp - tooltips for the generic settings (Live Events tooltips live with events_live, once translated).
     { "WE_TIP_DISABLE_COMPETITIVE",
         "Hides map events, cyclic rings, and all subscriptions\n"
@@ -477,6 +605,82 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
         "Nachricht" },
 
 
+    //_ addon_options_helpers.cpp / subscriptions_edit_window.cpp - fallback label for an empty user-entered name.
+    { "WE_UNNAMED",
+        "(unnamed)",
+        "(unbenannt)" },
+
+
+    //_ addon_options_helpers.cpp - duplicate-name warning tag next to a Cyclic Group slot's name.
+    { "WE_DUPLICATE_TAG",
+        "[duplicate]",
+        "[Duplikat]" },
+
+
+    //_ addon_options_helpers.cpp - DrawNameAndContextMenu's shared right-click menu (Basic Events,
+    //  Cyclic Groups, Cyclic Slots, and categories all draw through this one function).
+    { "WE_ROW_NOTIFY_SUB_TOAST_SOUND",
+        "Set to: Subscribed + Toast + Sound",
+        "Setzen auf: Abonniert + Benachrichtigung + Ton" },
+
+    { "WE_ROW_NOTIFY_SUB_TOAST",
+        "Set to: Subscribed + Toast",
+        "Setzen auf: Abonniert + Benachrichtigung" },
+
+    { "WE_ROW_NOTIFY_SUB_ONLY",
+        "Set to: Subscribed only",
+        "Setzen auf: Nur abonniert" },
+
+    { "WE_ROW_NOTIFY_UNSUBSCRIBED",
+        "Set to: Unsubscribed",
+        "Setzen auf: Nicht abonniert" },
+
+    { "WE_ROW_EDIT_NAME",
+        "Edit name",
+        "Namen bearbeiten" },
+
+    { "WE_ROW_RESET",
+        "Reset",
+        "Zurücksetzen" },
+
+    { "WE_ROW_DELETE",
+        "Delete",
+        "Löschen" },
+
+    { "WE_ROW_SAVE",
+        "Save",
+        "Speichern" },
+
+
+    //_ addon_options_helpers.cpp - per-event/per-slot Icon combo and chat-code input label (Icon
+    //  Whitener's own "Icon" combo is a separate identifier, WE_ICONWHITE_ICON_LABEL, above).
+    { "WE_ICON_LABEL",
+        "Icon",
+        "Symbol" },
+
+    { "WE_TEXT_TO_COPY_LABEL",
+        "Text to copy",
+        "Zu kopierender Text" },
+
+
+    //_ addon_options_helpers.cpp - Cyclic Slot color tier picker.
+    { "WE_TIER_LABEL",
+        "Tier",
+        "Stufe" },
+
+    { "WE_TIER_PRIMARY",
+        "Primary",
+        "Primär" },
+
+    { "WE_TIER_SECONDARY",
+        "Secondary",
+        "Sekundär" },
+
+    { "WE_TIER_TERTIARY",
+        "Tertiary",
+        "Tertiär" },
+
+
     //_ addon_options_helpers.cpp - tooltips for the shared Basic Event / Cyclic Group row-drawing helpers.
     { "WE_TIP_NOTIFY_ICON_LVL0",
         "Click to subscribe",
@@ -683,6 +887,32 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
         "Events Settings (Basic|Cyclic)",
         "Event-Einstellungen (Normal|Zyklisch)" },
 
+
+    //_ addon_options.cpp - Event Lists (Basic|Cyclic) section; some rows shared with subscriptions_edit_window.cpp.
+    { "WE_OPT_EVENT_LISTS_HEADER",
+        "Event Lists (Basic|Cyclic)",
+        "Event-Listen (Normal|Zyklisch)" },
+
+    { "WE_OPT_SEARCH_LABEL",
+        "Search",
+        "Suche" },
+
+    { "WE_OPT_RIGHT_CLICK_HINT",
+        "(right-click an entry below for more options)",
+        "(Rechtsklick auf einen Eintrag unten für weitere Optionen)" },
+
+    { "WE_OPT_BASIC_EVENTS",
+        "Basic Events",
+        "Normale Events" },
+
+    { "WE_OPT_CATEGORIES",
+        "Categories",
+        "Kategorien" },
+
+    { "WE_OPT_CYCLIC_EVENTS",
+        "Cyclic Events",
+        "Zyklische Events" },
+
     { "WE_OPT_CHAT_SETTINGS",
         "Chat settings:",
         "Chat-Einstellungen:" },
@@ -850,6 +1080,51 @@ static constexpr LocalizationEntry kLocalizationTable[] = {
     { "WE_OPT_OPACITY",
         "Opacity",
         "Deckkraft" },
+
+
+    //_ icon_whitener.cpp - Icon Whitener tool (options panel button + its popup).
+    { "WE_ICONWHITE_TITLE",
+        "Icon Whitener",
+        "Symbol-Aufheller" },
+
+    { "WE_ICONWHITE_INTRO",
+        "Map icons are tinted at draw time with a multiplicative color blend. "
+        "This only looks correct when the icon's RGB is neutral gray - a "
+        "colored image will tint unpredictably instead of cleanly turning "
+        "red / orange / gray.",
+        "Kartensymbole werden beim Rendern eingefärbt. Das sieht nur korrekt "
+        "aus, wenn das RGB des Symbols neutral grau ist - ein farbiges Bild färbt "
+        "sich unvorhersehbar ein, statt sauber rot, orange oder grau zu werden." },
+
+    { "WE_ICONWHITE_INSTRUCTIONS",
+        "Pick an icon from the \"textures\" folder and press Convert. "
+        "The image will be desaturated to luminance and normalized so the "
+        "brightest pixel becomes white. "
+        "The result is saved as <name>_white.png next to the original.",
+        "Wähle ein Symbol aus dem \"textures\"-Ordner und drücke Konvertieren. "
+        "Das Bild wird auf Helligkeit entsättigt und so normalisiert, dass der "
+        "hellste Pixel weiß wird. "
+        "Das Ergebnis wird als <Name>_white.png neben dem Original gespeichert." },
+
+    { "WE_ICONWHITE_ICON_LABEL",
+        "Icon",
+        "Symbol" },
+
+    { "WE_ICONWHITE_REFRESH",
+        "Refresh",
+        "Aktualisieren" },
+
+    { "WE_ICONWHITE_CONVERT",
+        "Convert & Save",
+        "Konvertieren & Speichern" },
+
+    { "WE_ICONWHITE_CLOSE",
+        "Close",
+        "Schließen" },
+
+    { "WE_ICONWHITE_SAVED_AS",
+        "Saved as: ",
+        "Gespeichert als: " },
 
 };
 

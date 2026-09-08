@@ -13,6 +13,7 @@
 #include "gw2_api.h" //. GetLiveEventsRegion, for the UpdateNotificationState call below
 #include "imgui.h"
 #include "live_events_ui.h"
+#include "localization.h"
 #include "notification_client.h" //. UpdateNotificationState, GetRegionViewerCount
 #include "settings.h"
 #include "shard_id.h"
@@ -271,12 +272,12 @@ void RenderLiveEventReportsWindow()
     static bool s_escapeCloseRegistered = true;
     if (LiveEventReportsWindowLocked && s_escapeCloseRegistered)
     {
-        APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
+        APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowId);
         s_escapeCloseRegistered = false;
     }
     else if (!LiveEventReportsWindowLocked && !s_escapeCloseRegistered)
     {
-        APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow);
+        APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowId, &ShowLiveEventReportsWindow);
         s_escapeCloseRegistered = true;
     }
 
@@ -294,7 +295,7 @@ void RenderLiveEventReportsWindow()
     }
 
     ImGui::SetNextWindowSize(ImVec2(320.0f, 220.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow, flags))
+    if (!ImGui::Begin(TrId("WE_LIVE_REPORTS_WINDOW_TITLE", kLiveEventReportsWindowId).c_str(), &ShowLiveEventReportsWindow, flags))
     {
         ImGui::End();
         return;

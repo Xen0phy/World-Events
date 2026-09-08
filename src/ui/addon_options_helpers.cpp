@@ -156,7 +156,7 @@ bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfInd
 void DrawDuplicateWarning()
 {
     ImGui::SameLine();
-    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "[duplicate]");
+    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_DUPLICATE_TAG"));
 }
 
 //********************************************************************************
@@ -529,7 +529,7 @@ NameRowResult DrawNameAndContextMenu(
     std::function<void()>       resetToDefault,
     bool                        resetAvailable)
 {
-    std::string label = currentName.empty() ? "(unnamed)" : currentName;
+    std::string label = currentName.empty() ? Tr("WE_UNNAMED") : currentName;
     if (autoTag)
     {
         label += " ";
@@ -547,33 +547,33 @@ NameRowResult DrawNameAndContextMenu(
     {
         if (toggleDone)
         {
-            if (ImGui::MenuItem("Mark done for today"))
+            if (ImGui::MenuItem(Tr("WE_SUBS_MARK_DONE_TODAY")))
                 toggleDone();
             ImGui::Separator();
         }
         if (setNotifyLevel && notifyLevel >= 0)
         {
             //_ Jump menu, not just a shortcut past the forward-only cycle; current stage shows a checkmark.
-            if (ImGui::MenuItem("Set to: Subscribed + Toast + Sound", nullptr, notifyLevel == 3))
+            if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_TOAST_SOUND"), nullptr, notifyLevel == 3))
                 setNotifyLevel(3);
-            if (ImGui::MenuItem("Set to: Subscribed + Toast", nullptr, notifyLevel == 2))
+            if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_TOAST"), nullptr, notifyLevel == 2))
                 setNotifyLevel(2);
-            if (ImGui::MenuItem("Set to: Subscribed only", nullptr, notifyLevel == 1))
+            if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_ONLY"), nullptr, notifyLevel == 1))
                 setNotifyLevel(1);
-            if (ImGui::MenuItem("Set to: Unsubscribed", nullptr, notifyLevel == 0))
+            if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_UNSUBSCRIBED"), nullptr, notifyLevel == 0))
                 setNotifyLevel(0);
             ImGui::Separator();
         }
-        if (ImGui::MenuItem("Edit name"))
+        if (ImGui::MenuItem(Tr("WE_ROW_EDIT_NAME")))
             editBuffers[editKey] = currentName; //. seeded when edit starts
         ImGui::Separator();
         if (resetToDefault)
         {
-            if (ImGui::MenuItem("Reset", nullptr, false, resetAvailable))
+            if (ImGui::MenuItem(Tr("WE_ROW_RESET"), nullptr, false, resetAvailable))
                 resetToDefault();
             ImGui::Separator();
         }
-        if (ImGui::MenuItem("Delete"))
+        if (ImGui::MenuItem(Tr("WE_ROW_DELETE")))
             pendingRemoveIndex = removeIndex;
         ImGui::EndPopup();
     }
@@ -592,7 +592,7 @@ NameRowResult DrawNameAndContextMenu(
         it->second = buf; //. persists into next frame
 
     ImGui::SameLine();
-    if (ImGui::SmallButton("Save##name_edit_save"))
+    if (ImGui::SmallButton(TrId("WE_ROW_SAVE", "##name_edit_save").c_str()))
     {
         std::string saved = it->second;
         editBuffers.erase(it);
@@ -784,7 +784,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
                 iconIndex = k + 1;
 
         ImGui::SetNextItemWidth(100.0f);
-        if (ImGui::Combo("Icon", &iconIndex, iconLabels.data(), (int)iconLabels.size()))
+        if (ImGui::Combo(TrId("WE_ICON_LABEL", "##event_icon").c_str(), &iconIndex, iconLabels.data(), (int)iconLabels.size()))
             ev.iconTexture = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
 
         ImGui::SameLine();
@@ -798,7 +798,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
             chatCodeBuf[sizeof(chatCodeBuf) - 1] = '\0';
 
             ImGui::SetNextItemWidth(100.0f);
-            if (ImGui::InputText("Text to copy##chat_code", chatCodeBuf, sizeof(chatCodeBuf)))
+            if (ImGui::InputText(TrId("WE_TEXT_TO_COPY_LABEL", "##chat_code").c_str(), chatCodeBuf, sizeof(chatCodeBuf)))
                 ev.chatCode = chatCodeBuf;
         }
 
@@ -1053,9 +1053,9 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 }
 
                 ImGui::SetNextItemWidth(100.0f);
-                static const char* const kTierLabels[] = { "Primary", "Secondary", "Tertiary" };
+                const char* kTierLabels[] = { Tr("WE_TIER_PRIMARY"), Tr("WE_TIER_SECONDARY"), Tr("WE_TIER_TERTIARY") };
                 int tierIndex = (int)slot.tier;
-                if (ImGui::Combo("Tier", &tierIndex, kTierLabels, 3))
+                if (ImGui::Combo(TrId("WE_TIER_LABEL", "##slot_tier").c_str(), &tierIndex, kTierLabels, 3))
                     slot.tier = (ColorTier)tierIndex;
 
                 //_ Same checkbox-gates-swatch pattern as Custom Idle above; seeded from the slot's current resolved color.
@@ -1087,7 +1087,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                     chatCodeBuf[sizeof(chatCodeBuf) - 1] = '\0';
 
                     ImGui::SetNextItemWidth(160.0f);
-                    if (ImGui::InputText("Text to copy##slot_chat_code", chatCodeBuf, sizeof(chatCodeBuf)))
+                    if (ImGui::InputText(TrId("WE_TEXT_TO_COPY_LABEL", "##slot_chat_code").c_str(), chatCodeBuf, sizeof(chatCodeBuf)))
                         slot.chatCode = chatCodeBuf;
                 }
 
