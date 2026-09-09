@@ -188,7 +188,7 @@ void RenderLiveEventButtons()
         unsigned long long sinceLastMs = (it != s_lastReportPressMs.end()) ? (nowTick - it->second) : kReportCooldownMs;
         bool onCooldown = sinceLastMs < kReportCooldownMs;
 
-        std::string label = ev->name + "##we_live_report_" + ev->eventId;
+        std::string label = std::string(DisplayName(*ev)) + "##we_live_report_" + ev->eventId;
         if (onCooldown) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
         bool clicked = ImGui::Button(label.c_str(), ImVec2(kButtonWidth, kButtonHeight));
         if (onCooldown) ImGui::PopStyleVar();
@@ -211,11 +211,11 @@ void RenderLiveEventButtons()
             if (onCooldown)
             {
                 unsigned long long remainingSec = (kReportCooldownMs - sinceLastMs + 999) / 1000;
-                ImGui::SetTooltip(Tr("WE_LIVE_COOLDOWN_TOOLTIP_FMT"), remainingSec, ev->name.c_str());
+                ImGui::SetTooltip(Tr("WE_LIVE_COOLDOWN_TOOLTIP_FMT"), remainingSec, DisplayName(*ev));
             }
             else
             {
-                ImGui::SetTooltip(Tr("WE_LIVE_REPORT_TOOLTIP_FMT"), ev->name.c_str());
+                ImGui::SetTooltip(Tr("WE_LIVE_REPORT_TOOLTIP_FMT"), DisplayName(*ev));
             }
         }
 
@@ -328,7 +328,7 @@ void RenderLiveEventReportsWindow()
         if (ev.mapId != mapId) continue;
         any = true;
 
-        std::string idLine = ev.name;
+        std::string idLine = DisplayName(ev);
         if (octet)
             idLine += "." + std::to_string(*octet);
 

@@ -485,7 +485,7 @@ bool LoadSubscriptionsData(const std::string& addonDir)
         std::unordered_set<std::string> groupIds;
         for (const auto& grp : g_CyclicGroups)
         {
-            groupNameToId[grp.name] = grp.id;
+            groupNameToId[DisplayNameEnglish(grp)] = grp.id;
             groupIds.insert(grp.id);
         }
         MigrateCyclicEntriesToIds(g_SubscribedCyclicSlots, groupNameToId, groupIds);

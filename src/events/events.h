@@ -126,7 +126,6 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 // CyclicGroup
 //--------------------------------------------------------------------------------
 // id                stable identity key; snake_case, hand-written
-// name              cycle name, e.g. "Domain of Vabbi"
 // continentX/Y      map coords (continent 1 / Tyria)
 // period            seconds per full cycle
 // colors            base palette; slots pick a shade by tier (see ColorTier)
@@ -137,6 +136,9 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 //                   Slot::shown to hide just one slot's arc instead
 // apiMapChestId     /v2/mapchests id, GROUP-level not per-slot; empty =
 //                   no API "done today" signal
+// customName        user override; empty = display name comes from
+//                   WE_NAME_GROUP_<id> (see DisplayName, events_storage.h) -
+//                   always empty on every compiled-in row below
 //--------------------------------------------------------------------------------
 // One per-map cyclic ring: a repeating `period`-second cycle containing one or
 // more Slots, each occupying a fixed offset/duration within it.
@@ -145,11 +147,15 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 // subscriptions_bar.cpp. Groups without an API-visible signal - LLA, invasions,
 // fractal incursions, convergences, and maps mapchests doesn't cover - simply
 // leave it empty.
+//
+// customName is appended last for the same positional-aggregate-init reason as
+// WorldEvent's own customName (events_basic.cpp/events_cyclic.cpp): it defaults
+// to "" and is never set by a compiled-in row, so it's never spelled out
+// positionally either.
 //--------------------------------------------------------------------------------
 struct CyclicGroup
 {
     std::string id;
-    std::string name;
     float continentX;
     float continentY;
     int   period;
@@ -159,7 +165,6 @@ struct CyclicGroup
     // Slot
     //--------------------------------------------------------------------------------
     // id            stable identity key; snake_case, unique within the group
-    // name          slot/event name
     // offset        seconds from UTC midnight of the first occurrence;
     //               ignored when isVarying is true
     // duration      seconds
@@ -175,18 +180,23 @@ struct CyclicGroup
     //               offset+repeat; false (default) = offset+repeat as before
     // varyingTimes  isVarying only: sorted seconds-into-period list, one
     //               entry per occurrence (same anchor as offset)
+    // customName    user override; empty = display name comes from
+    //               WE_NAME_SLOT_<groupId>_<id> (see DisplayName,
+    //               events_storage.h) - always empty on every compiled-in
+    //               row below
     //--------------------------------------------------------------------------------
     // One occurrence within a CyclicGroup's ring.
     //
-    // chatCode/shown/repeat/customColor/isVarying/varyingTimes are appended in this
-    // order for the same positional-aggregate-init reason as WorldEvent's tail fields
-    // (see events_basic.cpp/events_cyclic.cpp) - each field's position is how many
-    // trailing values a compiled-in row must supply, so later/rarer fields go last.
+    // chatCode/shown/repeat/customColor/isVarying/varyingTimes/customName are
+    // appended in this order for the same positional-aggregate-init reason as
+    // WorldEvent's tail fields (see events_basic.cpp/events_cyclic.cpp) - each
+    // field's position is how many trailing values a compiled-in row must supply,
+    // so later/rarer fields go last. customName defaults to "" and is never set by
+    // a compiled-in row, so it's never spelled out positionally either.
     //--------------------------------------------------------------------------------
     struct Slot
     {
         std::string id;
-        std::string name;
         int         offset;
         int         duration;
         ColorTier   tier = ColorTier::Primary;
@@ -199,6 +209,8 @@ struct CyclicGroup
 
         bool        isVarying = false;
         std::vector<int> varyingTimes;
+
+        std::string customName;
     };
 
     std::vector<Slot> slots;
@@ -206,6 +218,8 @@ struct CyclicGroup
     std::optional<ImU32> idleColor;
     bool shown = true;
     std::string apiMapChestId;
+
+    std::string customName;
 
     ImU32 SlotColor(const Slot& slot) const
     {

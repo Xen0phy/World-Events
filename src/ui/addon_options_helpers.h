@@ -88,15 +88,15 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsDuplicateEventName / IsDuplicateGroupName / IsDuplicateSlotKey
 //--------------------------------------------------------------------------------
-// Match the actual merge keys used in events_storage.cpp: events/groups are
-// matched by name alone, slots by name+offset together (two slots can
-// legitimately share a name at different offsets - see the .cpp for the full
-// explanation). Each takes the index of the entry being checked so it can exclude
-// it from the comparison.
+// Display-only check, not a merge-key check: compares DisplayName's resolved
+// text (events_storage.h), not the raw customName - see the .cpp for why. Each
+// takes the index of the entry being checked so it can exclude it from the
+// comparison; IsDuplicateSlotKey also takes groupId, since Slot::id (and its
+// display name) is only unique within its group.
 //--------------------------------------------------------------------------------
 bool IsDuplicateEventName(const std::vector<WorldEvent>& events, int selfIndex);
 bool IsDuplicateGroupName(const std::vector<CyclicGroup>& groups, int selfIndex);
-bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfIndex);
+bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfIndex, const std::string& groupId);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawDuplicateWarning   (pairs with: IsDuplicateEventName/GroupName/SlotKey)

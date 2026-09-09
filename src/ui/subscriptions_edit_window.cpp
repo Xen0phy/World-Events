@@ -172,7 +172,7 @@ static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
     if (forceOpen)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always); //. see DrawLeanBasicEventRow's header comment for why _Always, not _Once
 
-    bool open = ImGui::TreeNode("##edit_slot_node", "%s", slot.name.empty() ? Tr("WE_UNNAMED") : slot.name.c_str());
+    bool open = ImGui::TreeNode("##edit_slot_node", "%s", DisplayName(slot, grp.id));
 
     if (open)
     {
@@ -214,7 +214,7 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
     if (forceOpenGroup)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always); //. see DrawLeanBasicEventRow's header comment for why _Always, not _Once
 
-    bool open = ImGui::TreeNode("##edit_group_node", "%s", grp.name.empty() ? Tr("WE_UNNAMED") : grp.name.c_str());
+    bool open = ImGui::TreeNode("##edit_group_node", "%s", DisplayName(grp));
 
     if (open)
     {
@@ -293,7 +293,7 @@ static void DrawLeanLiveEventRow(const LiveEvent& ev, bool isTarget)
     }
 
     ImGui::TableSetColumnIndex(1);
-    ImGui::TextUnformatted(ev.name.empty() ? Tr("WE_UNNAMED") : ev.name.c_str());
+    ImGui::TextUnformatted(DisplayName(ev));
 
     ImGui::TableSetColumnIndex(2);
     bool namedOnly = IsLiveEventNamedOnly(ev.eventId);

@@ -138,20 +138,20 @@ bool IsDuplicateEventName(const std::vector<WorldEvent>& events, int selfIndex)
 
 bool IsDuplicateGroupName(const std::vector<CyclicGroup>& groups, int selfIndex)
 {
-    const std::string& name = groups[selfIndex].name;
+    std::string name = DisplayName(groups[selfIndex]);
     if (name.empty()) return false;
     for (int i = 0; i < (int)groups.size(); i++)
-        if (i != selfIndex && groups[i].name == name)
+        if (i != selfIndex && DisplayName(groups[i]) == name)
             return true;
     return false;
 }
 
-bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfIndex)
+bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfIndex, const std::string& groupId)
 {
-    const CyclicGroup::Slot& self = slots[selfIndex];
-    if (self.name.empty()) return false;
+    std::string name = DisplayName(slots[selfIndex], groupId);
+    if (name.empty()) return false;
     for (int i = 0; i < (int)slots.size(); i++)
-        if (i != selfIndex && slots[i].name == self.name)
+        if (i != selfIndex && DisplayName(slots[i], groupId) == name)
             return true;
     return false;
 }
@@ -631,9 +631,9 @@ bool EventMatchesSearch(const WorldEvent& ev, const std::string& queryLower)
 
 bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower)
 {
-    if (ContainsCaseInsensitive(grp.name, queryLower)) return true;
+    if (ContainsCaseInsensitive(DisplayName(grp), queryLower)) return true;
     for (const auto& slot : grp.slots)
-        if (ContainsCaseInsensitive(slot.name, queryLower)) return true;
+        if (ContainsCaseInsensitive(DisplayName(slot, grp.id), queryLower)) return true;
     return false;
 }
 
@@ -861,16 +861,16 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_RING"));
     ImGui::SameLine();
 
-    std::string oldGroupName = grp.name;
+    std::string oldGroupName = DisplayName(grp);
     const CyclicGroup* defaultGrp = GetDefaultCyclicGroup(grp.id);
-    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, grp.name, editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
+    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, DisplayName(grp), editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
         grp.apiMapChestId.empty() ? nullptr : "(auto)",
         nullptr, -1, nullptr,
-        [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. name unchanged - defaultGrp was found BY grp.id
+        [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. customName cleared for free - defaultGrp's own customName is always ""
         defaultGrp != nullptr);
     bool open = nameResult.open;
     if (nameResult.newName != oldGroupName)
-        grp.name = nameResult.newName;
+        grp.customName = nameResult.newName;
 
     if (IsDuplicateGroupName(g_CyclicGroups, i))
         DrawDuplicateWarning();
@@ -950,18 +950,19 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
             int slotEditKey = i * 100000 + s;
             const CyclicGroup::Slot* defaultSlot = GetDefaultCyclicSlot(grp.id, slot.id);
+            std::string oldSlotName = DisplayName(slot, grp.id);
             //_ Slot rows aren't draggable (dragType left null) - a slot moves with its group, not independently between categories.
-            NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, slot.name, editingSlotNames, pendingRemoveSlotIndex,
+            NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, oldSlotName, editingSlotNames, pendingRemoveSlotIndex,
                 nullptr, std::string(), nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
                 notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); },
-                [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. name unchanged - defaultSlot was found BY (grp.id, slot.id)
+                [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. customName cleared for free - defaultSlot's own customName is always ""
                 defaultSlot != nullptr);
             bool slotOpen = slotNameResult.open;
             //_ Slots aren't categorized and subscriptions key on (group id, slot id), not name, so no rename fixups are needed.
-            if (slotNameResult.newName != slot.name)
-                slot.name = slotNameResult.newName;
+            if (slotNameResult.newName != oldSlotName)
+                slot.customName = slotNameResult.newName;
 
-            if (IsDuplicateSlotKey(grp.slots, s))
+            if (IsDuplicateSlotKey(grp.slots, s, grp.id))
                 DrawDuplicateWarning();
 
             if (slotOpen)
@@ -1106,7 +1107,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         if (pendingAddSlot)
         {
             CyclicGroup::Slot newSlot{};
-            newSlot.name     = "New Event";
+            newSlot.customName = "New Event";
             newSlot.offset   = 0;
             newSlot.duration = 600; //. 10 min, a reasonable default
             newSlot.tier     = ColorTier::Primary;

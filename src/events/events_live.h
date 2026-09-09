@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------------------
 // LiveEvent            one player-reportable live event
 // g_LiveEvents          compiled-in roster (see events_live.cpp)
+// DisplayName           resolves a LiveEvent's translated name
 //--------------------------------------------------------------------------------
 // Third event category, alongside "Basic Events" (WorldEvent, events.h) and
 // "Cyclic Events" (CyclicGroup, events.h). Unlike those two, a LiveEvent has NO
@@ -13,10 +14,11 @@
 // Compiled-in, not user-editable. g_Events/g_CyclicGroups go through
 // events_storage.cpp's JSON merge and maprender.cpp's drag-to-reposition edit
 // mode (EditTarget::BasicEvent/CyclicGroup) so a user's own additions/tweaks
-// survive updates; g_LiveEvents gets neither. Position, name, and id are only
-// ever meaningful if they match what every other client and the relay server
-// agree on, so they ship compiled-in only, the same way bundled_icons.h's icon
-// table isn't user-editable.
+// survive updates; g_LiveEvents gets neither, display name included - see
+// DisplayName below. Position and id are only ever meaningful if they match
+// what every other client and the relay server agree on, so they ship
+// compiled-in only, the same way bundled_icons.h's icon table isn't
+// user-editable.
 //
 // What IS user-controlled is whether the whole feature is on at all - see
 // LiveEventsSubscribed (settings_table.h). There's no per-event opt-in: when
@@ -35,7 +37,6 @@
 //--------------------------------------------------------------------------------
 // eventId       GW2 API v2 /events GUID; doubles as the wire protocol's
 //               event_id (networking-handoff.md #5) - same id for both.
-// name          display name
 // continentX/Y  map coords (continent 1 / Tyria) - same space as
 //               WorldEvent::continentX/Y, what actually places the dot
 // mapId         GW2 map id (API's map_id); gates which map's overlay/report
@@ -60,7 +61,6 @@
 struct LiveEvent
 {
     std::string eventId;
-    std::string name;
     float       continentX;
     float       continentY;
     int         mapId;
@@ -75,6 +75,17 @@ struct LiveEvent
 
 //_ Populated in events_live.cpp. Compiled-in only - see file header.
 extern std::vector<LiveEvent> g_LiveEvents;
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DisplayName
+//--------------------------------------------------------------------------------
+// Tr(WE_NAME_LIVE_<eventId>) (resources/localization/event_names.csv), always -
+// no customName fork like DisplayName(WorldEvent)/DisplayName(CyclicGroup)
+// (events_storage.h): a LiveEvent is compiled-in only and never user-renamed
+// (see file header), so there's nothing to override and no WE_UNNAMED case
+// either, every g_LiveEvents entry has a compiled row.
+//--------------------------------------------------------------------------------
+const char* DisplayName(const LiveEvent& ev);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsPlayerNearLiveEvent

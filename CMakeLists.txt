@@ -143,6 +143,7 @@ add_library(gw2-world-events SHARED
     src/events/events_storage.cpp
     src/events/events_tracking.cpp
     src/generated/bundled_icons.generated.cpp
+    src/generated/localization_table_event_names.generated.h
     src/generated/localization_table_ui.generated.h
     src/generated/version_history.generated.h
     src/integration/apikey_crypto.cpp

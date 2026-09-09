@@ -369,7 +369,7 @@ static void CollectLiveEventPopups()
         std::string message = n.reporterName.empty() ? "Reported active!" : ("Reported by " + n.reporterName);
         std::string key = "Live:" + n.eventId + "#" + std::to_string(++s_liveNotifCounter);
 
-        SpawnPopup(key, ev->name, ev->chatCode, message, ToImVec4(SubscriptionsLiveColor), false,
+        SpawnPopup(key, DisplayName(*ev), ev->chatCode, message, ToImVec4(SubscriptionsLiveColor), false,
                    SubscriptionKind::Live, std::string(), CyclicSubscriptionKey{}, n.eventId, n.reporterName);
     }
 }

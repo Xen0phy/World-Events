@@ -346,7 +346,7 @@ bool LoadDailyTrackingData(const std::string& addonDir)
         std::unordered_set<std::string> groupIds;
         for (const auto& grp : g_CyclicGroups)
         {
-            groupNameToId[grp.name] = grp.id;
+            groupNameToId[DisplayNameEnglish(grp)] = grp.id;
             groupIds.insert(grp.id);
         }
         MigrateCyclicMarksToIds(s_DoneTodayCyclicSlots, groupNameToId, groupIds);

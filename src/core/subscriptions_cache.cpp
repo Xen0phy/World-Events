@@ -139,7 +139,7 @@ static void RebuildWeeklyCache()
                 [&](const CyclicGroup::Slot& s) { return s.id == target.slotId; });
             if (slotIt == grpIt->slots.end()) continue;   //. slot deleted
 
-            info.mappingTitle = grpIt->name + " - " + slotIt->name;   //. internal-only label
+            info.mappingTitle = std::string(DisplayName(*grpIt)) + " - " + DisplayName(*slotIt, grpIt->id);   //. internal-only label
             s_weeklyCache["Cyclic:" + grpIt->id + ":" + slotIt->id] = info;
         }
     }
@@ -188,9 +188,9 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
     r.key                = "Cyclic:" + grp.id + ":" + slot.id;
     r.isBasic            = false;
     r.cyclicGroupId      = grp.id;
-    r.cyclicGroupName    = grp.name;
+    r.cyclicGroupName    = DisplayName(grp);
     r.cyclicSlotId       = slot.id;
-    r.label              = grp.name + " - " + slot.name;
+    r.label              = std::string(DisplayName(grp)) + " - " + DisplayName(slot, grp.id);
     r.chatCode           = slot.chatCode;
     r.manuallySubscribed = manuallySubscribed;
 

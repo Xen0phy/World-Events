@@ -899,7 +899,7 @@ void AddonOptions()
             if (pendingAddGroup)
             {
                 CyclicGroup newGroup{};
-                newGroup.name       = "New Cycle";
+                newGroup.customName = "New Cycle";
                 newGroup.continentX = 49332.0f;
                 newGroup.continentY = 31457.0f;
                 newGroup.period     = 7200; //. 2h, most common period
@@ -991,7 +991,7 @@ void AddonOptions()
         {
             for (const LiveEvent& ev : g_LiveEvents)
             {
-                ImGui::BulletText("%s", ev.name.c_str());
+                ImGui::BulletText("%s", DisplayName(ev));
                 ImGui::SameLine();
                 ImGui::TextDisabled("(map %d)", ev.mapId);
             }

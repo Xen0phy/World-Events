@@ -15,6 +15,7 @@
 #include "addon.h"
 #include "color_utils.h"
 #include "cyclicrender.h"
+#include "events_storage.h" //. DisplayName, for the group/slot tooltip text
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "localization.h"
@@ -597,7 +598,7 @@ void RenderCyclicGroups()
                 {mouse.x - 1.0f, mouse.y - 20.0f},
                 ImGuiCond_Always, {0.0f, 1.0f});
             ImGui::BeginTooltip();
-            ImGui::TextUnformatted(grp.name.c_str());
+            ImGui::TextUnformatted(DisplayName(grp));
             ImGui::Separator();
 
             //********************************************************************************
@@ -626,6 +627,8 @@ void RenderCyclicGroups()
                 //_ A hidden slot shouldn't leak into the tooltip just because its arc is suppressed.
                 if (!slot.shown)
                     continue;
+
+                std::string slotName = DisplayName(slot, grp.id);
 
                 std::vector<int> baseOffsets;
                 if (slot.isVarying)
@@ -669,13 +672,13 @@ void RenderCyclicGroups()
                     continue;
 
                 TooltipEntry candidate = foundActive
-                    ? TooltipEntry{ slot.name, true, activeSecsLeft }
-                    : TooltipEntry{ slot.name, false, bestSecsUntil };
+                    ? TooltipEntry{ slotName, true, activeSecsLeft }
+                    : TooltipEntry{ slotName, false, bestSecsUntil };
 
-                auto it = byName.find(slot.name);
+                auto it = byName.find(slotName);
                 if (it == byName.end())
                 {
-                    byName.emplace(slot.name, candidate);
+                    byName.emplace(slotName, candidate);
                 }
                 else
                 {

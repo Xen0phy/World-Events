@@ -47,16 +47,28 @@ const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const 
 // DisplayName / DisplayNameEnglish
 //--------------------------------------------------------------------------------
 // ev.customName non-empty -> that, literally (user override, never translated).
-// customName empty and GetDefaultEvent(ev.id) finds a compiled-in row -> the
-// WE_NAME_BASIC_<id> identifier (resources/localization/event_names.csv),
-// through Tr()/TrEnglish() respectively. Neither -> WE_UNNAMED, same fallback
-// subscriptions_edit_window.cpp already used before this pair existed.
+// customName empty and GetDefaultEvent(ev.id)/GetDefaultCyclicGroup(grp.id)/
+// GetDefaultCyclicSlot(groupId, slot.id) finds a compiled-in row -> the
+// WE_NAME_BASIC_<id>/WE_NAME_GROUP_<id>/WE_NAME_SLOT_<groupId>_<id> identifier
+// (resources/localization/event_names.csv), through Tr()/TrEnglish()
+// respectively. Neither -> WE_UNNAMED, same fallback subscriptions_edit_window.cpp
+// already used before this set existed.
+//
+// The Slot overload takes groupId separately since Slot::id is only unique within
+// its group - the identifier needs both.
 //
 // DisplayNameEnglish always resolves to the English text regardless of the
 // active language - for anywhere the code must match ArenaNet's own English API
 // text or an old English-only save file (weekly_vault.cpp's title matching, the
-// eventNameToId migrations in subscriptions.cpp/events_categories.cpp/
-// events_tracking.cpp), never the player's current language.
+// eventNameToId/groupNameToId migrations in subscriptions.cpp/
+// events_categories.cpp/events_tracking.cpp), never the player's current
+// language.
 //--------------------------------------------------------------------------------
 const char* DisplayName(const WorldEvent& ev);
 const char* DisplayNameEnglish(const WorldEvent& ev);
+
+const char* DisplayName(const CyclicGroup& grp);
+const char* DisplayNameEnglish(const CyclicGroup& grp);
+
+const char* DisplayName(const CyclicGroup::Slot& slot, const std::string& groupId);
+const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string& groupId);

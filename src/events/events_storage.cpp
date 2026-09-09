@@ -36,6 +36,29 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BasicNameIdentifier / GroupNameIdentifier / SlotNameIdentifier
+//--------------------------------------------------------------------------------
+// Builds the event_names.csv identifier for a compiled-in Basic Event/Cyclic
+// Group/Cyclic Slot, from its id (+ groupId for a Slot, since Slot::id is only
+// unique within its group). Shared by DisplayName/DisplayNameEnglish below and
+// LoadEventsData's legacy-customName migration, so the two stay in lockstep.
+//--------------------------------------------------------------------------------
+static std::string BasicNameIdentifier(const std::string& eventId)
+{
+    return "WE_NAME_BASIC_" + eventId;
+}
+
+static std::string GroupNameIdentifier(const std::string& groupId)
+{
+    return "WE_NAME_GROUP_" + groupId;
+}
+
+static std::string SlotNameIdentifier(const std::string& groupId, const std::string& slotId)
+{
+    return "WE_NAME_SLOT_" + groupId + "_" + slotId;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeEvent / DeserializeEvent
 //--------------------------------------------------------------------------------
 // (De)serializes one WorldEvent. id is the merge/identity key (see EventKey);
@@ -196,16 +219,20 @@ static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
 // within the group (see SlotKey); left empty on deserialize for a pre-migration
 // file, same deferred-backfill reasoning as SerializeEvent/DeserializeEvent
 // above. customColor is presence-checked (j.contains), not defaulted, so "unset"
-// round-trips exactly; chatCode is omitted when empty and shown when true (the
-// default), same convention as WorldEvent above. isVarying/ varyingTimes follow
-// the exact same convention as WorldEvent's own pair: isVarying always written,
-// varyingTimes only written/read when isVarying is true.
+// round-trips exactly; chatCode/customName are omitted when empty and shown when
+// true (the default), same convention as WorldEvent above. isVarying/
+// varyingTimes follow the exact same convention as WorldEvent's own pair:
+// isVarying always written, varyingTimes only written/read when isVarying is
+// true.
+//
+// customName/outIsLegacyName: same scratch-value handling as
+// DeserializeEvent's customName/outIsLegacyName - see that function's header
+// comment. A file predating the customName rename has "name" instead.
 //--------------------------------------------------------------------------------
 static json SerializeSlot(const CyclicGroup::Slot& slot)
 {
     json j;
     j["id"]        = slot.id;
-    j["name"]      = slot.name;
     j["offset"]    = slot.offset;
     j["duration"]  = slot.duration;
     j["tier"]      = ColorTierToString(slot.tier);
@@ -224,14 +251,16 @@ static json SerializeSlot(const CyclicGroup::Slot& slot)
     if (!slot.shown)
         j["shown"] = false;
 
+    if (!slot.customName.empty())
+        j["customName"] = slot.customName;
+
     return j;
 }
 
-static CyclicGroup::Slot DeserializeSlot(const json& j)
+static CyclicGroup::Slot DeserializeSlot(const json& j, bool& outIsLegacyName)
 {
     CyclicGroup::Slot slot{};
     slot.id        = j.value("id", std::string());
-    slot.name      = j.value("name", std::string("Unnamed Event"));
     slot.offset    = j.value("offset", 0);
     slot.duration  = j.value("duration", 0);
     slot.tier      = ColorTierFromString(j.value("tier", std::string("Primary")));
@@ -247,6 +276,12 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
     slot.chatCode = j.value("chatCode", std::string());
     slot.shown    = j.value("shown", true);
 
+    outIsLegacyName = j.contains("name") && !j.contains("customName");
+    if (j.contains("customName"))
+        slot.customName = j.value("customName", std::string());
+    else if (j.contains("name"))
+        slot.customName = j.value("name", std::string());   //. scratch - see header comment above
+
     return slot;
 }
 
@@ -257,14 +292,18 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
 // SerializeSlot/DeserializeSlot. id is the merge/identity key (see GroupKey),
 // left empty on deserialize for a pre-migration file - same deferred-backfill
 // reasoning as SerializeEvent/DeserializeEvent above. idleColor is presence-
-// checked like Slot::customColor above; shown is omitted when true (the default),
-// same convention as WorldEvent above.
+// checked like Slot::customColor above; shown/customName are omitted when
+// true/empty (their defaults), same convention as WorldEvent above.
+//
+// customName/outIsLegacyName: same scratch-value handling as
+// DeserializeEvent's customName/outIsLegacyName - see that function's header
+// comment. outIsLegacySlotNames is the same flag per nested slot, aligned
+// index-for-index with the returned group's slots vector.
 //--------------------------------------------------------------------------------
 static json SerializeGroup(const CyclicGroup& grp)
 {
     json j;
     j["id"]         = grp.id;
-    j["name"]       = grp.name;
     j["continentX"] = grp.continentX;
     j["continentY"] = grp.continentY;
     j["period"]     = grp.period;
@@ -276,6 +315,9 @@ static json SerializeGroup(const CyclicGroup& grp)
     if (!grp.shown)
         j["shown"] = false;
 
+    if (!grp.customName.empty())
+        j["customName"] = grp.customName;
+
     json slots = json::array();
     for (const auto& slot : grp.slots)
         slots.push_back(SerializeSlot(slot));
@@ -284,11 +326,10 @@ static json SerializeGroup(const CyclicGroup& grp)
     return j;
 }
 
-static CyclicGroup DeserializeGroup(const json& j)
+static CyclicGroup DeserializeGroup(const json& j, bool& outIsLegacyName, std::vector<bool>& outIsLegacySlotNames)
 {
     CyclicGroup grp{};
     grp.id         = j.value("id", std::string());
-    grp.name       = j.value("name", std::string("Unnamed Group"));
     grp.continentX = j.value("continentX", 0.0f);
     grp.continentY = j.value("continentY", 0.0f);
     grp.period     = j.value("period", 7200);
@@ -299,9 +340,20 @@ static CyclicGroup DeserializeGroup(const json& j)
 
     grp.shown = j.value("shown", true);
 
+    outIsLegacyName = j.contains("name") && !j.contains("customName");
+    if (j.contains("customName"))
+        grp.customName = j.value("customName", std::string());
+    else if (j.contains("name"))
+        grp.customName = j.value("name", std::string());   //. scratch - see header comment above
+
+    outIsLegacySlotNames.clear();
     if (j.contains("slots") && j["slots"].is_array())
         for (const auto& sj : j["slots"])
-            grp.slots.push_back(DeserializeSlot(sj));
+        {
+            bool slotIsLegacyName = false;
+            grp.slots.push_back(DeserializeSlot(sj, slotIsLegacyName));
+            outIsLegacySlotNames.push_back(slotIsLegacyName);
+        }
 
     return grp;
 }
@@ -629,9 +681,17 @@ bool LoadEventsData(const std::string& addonDir)
             }
 
         std::vector<CyclicGroup> loadedGroups;
+        std::vector<bool>       loadedGroupIsLegacyName;      //. see DeserializeGroup's header comment
+        std::vector<std::vector<bool>> loadedSlotIsLegacyName; //. aligned with each group's slots
         if (j.contains("cyclicGroups") && j["cyclicGroups"].is_array())
             for (const auto& gj : j["cyclicGroups"])
-                loadedGroups.push_back(DeserializeGroup(gj));
+            {
+                bool isLegacyName = false;
+                std::vector<bool> slotLegacyFlags;
+                loadedGroups.push_back(DeserializeGroup(gj, isLegacyName, slotLegacyFlags));
+                loadedGroupIsLegacyName.push_back(isLegacyName);
+                loadedSlotIsLegacyName.push_back(std::move(slotLegacyFlags));
+            }
 
         std::unordered_set<std::string> usedEventIds;
         for (const auto& d : g_Events)
@@ -654,7 +714,7 @@ bool LoadEventsData(const std::string& addonDir)
         {
             if (!loadedEventIsLegacyName[i]) continue;   //. already customName-format on disk
 
-            if (loadedEvents[i].customName == TrEnglish(("WE_NAME_BASIC_" + loadedEvents[i].id).c_str()))
+            if (loadedEvents[i].customName == TrEnglish(BasicNameIdentifier(loadedEvents[i].id).c_str()))
                 loadedEvents[i].customName.clear();   //. matches the compiled default - starts localizing going forward
             //. else: keep the literal legacy text - the user's rename survives the upgrade
         }
@@ -665,12 +725,13 @@ bool LoadEventsData(const std::string& addonDir)
 
         for (auto& grp : loadedGroups)
         {
+            //_ Pre-id file: grp.customName is still the raw legacy "name" text here (DeserializeGroup's scratch use).
             const CyclicGroup* defGroup = nullptr;
             for (const auto& d : g_CyclicGroups)
-                if (d.name == grp.name) { defGroup = &d; break; }
+                if (DisplayNameEnglish(d) == grp.customName) { defGroup = &d; break; }
 
             if (grp.id.empty())
-                grp.id = defGroup ? defGroup->id : UniqueId(SlugifyName(grp.name), usedGroupIds);
+                grp.id = defGroup ? defGroup->id : UniqueId(SlugifyName(grp.customName), usedGroupIds);
             else
                 usedGroupIds.insert(grp.id);
 
@@ -687,9 +748,29 @@ bool LoadEventsData(const std::string& addonDir)
                 const CyclicGroup::Slot* defSlot = nullptr;
                 if (defGroup)
                     for (const auto& s : defGroup->slots)
-                        if (s.name == slot.name) { defSlot = &s; break; }
+                        if (DisplayNameEnglish(s, defGroup->id) == slot.customName) { defSlot = &s; break; }
 
-                slot.id = defSlot ? defSlot->id : UniqueId(SlugifyName(slot.name), usedSlotIds);
+                slot.id = defSlot ? defSlot->id : UniqueId(SlugifyName(slot.customName), usedSlotIds);
+            }
+        }
+
+        //_ Resolves the scratch value DeserializeGroup/DeserializeSlot left in customName for every legacy-format row, now that every id above is final - see the Migration section this implements (localization-handoff.md).
+        for (size_t i = 0; i < loadedGroups.size(); i++)
+        {
+            if (loadedGroupIsLegacyName[i])
+            {
+                if (loadedGroups[i].customName == TrEnglish(GroupNameIdentifier(loadedGroups[i].id).c_str()))
+                    loadedGroups[i].customName.clear();   //. matches the compiled default - starts localizing going forward
+                //. else: keep the literal legacy text - the user's rename survives the upgrade
+            }
+
+            for (size_t s = 0; s < loadedGroups[i].slots.size(); s++)
+            {
+                if (s >= loadedSlotIsLegacyName[i].size() || !loadedSlotIsLegacyName[i][s]) continue;   //. already customName-format on disk
+
+                CyclicGroup::Slot& slot = loadedGroups[i].slots[s];
+                if (slot.customName == TrEnglish(SlotNameIdentifier(loadedGroups[i].id, slot.id).c_str()))
+                    slot.customName.clear();
             }
         }
 
@@ -791,11 +872,6 @@ const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DisplayName / DisplayNameEnglish   (see: events_storage.h)
 //--------------------------------------------------------------------------------
-static std::string BasicNameIdentifier(const std::string& eventId)
-{
-    return "WE_NAME_BASIC_" + eventId;
-}
-
 const char* DisplayName(const WorldEvent& ev)
 {
     if (!ev.customName.empty()) return ev.customName.c_str();
@@ -807,5 +883,33 @@ const char* DisplayNameEnglish(const WorldEvent& ev)
 {
     if (!ev.customName.empty()) return ev.customName.c_str();
     if (GetDefaultEvent(ev.id)) return TrEnglish(BasicNameIdentifier(ev.id).c_str());
+    return TrEnglish("WE_UNNAMED");
+}
+
+const char* DisplayName(const CyclicGroup& grp)
+{
+    if (!grp.customName.empty()) return grp.customName.c_str();
+    if (GetDefaultCyclicGroup(grp.id)) return Tr(GroupNameIdentifier(grp.id).c_str());
+    return Tr("WE_UNNAMED");
+}
+
+const char* DisplayNameEnglish(const CyclicGroup& grp)
+{
+    if (!grp.customName.empty()) return grp.customName.c_str();
+    if (GetDefaultCyclicGroup(grp.id)) return TrEnglish(GroupNameIdentifier(grp.id).c_str());
+    return TrEnglish("WE_UNNAMED");
+}
+
+const char* DisplayName(const CyclicGroup::Slot& slot, const std::string& groupId)
+{
+    if (!slot.customName.empty()) return slot.customName.c_str();
+    if (GetDefaultCyclicSlot(groupId, slot.id)) return Tr(SlotNameIdentifier(groupId, slot.id).c_str());
+    return Tr("WE_UNNAMED");
+}
+
+const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string& groupId)
+{
+    if (!slot.customName.empty()) return slot.customName.c_str();
+    if (GetDefaultCyclicSlot(groupId, slot.id)) return TrEnglish(SlotNameIdentifier(groupId, slot.id).c_str());
     return TrEnglish("WE_UNNAMED");
 }
