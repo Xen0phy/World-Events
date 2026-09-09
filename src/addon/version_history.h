@@ -1,100 +1,74 @@
 //################################################################################
 // version_history.h
 //--------------------------------------------------------------------------------
-// kVersionHistory   manually-curated per-version release notes, newest first
+// VersionHistoryEntry        one release's Version label plus one Notes field
+//                             per WE_LANGUAGE_LIST entry (see below)
+// VersionHistoryLanguageSlot WE_LANGUAGE_LIST as a runtime array of
+//                             {code, field}, same shape as LanguageSlot
+// kVersionHistoryLanguageSlots  WE_LANGUAGE_LIST as data (see below)
+// kVersionHistory             manually-curated per-version release notes,
+//                              newest first (see: version_history.generated.h)
+// kVersionHistoryCount        number of entries in kVersionHistory
 //--------------------------------------------------------------------------------
-// Backs the "What's New" dropdown (changelog_window.h/.cpp) - not auto-generated
-// from every release, since most (internal refactors, hotfixes) have nothing
-// worth surfacing in-game. Add an entry by hand at the TOP of the array on any
-// release worth mentioning; skip the rest.
+// This file holds the entry schema, not the notes. The notes themselves live in
+// resources/localization/version_history.csv, one row per release worth
+// mentioning - not every release, most (internal refactors, hotfixes) have
+// nothing worth surfacing in-game. tools/generate_version_history.py turns that
+// CSV into src/generated/version_history.generated.h (included below) as part of
+// the normal build, and fails the build on any row missing a language. Add an
+// entry by hand at the TOP of the CSV on any release worth mentioning; skip the
+// rest.
+//
+// Version is English-only, never translated - keep it to the version number
+// plus five words or less, it's the whole label shown in the closed dropdown.
+// Notes is per-language, one column per WE_LANGUAGE_LIST entry in the CSV; add a
+// language the same way as localization_table.h: add a line to WE_LANGUAGE_LIST
+// there, then add the matching column to every row of both CSVs.
 //
 // Notes uses the same "\n"-separated format Split Wars' VersionNotice used: 2
 // leading spaces = one indent level, "* " marks a bullet, an unindented non-
 // bullet line is a section header ("New Features", "Improvements"). See
 // DrawIndentedNotice in changelog_window.cpp for how it's interpreted.
-//
-// Keep Version to the version number plus five words or less - it's the whole
-// label shown in the closed dropdown.
 //--------------------------------------------------------------------------------
 
 #pragma once
 
+#include "../core/localization_table.h"   //. WE_LANGUAGE_LIST
+
 //********************************************************************************
 // VersionHistoryEntry
 //--------------------------------------------------------------------------------
-// Version   version + up to five words, shown as-is in the closed dropdown
-// Notes     header/bullet-formatted text - see file header for the convention
+// Version        version + up to five words, shown as-is in the closed
+//                dropdown - not translated (see file header)
+// (per-language) one Notes field per WE_LANGUAGE_LIST entry, same order and
+//                field names as LocalizationEntry
 //--------------------------------------------------------------------------------
 struct VersionHistoryEntry
 {
     const char* Version;
-    const char* Notes;
+#define WE_LANG(aName, aCode) const char* aName;
+    WE_LANGUAGE_LIST
+#undef WE_LANG
 };
 
-//_ Newest first - RenderVersionHistoryWindow's dropdown defaults to index 0.
-static constexpr VersionHistoryEntry kVersionHistory[] = {
-    {
-        "1.7.0.0 - Live Event Notifications",
-        "New Features\n"
-        "  * Added region-wide live event toast notifications\n"
-        "    * Split by EU/NA, requires an API-key to know what region you're on\n"
-        "    * New Live Events tab in Edit Subscriptions (right-click subscription bar/toast/window), "
-        "optional name-sharing to enable whispers\n\n"
-        "Improvements\n"
-        "  * Added 6 more trackable live events\n"
-        "  * Bigger, size-matched live event map rings\n\n\n"
-        "Personal note:\n"
-        "  Some users have tried the new feature, myself included, and due to the mega server system "
-        "it happens way too often that someone arrives on a map that hasn't gotten any report yet. "
-        "So I decided to add a notification system, so you can subscribe to someone else reporting "
-        "an event that's live, and if they've decided to send their name with the report, you can "
-        "whisper them directly by clicking on that notification toast, so they can invite you. I also "
-        "added some more events from maps that don't create new instances that often. So I really hope "
-        "that those changes add more value to the feature.\n  Thank you"
-    },
-    {
-        "1.6.0.0 - Live Events",
-        "New Features\n"
-        "  * Added live event reporting. Opt-in, only Treasure Mushrooms for now\n"
-        "    * Draggable report button, recent-reports window, optional map markers\n"
-        "  * Added a \"What's New\" popup on update, the one you're reading right now\n"
-        "    * Full changelog on GitHub\n\n"
-        "Improvements\n"
-        "  * Better Chat integration now detects /self automatically"
-    },
-    {
-        "1.5.0.0 - Qucik access",
-        "New Features\n"
-        "  * Added new quick access subscription window\n"
-        "    * Accesible via right-clicking the subscription window, bar or toast"
-    },
-    {
-        "1.4.1.1 - Paste to self",
-        "New Features\n"
-        "  * Added texture customization for cyclic event groups\n"
-        "  * Added whisper and self \"Paste to\" options"
-    },
-    {
-        "1.3.2.1 - Competitive disable",
-        "New Features\n"
-        "  * Added options to hide UI elements in WvW and PvP"
-    },
-    {
-        "1.3.0.0 - Event defaults",
-        "New Features\n"
-        "  * Reset events to defaults\n"
-        "  * Varying times for slots in cyclic groups\n\n"
-        "Improvements\n"
-        "  * Added festival events with available timers"
-    },
-    {
-        "1.0.0.0 - Initial release",
-        "Features\n"
-        "  * Map markers for basic events and cyclic groups\n"
-        "  * Subscriptions bar, window and notification toasts\n"
-        "  * API-tracking for available events\n"
-        "  * Lots of customisation"
-    },
+//********************************************************************************
+// VersionHistoryLanguageSlot / kVersionHistoryLanguageSlots
+//--------------------------------------------------------------------------------
+// Same shape and purpose as LanguageSlot/kLanguageSlots (localization_table.h),
+// retargeted at VersionHistoryEntry - GetActiveLanguage()'s index is valid into
+// either array, since both are generated from the same WE_LANGUAGE_LIST.
+//--------------------------------------------------------------------------------
+struct VersionHistoryLanguageSlot
+{
+    const char* Code;
+    const char* VersionHistoryEntry::* Field;
 };
 
-static constexpr int kVersionHistoryCount = sizeof(kVersionHistory) / sizeof(kVersionHistory[0]);
+static constexpr VersionHistoryLanguageSlot kVersionHistoryLanguageSlots[] = {
+#define WE_LANG(aName, aCode) { aCode, &VersionHistoryEntry::aName },
+    WE_LANGUAGE_LIST
+#undef WE_LANG
+};
+
+//_ Generated from resources/localization/version_history.csv - see the file header above.
+#include "../generated/version_history.generated.h"

@@ -71,6 +71,45 @@ add_custom_command(
     VERBATIM
 )
 
+# Regenerates src/generated/localization_table_ui.generated.h from
+# resources/localization/ui_strings.csv (see tools/generate_localization_table.py
+# / src/core/localization_table.h). Also depends on localization_table.h itself,
+# since the generator reads WE_LANGUAGE_LIST from it to know the CSV's required
+# columns.
+set(LOCALIZATION_UI_CSV ${CMAKE_SOURCE_DIR}/resources/localization/ui_strings.csv)
+set(LOCALIZATION_UI_GENERATED ${CMAKE_SOURCE_DIR}/src/generated/localization_table_ui.generated.h)
+
+add_custom_command(
+    OUTPUT ${LOCALIZATION_UI_GENERATED}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_localization_table.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS
+        ${CMAKE_SOURCE_DIR}/tools/generate_localization_table.py
+        ${LOCALIZATION_UI_CSV}
+        ${CMAKE_SOURCE_DIR}/src/core/localization_table.h
+    COMMENT "Generating localization_table_ui.generated.h from ui_strings.csv..."
+    VERBATIM
+)
+
+# Regenerates src/generated/version_history.generated.h from
+# resources/localization/version_history.csv (see tools/generate_version_history.py
+# / src/addon/version_history.h). Also depends on localization_table.h, since the
+# generator reads WE_LANGUAGE_LIST from it to know the CSV's required columns.
+set(VERSION_HISTORY_CSV ${CMAKE_SOURCE_DIR}/resources/localization/version_history.csv)
+set(VERSION_HISTORY_GENERATED ${CMAKE_SOURCE_DIR}/src/generated/version_history.generated.h)
+
+add_custom_command(
+    OUTPUT ${VERSION_HISTORY_GENERATED}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_version_history.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS
+        ${CMAKE_SOURCE_DIR}/tools/generate_version_history.py
+        ${VERSION_HISTORY_CSV}
+        ${CMAKE_SOURCE_DIR}/src/core/localization_table.h
+    COMMENT "Generating version_history.generated.h from version_history.csv..."
+    VERBATIM
+)
+
 add_library(gw2-world-events SHARED
     src/addon/addon.cpp
     src/core/background_threads.cpp
@@ -87,6 +126,8 @@ add_library(gw2-world-events SHARED
     src/events/events_storage.cpp
     src/events/events_tracking.cpp
     src/generated/bundled_icons.generated.cpp
+    src/generated/localization_table_ui.generated.h
+    src/generated/version_history.generated.h
     src/integration/apikey_crypto.cpp
     src/integration/better_chat.cpp
     src/integration/gw2_api.cpp

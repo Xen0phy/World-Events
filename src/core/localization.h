@@ -14,9 +14,10 @@
 // Localization_TranslateTo instead of leaning on Translate's own current-language
 // fallback.
 //
-// All strings and supported languages live in localization_table.h, one
-// identifier+languages row per user-facing piece of text - start there to add or
-// change a string, or to add a language.
+// Supported languages are declared in localization_table.h. The strings
+// themselves live in resources/localization/ui_strings.csv, one identifier+
+// languages row per user-facing piece of text - start there to add or change a
+// string.
 //--------------------------------------------------------------------------------
 
 #pragma once

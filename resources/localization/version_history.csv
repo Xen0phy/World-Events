@@ -1,0 +1,154 @@
+version,en,de,fr,es,cn
+1.8.0.0 - Placeholder,"Personal Note:
+  Translations have been created from English using AI, if you find any issues, please feel free to report them to me.","Persönliche Notiz:
+  Übersetzungen wurden aus dem Englischen mit KI erstellt. Falls du Fehler findest, kannst du diese jederzeit direkt bei mir melden.","Note personnelle :
+  Les traductions ont été générées à partir de l'anglais à l'aide de l'IA. Si vous constatez des erreurs, n'hésitez pas à me les signaler.","Nota personal:
+  Las traducciones se han generado a partir del inglés mediante IA. Si encuentras algún problema, no dudes en informármelo.","个人说明：
+  译文由AI根据英文生成，如发现问题，请随时反馈给我。"
+1.7.0.0 - Live Event Notifications,"New Features
+  * Added region-wide live event toast notifications
+    * Split by EU/NA, requires an API-key to know what region you're on
+    * New Live Events tab in Edit Subscriptions (right-click subscription bar/toast/window), optional name-sharing to enable whispers
+
+Improvements
+  * Added 6 more trackable live events
+  * Bigger, size-matched live event map rings","Neue Funktionen
+  * Regionsweite Live-Event-Benachrichtigungen hinzugefügt
+    * Getrennt nach EU/NA, benötigt einen API-Schlüssel, um deine Region zu kennen
+    * Neuer Live-Events-Tab in Abos bearbeiten (Rechtsklick auf Abo-Leiste/-Toast/-Fenster), optionales Teilen des Namens zum Anflüstern
+
+Verbesserungen
+  * 6 weitere verfolgbare Live-Events hinzugefügt
+  * Größere, passend skalierte Live-Event-Ringe auf der Karte","Nouvelles fonctionnalités
+  * Ajout de notifications toast pour les événements en direct à l'échelle de la région
+    * Séparées par EU/NA, nécessite une clé API pour connaître votre région
+    * Nouvel onglet Événements en direct dans Modifier les abonnements (clic droit sur la barre/le toast/la fenêtre d'abonnement), partage de nom optionnel pour activer les chuchotements
+
+Améliorations
+  * Ajout de 6 événements en direct suivables supplémentaires
+  * Anneaux d'événements en direct sur la carte plus grands et à taille adaptée","Nuevas funciones
+  * Se añadieron notificaciones toast de eventos en vivo a nivel de región
+    * Separadas por EU/NA, requiere una clave API para saber en qué región estás
+    * Nueva pestaña de Eventos en vivo en Editar suscripciones (clic derecho en la barra/toast/ventana de suscripción), uso compartido de nombre opcional para habilitar susurros
+
+Mejoras
+  * Se añadieron 6 eventos en vivo rastreables más
+  * Anillos de eventos en vivo en el mapa más grandes y de tamaño ajustado","新功能
+  * 新增全区实时事件弹窗通知
+    * 按欧服/美服区分，需要API密钥识别你所在服务器区域
+    * 在「编辑订阅」内新增「实时事件」标签页（右键订阅栏/弹窗/窗口），可选择共享名称以启用密语功能
+
+改进
+  * 新增6个可追踪实时事件
+  * 地图上实时事件范围圆环尺寸加大，并匹配实际范围"
+1.6.0.0 - Live Events,"New Features
+  * Added live event reporting. Opt-in, only Treasure Mushrooms for now
+    * Draggable report button, recent-reports window, optional map markers
+  * Added a ""What's New"" popup on update, the one you're reading right now
+    * Full changelog on GitHub
+
+Improvements
+  * Better Chat integration now detects /self automatically","Neue Funktionen
+  * Live-Event-Meldungen hinzugefügt. Opt-in, vorerst nur Schatzpilze
+    * Ziehbarer Melde-Button, Fenster für letzte Meldungen, optionale Kartenmarkierungen
+  * ""Was ist neu""-Popup bei Updates hinzugefügt, genau das, was du gerade liest
+    * Vollständiges Änderungsprotokoll auf GitHub
+
+Verbesserungen
+  * Better-Chat-Integration erkennt /self jetzt automatisch","Nouvelles fonctionnalités
+  * Ajout du signalement d'événements en direct. Facultatif, pour l'instant uniquement pour les champignons au trésor
+    * Bouton de signalement déplaçable, fenêtre des signalements récents, marqueurs de carte optionnels
+  * Ajout d'une fenêtre « Nouveautés » lors des mises à jour, celle que vous êtes en train de lire
+    * Journal des modifications complet sur GitHub
+
+Améliorations
+  * L'intégration Better Chat détecte désormais /self automatiquement","Nuevas funciones
+  * Se añadió el reporte de eventos en vivo. Opcional, por ahora solo para Hongos del Tesoro
+    * Botón de reporte arrastrable, ventana de reportes recientes, marcadores de mapa opcionales
+  * Se añadió una ventana emergente de ""Novedades"" al actualizar, la que estás leyendo ahora mismo
+    * Registro de cambios completo en GitHub
+
+Mejoras
+  * La integración con Better Chat ahora detecta /self automáticamente","新功能
+  * 新增实时事件上报功能，需手动开启，当前仅宝藏蘑菇可用
+    * 可拖动上报按钮、最近上报记录窗口、可选地图标记
+  * 更新时弹出「更新内容」窗口，也就是你现在看到的这个
+    * GitHub上可查看完整更新日志
+
+改进
+  * Better Chat 集成现已支持自动识别 /self"
+1.5.0.0 - Quick access,"New Features
+  * Added new quick access subscription window
+    * Accesible via right-clicking the subscription window, bar or toast","Neue Funktionen
+  * Neues Schnellzugriffsfenster für Abos hinzugefügt
+    * Erreichbar per Rechtsklick auf Abo-Fenster, -Leiste oder -Toast","Nouvelles fonctionnalités
+  * Ajout d'une nouvelle fenêtre d'accès rapide aux abonnements
+    * Accessible par clic droit sur la fenêtre, la barre ou le toast d'abonnement","Nuevas funciones
+  * Se añadió una nueva ventana de acceso rápido a suscripciones
+    * Accesible haciendo clic derecho en la ventana, barra o toast de suscripción","新功能
+  * 新增订阅快速访问窗口
+    * 右键订阅窗口、订阅栏或弹窗即可打开"
+1.4.1.1 - Paste to self,"New Features
+  * Added texture customization for cyclic event groups
+  * Added whisper and self ""Paste to"" options","Neue Funktionen
+  * Texturanpassung für zyklische Event-Gruppen hinzugefügt
+  * ""Einfügen in""-Optionen für Anflüstern und Selbst hinzugefügt","Nouvelles fonctionnalités
+  * Ajout de la personnalisation des textures pour les groupes d'événements cycliques
+  * Ajout des options « Coller vers » chuchotement et soi-même","Nuevas funciones
+  * Se añadió la personalización de texturas para grupos de eventos cíclicos
+  * Se añadieron las opciones ""Pegar en"" de susurro y uno mismo","新功能
+  * 新增循环事件组纹理自定义功能
+  * 新增密语、自身频道的「粘贴至」选项"
+1.3.2.1 - Competitive disable,"New Features
+  * Added options to hide UI elements in WvW and PvP","Neue Funktionen
+  * Optionen zum Ausblenden von UI-Elementen in WvW und PvP hinzugefügt","Nouvelles fonctionnalités
+  * Ajout d'options pour masquer les éléments d'interface en McM et JcJ","Nuevas funciones
+  * Se añadieron opciones para ocultar elementos de la interfaz en McM y JcJ","新功能
+  * 新增在世界之战（WvW）和PvP中隐藏界面元素的选项"
+1.3.0.0 - Event defaults,"New Features
+  * Reset events to defaults
+  * Varying times for slots in cyclic groups
+
+Improvements
+  * Added festival events with available timers","Neue Funktionen
+  * Events auf Standard zurücksetzen
+  * Variierende Zeiten für Slots in zyklischen Gruppen
+
+Verbesserungen
+  * Festival-Events mit verfügbaren Timern hinzugefügt","Nouvelles fonctionnalités
+  * Réinitialisation des événements aux valeurs par défaut
+  * Horaires variables pour les créneaux dans les groupes cycliques
+
+Améliorations
+  * Ajout d'événements de festival avec minuteries disponibles","Nuevas funciones
+  * Restablecimiento de eventos a los valores predeterminados
+  * Horarios variables para las ranuras en grupos cíclicos
+
+Mejoras
+  * Se añadieron eventos de festival con temporizadores disponibles","新功能
+  * 事件重置为默认值
+  * 循环事件组内各时段时间可自定义
+
+改进
+  * 新增节日活动，附带可用倒计时"
+1.0.0.0 - Initial release,"Features
+  * Map markers for basic events and cyclic groups
+  * Subscriptions bar, window and notification toasts
+  * API-tracking for available events
+  * Lots of customisation","Funktionen
+  * Kartenmarkierungen für normale Events und zyklische Gruppen
+  * Abo-Leiste, -Fenster und Benachrichtigungen
+  * API-Verfolgung für verfügbare Events
+  * Umfangreiche Anpassungsmöglichkeiten","Fonctionnalités
+  * Marqueurs de carte pour les événements de base et les groupes cycliques
+  * Barre, fenêtre et notifications toast d'abonnements
+  * Suivi via l'API des événements disponibles
+  * Nombreuses possibilités de personnalisation","Funciones
+  * Marcadores de mapa para eventos básicos y grupos cíclicos
+  * Barra, ventana y notificaciones toast de suscripciones
+  * Seguimiento mediante API de eventos disponibles
+  * Amplias posibilidades de personalización","功能
+  * 基础事件与循环事件组的地图标记
+  * 订阅栏、订阅窗口与通知弹窗
+  * 通过API追踪可参与事件
+  * 丰富的自定义选项"
