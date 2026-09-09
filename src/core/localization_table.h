@@ -11,20 +11,20 @@
 //                       localization_table_ui.generated.h)
 // kLocalizationCount    number of rows in kLocalizationTable
 //--------------------------------------------------------------------------------
-// This file holds the language schema, not the strings. To add a language: add
-// a line to WE_LANGUAGE_LIST below, then add the matching column to every row
-// of resources/localization/ui_strings.csv. LocalizationEntry and
-// kLanguageSlots are both generated from WE_LANGUAGE_LIST, so the field and its
-// Nexus code can't drift out of sync with each other.
+// This file holds the language schema, not the strings. To add a language: add a
+// line to WE_LANGUAGE_LIST below, then add the matching column to every row of
+// resources/localization/ui_strings.csv. LocalizationEntry and kLanguageSlots are
+// both generated from WE_LANGUAGE_LIST, so the field and its Nexus code can't
+// drift out of sync with each other.
 //
-// The strings themselves live in resources/localization/ui_strings.csv, one
-// row per identifier, grouped into "//_" banner rows by UI area.
+// The strings themselves live in resources/localization/ui_strings.csv, one row
+// per identifier, grouped into "//_" banner rows by UI area.
 // tools/generate_localization_table.py turns that CSV into
-// src/generated/localization_table_ui.generated.h (included below) as part of
-// the normal build, and fails the build on any row missing a language.
+// src/generated/localization_table_ui.generated.h (included below) as part of the
+// normal build, and fails the build on any row missing a language.
 //
-// Identifier is World Events' own key, not shown to the user - prefixed "WE_"
-// so it can't collide with Nexus's own identifiers (short "KB_..." names or
+// Identifier is World Events' own key, not shown to the user - prefixed "WE_" so
+// it can't collide with Nexus's own identifiers (short "KB_..." names or
 // "((000123))"-style numeric placeholders).
 //
 // Add a row to the CSV, then call Tr("WE_...") at the call site - never format

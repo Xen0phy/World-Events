@@ -612,10 +612,6 @@ bool LoadEventsData(const std::string& addonDir)
             for (const auto& gj : j["cyclicGroups"])
                 loadedGroups.push_back(DeserializeGroup(gj));
 
-        //_ Pre-migration file (no "id" key): backfill by matching the compiled-in
-        //_ default's name, or slugify the loaded name when nothing matches (user
-        //_ renamed or added it). Must run before EventKey/GroupKey/SlotKey are
-        //_ used below, since those key on id.
         std::unordered_set<std::string> usedEventIds;
         for (const auto& d : g_Events)
             usedEventIds.insert(d.id);

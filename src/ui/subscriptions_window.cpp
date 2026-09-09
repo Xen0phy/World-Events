@@ -213,7 +213,7 @@ void RenderSubscriptionsWindow()
             if (as.active && SubscriptionsHideActive) continue; //. hides already-active subscriptions
 
             rows.push_back({ sub.label, sub.chatCode, as.active, secs, sub.isWeeklyTarget,
-                              sub.isBasic, sub.basicId, CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotOffset } });
+                              sub.isBasic, sub.basicId, CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotId } });
         }
 
         std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b)

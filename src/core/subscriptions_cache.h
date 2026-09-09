@@ -33,7 +33,7 @@
 //********************************************************************************
 // ResolvedSubscription
 //--------------------------------------------------------------------------------
-// key                 "Basic:<id>" / "Cyclic:<groupId>:<offset>" - same
+// key                 "Basic:<id>" / "Cyclic:<groupId>:<slotId>" - same
 //                      convention used throughout the three UI files
 // isBasic              true = Basic Event, false = Cyclic slot
 // basicId              valid when isBasic; identity (Toggle.../Is...Enabled
@@ -42,7 +42,7 @@
 //                      color hash, row label)
 // cyclicGroupId        valid when !isBasic; identity, not display
 // cyclicGroupName      valid when !isBasic; display only
-// cyclicSlotOffset     valid when !isBasic
+// cyclicSlotId         valid when !isBasic; identity, not display
 // label                display name, e.g. "Tequatl the Sunless" or
 //                      "Domain of Vabbi - Forged Assault"
 // chatCode             map-travel chat code
@@ -83,7 +83,7 @@ struct ResolvedSubscription
     std::string basicName;
     std::string cyclicGroupId;
     std::string cyclicGroupName;
-    int         cyclicSlotOffset = 0;
+    std::string cyclicSlotId;
 
     std::string label;
     std::string chatCode;

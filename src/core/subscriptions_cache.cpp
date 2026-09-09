@@ -44,7 +44,7 @@ namespace
     };
 }
 
-static std::unordered_map<std::string, WeeklyTargetInfo> s_weeklyCache;   //. key: "Basic:<id>" / "Cyclic:<groupId>:<offset>"
+static std::unordered_map<std::string, WeeklyTargetInfo> s_weeklyCache;   //. key: "Basic:<id>" / "Cyclic:<groupId>:<slotId>"
 static std::vector<ResolvedSubscription>                 s_resolved;
 
 //_ Recorded after each rebuild; compared against current values in
@@ -136,11 +136,8 @@ static void RebuildWeeklyCache()
                 [&](const CyclicGroup::Slot& s) { return s.id == target.slotId; });
             if (slotIt == grpIt->slots.end()) continue;   //. slot deleted
 
-            char offsetBuf[16];
-            snprintf(offsetBuf, sizeof(offsetBuf), "%d", slotIt->offset);
-
             info.mappingTitle = grpIt->name + " - " + slotIt->name;   //. internal-only label
-            s_weeklyCache["Cyclic:" + grpIt->id + ":" + offsetBuf] = info;
+            s_weeklyCache["Cyclic:" + grpIt->id + ":" + slotIt->id] = info;
         }
     }
 }
@@ -184,15 +181,12 @@ static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubs
 
 static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGroup::Slot& slot, bool manuallySubscribed)
 {
-    char offsetBuf[16];
-    snprintf(offsetBuf, sizeof(offsetBuf), "%d", slot.offset);
-
     ResolvedSubscription r;
-    r.key                = "Cyclic:" + grp.id + ":" + offsetBuf;
+    r.key                = "Cyclic:" + grp.id + ":" + slot.id;
     r.isBasic            = false;
     r.cyclicGroupId      = grp.id;
     r.cyclicGroupName    = grp.name;
-    r.cyclicSlotOffset   = slot.offset;
+    r.cyclicSlotId       = slot.id;
     r.label              = grp.name + " - " + slot.name;
     r.chatCode           = slot.chatCode;
     r.manuallySubscribed = manuallySubscribed;
@@ -201,7 +195,7 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
         r.isWeeklyTarget = !it->second.complete;
 
     bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId);
-    bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.id, slot.offset });
+    bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.id, slot.id });
     r.doneToday = apiDone || manualDone;
 
     r.isVarying    = slot.isVarying;
@@ -244,7 +238,7 @@ static void RebuildResolvedSubscriptions()
         if (grpIt == g_CyclicGroups.end()) continue;   //. group deleted since subscribing
 
         auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
-            [&](const CyclicGroup::Slot& s) { return s.offset == subKey.slotOffset; });
+            [&](const CyclicGroup::Slot& s) { return s.id == subKey.slotId; });
         if (slotIt == grpIt->slots.end()) continue;   //. slot deleted since subscribing
 
         s_resolved.push_back(ResolveCyclic(*grpIt, *slotIt, true));
@@ -278,18 +272,18 @@ static void RebuildResolvedSubscriptions()
             }
             else
             {
-                //_ "Cyclic:<groupId>:<offset>" - split on the LAST ':' since
+                //_ "Cyclic:<groupId>:<slotId>" - split on the LAST ':' since
                 // a group id could itself contain one.
                 size_t lastColon = cacheKey.rfind(':');
                 std::string groupId = cacheKey.substr(7, lastColon - 7);   //. 7 == strlen("Cyclic:")
-                int offset = atoi(cacheKey.c_str() + lastColon + 1);
+                std::string slotId  = cacheKey.substr(lastColon + 1);
 
                 auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
                     [&](const CyclicGroup& g) { return g.id == groupId; });
                 if (grpIt == g_CyclicGroups.end()) continue;   //. group removed
 
                 auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
-                    [&](const CyclicGroup::Slot& s) { return s.offset == offset; });
+                    [&](const CyclicGroup::Slot& s) { return s.id == slotId; });
                 if (slotIt == grpIt->slots.end()) continue;   //. slot renamed or deleted
 
                 s_resolved.push_back(ResolveCyclic(*grpIt, *slotIt, false));

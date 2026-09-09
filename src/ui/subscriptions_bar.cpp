@@ -72,7 +72,7 @@ static ImU32 BasicEventColorFor(const std::string& name)
 //********************************************************************************
 // LineSegment
 //--------------------------------------------------------------------------------
-// key           stable identity, e.g. "Basic:Name" or "Cyclic:Group:Offset"
+// key           stable identity, e.g. "Basic:Name" or "Cyclic:Group:SlotId"
 // name          display name for tooltip
 // chatCode      waypoint chat code pasted on click
 // startX/endX   local pixel-space span, clamped to [0, W]
@@ -315,7 +315,7 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             if (grpIt != g_CyclicGroups.end())
             {
                 auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
-                    [&](const CyclicGroup::Slot& s) { return s.offset == sub.cyclicSlotOffset; });
+                    [&](const CyclicGroup::Slot& s) { return s.id == sub.cyclicSlotId; });
                 if (slotIt != grpIt->slots.end())
                     color = grpIt->SlotColor(*slotIt);
             }
@@ -329,7 +329,7 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         seg.isWeekly  = sub.isWeeklyTarget;
         seg.isBasic   = sub.isBasic;
         seg.basicId   = sub.basicId;
-        seg.cyclicKey = CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotOffset };
+        seg.cyclicKey = CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotId };
         segs.push_back(seg);
     }
 

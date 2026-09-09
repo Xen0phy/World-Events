@@ -248,7 +248,7 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         bool soundEnabled = false;
         if (sub.manuallySubscribed)
         {
-            CyclicSubscriptionKey key{ sub.cyclicGroupId, sub.cyclicSlotOffset };
+            CyclicSubscriptionKey key{ sub.cyclicGroupId, sub.cyclicSlotId };
             toastEnabled = sub.isBasic
                 ? IsBasicEventToastEnabled(sub.basicId)
                 : IsCyclicSlotToastEnabled(key);
@@ -260,7 +260,7 @@ static void CollectCandidates(std::vector<Candidate>& out, time_t now)
         out.push_back({ sub.key, sub.label, sub.chatCode, as.active, as.secsUntilStart, sub.isWeeklyTarget,
                          toastEnabled, soundEnabled,
                          sub.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic,
-                         sub.basicId, CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotOffset } });
+                         sub.basicId, CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotId } });
     }
 }
 

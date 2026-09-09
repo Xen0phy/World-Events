@@ -830,13 +830,13 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     bool allSlotsSubscribed = !grp.slots.empty() &&
         std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
         {
-            return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.offset });
+            return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.id });
         });
     if (DrawSubscribeCheckbox("##subscribe_group", allSlotsSubscribed))
     {
         for (const auto& slot : grp.slots)
         {
-            CyclicSubscriptionKey key{ grp.id, slot.offset };
+            CyclicSubscriptionKey key{ grp.id, slot.id };
             //_ allSlotsSubscribed already holds the post-click state: unticking drops every slot to 0, ticking only raises 0 -> 1.
             if (!allSlotsSubscribed)
             {
@@ -932,7 +932,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             ImGui::PushID(s);
 
             //_ Per SLOT, not per group; the group checkbox above is a bulk convenience over these same per-slot subscriptions.
-            CyclicSubscriptionKey subKey{ grp.id, slot.offset };
+            CyclicSubscriptionKey subKey{ grp.id, slot.id };
             int notifyLevel = GetCyclicSlotNotifyLevel(subKey);
             int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
             if (newNotifyLevel != notifyLevel)
@@ -954,7 +954,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. name unchanged - defaultSlot was found BY (grp.id, slot.id)
                 defaultSlot != nullptr);
             bool slotOpen = slotNameResult.open;
-            //_ Slots aren't categorized and subscriptions key on (group id, offset), not name, so no rename fixups are needed.
+            //_ Slots aren't categorized and subscriptions key on (group id, slot id), not name, so no rename fixups are needed.
             if (slotNameResult.newName != slot.name)
                 slot.name = slotNameResult.newName;
 

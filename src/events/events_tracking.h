@@ -30,7 +30,7 @@
 
 #pragma once
 
-//_ CyclicSubscriptionKey - same (groupId, slotOffset) key shape.
+//_ CyclicSubscriptionKey - same (groupId, slotId) key shape.
 #include "subscriptions.h"
 
 #include <string>
@@ -57,7 +57,7 @@ void ToggleBasicEventDoneToday(const std::string& eventId);
 // IsCyclicSlotMarkedDoneToday / ToggleCyclicSlotDoneToday
 //--------------------------------------------------------------------------------
 // Query/toggle the manual "done today" mark for a Cyclic slot, by (groupId,
-// slotOffset) key.
+// slotId) key.
 //--------------------------------------------------------------------------------
 bool IsCyclicSlotMarkedDoneToday(const CyclicSubscriptionKey& key);
 void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key);

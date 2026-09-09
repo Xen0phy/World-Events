@@ -150,12 +150,12 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
 //--------------------------------------------------------------------------------
 // Same collapsed/expanded shape as DrawLeanBasicEventRow (notify icon in front,
 // visible collapsed; DrawNotifyLevelButtons jump grid in the expanded body),
-// keyed by (group name, slot offset) instead of a plain name.
+// keyed by (group id, slot id) instead of a plain name.
 //--------------------------------------------------------------------------------
 static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
 {
     CyclicGroup::Slot& slot = grp.slots[s];
-    CyclicSubscriptionKey key{ grp.id, slot.offset };
+    CyclicSubscriptionKey key{ grp.id, slot.id };
 
     int notifyLevel = GetCyclicSlotNotifyLevel(key);
     int newNotifyLevel = DrawNotifyLevelIcon("##edit_notify", notifyLevel);
@@ -197,11 +197,11 @@ static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
 // collapsed lines. Expanded: the bulk "subscribe all slots" checkbox
 // (allSlotsSubscribed pattern, mirrors DrawCyclicGroupRow in
 // addon_options_helpers.cpp) above the nested per-slot list, each drawn via
-// DrawLeanCyclicSlotRow. hasForceSlot/forceSlotOffset identify which one slot (if
+// DrawLeanCyclicSlotRow. hasForceSlot/forceSlotId identify which one slot (if
 // any) should also force itself open once the group itself is opened - used when
 // a deep-link target is a specific occurrence, not just "this cycle."
 //--------------------------------------------------------------------------------
-static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot, int forceSlotOffset)
+static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot, const std::string& forceSlotId)
 {
     CyclicGroup& grp = g_CyclicGroups[i];
 
@@ -220,13 +220,13 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
         bool allSlotsSubscribed = !grp.slots.empty() &&
             std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
             {
-                return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.offset });
+                return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.id });
             });
         if (DrawSubscribeCheckbox("##edit_subscribe_group", allSlotsSubscribed))
         {
             for (const auto& slot : grp.slots)
             {
-                CyclicSubscriptionKey key{ grp.id, slot.offset };
+                CyclicSubscriptionKey key{ grp.id, slot.id };
                 //_ Same post-click semantics as DrawCyclicGroupRow: unticking drops every slot to 0, ticking only raises 0 -> 1.
                 if (!allSlotsSubscribed)
                     SetCyclicSlotNotifyLevel(key, 0);
@@ -242,7 +242,7 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
         for (int s = 0; s < (int)grp.slots.size(); s++)
         {
             ImGui::PushID(s);
-            bool forceOpenSlot = hasForceSlot && grp.slots[s].offset == forceSlotOffset;
+            bool forceOpenSlot = hasForceSlot && grp.slots[s].id == forceSlotId;
             DrawLeanCyclicSlotRow(grp, s, forceOpenSlot);
             ImGui::PopID();
         }
@@ -520,7 +520,7 @@ void RenderEditSubscriptionsWindow()
                                 bool forceOpenGroup = pendingTarget && pendingTarget->kind == SubscriptionKind::Cyclic
                                     && g_CyclicGroups[i].id == pendingTarget->cyclicKey.groupId;
                                 DrawLeanCyclicGroupRow(i, forceOpenGroup, forceOpenGroup,
-                                    pendingTarget ? pendingTarget->cyclicKey.slotOffset : 0);
+                                    pendingTarget ? pendingTarget->cyclicKey.slotId : std::string());
                                 ImGui::PopID();
                             }
                             break;
@@ -539,7 +539,7 @@ void RenderEditSubscriptionsWindow()
                     bool forceOpenGroup = pendingTarget && pendingTarget->kind == SubscriptionKind::Cyclic
                         && g_CyclicGroups[i].id == pendingTarget->cyclicKey.groupId;
                     DrawLeanCyclicGroupRow(i, forceOpenGroup, forceOpenGroup,
-                        pendingTarget ? pendingTarget->cyclicKey.slotOffset : 0);
+                        pendingTarget ? pendingTarget->cyclicKey.slotId : std::string());
                     ImGui::PopID();
                 }
 

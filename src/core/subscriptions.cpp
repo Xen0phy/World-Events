@@ -251,26 +251,84 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
-// Deserialize defaults missing fields to empty string / 0 instead of throwing.
-// Falls back to the legacy "groupName" key when "groupId" is absent, so a pre-id-
+// Deserialize defaults missing fields to empty string instead of throwing. Falls
+// back to the legacy "groupName" key when "groupId" is absent, so a pre-id-
 // migration events.json still loads - the group NAME that lands in key.groupId
 // this way is converted to an id below, by the same self-triggering migration
 // LoadSubscriptionsData runs for the other lists.
+//
+// A saved "slotOffset" instead of "slotId" means this entry predates the
+// collision fix (cyclic-subscription-key-handoff.md) - see ExpandLegacyOffsetKey
+// below for how those get resolved into real slot ids.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
     json j;
-    j["groupId"]    = key.groupId;
-    j["slotOffset"] = key.slotOffset;
+    j["groupId"] = key.groupId;
+    j["slotId"]  = key.slotId;
     return j;
 }
 
 static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 {
     CyclicSubscriptionKey key;
-    key.groupId    = j.value("groupId", j.value("groupName", std::string()));
-    key.slotOffset = j.value("slotOffset", 0);
+    key.groupId = j.value("groupId", j.value("groupName", std::string()));
+    key.slotId  = j.value("slotId", std::string());
     return key;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ExpandLegacyOffsetKey
+//--------------------------------------------------------------------------------
+// A pre-fix entry, still holding a raw "slotOffset" int in place of "slotId", is
+// genuinely ambiguous: every isVarying slot in the group that shared that
+// (unused) offset value looked identical under the old key, so there's no way to
+// recover which one the user actually meant. Best-effort expansion: return every
+// slot in the named group whose own offset matches, under its real slotId. For a
+// non-varying slot this is normally exactly one match, a no-op. Empty when
+// legacyOffset has no value (already a current-format entry) or the group can't
+// be found.
+//--------------------------------------------------------------------------------
+static std::vector<CyclicSubscriptionKey> ExpandLegacyOffsetKey(const std::string& groupId, int legacyOffset)
+{
+    std::vector<CyclicSubscriptionKey> expanded;
+
+    auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
+        [&](const CyclicGroup& g) { return g.id == groupId; });
+    if (grpIt == g_CyclicGroups.end()) return expanded;
+
+    for (const auto& slot : grpIt->slots)
+        if (slot.offset == legacyOffset)
+            expanded.push_back({ groupId, slot.id });
+
+    return expanded;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// MigrateLegacyOffsetEntries
+//--------------------------------------------------------------------------------
+// Runs once per load, after DeserializeCyclicKey, against a list that may still
+// contain pre-fix entries (json.slotId absent, key.slotId left empty).
+// ExpandLegacyOffsetKey resolves each against legacyOffset, read straight from
+// the same json object since key.slotId can't carry it. A current-format entry
+// (non-empty key.slotId) passes through untouched.
+//--------------------------------------------------------------------------------
+static void MigrateLegacyOffsetEntries(std::vector<CyclicSubscriptionKey>& list, const json& arr)
+{
+    std::vector<CyclicSubscriptionKey> migrated;
+    for (size_t i = 0; i < list.size() && i < arr.size(); i++)
+    {
+        if (!list[i].slotId.empty())
+        {
+            migrated.push_back(list[i]);
+            continue;
+        }
+
+        int legacyOffset = arr[i].value("slotOffset", 0);
+        auto expanded = ExpandLegacyOffsetKey(list[i].groupId, legacyOffset);
+        migrated.insert(migrated.end(), expanded.begin(), expanded.end());
+    }
+    list = std::move(migrated);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -317,7 +375,8 @@ static void MigrateCyclicEntriesToIds(std::vector<CyclicSubscriptionKey>& list, 
 //
 // Load defaults any missing key to empty via .value(...), so an events.json from
 // before this feature existed loads with every subscription non-toast/non-sound
-// instead of opting in silently.
+// instead of opting in silently. Also runs MigrateLegacyOffsetEntries on each
+// cyclic list, for an events.json from before the slotId collision fix.
 //--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir)
 {
@@ -384,18 +443,27 @@ bool LoadSubscriptionsData(const std::string& addonDir)
 
         g_SubscribedCyclicSlots.clear();
         if (j.contains("subscribedCyclicSlots") && j["subscribedCyclicSlots"].is_array())
+        {
             for (const auto& kj : j["subscribedCyclicSlots"])
                 g_SubscribedCyclicSlots.push_back(DeserializeCyclicKey(kj));
+            MigrateLegacyOffsetEntries(g_SubscribedCyclicSlots, j["subscribedCyclicSlots"]);
+        }
 
         g_ToastEnabledCyclicSlots.clear();
         if (j.contains("toastEnabledCyclicSlots") && j["toastEnabledCyclicSlots"].is_array())
+        {
             for (const auto& kj : j["toastEnabledCyclicSlots"])
                 g_ToastEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
+            MigrateLegacyOffsetEntries(g_ToastEnabledCyclicSlots, j["toastEnabledCyclicSlots"]);
+        }
 
         g_SoundEnabledCyclicSlots.clear();
         if (j.contains("soundEnabledCyclicSlots") && j["soundEnabledCyclicSlots"].is_array())
+        {
             for (const auto& kj : j["soundEnabledCyclicSlots"])
                 g_SoundEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
+            MigrateLegacyOffsetEntries(g_SoundEnabledCyclicSlots, j["soundEnabledCyclicSlots"]);
+        }
 
         g_SubscribedLiveEvents = j.value("subscribedLiveEvents", std::vector<std::string>{});
         g_NamedOnlyLiveEvents = j.value("namedOnlyLiveEvents", std::vector<std::string>{});
@@ -435,26 +503,36 @@ bool LoadSubscriptionsData(const std::string& addonDir)
 // Plain Win32 clipboard write. No synthetic keystrokes, no window-handle
 // targeting, nothing sent to the game process - this only touches the shared OS
 // clipboard, same as any other app's "Copy" button.
+//
+// text is UTF-8, converted here to UTF-16 and published as CF_UNICODETEXT, never
+// CF_TEXT: CF_TEXT holds single-byte-per-character ANSI codepage bytes, which
+// can't represent most non-Latin scripts (e.g. Chinese) at all and silently
+// corrupts them on paste. CF_UNICODETEXT is what every modern Unicode paste
+// target, including GW2's own chat box, actually reads.
 //--------------------------------------------------------------------------------
 bool CopyTextToClipboard(const std::string& text)
 {
+    int wideLen = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+    if (wideLen <= 0)
+        return false;
+
     if (!OpenClipboard(nullptr))
         return false;
 
     EmptyClipboard();
 
-    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (SIZE_T)wideLen * sizeof(wchar_t));
     if (!hMem)
     {
         CloseClipboard();
         return false;
     }
 
-    void* pMem = GlobalLock(hMem);
-    memcpy(pMem, text.c_str(), text.size() + 1);
+    wchar_t* pMem = static_cast<wchar_t*>(GlobalLock(hMem));
+    MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, pMem, wideLen);
     GlobalUnlock(hMem);
 
-    SetClipboardData(CF_TEXT, hMem);
+    SetClipboardData(CF_UNICODETEXT, hMem);
     CloseClipboard();
     return true;
 }
@@ -498,9 +576,8 @@ std::string BuildChatPasteMessage(const std::string& name, const std::string& ch
 //--------------------------------------------------------------------------------
 // Mumble::Data::Identity (Mumble.h) is a UTF-16 JSON string, not a plain name
 // field - {"name":"...", "profession":N, ...}. ParseMumbleIdentity
-// (mumble_identity.h) does the UTF-16 -> UTF-8 -> JSON parse; "name" is then
-// narrowed again to the clipboard's ANSI codepage so accented names survive
-// CopyTextToClipboard's CF_TEXT write the same as any other pasted segment.
+// (mumble_identity.h) does the UTF-16 -> UTF-8 -> JSON parse; the result is
+// already what CopyTextToClipboard expects, no further conversion needed here.
 // Returns empty on any failure: MumbleLink not ready yet, malformed/empty
 // identity, missing "name".
 //--------------------------------------------------------------------------------
@@ -510,21 +587,7 @@ std::string GetMumbleCharacterName()
     if (!id || id->name.empty())
         return "";
 
-    const std::string& name = id->name;
-
-    int wideLen = MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, nullptr, 0);
-    if (wideLen <= 0)
-        return "";
-    std::wstring wideName(wideLen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, wideName.data(), wideLen);
-
-    int ansiLen = WideCharToMultiByte(CP_ACP, 0, wideName.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    if (ansiLen <= 0)
-        return "";
-    std::string ansiName(ansiLen - 1, '\0');
-    WideCharToMultiByte(CP_ACP, 0, wideName.c_str(), -1, ansiName.data(), ansiLen, nullptr, nullptr);
-
-    return ansiName;
+    return id->name;
 }
 
 //_ Guards PasteSegmentsToChat below against overlapping calls.

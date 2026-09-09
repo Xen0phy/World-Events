@@ -22,7 +22,7 @@
 // subscriptions UI (see ui/subscriptions_ui.h). References existing event/slot
 // data by id/key instead of owning a copy - the render code looks up the live
 // WorldEvent/CyclicGroup::Slot in g_Events/g_CyclicGroups every frame. Basic
-// Events key on WorldEvent::id; Cyclic Events key on (group id, slot offset) per
+// Events key on WorldEvent::id; Cyclic Events key on (group id, slot id) per
 // occurrence, since slot ids are unique only within a group, not globally.
 //
 // A Basic/Cyclic subscription may also opt into a toast popup and, on top of
@@ -50,17 +50,17 @@
 //********************************************************************************
 // CyclicSubscriptionKey
 //--------------------------------------------------------------------------------
-// groupId      id of the cyclic group
-// slotOffset   offset of the slot within that group
+// groupId   id of the cyclic group
+// slotId    id of the slot within that group
 //--------------------------------------------------------------------------------
 struct CyclicSubscriptionKey
 {
     std::string groupId;
-    int         slotOffset = 0;
+    std::string slotId;
 
     bool operator==(const CyclicSubscriptionKey& other) const
     {
-        return groupId == other.groupId && slotOffset == other.slotOffset;
+        return groupId == other.groupId && slotId == other.slotId;
     }
 };
 

@@ -19,11 +19,11 @@
 // entry by hand at the TOP of the CSV on any release worth mentioning; skip the
 // rest.
 //
-// Version is English-only, never translated - keep it to the version number
-// plus five words or less, it's the whole label shown in the closed dropdown.
-// Notes is per-language, one column per WE_LANGUAGE_LIST entry in the CSV; add a
-// language the same way as localization_table.h: add a line to WE_LANGUAGE_LIST
-// there, then add the matching column to every row of both CSVs.
+// Version is English-only, never translated - keep it to the version number plus
+// five words or less, it's the whole label shown in the closed dropdown. Notes is
+// per-language, one column per WE_LANGUAGE_LIST entry in the CSV; add a language
+// the same way as localization_table.h: add a line to WE_LANGUAGE_LIST there,
+// then add the matching column to every row of both CSVs.
 //
 // Notes uses the same "\n"-separated format Split Wars' VersionNotice used: 2
 // leading spaces = one indent level, "* " marks a bullet, an unindented non-
