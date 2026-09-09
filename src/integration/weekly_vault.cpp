@@ -88,8 +88,9 @@ static std::string AsciiLower(const std::string& s)
 //--------------------------------------------------------------------------------
 // See weekly_vault.h for the full contract. Searches GetLiveWeeklyObjectives()
 // (gw2_api.h) for a live title containing the event's COMPILED-IN DEFAULT name -
-// GetDefaultEvent (events_storage.h), never the resolved event's own (possibly
-// renamed/localized) name, since ArenaNet's API text never changes with it.
+// DisplayNameEnglish(*defaultEv) (events_storage.h), never the resolved event's
+// own (possibly renamed/localized) name, since ArenaNet's API text never changes
+// with it.
 //--------------------------------------------------------------------------------
 bool IsBasicEventWeeklyTarget(const std::string& eventId, bool& outComplete)
 {
@@ -102,7 +103,7 @@ bool IsBasicEventWeeklyTarget(const std::string& eventId, bool& outComplete)
     const WorldEvent* defaultEv = GetDefaultEvent(eventId);
     if (!defaultEv) return false;
 
-    std::string needle = AsciiLower(defaultEv->name);
+    std::string needle = AsciiLower(DisplayNameEnglish(*defaultEv));
     for (const auto& live : GetLiveWeeklyObjectives())
     {
         if (live.titleLower.find(needle) == std::string::npos) continue; //. not this one - keep looking

@@ -22,6 +22,8 @@
 
 #include "events.h"
 #include "events_categories.h"
+#include "events_storage.h"
+#include "localization.h"
 #include <nlohmann/json.hpp>
 
 #include <cctype>
@@ -39,16 +41,22 @@ namespace fs = std::filesystem;
 // (De)serializes one WorldEvent. id is the merge/identity key (see EventKey);
 // DeserializeEvent leaves it empty when absent from a pre-migration file rather
 // than guessing - LoadEventsData backfills it afterward, once defaults are in
-// scope to match against. iconTexture/chatCode are omitted when empty and shown
-// is omitted when true (the default) - all three fall through cleanly via
-// j.value() on load. isVarying selects varyingTimes vs period/offset (see
+// scope to match against. iconTexture/chatCode/customName are omitted when empty
+// and shown is omitted when true (the default) - all four fall through cleanly
+// via j.value() on load. isVarying selects varyingTimes vs period/offset (see
 // WorldEvent in events.h).
+//
+// customName/outIsLegacyName: a file predating the customName rename has "name"
+// instead. DeserializeEvent stashes that raw legacy text into customName as a
+// scratch value (outIsLegacyName = true) rather than resolving it here - id
+// might still be empty at this point (see EventKey backfill below), and
+// resolving needs a known id to compare against WE_NAME_BASIC_<id>. See
+// LoadEventsData's migration pass, which runs once ids are final.
 //--------------------------------------------------------------------------------
 static json SerializeEvent(const WorldEvent& ev)
 {
     json j;
     j["id"]         = ev.id;
-    j["name"]       = ev.name;
     j["continentX"] = ev.continentX;
     j["continentY"] = ev.continentY;
     j["isVarying"]  = ev.isVarying;
@@ -63,6 +71,9 @@ static json SerializeEvent(const WorldEvent& ev)
     if (!ev.shown)
         j["shown"] = false;
 
+    if (!ev.customName.empty())
+        j["customName"] = ev.customName;
+
     if (ev.isVarying)
         j["varyingTimes"] = ev.varyingTimes;
     else
@@ -73,11 +84,10 @@ static json SerializeEvent(const WorldEvent& ev)
     return j;
 }
 
-static WorldEvent DeserializeEvent(const json& j)
+static WorldEvent DeserializeEvent(const json& j, bool& outIsLegacyName)
 {
     WorldEvent ev{};
     ev.id          = j.value("id", std::string());
-    ev.name        = j.value("name", std::string("Unnamed Event"));
     ev.continentX  = j.value("continentX", 0.0f);
     ev.continentY  = j.value("continentY", 0.0f);
     ev.isVarying   = j.value("isVarying", false);
@@ -85,6 +95,12 @@ static WorldEvent DeserializeEvent(const json& j)
     ev.iconTexture = j.value("iconTexture", std::string());
     ev.chatCode    = j.value("chatCode", std::string());
     ev.shown       = j.value("shown", true);
+
+    outIsLegacyName = j.contains("name") && !j.contains("customName");
+    if (j.contains("customName"))
+        ev.customName = j.value("customName", std::string());
+    else if (j.contains("name"))
+        ev.customName = j.value("name", std::string());   //. scratch - see header comment above
 
     if (ev.isVarying)
         ev.varyingTimes = j.value("varyingTimes", std::vector<int>{});
@@ -485,8 +501,8 @@ static void ApplySlotOverrides(std::vector<CyclicGroup>& groups, int64_t savedVe
 // Lowercases, drops apostrophes, and collapses every other non-alphanumeric run
 // to a single underscore (leading/trailing underscores stripped). Same scheme
 // used by hand for the compiled-in ids (events_basic.cpp/events_cyclic.cpp).
-// Migration fallback only, for a loaded name that doesn't match any compiled-in
-// default - see LoadEventsData.
+// Migration fallback only, for a loaded WorldEvent/CyclicGroup name that doesn't
+// match any compiled-in default's DisplayNameEnglish - see LoadEventsData.
 //--------------------------------------------------------------------------------
 static std::string SlugifyName(const std::string& name)
 {
@@ -603,9 +619,14 @@ bool LoadEventsData(const std::string& addonDir)
         bool resurrectMissingDefaults = savedVersion < EVENTS_DATA_VERSION;
 
         std::vector<WorldEvent> loadedEvents;
+        std::vector<bool>       loadedEventIsLegacyName;   //. see DeserializeEvent's header comment
         if (j.contains("events") && j["events"].is_array())
             for (const auto& ej : j["events"])
-                loadedEvents.push_back(DeserializeEvent(ej));
+            {
+                bool isLegacyName = false;
+                loadedEvents.push_back(DeserializeEvent(ej, isLegacyName));
+                loadedEventIsLegacyName.push_back(isLegacyName);
+            }
 
         std::vector<CyclicGroup> loadedGroups;
         if (j.contains("cyclicGroups") && j["cyclicGroups"].is_array())
@@ -618,13 +639,24 @@ bool LoadEventsData(const std::string& addonDir)
 
         for (auto& ev : loadedEvents)
         {
+            //_ Pre-id file: ev.customName is still the raw legacy "name" text here (DeserializeEvent's scratch use).
             if (!ev.id.empty()) { usedEventIds.insert(ev.id); continue; }
 
             const WorldEvent* def = nullptr;
             for (const auto& d : g_Events)
-                if (d.name == ev.name) { def = &d; break; }
+                if (DisplayNameEnglish(d) == ev.customName) { def = &d; break; }
 
-            ev.id = def ? def->id : UniqueId(SlugifyName(ev.name), usedEventIds);
+            ev.id = def ? def->id : UniqueId(SlugifyName(ev.customName), usedEventIds);
+        }
+
+        //_ Resolves the scratch value DeserializeEvent left in customName for every legacy-format row, now that every id above is final - see the Migration section this implements (localization-handoff.md).
+        for (size_t i = 0; i < loadedEvents.size(); i++)
+        {
+            if (!loadedEventIsLegacyName[i]) continue;   //. already customName-format on disk
+
+            if (loadedEvents[i].customName == TrEnglish(("WE_NAME_BASIC_" + loadedEvents[i].id).c_str()))
+                loadedEvents[i].customName.clear();   //. matches the compiled default - starts localizing going forward
+            //. else: keep the literal legacy text - the user's rename survives the upgrade
         }
 
         std::unordered_set<std::string> usedGroupIds;
@@ -754,4 +786,26 @@ const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const 
         if (slot.id == slotId)
             return &slot;
     return nullptr;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DisplayName / DisplayNameEnglish   (see: events_storage.h)
+//--------------------------------------------------------------------------------
+static std::string BasicNameIdentifier(const std::string& eventId)
+{
+    return "WE_NAME_BASIC_" + eventId;
+}
+
+const char* DisplayName(const WorldEvent& ev)
+{
+    if (!ev.customName.empty()) return ev.customName.c_str();
+    if (GetDefaultEvent(ev.id)) return Tr(BasicNameIdentifier(ev.id).c_str());
+    return Tr("WE_UNNAMED");
+}
+
+const char* DisplayNameEnglish(const WorldEvent& ev)
+{
+    if (!ev.customName.empty()) return ev.customName.c_str();
+    if (GetDefaultEvent(ev.id)) return TrEnglish(BasicNameIdentifier(ev.id).c_str());
+    return TrEnglish("WE_UNNAMED");
 }

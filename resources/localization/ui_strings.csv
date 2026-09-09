@@ -273,7 +273,7 @@ Cofre de Elección del Héroe de ese mapa ya se haya reclamado hoy (todo
 el anillo se oculta en conjunto, no solo esa ranura). No se ve afectado nada
 más: la API pública no tiene una señal de ""ya hecho hoy"" para ningún otro
 tipo de evento de este addon (otras metas de mapa, invasiones, LLA,
-convergencias), por lo que estos nunca se ocultan por esto.","需要启用 “进度追踪” 权限。启用后，若账号在每日重置后已击杀所订阅的核心世界首领（泰达・科文顿上将、吞噬托等），
+convergencias), por lo que estos nunca se ocultan por esto.","需要启用 “进度追踪” 权限。启用后，若账号在每日重置后已击杀所订阅的核心世界首领（上将泰达·科文顿、吞噬托），
 该首领便会自动从监控列表窗口和状态栏中隐藏。苍翠边界、赤金盆地、缠藤深渊、巨龙阵地、水晶绿洲、伊伦河湾、
 荒芜之地及瓦比领域中的任一订阅条目，只要当日已领取该地图的英雄抉择宝箱，整个事件圆环将一并隐藏，而非仅隐藏单个条目。
 其余内容不受影响：公开 API 无法提供其他事件类型（其他地图元事件、入侵、LLA、汇聚）的「今日已完成」状态，

@@ -34,6 +34,7 @@
 #include "events.h"
 #include "events_categories.h"
 #include "events_live.h" //. g_LiveEvents, for the Live Events tab
+#include "events_storage.h" //. DisplayName
 #include "events_tracking.h"
 #include "imgui.h"
 #include "localization.h"
@@ -127,7 +128,7 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
     if (forceOpen)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 
-    bool open = ImGui::TreeNode("##edit_event_node", "%s", ev.name.empty() ? Tr("WE_UNNAMED") : ev.name.c_str());
+    bool open = ImGui::TreeNode("##edit_event_node", "%s", DisplayName(ev));
 
     if (open)
     {

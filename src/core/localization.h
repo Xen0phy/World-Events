@@ -4,6 +4,7 @@
 // Localization_Load   call once from AddonLoad, after APIDefs is set
 // GetActiveLanguage   index into kLanguageSlots for Nexus's active language
 // Tr                  translate aIdentifier into the addon's active language
+// TrEnglish           like Tr, but always English regardless of active language
 // TrId                Tr(aIdentifier) plus a stable, untranslated ID suffix
 //--------------------------------------------------------------------------------
 // Nexus's own Localization_Translate() follows whatever language a player picked
@@ -59,6 +60,18 @@ size_t GetActiveLanguage();
 // kLocalizationTable.
 //--------------------------------------------------------------------------------
 const char* Tr(const char* aIdentifier);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// TrEnglish
+//--------------------------------------------------------------------------------
+// Like Tr, but always resolves against kLanguageSlots[0] (English) regardless of
+// GetActiveLanguage - for anywhere the code must match ArenaNet's own English API
+// text or an old English-only save file, never the player's current language
+// (weekly_vault.cpp's title matching, events_storage.cpp's customName migration,
+// the eventNameToId migrations in subscriptions.cpp/events_categories.cpp/
+// events_tracking.cpp). Same aIdentifier/no-APIDefs fallback as Tr.
+//--------------------------------------------------------------------------------
+const char* TrEnglish(const char* aIdentifier);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // TrId

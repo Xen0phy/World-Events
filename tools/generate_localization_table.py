@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """
-generate_localization_table.py  -  regenerates
-    src/generated/localization_table_ui.generated.h
-from resources/localization/ui_strings.csv (see LocalizationEntry in
-src/core/localization_table.h). Run from the project root; wired into
-CMakeLists.txt as a custom command so it reruns automatically whenever the
-CSV (or this script) changes - no manual step needed for a normal build.
+generate_localization_table.py  -  regenerates a kLocalizationTable header
+(default: src/generated/localization_table_ui.generated.h) from a
+localization CSV (default: resources/localization/ui_strings.csv; see
+LocalizationEntry in src/core/localization_table.h). Run from the project
+root; wired into CMakeLists.txt as a custom command per CSV/header pair so
+it reruns automatically whenever that CSV (or this script) changes - no
+manual step needed for a normal build.
+
+--csv/--header/--generated override the default ui_strings.csv pair - e.g.
+for resources/localization/event_names.csv, once every language column is
+filled in and a matching CMakeLists.txt custom command is added.
 
 Language columns are read from WE_LANGUAGE_LIST in localization_table.h, not
 hardcoded here, so the CSV's required columns stay in sync with the addon's
@@ -20,32 +25,33 @@ sync now that hand-editing no longer forces it structurally: an empty cell
 fails the build instead of shipping a silent gap.
 """
 
+import argparse
 import csv
 import re
 import sys
 from pathlib import Path
 
-SOURCE_HEADER  = Path("src/core/localization_table.h")
-SOURCE_CSV     = Path("resources/localization/ui_strings.csv")
-GENERATED_FILE = Path("src/generated/localization_table_ui.generated.h")
+DEFAULT_HEADER    = Path("src/core/localization_table.h")
+DEFAULT_CSV       = Path("resources/localization/ui_strings.csv")
+DEFAULT_GENERATED = Path("src/generated/localization_table_ui.generated.h")
 
 WE_LANG_RE = re.compile(r'WE_LANG\(\s*\w+\s*,\s*"([^"]+)"\s*\)')
 
 
-def get_language_codes() -> list[str]:
+def get_language_codes(source_header: Path) -> list[str]:
     """Pulls language codes out of WE_LANGUAGE_LIST, in declared order."""
-    text = SOURCE_HEADER.read_text(encoding="utf-8")
+    text = source_header.read_text(encoding="utf-8")
     m = re.search(r'#define WE_LANGUAGE_LIST(.*?)\n\n', text, re.S)
     if not m:
         raise SystemExit(
             f"[generate_localization_table] ERROR: couldn't find "
-            f"WE_LANGUAGE_LIST in {SOURCE_HEADER}"
+            f"WE_LANGUAGE_LIST in {source_header}"
         )
     codes = WE_LANG_RE.findall(m.group(1))
     if not codes:
         raise SystemExit(
             f"[generate_localization_table] ERROR: WE_LANGUAGE_LIST in "
-            f"{SOURCE_HEADER} matched but no WE_LANG(...) entries parsed"
+            f"{source_header} matched but no WE_LANG(...) entries parsed"
         )
     return codes
 
@@ -93,20 +99,36 @@ def check_fmt_placeholders(identifier: str, values: dict[str, str], warnings: li
             )
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--header", type=Path, default=DEFAULT_HEADER,
+        help=f"header WE_LANGUAGE_LIST is read from (default: {DEFAULT_HEADER})")
+    parser.add_argument("--csv", type=Path, default=DEFAULT_CSV,
+        help=f"source CSV (default: {DEFAULT_CSV})")
+    parser.add_argument("--generated", type=Path, default=DEFAULT_GENERATED,
+        help=f"generated header to write (default: {DEFAULT_GENERATED})")
+    return parser.parse_args()
+
+
 def main() -> None:
-    codes = get_language_codes()
+    args = parse_args()
+    source_header  = args.header
+    source_csv     = args.csv
+    generated_file = args.generated
+
+    codes = get_language_codes(source_header)
     expected_header = ["identifier"] + codes + ["note"]
 
-    if not SOURCE_CSV.exists():
-        raise SystemExit(f"[generate_localization_table] ERROR: {SOURCE_CSV} not found")
+    if not source_csv.exists():
+        raise SystemExit(f"[generate_localization_table] ERROR: {source_csv} not found")
 
-    with SOURCE_CSV.open(newline="", encoding="utf-8") as f:
+    with source_csv.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         if reader.fieldnames != expected_header:
             raise SystemExit(
-                f"[generate_localization_table] ERROR: {SOURCE_CSV} header is "
+                f"[generate_localization_table] ERROR: {source_csv} header is "
                 f"{reader.fieldnames}, expected {expected_header} (from "
-                f"WE_LANGUAGE_LIST in {SOURCE_HEADER})"
+                f"WE_LANGUAGE_LIST in {source_header})"
             )
         rows = list(reader)
 
@@ -114,10 +136,10 @@ def main() -> None:
     warnings: list[str] = []
     lines = [
         "//################################################################################",
-        f"// {GENERATED_FILE.name}   (see: src/core/localization_table.h)",
+        f"// {generated_file.name}   (see: src/core/localization_table.h)",
         "//--------------------------------------------------------------------------------",
         f"// Auto-generated by tools/generate_localization_table.py from",
-        f"// {SOURCE_CSV} - do not hand-edit, and do not commit (gitignored).",
+        f"// {source_csv} - do not hand-edit, and do not commit (gitignored).",
         "// Regenerated automatically as part of the normal CMake build whenever the",
         "// CSV or the generator script changes.",
         "//--------------------------------------------------------------------------------",
@@ -140,12 +162,12 @@ def main() -> None:
             other_filled = [c for c in codes[1:] if values[c].strip()]
             if not banner_text:
                 raise SystemExit(
-                    f"[generate_localization_table] ERROR: {SOURCE_CSV}:{row_no} "
+                    f"[generate_localization_table] ERROR: {source_csv}:{row_no} "
                     f"banner row has no text in '{codes[0]}'"
                 )
             if other_filled or note:
                 raise SystemExit(
-                    f"[generate_localization_table] ERROR: {SOURCE_CSV}:{row_no} "
+                    f"[generate_localization_table] ERROR: {source_csv}:{row_no} "
                     f"banner row must only use '{codes[0]}' - also has content in "
                     f"{other_filled + (['note'] if note else [])}"
                 )
@@ -155,12 +177,12 @@ def main() -> None:
 
         if not identifier.startswith("WE_"):
             raise SystemExit(
-                f"[generate_localization_table] ERROR: {SOURCE_CSV}:{row_no} "
+                f"[generate_localization_table] ERROR: {source_csv}:{row_no} "
                 f"identifier '{identifier}' doesn't start with 'WE_'"
             )
         if identifier in seen_identifiers:
             raise SystemExit(
-                f"[generate_localization_table] ERROR: {SOURCE_CSV}:{row_no} "
+                f"[generate_localization_table] ERROR: {source_csv}:{row_no} "
                 f"duplicate identifier '{identifier}'"
             )
         seen_identifiers.add(identifier)
@@ -168,7 +190,7 @@ def main() -> None:
         empty = [c for c in codes if not values[c].strip()]
         if empty:
             raise SystemExit(
-                f"[generate_localization_table] ERROR: {SOURCE_CSV}:{row_no} "
+                f"[generate_localization_table] ERROR: {source_csv}:{row_no} "
                 f"'{identifier}' is missing text for: {empty}"
             )
 
@@ -193,16 +215,16 @@ def main() -> None:
 
     if not seen_identifiers:
         raise SystemExit(
-            f"[generate_localization_table] ERROR: {SOURCE_CSV} produced zero entries"
+            f"[generate_localization_table] ERROR: {source_csv} produced zero entries"
         )
 
-    GENERATED_FILE.parent.mkdir(parents=True, exist_ok=True)
-    GENERATED_FILE.write_text("\n".join(lines), encoding="utf-8")
+    generated_file.parent.mkdir(parents=True, exist_ok=True)
+    generated_file.write_text("\n".join(lines), encoding="utf-8")
 
     for w in warnings:
         print(f"[generate_localization_table] WARNING: {w}")
     print(
-        f"[generate_localization_table] wrote {GENERATED_FILE} with "
+        f"[generate_localization_table] wrote {generated_file} with "
         f"{len(seen_identifiers)} entries, {len(codes)} language(s)"
     )
 

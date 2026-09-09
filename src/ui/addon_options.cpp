@@ -786,7 +786,7 @@ void AddonOptions()
             if (pendingAdd)
             {
                 WorldEvent newEvent{};
-                newEvent.name       = "New Event";
+                newEvent.customName = "New Event";
                 newEvent.continentX = 49332.0f;
                 newEvent.continentY = 31457.0f;
                 newEvent.isVarying  = false;

@@ -17,6 +17,7 @@
 #include "background_threads.h"
 #include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for PasteToChat's /self fallback
 #include "events.h" //. g_Events/g_CyclicGroups, for LoadSubscriptionsData's name->id migration
+#include "events_storage.h" //. DisplayNameEnglish, for LoadSubscriptionsData's name->id migration
 #include <nlohmann/json.hpp>
 #include "settings.h"
 #include "mumble_identity.h" //. ParseMumbleIdentity, for GetMumbleCharacterName below
@@ -473,7 +474,7 @@ bool LoadSubscriptionsData(const std::string& addonDir)
         std::unordered_set<std::string> eventIds;
         for (const auto& ev : g_Events)
         {
-            eventNameToId[ev.name] = ev.id;
+            eventNameToId[DisplayNameEnglish(ev)] = ev.id;
             eventIds.insert(ev.id);
         }
         MigrateBasicEntriesToIds(g_SubscribedBasicEvents, eventNameToId, eventIds);

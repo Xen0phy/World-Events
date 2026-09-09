@@ -64,6 +64,16 @@ const char* Tr(const char* aIdentifier)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// TrEnglish   (see: localization.h)
+//--------------------------------------------------------------------------------
+const char* TrEnglish(const char* aIdentifier)
+{
+    if (!APIDefs) return aIdentifier;
+
+    return APIDefs->Localization_TranslateTo(aIdentifier, kLanguageSlots[0].Code);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // TrId   (see: localization.h)
 //--------------------------------------------------------------------------------
 std::string TrId(const char* aIdentifier, const char* aIdSuffix)

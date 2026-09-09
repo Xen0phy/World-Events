@@ -40,6 +40,7 @@
 #include "color_utils.h"
 #include "events.h"
 #include "events_live.h"
+#include "events_storage.h" //. DisplayName
 #include "imgui.h"
 #include "localization.h"
 #include "map_shared.h"
@@ -569,14 +570,14 @@ void RenderMapEvents()
                 int secsUntilEnd = GetSecondsUntilEventEnd(ev, now);
                 char tipBuf[160];
                 snprintf(tipBuf, sizeof(tipBuf), Tr("WE_TIP_MAP_ACTIVE_FMT"),
-                    ev.name.c_str(), FormatMinSec(secsUntilEnd).c_str());
+                    DisplayName(ev), FormatMinSec(secsUntilEnd).c_str());
                 ImGui::TextUnformatted(tipBuf);
             }
             else
             {
                 char tipBuf[160];
                 snprintf(tipBuf, sizeof(tipBuf), Tr("WE_TIP_MAP_UPCOMING_FMT"),
-                    ev.name.c_str(), FormatCountdown(secs).c_str());
+                    DisplayName(ev), FormatCountdown(secs).c_str());
                 ImGui::TextUnformatted(tipBuf);
             }
             ImGui::EndTooltip();

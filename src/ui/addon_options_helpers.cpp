@@ -12,7 +12,7 @@
 #include "addon_options_helpers.h"
 #include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for BuildChatChannelOptions
 #include "color_utils.h"
-#include "events_storage.h" //. GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot
+#include "events_storage.h" //. GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot/DisplayName
 #include "events_tracking.h"
 #include "imgui_internal.h" //. for internal-only ImGui APIs
 #include "localization.h"
@@ -119,16 +119,19 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
 // Display-only warning: flags two entries sharing a visible name, so the player
 // can tell them apart in the UI. Not a merge-key check - GroupKey/EventKey/
 // SlotKey (events_storage.cpp) key on id, not name, so a duplicate name here
-// doesn't mean a duplicate identity. For slots this means unique WITHIN the
+// doesn't mean a duplicate identity. IsDuplicateEventName compares DisplayName
+// (events_storage.h), i.e. the resolved/localized text, not the raw customName -
+// two events with different customName can still collide once one falls through
+// to a compiled default's translation. For slots this means unique WITHIN the
 // group, not globally. selfIndex excludes the entry being checked from its own
 // comparison.
 //--------------------------------------------------------------------------------
 bool IsDuplicateEventName(const std::vector<WorldEvent>& events, int selfIndex)
 {
-    const std::string& name = events[selfIndex].name;
+    std::string name = DisplayName(events[selfIndex]);
     if (name.empty()) return false;
     for (int i = 0; i < (int)events.size(); i++)
-        if (i != selfIndex && events[i].name == name)
+        if (i != selfIndex && DisplayName(events[i]) == name)
             return true;
     return false;
 }
@@ -623,7 +626,7 @@ bool ContainsCaseInsensitive(const std::string& haystack, const std::string& nee
 
 bool EventMatchesSearch(const WorldEvent& ev, const std::string& queryLower)
 {
-    return ContainsCaseInsensitive(ev.name, queryLower);
+    return ContainsCaseInsensitive(DisplayName(ev), queryLower);
 }
 
 bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower)
@@ -663,18 +666,18 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
         ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_ON_MAP"));
     ImGui::SameLine();
 
-    std::string oldName = ev.name;
+    std::string oldName = DisplayName(ev);
     const WorldEvent* defaultEv = GetDefaultEvent(ev.id);
-    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, ev.name, editingNames, pendingRemoveIndex, kBasicEventDragType, ev.id,
+    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, DisplayName(ev), editingNames, pendingRemoveIndex, kBasicEventDragType, ev.id,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
         [&ev]() { ToggleBasicEventDoneToday(ev.id); },
         notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.id, lvl); },
-        [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. name unchanged - defaultEv was found BY ev.id
+        [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. customName cleared for free - defaultEv's own customName is always ""
         defaultEv != nullptr);
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
-        ev.name = nameResult.newName;
+        ev.customName = nameResult.newName;
     }
 
     if (IsDuplicateEventName(g_Events, i))

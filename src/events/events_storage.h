@@ -42,3 +42,21 @@ void ResetEventsToDefaults();
 const WorldEvent* GetDefaultEvent(const std::string& id);
 const CyclicGroup* GetDefaultCyclicGroup(const std::string& id);
 const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const std::string& slotId);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DisplayName / DisplayNameEnglish
+//--------------------------------------------------------------------------------
+// ev.customName non-empty -> that, literally (user override, never translated).
+// customName empty and GetDefaultEvent(ev.id) finds a compiled-in row -> the
+// WE_NAME_BASIC_<id> identifier (resources/localization/event_names.csv),
+// through Tr()/TrEnglish() respectively. Neither -> WE_UNNAMED, same fallback
+// subscriptions_edit_window.cpp already used before this pair existed.
+//
+// DisplayNameEnglish always resolves to the English text regardless of the
+// active language - for anywhere the code must match ArenaNet's own English API
+// text or an old English-only save file (weekly_vault.cpp's title matching, the
+// eventNameToId migrations in subscriptions.cpp/events_categories.cpp/
+// events_tracking.cpp), never the player's current language.
+//--------------------------------------------------------------------------------
+const char* DisplayName(const WorldEvent& ev);
+const char* DisplayNameEnglish(const WorldEvent& ev);

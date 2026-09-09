@@ -110,6 +110,23 @@ add_custom_command(
     VERBATIM
 )
 
+set(LOCALIZATION_EVENT_NAMES_CSV ${CMAKE_SOURCE_DIR}/resources/localization/event_names.csv)
+set(LOCALIZATION_EVENT_NAMES_GENERATED ${CMAKE_SOURCE_DIR}/src/generated/localization_table_event_names.generated.h)
+
+add_custom_command(
+    OUTPUT ${LOCALIZATION_EVENT_NAMES_GENERATED}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_localization_table.py
+        --csv ${LOCALIZATION_EVENT_NAMES_CSV}
+        --generated ${LOCALIZATION_EVENT_NAMES_GENERATED}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS
+        ${CMAKE_SOURCE_DIR}/tools/generate_localization_table.py
+        ${LOCALIZATION_EVENT_NAMES_CSV}
+        ${CMAKE_SOURCE_DIR}/src/core/localization_table.h
+    COMMENT "Generating localization_table_event_names.generated.h from event_names.csv..."
+    VERBATIM
+)
+
 add_library(gw2-world-events SHARED
     src/addon/addon.cpp
     src/core/background_threads.cpp

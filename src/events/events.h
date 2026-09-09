@@ -46,7 +46,6 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 // WorldEvent
 //--------------------------------------------------------------------------------
 // id             stable identity key; snake_case, hand-written
-// name           display name
 // continentX/Y   map coords (continent 1 / Tyria)
 // isVarying      true = irregular schedule (see varyingTimes), false = periodic
 // duration       seconds the event stays active
@@ -61,19 +60,23 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 //                unset for all but the 13 classic Tyria world bosses
 // doneGroup      shared "done today" key (events_tracking.h); rows sharing
 //                a reward (e.g. Ley Line Anomaly) share one value
+// customName     user override; empty = display name comes from
+//                WE_NAME_BASIC_<id> (see DisplayName, events_storage.h) -
+//                always empty on every compiled-in row below
 //--------------------------------------------------------------------------------
 // One "Basic Event": a single map dot with its own schedule, either periodic
 // (period/offset) or irregular (isVarying + varyingTimes).
 //
-// chatCode/shown/iconTexture/apiWorldBossId/doneGroup are appended in this exact
-// order, last-to-first by how rarely each is set: the list below is built with
-// positional aggregate init (events_basic.cpp), so each field's position
-// determines how many trailing values a compiled-in row must supply.
+// chatCode/shown/iconTexture/apiWorldBossId/doneGroup/customName are appended in
+// this exact order, last-to-first by how rarely each is set: the list below is
+// built with positional aggregate init (events_basic.cpp), so each field's
+// position determines how many trailing values a compiled-in row must supply.
+// customName defaults to "" and is never set by a compiled-in row, so it's never
+// spelled out positionally either.
 //--------------------------------------------------------------------------------
 struct WorldEvent
 {
     std::string id;
-    std::string name;
     float       continentX;
     float       continentY;
     bool        isVarying;
@@ -89,6 +92,8 @@ struct WorldEvent
 
     std::string apiWorldBossId;
     std::string doneGroup;
+
+    std::string customName;
 };
 
 //_ Populated in events_basic.cpp, used by maprender.cpp.

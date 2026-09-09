@@ -13,6 +13,7 @@
 
 #include "events_tracking.h"
 #include "events.h"
+#include "events_storage.h" //. DisplayNameEnglish, for the eventNameToId migration map below
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -336,7 +337,7 @@ bool LoadDailyTrackingData(const std::string& addonDir)
         std::unordered_set<std::string> eventIds;
         for (const auto& ev : g_Events)
         {
-            eventNameToId[ev.name] = ev.id;
+            eventNameToId[DisplayNameEnglish(ev)] = ev.id;
             eventIds.insert(ev.id);
         }
         MigrateBasicMarksToIds(s_DoneTodayBasicEvents, eventNameToId, eventIds);

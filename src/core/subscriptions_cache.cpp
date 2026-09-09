@@ -3,18 +3,20 @@
 //--------------------------------------------------------------------------------
 // WHEN A REBUILD ACTUALLY HAPPENS (see RefreshSubscriptionsCache): the subscribed
 // set changed (subscribe/unsubscribe/rename), a fresh GW2 API poll landed, the
-// UTC day rolled over, a done-today marker was toggled, the weekly reset rolled
-// over (Monday 07:30 UTC), or a periodic safety-net interval elapsed. The safety
-// net bounds staleness for the one gap with no dedicated invalidation hook:
-// editing an already-subscribed event's own schedule in the options panel while
-// it's live - a rare edit-while-watching case where a bounded few seconds of
-// staleness is an accepted tradeoff over adding a hook to every field editor in
-// addon_options.cpp.
+// UTC day rolled over, a done-today marker was toggled, the active language
+// changed, the weekly reset rolled over (Monday 07:30 UTC), or a periodic
+// safety-net interval elapsed. The safety net bounds staleness for the one gap
+// with no dedicated invalidation hook: editing an already-subscribed event's own
+// schedule in the options panel while it's live - a rare edit-while-watching case
+// where a bounded few seconds of staleness is an accepted tradeoff over adding a
+// hook to every field editor in addon_options.cpp.
 //--------------------------------------------------------------------------------
 
 #include "events.h"
+#include "events_storage.h"   //. DisplayName
 #include "events_tracking.h"
 #include "gw2_api.h"
+#include "localization.h"   //. GetActiveLanguage, for the rebuild-trigger check below
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
@@ -55,6 +57,7 @@ static uint64_t s_lastAppliedFetchGeneration = 0;
 static uint64_t s_lastSubscriptionGeneration = 0;
 static uint64_t s_lastDoneMarkerGeneration   = 0;
 static long long s_lastUtcDay = -1;
+static size_t   s_lastActiveLanguage = 0;
 
 //_ Bounds staleness for the one invalidation gap this cache has no
 // dedicated hook for - see the file header's safety-net note.
@@ -117,7 +120,7 @@ static void RebuildWeeklyCache()
         WeeklyTargetInfo info;
         if (!IsBasicEventWeeklyTarget(ev.id, info.complete)) continue;
 
-        info.mappingTitle = ev.name;   //. no separate mapping object
+        info.mappingTitle = DisplayName(ev);   //. no separate mapping object
         s_weeklyCache["Basic:" + ev.id] = info;
     }
 
@@ -157,8 +160,8 @@ static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubs
     r.key                = "Basic:" + ev.id;
     r.isBasic            = true;
     r.basicId            = ev.id;
-    r.basicName          = ev.name;
-    r.label              = ev.name;
+    r.basicName          = DisplayName(ev);
+    r.label              = DisplayName(ev);
     r.chatCode           = ev.chatCode;
     r.manuallySubscribed = manuallySubscribed;
 
@@ -302,6 +305,7 @@ void RefreshSubscriptionsCache(time_t now)
     uint64_t  subGen     = GetSubscriptionListGeneration();
     uint64_t  doneGen    = GetDoneMarkersGeneration();
     uint64_t  fetchGen   = GetGw2ApiFetchGeneration();
+    size_t    activeLang = GetActiveLanguage();
 
     bool needRebuild =
         !s_cacheEverBuilt ||
@@ -310,6 +314,7 @@ void RefreshSubscriptionsCache(time_t now)
         utcDay     != s_lastUtcDay                 ||
         doneGen    != s_lastDoneMarkerGeneration   ||
         fetchGen   != s_lastAppliedFetchGeneration ||
+        activeLang != s_lastActiveLanguage         ||
         (now - s_lastRebuildWallClock) >= (time_t)kSafetyNetRebuildSeconds;
 
     if (!needRebuild) return;
@@ -319,7 +324,8 @@ void RefreshSubscriptionsCache(time_t now)
         subGen     == s_lastSubscriptionGeneration &&
         utcDay     == s_lastUtcDay                 &&
         doneGen    == s_lastDoneMarkerGeneration   &&
-        fetchGen   == s_lastAppliedFetchGeneration;
+        fetchGen   == s_lastAppliedFetchGeneration &&
+        activeLang == s_lastActiveLanguage;
 
     bool weeklyAllComplete = !s_weeklyCache.empty() &&
         std::all_of(s_weeklyCache.begin(), s_weeklyCache.end(),
@@ -336,6 +342,7 @@ void RefreshSubscriptionsCache(time_t now)
     s_lastUtcDay                 = utcDay;
     s_lastDoneMarkerGeneration   = doneGen;
     s_lastAppliedFetchGeneration = fetchGen;
+    s_lastActiveLanguage         = activeLang;
     s_lastRebuildWallClock       = now;
     s_cacheEverBuilt = true;
 }
