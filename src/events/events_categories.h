@@ -26,19 +26,17 @@ enum class CategoryListKind { Basic, Cyclic };
 // Category
 //--------------------------------------------------------------------------------
 // id          stable identity key; matches a CategoryDefault::id below, or a
-//             generated slug for a user-created category (see UniqueId,
-//             events_storage.h)
+//             generated slug for a user-created category (see UniqueId, events_storage.h)
 // customName  user override; empty = display name comes from
-//             WE_NAME_CATEGORY_BASIC_<id>/WE_NAME_CATEGORY_CYCLIC_<id> (see
-//             DisplayName below) - always empty on every compiled-in row
-// members     ids of WorldEvent/CyclicGroup entries in g_Events or
-//             g_CyclicGroups; membership is exclusive, at most one category
+//             WE_NAME_CATEGORY_BASIC_<id>/WE_NAME_CATEGORY_CYCLIC_<id> (see DisplayName below)
+// members     ids of WorldEvent/CyclicGroup entries in g_Events or g_CyclicGroups;
+//             membership is exclusive, at most one category
 //--------------------------------------------------------------------------------
 // User-created grouping for the options-panel list only; has no effect on
 // rendering or timing. Members are matched by id, never nested/copied, so a
 // category can reference either g_Events or g_CyclicGroups, even though the
-// current UI only builds same-list categories. A rename touches only
-// customName - id survives it untouched.
+// current UI only builds same-list categories. A rename touches only customName -
+// id survives it untouched.
 //--------------------------------------------------------------------------------
 struct Category
 {
@@ -117,13 +115,11 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 // events_storage.cpp), as extra "basicCategories"/"cyclicCategories" keys. Call
 // SaveEventsData() before SaveCategoriesData(): the latter reads the file first
 // to avoid clobbering events/cyclicGroups, so the reverse order would drop the
-// category keys.
-//
-// LoadCategoriesData needs g_Events/g_CyclicGroups already populated - call after
-// LoadEventsData - since it migrates any pre-id member to an id first (see
-// MigrateMembersToIds), backfills a missing category id/customName (see
-// AssignCategoryIds), then merges compiled-in defaults with the JSON by category
-// id and applies forced members. Both swallow exceptions.
+// category keys. LoadCategoriesData needs g_Events/g_CyclicGroups already
+// populated - call after LoadEventsData - since it migrates any pre-id member to
+// an id first (see MigrateMembersToIds), backfills a missing category
+// id/customName (see AssignCategoryIds), then merges compiled-in defaults with
+// the JSON by category id and applies forced members. Both swallow exceptions.
 //--------------------------------------------------------------------------------
 bool SaveCategoriesData(const std::string& addonDir);
 bool LoadCategoriesData(const std::string& addonDir);

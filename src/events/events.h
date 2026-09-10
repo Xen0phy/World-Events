@@ -60,9 +60,8 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 //                unset for all but the 13 classic Tyria world bosses
 // doneGroup      shared "done today" key (events_tracking.h); rows sharing
 //                a reward (e.g. Ley Line Anomaly) share one value
-// customName     user override; empty = display name comes from
-//                WE_NAME_BASIC_<id> (see DisplayName, events_storage.h) -
-//                always empty on every compiled-in row below
+// customName     user override; empty = display name comes from WE_NAME_BASIC_<id>
+//                (see DisplayName, events_storage.h)
 //--------------------------------------------------------------------------------
 // One "Basic Event": a single map dot with its own schedule, either periodic
 // (period/offset) or irregular (isVarying + varyingTimes).
@@ -137,17 +136,13 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 // apiMapChestId     /v2/mapchests id, GROUP-level not per-slot; empty =
 //                   no API "done today" signal
 // customName        user override; empty = display name comes from
-//                   WE_NAME_GROUP_<id> (see DisplayName, events_storage.h) -
-//                   always empty on every compiled-in row below
+//                   WE_NAME_GROUP_<id> (see DisplayName, events_storage.h)
 //--------------------------------------------------------------------------------
 // One per-map cyclic ring: a repeating `period`-second cycle containing one or
-// more Slots, each occupying a fixed offset/duration within it.
-//
-// apiMapChestId is checked once per group in subscriptions_window.cpp/
-// subscriptions_bar.cpp. Groups without an API-visible signal - LLA, invasions,
-// fractal incursions, convergences, and maps mapchests doesn't cover - simply
-// leave it empty.
-//
+// more Slots, each occupying a fixed offset/duration within it. apiMapChestId is
+// checked once per group in subscriptions_window.cpp/ subscriptions_bar.cpp.
+// Groups without an API-visible signal - LLA, invasions, fractal incursions,
+// convergences, and maps mapchests doesn't cover - simply leave it empty.
 // customName is appended last for the same positional-aggregate-init reason as
 // WorldEvent's own customName (events_basic.cpp/events_cyclic.cpp): it defaults
 // to "" and is never set by a compiled-in row, so it's never spelled out
@@ -176,14 +171,12 @@ struct CyclicGroup
     //               divide evenly by this); ignored when isVarying is true
     // customColor   optional per-slot color override; takes precedence
     //               over tier
-    // isVarying     true = irregular schedule (see varyingTimes) instead of
-    //               offset+repeat; false (default) = offset+repeat as before
+    // isVarying     true = irregular schedule (see varyingTimes);
+    //               false (default) = offset+repeat
     // varyingTimes  isVarying only: sorted seconds-into-period list, one
     //               entry per occurrence (same anchor as offset)
     // customName    user override; empty = display name comes from
-    //               WE_NAME_SLOT_<groupId>_<id> (see DisplayName,
-    //               events_storage.h) - always empty on every compiled-in
-    //               row below
+    //               WE_NAME_SLOT_<groupId>_<id> (see DisplayName, events_storage.h)
     //--------------------------------------------------------------------------------
     // One occurrence within a CyclicGroup's ring.
     //

@@ -48,22 +48,14 @@ const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const 
 // DisplayName / DisplayNameEnglish
 //--------------------------------------------------------------------------------
 // ev.customName non-empty -> that, literally (user override, never translated).
-// customName empty and GetDefaultEvent(ev.id)/GetDefaultCyclicGroup(grp.id)/
-// GetDefaultCyclicSlot(groupId, slot.id) finds a compiled-in row -> the
-// WE_NAME_BASIC_<id>/WE_NAME_GROUP_<id>/WE_NAME_SLOT_<groupId>_<id> identifier
-// (resources/localization/event_names.csv), through Tr()/TrEnglish()
-// respectively. Neither -> WE_UNNAMED, same fallback
-// subscriptions_edit_window.cpp already used before this set existed.
-//
-// The Slot overload takes groupId separately since Slot::id is only unique within
-// its group - the identifier needs both.
-//
-// DisplayNameEnglish always resolves to the English text regardless of the active
-// language - for anywhere the code must match ArenaNet's own English API text or
-// an old English-only save file (weekly_vault.cpp's title matching, the
-// eventNameToId/groupNameToId migrations in subscriptions.cpp/
-// events_categories.cpp/events_tracking.cpp), never the player's current
-// language.
+// Otherwise, a compiled-in row (GetDefaultEvent/GetDefaultCyclicGroup/
+// GetDefaultCyclicSlot) resolves to the WE_NAME_BASIC_<id>/WE_NAME_GROUP_<id>/
+// WE_NAME_SLOT_<groupId>_<id> identifier (event_names.csv) via Tr()/ TrEnglish().
+// Neither -> WE_UNNAMED, subscriptions_edit_window.cpp's existing fallback. The
+// Slot overload takes groupId separately since Slot::id is only unique within its
+// group. DisplayNameEnglish always resolves to English regardless of active
+// language, for code that must match ArenaNet's own API text or an old English-
+// only save (weekly_vault.cpp, the eventNameToId/groupNameToId migrations).
 //--------------------------------------------------------------------------------
 const char* DisplayName(const WorldEvent& ev);
 const char* DisplayNameEnglish(const WorldEvent& ev);

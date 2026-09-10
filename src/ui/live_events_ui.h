@@ -43,8 +43,8 @@ void RenderLiveEventButtons();
 //_ Transient only - see file header. Toggled from the "Move button" checkbox in addon_options.cpp; RenderLiveEventButtons reads it, no separate render function.
 extern bool LiveEventButtonMoveMode;
 
-//_ Untranslated on purpose (see WE_LIVE_REPORTS_WINDOW_TITLE, localization_table.h) - ImGui hashes a window's ID from only the text after "##", so this stays stable across languages. Shared with addon.cpp's APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls.
-inline constexpr const char* kLiveEventReportsWindowId = "##WorldEventsLiveReports";
+//_ Untranslated on purpose (see WE_LIVE_REPORTS_WINDOW_TITLE, localization_table.h) - the "###" drops everything before it from ImGui's ID hash, so this stays stable across languages. Shared with addon.cpp's APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls.
+inline constexpr const char* kLiveEventReportsWindowId = "###WorldEventsLiveReports";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenLiveEventReportsWindow

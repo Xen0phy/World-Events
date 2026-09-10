@@ -24,12 +24,13 @@
 #include "subscriptions_ui.h"
 #include "subscriptions_cache.h"
 #include "subscriptions_edit_window.h"
+#include "time_format.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-//_ Untranslated on purpose (see WE_SUBS_WINDOW_TITLE, localization_table.h) - ImGui hashes a window's ID from only the text after "##", so this stays stable across languages while the title bar text translates.
-static constexpr const char* kSubscriptionsWindowId = "##WorldEventsSubscriptions";
+//_ Untranslated on purpose (see WE_SUBS_WINDOW_TITLE, localization_table.h) - the "###" drops everything before it from ImGui's ID hash, so this stays stable across languages while the title bar text translates.
+static constexpr const char* kSubscriptionsWindowId = "###WorldEventsSubscriptions";
 
 #include <algorithm>
 #include <ctime>
@@ -80,25 +81,22 @@ static bool DrawSubscriptionRow(const std::string& name, const std::string& chat
 
     if (active)
     {
-        char buf[32];
-        snprintf(buf, sizeof(buf), " -- Active (ends in %dm %02ds)", secs / 60, secs % 60);
+        char buf[48];
+        snprintf(buf, sizeof(buf), Tr("WE_SUBS_STATUS_ACTIVE_FMT"), FormatMinSec(secs).c_str());
         statusSuffix = buf;
         color = ToImVec4Opaque(SubscriptionsActiveColor);
     }
     else if (secs < kSoonThresholdSecs)
     {
-        char buf[32];
-        snprintf(buf, sizeof(buf), " -- in %dm %02ds", secs / 60, secs % 60);
+        char buf[48];
+        snprintf(buf, sizeof(buf), Tr("WE_SUBS_STATUS_IN_FMT"), FormatMinSec(secs).c_str());
         statusSuffix = buf;
         color = ToImVec4Opaque(SubscriptionsSoonColor);
     }
     else
     {
-        char buf[32];
-        if (secs >= 3600)
-            snprintf(buf, sizeof(buf), " -- in %dh %02dm", secs / 3600, (secs % 3600) / 60);
-        else
-            snprintf(buf, sizeof(buf), " -- in %dm %02ds", secs / 60, secs % 60);
+        char buf[48];
+        snprintf(buf, sizeof(buf), Tr("WE_SUBS_STATUS_IN_FMT"), FormatCountdown(secs).c_str());
         statusSuffix = buf;
         useColor = false;
     }

@@ -35,6 +35,7 @@
 #include "subscriptions_cache.h"
 #include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
+#include "time_format.h"
 
 #include <algorithm>
 #include <cfloat>
@@ -120,9 +121,9 @@ static std::string SegmentStatusLine(const LineSegment& seg)
 {
     char buf[48];
     if (seg.active)
-        snprintf(buf, sizeof(buf), "Active - ends in %dm %02ds", seg.statusSecs / 60, seg.statusSecs % 60);
+        snprintf(buf, sizeof(buf), Tr("WE_BAR_STATUS_ACTIVE_FMT"), FormatMinSec(seg.statusSecs).c_str());
     else
-        snprintf(buf, sizeof(buf), "in %dm %02ds", seg.statusSecs / 60, seg.statusSecs % 60);
+        snprintf(buf, sizeof(buf), Tr("WE_BAR_STATUS_IN_FMT"), FormatMinSec(seg.statusSecs).c_str());
     return std::string(buf);
 }
 

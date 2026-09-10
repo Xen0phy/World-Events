@@ -26,8 +26,8 @@ static constexpr const char* kLanguageProbeIdentifier = "WE_LANGUAGE_PROBE";
 //--------------------------------------------------------------------------------
 // Registers every row of one LocalizationEntry table with Nexus. Shared by
 // Localization_Load's kLocalizationTable/kEventNameLocalizationTable passes
-// below, since both register the same way and differ only in which
-// array/count symbols they read.
+// below, since both register the same way and differ only in which array/count
+// symbols they read.
 //--------------------------------------------------------------------------------
 static void RegisterTable(const LocalizationEntry* table, int count)
 {

@@ -704,7 +704,7 @@ void AddonOptions()
                 std::vector<int> allIndices(g_Events.size());
                 for (int bi = 0; bi < (int)g_Events.size(); bi++) allIndices[bi] = bi;
                 ImGui::SetNextItemWidth(100.0f);
-                DrawBulkIconPicker("Set all icons##bulk_icon_all", allIndices);
+                DrawBulkIconPicker(TrId("WE_OPT_SET_ALL_ICONS", "###bulk_icon_all").c_str(), allIndices);
             }
 
             int pendingRemoveIndex = -1;

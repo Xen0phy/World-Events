@@ -90,8 +90,8 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
 
     const std::vector<std::string>& iconFiles = GetEventIconFilenames();
     std::vector<const char*> iconLabels;
-    if (mixed) iconLabels.push_back("(mixed)");
-    iconLabels.push_back("Dot");
+    if (mixed) iconLabels.push_back(Tr("WE_ICON_MIXED"));
+    iconLabels.push_back(Tr("WE_ICON_DOT"));
     for (const auto& fn : iconFiles)
         iconLabels.push_back(fn.c_str());
 
@@ -777,7 +777,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
         //_ "Dot" (index 0) keeps the plain circle; any other entry names a textures/ file tinted to the status color (see maprender.cpp).
         const std::vector<std::string>& iconFiles = GetEventIconFilenames();
         std::vector<const char*> iconLabels;
-        iconLabels.push_back("Dot");
+        iconLabels.push_back(Tr("WE_ICON_DOT"));
         for (const auto& fn : iconFiles)
             iconLabels.push_back(fn.c_str());
 
@@ -791,7 +791,7 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
             ev.iconTexture = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
 
         ImGui::SameLine();
-        if (ImGui::SmallButton("Refresh##icon_rescan"))
+        if (ImGui::SmallButton(TrId("WE_ICON_REFRESH", "###icon_rescan").c_str()))
             ScanEventIconFiles();
 
         //_ Free-text chat/map code for the copy-to-clipboard button; not a merge key, so no Save-button buffering like the name field.

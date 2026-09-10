@@ -36,8 +36,8 @@ std::vector<Category> g_CyclicCategories;
 // Builds the event_names.csv identifier for a compiled-in category default from
 // its id, scoped by list kind since basic/cyclic default ids aren't unique
 // against each other (both have a "festivals"). GetDefaultCategory is the
-// category equivalent of GetDefaultEvent/GetDefaultCyclicGroup
-// (events_storage.h) - kept local since nothing outside this file needs it yet.
+// category equivalent of GetDefaultEvent/GetDefaultCyclicGroup (events_storage.h)
+// - kept local since nothing outside this file needs it yet.
 //--------------------------------------------------------------------------------
 static std::string CategoryNameIdentifier(const std::string& categoryId, CategoryListKind kind)
 {
@@ -90,21 +90,16 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCategory / DeserializeCategory / SerializeCategoryList / DeserializeCategoryList
 //--------------------------------------------------------------------------------
-// Category <-> json conversion; the List variants just map the single-item
-// versions over a json array, also collecting each entry's outIsLegacyName so
+// Category <-> json conversion; the List variants map the single-item versions
+// over a json array, also collecting each entry's outIsLegacyName so
 // LoadCategoriesData's id-assignment pass knows which ones need it.
-//
 // customName/outIsLegacyName: a file predating the id/customName rename has
-// "name" instead of "id"+"customName". DeserializeCategory stashes that raw
-// legacy text into customName as a scratch value (outIsLegacyName = true) rather
-// than resolving it here - id is still empty at this point, and resolving needs
-// a known id to compare against WE_NAME_CATEGORY_*_<id>. See
-// LoadCategoriesData's migration pass, which runs once ids are final.
-//
-// id/customName both missing (malformed row) falls through the same path as any
-// other id-less entry: a fresh id from UniqueId, customName left empty so
-// DisplayName resolves it to WE_UNNAMED - no more hardcoded "Unnamed Category"
-// baked into the stored name.
+// "name" instead. DeserializeCategory stashes it into customName as a scratch
+// value (outIsLegacyName = true); id is still empty at this point, so resolving
+// against WE_NAME_CATEGORY_*_<id> waits for LoadCategoriesData's migration pass.
+// id/customName both missing (malformed row): same path as any other id-less
+// entry - fresh id from UniqueId, customName left empty so DisplayName resolves
+// it to WE_UNNAMED.
 //--------------------------------------------------------------------------------
 static json SerializeCategory(const Category& cat)
 {
@@ -201,9 +196,9 @@ static void MigrateMembersToIds(std::vector<Category>& categories, const std::un
 // loaded entry to already have an id - call after the id-assignment pass in
 // LoadCategoriesData, never before.
 //
-// Id in both: keep the JSON category as-is. Id only in defaults: added only
-// when resurrectMissingDefaults is true (an up-to-date file treats a missing
-// default as user-deleted, not new). Id only in JSON: always kept.
+// Id in both: keep the JSON category as-is. Id only in defaults: added only when
+// resurrectMissingDefaults is true (an up-to-date file treats a missing default
+// as user-deleted, not new). Id only in JSON: always kept.
 //--------------------------------------------------------------------------------
 static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDefault>& defaults, const std::vector<Category>& loaded, bool resurrectMissingDefaults)
 {
@@ -244,8 +239,8 @@ static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDef
 // category first. Creates categoryId if it isn't in the merged list yet
 // (defensive; shouldn't normally happen - would mean a CategoryDefaultMember
 // pointing at a categoryId with no matching CategoryDefault, a compile-time
-// authoring mistake). Only called once the caller has confirmed the file
-// predates EVENTS_DATA_VERSION.
+// authoring mistake). Only called once the caller has confirmed the file predates
+// EVENTS_DATA_VERSION.
 //--------------------------------------------------------------------------------
 static void ForceCategoryMembership(std::vector<Category>& categories, const std::string& categoryId, const std::string& memberId)
 {
@@ -272,18 +267,15 @@ static void ForceCategoryMembership(std::vector<Category>& categories, const std
 // AssignCategoryIds
 //--------------------------------------------------------------------------------
 // One-time id backfill for a pre-id-migration categories.json, whose entries have
-// no "id" at all - Category never had one before this pass. Mirrors the
-// id-assignment loop LoadEventsData runs for WorldEvent/CyclicGroup
-// (events_storage.cpp), condensed to one pass since Category's id and
-// customName are introduced together: an empty id unambiguously means "needs
-// both steps", no separate legacy flag needed for the id half.
-//
-// isLegacyName (from DeserializeCategoryList) gates only the customName half:
-// customName currently holds DeserializeCategory's scratch legacy "name" text,
-// which compares against the matched default's TrEnglish text, then clears if it
-// matches (starts localizing going forward) or survives as-is if it doesn't (the
-// user's rename). An entry that already had "customName" on disk
-// (isLegacyName = false) is left alone here - it's already resolved.
+// no "id" at all. Mirrors the id-assignment loop LoadEventsData runs for
+// WorldEvent/CyclicGroup (events_storage.cpp), condensed to one pass since
+// Category's id and customName are introduced together: an empty id unambiguously
+// means "needs both steps". isLegacyName (from DeserializeCategoryList) gates
+// only the customName half: customName holds DeserializeCategory's scratch legacy
+// "name" text, compared against the matched default's TrEnglish text, then
+// cleared if it matches (starts localizing going forward) or left as-is if not
+// (the user's rename). An entry that already had "customName" on disk
+// (isLegacyName = false) is left alone.
 //--------------------------------------------------------------------------------
 static void AssignCategoryIds(std::vector<Category>& categories, const std::vector<bool>& isLegacyName, const std::vector<CategoryDefault>& defaults, CategoryListKind kind)
 {

@@ -45,6 +45,7 @@
 #include "subscriptions_cache.h"
 #include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
+#include "time_format.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -288,7 +289,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
             //_ Just went active this frame.
             if (NotificationOnStart && c.toastEnabled)
             {
-                SpawnPopup(c.key, c.name, c.chatCode, "Now active!", ToImVec4(SubscriptionsActiveColor), c.isWeekly,
+                SpawnPopup(c.key, c.name, c.chatCode, Tr("WE_NOTIFY_NOW_ACTIVE"), ToImVec4(SubscriptionsActiveColor), c.isWeekly,
                            c.kind, c.basicId, c.cyclicKey, std::string(), std::string());
                 if (c.soundEnabled)
                     PlayNotificationSound(NotificationSoundFile);
@@ -311,7 +312,7 @@ static void UpdateNotifyStates(const std::vector<Candidate>& candidates)
                 if (c.toastEnabled)
                 {
                     char buf[48];
-                    snprintf(buf, sizeof(buf), "Starting in %dm %02ds", c.secsUntilStart / 60, c.secsUntilStart % 60);
+                    snprintf(buf, sizeof(buf), Tr("WE_NOTIFY_STARTING_IN_FMT"), FormatMinSec(c.secsUntilStart).c_str());
                     SpawnPopup(c.key, c.name, c.chatCode, buf, ToImVec4(SubscriptionsSoonColor), c.isWeekly,
                                c.kind, c.basicId, c.cyclicKey, std::string(), std::string());
                     if (c.soundEnabled)
@@ -366,7 +367,10 @@ static void CollectLiveEventPopups()
         }
         if (!ev) continue; //. unrecognized eventId - see header comment
 
-        std::string message = n.reporterName.empty() ? "Reported active!" : ("Reported by " + n.reporterName);
+        char reportedByBuf[128];
+        if (!n.reporterName.empty())
+            snprintf(reportedByBuf, sizeof(reportedByBuf), Tr("WE_NOTIFY_REPORTED_BY_FMT"), n.reporterName.c_str());
+        std::string message = n.reporterName.empty() ? Tr("WE_NOTIFY_REPORTED_ACTIVE") : std::string(reportedByBuf);
         std::string key = "Live:" + n.eventId + "#" + std::to_string(++s_liveNotifCounter);
 
         SpawnPopup(key, DisplayName(*ev), ev->chatCode, message, ToImVec4(SubscriptionsLiveColor), false,

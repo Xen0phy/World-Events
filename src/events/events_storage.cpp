@@ -62,19 +62,15 @@ static std::string SlotNameIdentifier(const std::string& groupId, const std::str
 // SerializeEvent / DeserializeEvent
 //--------------------------------------------------------------------------------
 // (De)serializes one WorldEvent. id is the merge/identity key (see EventKey);
-// DeserializeEvent leaves it empty when absent from a pre-migration file rather
-// than guessing - LoadEventsData backfills it afterward, once defaults are in
-// scope to match against. iconTexture/chatCode/customName are omitted when empty
-// and shown is omitted when true (the default) - all four fall through cleanly
-// via j.value() on load. isVarying selects varyingTimes vs period/offset (see
-// WorldEvent in events.h).
-//
-// customName/outIsLegacyName: a file predating the customName rename has "name"
-// instead. DeserializeEvent stashes that raw legacy text into customName as a
-// scratch value (outIsLegacyName = true) rather than resolving it here - id might
-// still be empty at this point (see EventKey backfill below), and resolving needs
-// a known id to compare against WE_NAME_BASIC_<id>. See LoadEventsData's
-// migration pass, which runs once ids are final.
+// left empty when absent from a pre-migration file - LoadEventsData backfills it
+// once defaults are in scope to match against. iconTexture/chatCode/ customName
+// are omitted when empty, shown is omitted when true (the default) - all four
+// fall through via j.value() on load. isVarying selects varyingTimes vs
+// period/offset (see WorldEvent in events.h). customName/outIsLegacyName: a file
+// predating the rename has "name" instead; DeserializeEvent stashes it into
+// customName as a scratch value (outIsLegacyName = true). Resolving against
+// WE_NAME_BASIC_<id> needs a final id, so it waits for LoadEventsData's migration
+// pass.
 //--------------------------------------------------------------------------------
 static json SerializeEvent(const WorldEvent& ev)
 {
@@ -216,18 +212,14 @@ static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
 // SerializeSlot / DeserializeSlot
 //--------------------------------------------------------------------------------
 // (De)serializes one CyclicGroup::Slot. id is the merge/identity key, unique
-// within the group (see SlotKey); left empty on deserialize for a pre-migration
-// file, same deferred-backfill reasoning as SerializeEvent/DeserializeEvent
-// above. customColor is presence-checked (j.contains), not defaulted, so "unset"
-// round-trips exactly; chatCode/customName are omitted when empty and shown when
-// true (the default), same convention as WorldEvent above. isVarying/
-// varyingTimes follow the exact same convention as WorldEvent's own pair:
-// isVarying always written, varyingTimes only written/read when isVarying is
-// true.
-//
-// customName/outIsLegacyName: same scratch-value handling as DeserializeEvent's
-// customName/outIsLegacyName - see that function's header comment. A file
-// predating the customName rename has "name" instead.
+// within the group (see SlotKey); left empty on a pre-migration file, same
+// deferred-backfill reasoning as SerializeEvent/DeserializeEvent above.
+// customColor is presence-checked (j.contains), not defaulted, so "unset" round-
+// trips exactly; chatCode/customName omitted when empty, shown when true (the
+// default), same convention as WorldEvent above. isVarying/varyingTimes follow
+// WorldEvent's own convention: isVarying always written, varyingTimes only
+// written/read when isVarying is true. customName/outIsLegacyName: same scratch-
+// value handling as DeserializeEvent's - see that function's header comment.
 //--------------------------------------------------------------------------------
 static json SerializeSlot(const CyclicGroup::Slot& slot)
 {
@@ -294,7 +286,6 @@ static CyclicGroup::Slot DeserializeSlot(const json& j, bool& outIsLegacyName)
 // reasoning as SerializeEvent/DeserializeEvent above. idleColor is presence-
 // checked like Slot::customColor above; shown/customName are omitted when
 // true/empty (their defaults), same convention as WorldEvent above.
-//
 // customName/outIsLegacyName: same scratch-value handling as DeserializeEvent's
 // customName/outIsLegacyName - see that function's header comment.
 // outIsLegacySlotNames is the same flag per nested slot, aligned index-for-index
@@ -435,7 +426,7 @@ static std::string EventKey(const WorldEvent& e) { return e.id; }
 // MergeByKey for CyclicGroup, plus one extra pass: even when a group matches by
 // key and the loaded version wins overall, its slots are still merged one level
 // deeper via MergeByKey, so a new slot added to that group in a newer build still
-// appears instead of being replaced wholesale by the loaded group object.
+// appears; the loaded group object doesn't replace it wholesale.
 // resurrectMissingDefaults is forwarded to both levels, so a slot the user
 // deleted from an otherwise-matched group follows the same resurrect-or-drop rule
 // as the group itself.

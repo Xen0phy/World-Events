@@ -19,9 +19,10 @@
 // - see CheckForVersionHistoryOnLoad. This flag itself always starts false; "have
 // we shown this version's notice" lives in LastKnownVersion.
 //
-// kVersionHistoryWindowId stays suffix-only and stable across languages: Dear
-// ImGui hashes a window's ID from only the text after "##"/"###", so keeping this
-// constant lets addon.cpp's GUI_RegisterCloseOnEscape/
+// kVersionHistoryWindowId stays suffix-only and stable across languages. Dear
+// ImGui only drops preceding text from an ID hash at "###"; a plain "##" still
+// folds it in - this constant has no translated prefix before it either way, so
+// keeping it fixed lets addon.cpp's GUI_RegisterCloseOnEscape/
 // GUI_DeregisterCloseOnEscape calls (baked in once, at whatever language was
 // active at AddonLoad) still find the right window no matter what language is
 // active when Escape is pressed or the game/Nexus language changes mid-session.
@@ -37,7 +38,7 @@
 extern bool ShowVersionHistoryWindow;
 
 //_ See file header for why this ID is suffix-only and stable across languages.
-inline constexpr const char* kVersionHistoryWindowId = "##WorldEventsVersionHistory";
+inline constexpr const char* kVersionHistoryWindowId = "###WorldEventsVersionHistory";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CheckForVersionHistoryOnLoad
