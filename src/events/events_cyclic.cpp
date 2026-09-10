@@ -326,52 +326,52 @@ std::vector<CyclicGroup> g_CyclicGroups =
 //_ Same idea as g_DefaultBasicCategories (events_basic.cpp), per banner.
 std::vector<CategoryDefault> g_DefaultCyclicCategories =
 {
-    {"Living World", {
+    {"living_world", {
         {"dry_top"},
         {"lake_doric"},
         {"domain_of_istan"},
         {"jahai_bluffs"},
         {"thunderhead_peaks"},
     }},
-    {"Heart of Thorns", {
+    {"heart_of_thorns", {
         {"verdant_brink"},
         {"auric_basin"},
         {"tangled_depths"},
         {"dragons_stand"},
     }},
-    {"Path of Fire", {
+    {"path_of_fire", {
         {"crystal_oasis"},
         {"desert_highlands"},
         {"elon_riverlands"},
         {"the_desolation"},
         {"domain_of_vabbi"},
     }},
-    {"Icebrood Saga", {
+    {"icebrood_saga", {
         {"grothmar_valley"},
         {"bjora_marches"},
         {"eye_of_the_north"},
     }},
-    {"End of Dragons", {
+    {"end_of_dragons", {
         {"seitung_province"},
         {"new_kaineng_city"},
         {"the_echovald_wilds"},
         {"dragons_end"},
     }},
-    {"Secrets of the Obscure", {
+    {"secrets_of_the_obscure", {
         {"skywatch_archipelago"},
         {"wizards_tower"},
         {"amnytas"},
     }},
-    {"Janthir Wilds", {
+    {"janthir_wilds", {
         {"janthir_syntri"},
         {"bava_nisos"},
     }},
-    {"Visions of Eternity", {
+    {"visions_of_eternity", {
         {"shipwreck_strand"},
         {"starlit_weald"},
         {"eternitys_garden"},
     }},
-    {"Festivals", {
+    {"festivals", {
         {"festival_of_the_four_winds"},
     }},
 };

@@ -29,6 +29,7 @@
 #include "events.h"
 #include "events_categories.h"
 #include "events_live.h"
+#include "events_storage.h"   //. SlugifyName/UniqueId for new categories
 #include "events_tracking.h"
 #include "gw2_api.h"
 #include "icon_whitener.h"
@@ -44,6 +45,7 @@
 #include <cstring>
 #include <map>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -723,7 +725,7 @@ void AddonOptions()
                     for (int mi = 0; mi < (int)g_Events.size(); mi++)
                         if (g_Events[mi].id == memberId) { memberIndices.push_back(mi); break; }
 
-                bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
+                bool categoryNameMatches = ContainsCaseInsensitive(DisplayName(cat, CategoryListKind::Basic), searchQueryLower);
                 bool categoryHasMatch = categoryNameMatches;
                 if (!categoryHasMatch)
                     for (int mi : memberIndices)
@@ -737,13 +739,14 @@ void AddonOptions()
                     if (searchActive)
                         ImGui::SetNextItemOpen(categoryHasMatch, ImGuiCond_Always);
 
-                    NameRowResult nameResult = DrawNameAndContextMenu("##category_node", c, c, cat.name, editingBasicCategoryNames, pendingRemoveBasicCategoryIndex);
+                    std::string oldCategoryName = DisplayName(cat, CategoryListKind::Basic);
+                    NameRowResult nameResult = DrawNameAndContextMenu("##category_node", c, c, oldCategoryName, editingBasicCategoryNames, pendingRemoveBasicCategoryIndex);
                     catOpen = nameResult.open;
                     MakeDropTarget(kBasicEventDragType, g_BasicCategories, c);
-                    if (nameResult.newName != cat.name)
+                    if (nameResult.newName != oldCategoryName)
                     {
-                        //_ No rename-patching needed - members reference categories by name in the other direction.
-                        cat.name = nameResult.newName;
+                        //_ No rename-patching needed - members and forced-membership both reference the category by id, never customName.
+                        cat.customName = nameResult.newName;
                     }
                 }
 
@@ -800,7 +803,15 @@ void AddonOptions()
                 g_BasicCategories.erase(g_BasicCategories.begin() + pendingRemoveBasicCategoryIndex);
 
             if (pendingAddBasicCategory)
-                g_BasicCategories.push_back({ "New Category", {} });
+            {
+                std::unordered_set<std::string> usedIds;
+                for (const auto& c : g_BasicCategories) usedIds.insert(c.id);
+
+                Category newCat;
+                newCat.id         = UniqueId(SlugifyName("New Category"), usedIds);
+                newCat.customName = "New Category";
+                g_BasicCategories.push_back(newCat);
+            }
 
             ImGui::TableSetColumnIndex(1);
 
@@ -833,7 +844,7 @@ void AddonOptions()
                 Category& cat = g_CyclicCategories[c];
                 ImGui::PushID(2000000 + c); //. offset clear of other indices
 
-                bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
+                bool categoryNameMatches = ContainsCaseInsensitive(DisplayName(cat, CategoryListKind::Cyclic), searchQueryLower);
                 bool categoryHasMatch = categoryNameMatches;
                 if (!categoryHasMatch)
                     for (const std::string& memberId : cat.members)
@@ -848,11 +859,12 @@ void AddonOptions()
                     if (searchActive)
                         ImGui::SetNextItemOpen(categoryHasMatch, ImGuiCond_Always);
 
-                    NameRowResult nameResult = DrawNameAndContextMenu("##cyclic_category_node", c, c, cat.name, editingCyclicCategoryNames, pendingRemoveCyclicCategoryIndex);
+                    std::string oldCategoryName = DisplayName(cat, CategoryListKind::Cyclic);
+                    NameRowResult nameResult = DrawNameAndContextMenu("##cyclic_category_node", c, c, oldCategoryName, editingCyclicCategoryNames, pendingRemoveCyclicCategoryIndex);
                     catOpen = nameResult.open;
                     MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, c);
-                    if (nameResult.newName != cat.name)
-                        cat.name = nameResult.newName;
+                    if (nameResult.newName != oldCategoryName)
+                        cat.customName = nameResult.newName;
                 }
 
                 //_ Same unconditional-bookkeeping/gated-draw split as Basic Events above.
@@ -911,7 +923,15 @@ void AddonOptions()
                 g_CyclicCategories.erase(g_CyclicCategories.begin() + pendingRemoveCyclicCategoryIndex);
 
             if (pendingAddCyclicCategory)
-                g_CyclicCategories.push_back({ "New Category", {} });
+            {
+                std::unordered_set<std::string> usedIds;
+                for (const auto& c : g_CyclicCategories) usedIds.insert(c.id);
+
+                Category newCat;
+                newCat.id         = UniqueId(SlugifyName("New Category"), usedIds);
+                newCat.customName = "New Category";
+                g_CyclicCategories.push_back(newCat);
+            }
 
             ImGui::EndTable();
         }

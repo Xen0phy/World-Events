@@ -548,15 +548,16 @@ static void ApplySlotOverrides(std::vector<CyclicGroup>& groups, int64_t savedVe
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// SlugifyName
+// SlugifyName   (see: events_storage.h)
 //--------------------------------------------------------------------------------
 // Lowercases, drops apostrophes, and collapses every other non-alphanumeric run
 // to a single underscore (leading/trailing underscores stripped). Same scheme
 // used by hand for the compiled-in ids (events_basic.cpp/events_cyclic.cpp).
-// Migration fallback only, for a loaded WorldEvent/CyclicGroup name that doesn't
-// match any compiled-in default's DisplayNameEnglish - see LoadEventsData.
+// Migration fallback only, for a loaded name that doesn't match any compiled-in
+// default's DisplayNameEnglish - see LoadEventsData below and
+// events_categories.cpp's own Category id-assignment pass.
 //--------------------------------------------------------------------------------
-static std::string SlugifyName(const std::string& name)
+std::string SlugifyName(const std::string& name)
 {
     std::string out;
     out.reserve(name.size());
@@ -584,13 +585,13 @@ static std::string SlugifyName(const std::string& name)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// UniqueId
+// UniqueId   (see: events_storage.h)
 //--------------------------------------------------------------------------------
 // Returns `candidate`, or "candidate_2"/"_3"/... if it's already in `used`, and
 // reserves whichever id it returns. Only matters for SlugifyName fallbacks - two
 // differently-punctuated names can slugify to the same string.
 //--------------------------------------------------------------------------------
-static std::string UniqueId(const std::string& candidate, std::unordered_set<std::string>& used)
+std::string UniqueId(const std::string& candidate, std::unordered_set<std::string>& used)
 {
     if (used.insert(candidate).second)
         return candidate;

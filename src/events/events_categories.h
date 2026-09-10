@@ -1,10 +1,13 @@
 //################################################################################
 // events_categories.h
 //--------------------------------------------------------------------------------
+// CategoryListKind                      Basic vs Cyclic, picks DisplayName's
+//                                        identifier prefix
 // Category                              named group of event/group ids,
 //                                        exclusive membership
 // CategoryDefaultMember/CategoryDefault compiled-in category defaults, with
 //                                        an optional forced flag
+// DisplayName/DisplayNameEnglish        resolve a Category's display name
 // MoveCategoryMember                    moves a member between categories
 // SaveCategoriesData/LoadCategoriesData persist categories to/from
 //                                        events.json
@@ -16,23 +19,31 @@
 #include <string>
 #include <vector>
 
+//_ Basic and cyclic default category ids are only unique within their own list (e.g. both have a "Festivals") - every id-keyed lookup below takes this alongside the id.
+enum class CategoryListKind { Basic, Cyclic };
+
 //********************************************************************************
 // Category
 //--------------------------------------------------------------------------------
-// name       category name, matched by exact string in JSON and by the
-//            options-panel UI
-// members    ids of WorldEvent/CyclicGroup entries in g_Events or
-//            g_CyclicGroups; membership is exclusive, at most one category
+// id          stable identity key; matches a CategoryDefault::id below, or a
+//             generated slug for a user-created category (see UniqueId,
+//             events_storage.h)
+// customName  user override; empty = display name comes from
+//             WE_NAME_CATEGORY_BASIC_<id>/WE_NAME_CATEGORY_CYCLIC_<id> (see
+//             DisplayName below) - always empty on every compiled-in row
+// members     ids of WorldEvent/CyclicGroup entries in g_Events or
+//             g_CyclicGroups; membership is exclusive, at most one category
 //--------------------------------------------------------------------------------
 // User-created grouping for the options-panel list only; has no effect on
 // rendering or timing. Members are matched by id, never nested/copied, so a
 // category can reference either g_Events or g_CyclicGroups, even though the
-// current UI only builds same-list categories. A rename no longer touches this
-// list - id survives it untouched.
+// current UI only builds same-list categories. A rename touches only
+// customName - id survives it untouched.
 //--------------------------------------------------------------------------------
 struct Category
 {
-    std::string name;
+    std::string id;
+    std::string customName;
     std::vector<std::string> members;
 };
 
@@ -44,7 +55,7 @@ extern std::vector<Category> g_CyclicCategories;
 // CategoryDefaultMember / CategoryDefault
 //--------------------------------------------------------------------------------
 // CategoryDefaultMember:  id, forced (see below)
-// CategoryDefault:        name, members (list of CategoryDefaultMember)
+// CategoryDefault:        id, members (list of CategoryDefaultMember)
 //--------------------------------------------------------------------------------
 // Compiled-in defaults, written by hand in events_basic.cpp/events_cyclic.cpp
 // alongside g_Events/g_CyclicGroups, referencing members by id. Kept separate
@@ -65,13 +76,29 @@ struct CategoryDefaultMember
 
 struct CategoryDefault
 {
-    std::string name;
+    std::string id;
     std::vector<CategoryDefaultMember> members;
 };
 
 //_ Consumed only by LoadCategoriesData; downstream code should use g_BasicCategories/g_CyclicCategories instead.
 extern std::vector<CategoryDefault> g_DefaultBasicCategories;
 extern std::vector<CategoryDefault> g_DefaultCyclicCategories;
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DisplayName / DisplayNameEnglish
+//--------------------------------------------------------------------------------
+// cat.customName non-empty -> that, literally (user override, never translated).
+// customName empty and a compiled-in default has this id (within the list `kind`
+// selects) -> the WE_NAME_CATEGORY_BASIC_<id>/WE_NAME_CATEGORY_CYCLIC_<id>
+// identifier (resources/localization/event_names.csv), through Tr()/TrEnglish()
+// respectively. Neither -> WE_UNNAMED.
+//
+// DisplayNameEnglish always resolves to the English text regardless of the active
+// language - for LoadCategoriesData's own customName migration, never the
+// player's current language.
+//--------------------------------------------------------------------------------
+const char* DisplayName(const Category& cat, CategoryListKind kind);
+const char* DisplayNameEnglish(const Category& cat, CategoryListKind kind);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MoveCategoryMember
@@ -94,8 +121,9 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 //
 // LoadCategoriesData needs g_Events/g_CyclicGroups already populated - call after
 // LoadEventsData - since it migrates any pre-id member to an id first (see
-// MigrateMembersToIds), then merges compiled-in defaults with the JSON by
-// category name and applies forced members. Both swallow exceptions.
+// MigrateMembersToIds), backfills a missing category id/customName (see
+// AssignCategoryIds), then merges compiled-in defaults with the JSON by category
+// id and applies forced members. Both swallow exceptions.
 //--------------------------------------------------------------------------------
 bool SaveCategoriesData(const std::string& addonDir);
 bool LoadCategoriesData(const std::string& addonDir);

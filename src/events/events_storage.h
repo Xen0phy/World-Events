@@ -11,6 +11,7 @@
 #include "events.h"
 
 #include <string>
+#include <unordered_set>
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveEventsData / LoadEventsData
@@ -72,3 +73,12 @@ const char* DisplayNameEnglish(const CyclicGroup& grp);
 
 const char* DisplayName(const CyclicGroup::Slot& slot, const std::string& groupId);
 const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string& groupId);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SlugifyName / UniqueId
+//--------------------------------------------------------------------------------
+// Migration-only id-backfill helpers, shared with events_categories.cpp's own
+// pre-id Category migration. See the .cpp for what each does.
+//--------------------------------------------------------------------------------
+std::string SlugifyName(const std::string& name);
+std::string UniqueId(const std::string& candidate, std::unordered_set<std::string>& used);

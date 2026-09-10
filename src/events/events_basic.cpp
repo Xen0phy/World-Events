@@ -90,11 +90,11 @@ std::vector<WorldEvent> g_Events =
 //_ Compiled-in category defaults, one per group above (CategoryDefault).
 std::vector<CategoryDefault> g_DefaultBasicCategories =
 {
-    {"Instanced", {
+    {"instanced", {
         {"outer_nayos", false, std::nullopt, m10},
         {"mount_balrior", false, std::nullopt, m10},
     }},
-    {"Core bosses", {
+    {"core_bosses", {
         {"admiral_taidha_covington"},
         {"claw_of_jormag"},
         {"fire_elemental"},
@@ -109,12 +109,12 @@ std::vector<CategoryDefault> g_DefaultBasicCategories =
         {"the_shatterer"},
         {"triple_trouble_wurm"},
     }},
-    {"LLA", {
+    {"lla", {
         {"ley_line_anomaly_timberline"},
         {"ley_line_anomaly_iron_marches"},
         {"ley_line_anomaly_gendarran"},
     }},
-    {"Invasions", {
+    {"invasions", {
         {"scarlets_portal_invasion"},
         {"awakened_invasion_caledon"},
         {"awakened_invasion_queensdale"},
@@ -124,17 +124,17 @@ std::vector<CategoryDefault> g_DefaultBasicCategories =
         {"awakened_invasion_southsun"},
         {"awakened_invasion_metrica"},
     }},
-    {"Fractal Incursions", {
-        {"fractal_incursion_brisban", true, 0},
+    {"fractal_incursions", {
+        {"fractal_incursion_brisban", true},
         {"fractal_incursion_snowden", true},
-        {"fractal_incursion_kessex", true, m120},
+        {"fractal_incursion_kessex", true},
         {"fractal_incursion_diessa", true},
     }},
-    {"Festivals", {
+    {"festivals", {
         {"your_mad_king_says"},
-        {"dragon_bash_wayfarer", true},
-        {"dragon_bash_dredgehaunt", true},
-        {"dragon_bash_lornars", true},
-        {"dragon_bash_snowden", true},
+        {"dragon_bash_wayfarer"},
+        {"dragon_bash_dredgehaunt"},
+        {"dragon_bash_lornars"},
+        {"dragon_bash_snowden"},
     }},
 };

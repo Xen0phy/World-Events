@@ -405,7 +405,7 @@ void RenderEditSubscriptionsWindow()
                         for (int mi = 0; mi < (int)g_Events.size(); mi++)
                             if (g_Events[mi].id == memberId) { memberIndices.push_back(mi); break; }
 
-                    bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
+                    bool categoryNameMatches = ContainsCaseInsensitive(DisplayName(cat, CategoryListKind::Basic), searchQueryLower);
                     bool categoryHasMatch = categoryNameMatches;
                     if (!categoryHasMatch)
                         for (int mi : memberIndices)
@@ -429,7 +429,7 @@ void RenderEditSubscriptionsWindow()
                         else if (searchJustCleared)
                             ImGui::SetNextItemOpen(false, ImGuiCond_Always);
 
-                        catOpen = ImGui::CollapsingHeader(cat.name.empty() ? Tr("WE_UNNAMED") : cat.name.c_str());
+                        catOpen = ImGui::CollapsingHeader(DisplayName(cat, CategoryListKind::Basic));
                     }
 
                     for (int mi : memberIndices)
@@ -479,7 +479,7 @@ void RenderEditSubscriptionsWindow()
                     Category& cat = g_CyclicCategories[c];
                     ImGui::PushID(c);
 
-                    bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
+                    bool categoryNameMatches = ContainsCaseInsensitive(DisplayName(cat, CategoryListKind::Cyclic), searchQueryLower);
                     bool categoryHasMatch = categoryNameMatches;
                     if (!categoryHasMatch)
                         for (const std::string& memberId : cat.members)
@@ -503,7 +503,7 @@ void RenderEditSubscriptionsWindow()
                         else if (searchJustCleared)
                             ImGui::SetNextItemOpen(false, ImGuiCond_Always);
 
-                        catOpen = ImGui::CollapsingHeader(cat.name.empty() ? Tr("WE_UNNAMED") : cat.name.c_str());
+                        catOpen = ImGui::CollapsingHeader(DisplayName(cat, CategoryListKind::Cyclic));
                     }
 
                     for (const std::string& memberId : cat.members)
