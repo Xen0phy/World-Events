@@ -120,7 +120,7 @@ void AddonLoad(AddonAPI_t* aAPI)
     MumbleLink = (Mumble::Data*)    APIDefs->DataLink_Get(DL_MUMBLE_LINK);
     NexusLink  = (NexusLinkData_t*) APIDefs->DataLink_Get(DL_NEXUS_LINK);
 
-    //_ Registers every kLocalizationTable row with Nexus - before anything below can render text via Tr().
+    //_ Registers every kLocalizationTable/kEventNameLocalizationTable row with Nexus - before anything below can render text via Tr().
     Localization_Load();
 
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");

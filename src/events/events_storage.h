@@ -51,15 +51,15 @@ const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const 
 // GetDefaultCyclicSlot(groupId, slot.id) finds a compiled-in row -> the
 // WE_NAME_BASIC_<id>/WE_NAME_GROUP_<id>/WE_NAME_SLOT_<groupId>_<id> identifier
 // (resources/localization/event_names.csv), through Tr()/TrEnglish()
-// respectively. Neither -> WE_UNNAMED, same fallback subscriptions_edit_window.cpp
-// already used before this set existed.
+// respectively. Neither -> WE_UNNAMED, same fallback
+// subscriptions_edit_window.cpp already used before this set existed.
 //
 // The Slot overload takes groupId separately since Slot::id is only unique within
 // its group - the identifier needs both.
 //
-// DisplayNameEnglish always resolves to the English text regardless of the
-// active language - for anywhere the code must match ArenaNet's own English API
-// text or an old English-only save file (weekly_vault.cpp's title matching, the
+// DisplayNameEnglish always resolves to the English text regardless of the active
+// language - for anywhere the code must match ArenaNet's own English API text or
+// an old English-only save file (weekly_vault.cpp's title matching, the
 // eventNameToId/groupNameToId migrations in subscriptions.cpp/
 // events_categories.cpp/events_tracking.cpp), never the player's current
 // language.

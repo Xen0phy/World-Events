@@ -379,5 +379,5 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
 //_ One-time Slot corrections; see SlotOverride (events.h), EVENTS_DATA_VERSION.
 std::vector<SlotOverride> g_SlotOverrides =
 {
-    //_ example {"verdant_brink",   "night_enemy",  m105, std::nullopt},
+    //_ example: {"verdant_brink",   "night_enemy",  m105, std::nullopt},
 };

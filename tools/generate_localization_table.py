@@ -12,6 +12,11 @@ manual step needed for a normal build.
 for resources/localization/event_names.csv, once every language column is
 filled in and a matching CMakeLists.txt custom command is added.
 
+--symbol-prefix names the emitted table/count symbols (default: kLocalization,
+giving kLocalizationTable/kLocalizationCount). A second generated header
+included in the same translation unit as the default one needs its own
+prefix, or the two collide on both symbol names.
+
 Language columns are read from WE_LANGUAGE_LIST in localization_table.h, not
 hardcoded here, so the CSV's required columns stay in sync with the addon's
 actual language list on their own.
@@ -107,6 +112,8 @@ def parse_args() -> argparse.Namespace:
         help=f"source CSV (default: {DEFAULT_CSV})")
     parser.add_argument("--generated", type=Path, default=DEFAULT_GENERATED,
         help=f"generated header to write (default: {DEFAULT_GENERATED})")
+    parser.add_argument("--symbol-prefix", default="kLocalization",
+        help="prefix for the emitted table/count symbols (default: kLocalization)")
     return parser.parse_args()
 
 
@@ -115,6 +122,8 @@ def main() -> None:
     source_header  = args.header
     source_csv     = args.csv
     generated_file = args.generated
+    table_name     = f"{args.symbol_prefix}Table"
+    count_name     = f"{args.symbol_prefix}Count"
 
     codes = get_language_codes(source_header)
     expected_header = ["identifier"] + codes + ["note"]
@@ -144,7 +153,7 @@ def main() -> None:
         "// CSV or the generator script changes.",
         "//--------------------------------------------------------------------------------",
         "",
-        "static constexpr LocalizationEntry kLocalizationTable[] = {",
+        f"static constexpr LocalizationEntry {table_name}[] = {{",
         "",
     ]
 
@@ -208,8 +217,8 @@ def main() -> None:
     lines.append("};")
     lines.append("")
     lines.append(
-        "inline constexpr int kLocalizationCount = "
-        "sizeof(kLocalizationTable) / sizeof(kLocalizationTable[0]);"
+        f"inline constexpr int {count_name} = "
+        f"sizeof({table_name}) / sizeof({table_name}[0]);"
     )
     lines.append("")
 

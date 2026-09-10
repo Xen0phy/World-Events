@@ -7,9 +7,15 @@
 //                       per WE_LANGUAGE_LIST entry (see below)
 // kLanguageSlots        WE_LANGUAGE_LIST as a runtime array of {code, field}
 // kLanguageCount        number of entries in kLanguageSlots
-// kLocalizationTable    every user-facing string, one row per identifier (see:
+// kLocalizationTable    every UI string, one row per identifier (see:
 //                       localization_table_ui.generated.h)
 // kLocalizationCount    number of rows in kLocalizationTable
+// kEventNameLocalizationTable/Count
+//                       same shape, event/group/slot/live-event display
+//                       names (see: localization_table_event_names
+//                       .generated.h) - a separate table since both
+//                       generated headers are included here together and
+//                       kLocalizationTable/Count can only be claimed once
 //--------------------------------------------------------------------------------
 // This file holds the language schema, not the strings. To add a language: add a
 // line to WE_LANGUAGE_LIST below, then add the matching column to every row of
@@ -81,3 +87,6 @@ static constexpr size_t kLanguageCount = sizeof(kLanguageSlots) / sizeof(kLangua
 
 //_ Generated from resources/localization/ui_strings.csv - see the file header above.
 #include "../generated/localization_table_ui.generated.h"
+
+//_ Generated from resources/localization/event_names.csv - kEventNameLocalizationTable/Count, not kLocalizationTable/Count (see above).
+#include "../generated/localization_table_event_names.generated.h"

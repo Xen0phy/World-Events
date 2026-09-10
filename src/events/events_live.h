@@ -15,10 +15,9 @@
 // events_storage.cpp's JSON merge and maprender.cpp's drag-to-reposition edit
 // mode (EditTarget::BasicEvent/CyclicGroup) so a user's own additions/tweaks
 // survive updates; g_LiveEvents gets neither, display name included - see
-// DisplayName below. Position and id are only ever meaningful if they match
-// what every other client and the relay server agree on, so they ship
-// compiled-in only, the same way bundled_icons.h's icon table isn't
-// user-editable.
+// DisplayName below. Position and id are only ever meaningful if they match what
+// every other client and the relay server agree on, so they ship compiled-in
+// only, the same way bundled_icons.h's icon table isn't user-editable.
 //
 // What IS user-controlled is whether the whole feature is on at all - see
 // LiveEventsSubscribed (settings_table.h). There's no per-event opt-in: when
@@ -81,9 +80,9 @@ extern std::vector<LiveEvent> g_LiveEvents;
 //--------------------------------------------------------------------------------
 // Tr(WE_NAME_LIVE_<eventId>) (resources/localization/event_names.csv), always -
 // no customName fork like DisplayName(WorldEvent)/DisplayName(CyclicGroup)
-// (events_storage.h): a LiveEvent is compiled-in only and never user-renamed
-// (see file header), so there's nothing to override and no WE_UNNAMED case
-// either, every g_LiveEvents entry has a compiled row.
+// (events_storage.h): a LiveEvent is compiled-in only and never user-renamed (see
+// file header), so there's nothing to override and no WE_UNNAMED case either,
+// every g_LiveEvents entry has a compiled row.
 //--------------------------------------------------------------------------------
 const char* DisplayName(const LiveEvent& ev);
 

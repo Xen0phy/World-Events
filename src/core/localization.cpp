@@ -3,6 +3,8 @@
 //--------------------------------------------------------------------------------
 // kLanguageProbeIdentifier   internal-only identifier GetActiveLanguage reads
 //                            back to detect language
+// RegisterTable              registers one LocalizationEntry table with Nexus;
+//                            shared by Localization_Load's two table passes
 //--------------------------------------------------------------------------------
 // Registering each non-default kLanguageSlots entry for this one identifier lets
 // GetActiveLanguage answer by comparing Translate()'s result against
@@ -20,6 +22,24 @@
 static constexpr const char* kLanguageProbeIdentifier = "WE_LANGUAGE_PROBE";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RegisterTable
+//--------------------------------------------------------------------------------
+// Registers every row of one LocalizationEntry table with Nexus. Shared by
+// Localization_Load's kLocalizationTable/kEventNameLocalizationTable passes
+// below, since both register the same way and differ only in which
+// array/count symbols they read.
+//--------------------------------------------------------------------------------
+static void RegisterTable(const LocalizationEntry* table, int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        const LocalizationEntry& entry = table[i];
+        for (size_t li = 0; li < kLanguageCount; li++)
+            APIDefs->Localization_Set(entry.Identifier, kLanguageSlots[li].Code, entry.*kLanguageSlots[li].Field);
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Localization_Load   (see: localization.h)
 //--------------------------------------------------------------------------------
 void Localization_Load()
@@ -29,12 +49,8 @@ void Localization_Load()
     for (size_t li = 1; li < kLanguageCount; li++)
         APIDefs->Localization_Set(kLanguageProbeIdentifier, kLanguageSlots[li].Code, kLanguageSlots[li].Code);
 
-    for (int i = 0; i < kLocalizationCount; i++)
-    {
-        const LocalizationEntry& entry = kLocalizationTable[i];
-        for (size_t li = 0; li < kLanguageCount; li++)
-            APIDefs->Localization_Set(entry.Identifier, kLanguageSlots[li].Code, entry.*kLanguageSlots[li].Field);
-    }
+    RegisterTable(kLocalizationTable, kLocalizationCount);
+    RegisterTable(kEventNameLocalizationTable, kEventNameLocalizationCount);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

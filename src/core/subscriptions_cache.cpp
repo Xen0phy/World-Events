@@ -4,12 +4,12 @@
 // WHEN A REBUILD ACTUALLY HAPPENS (see RefreshSubscriptionsCache): the subscribed
 // set changed (subscribe/unsubscribe/rename), a fresh GW2 API poll landed, the
 // UTC day rolled over, a done-today marker was toggled, the active language
-// changed, the weekly reset rolled over (Monday 07:30 UTC), or a periodic
-// safety-net interval elapsed. The safety net bounds staleness for the one gap
-// with no dedicated invalidation hook: editing an already-subscribed event's own
-// schedule in the options panel while it's live - a rare edit-while-watching case
-// where a bounded few seconds of staleness is an accepted tradeoff over adding a
-// hook to every field editor in addon_options.cpp.
+// changed, the weekly reset rolled over (Monday 07:30 UTC), or a periodic safety-
+// net interval elapsed. The safety net bounds staleness for the one gap with no
+// dedicated invalidation hook: editing an already-subscribed event's own schedule
+// in the options panel while it's live - a rare edit-while-watching case where a
+// bounded few seconds of staleness is an accepted tradeoff over adding a hook to
+// every field editor in addon_options.cpp.
 //--------------------------------------------------------------------------------
 
 #include "events.h"

@@ -190,9 +190,9 @@ struct CyclicGroup
     // chatCode/shown/repeat/customColor/isVarying/varyingTimes/customName are
     // appended in this order for the same positional-aggregate-init reason as
     // WorldEvent's tail fields (see events_basic.cpp/events_cyclic.cpp) - each
-    // field's position is how many trailing values a compiled-in row must supply,
-    // so later/rarer fields go last. customName defaults to "" and is never set by
-    // a compiled-in row, so it's never spelled out positionally either.
+    // field's position is how many trailing values a compiled-in row must supply, so
+    // later/rarer fields go last. customName defaults to "" and is never set by a
+    // compiled-in row, so it's never spelled out positionally either.
     //--------------------------------------------------------------------------------
     struct Slot
     {

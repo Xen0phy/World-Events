@@ -29,10 +29,10 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Localization_Load
 //--------------------------------------------------------------------------------
-// Registers every row of kLocalizationTable (localization_table.h) with Nexus via
-// Localization_Set, plus the internal language-probe identifier GetActiveLanguage
-// reads back. Call once from AddonLoad, after APIDefs is assigned - a no-op
-// before that.
+// Registers every row of kLocalizationTable and kEventNameLocalizationTable
+// (localization_table.h) with Nexus via Localization_Set, plus the internal
+// language-probe identifier GetActiveLanguage reads back. Call once from
+// AddonLoad, after APIDefs is assigned - a no-op before that.
 //--------------------------------------------------------------------------------
 void Localization_Load();
 
@@ -57,7 +57,7 @@ size_t GetActiveLanguage();
 // install on a language World Events has no text for still reads English, not a
 // raw "((identifier))"-style placeholder. Returns aIdentifier itself if APIDefs
 // isn't set yet (shouldn't happen post-AddonLoad) or the identifier has no row in
-// kLocalizationTable.
+// kLocalizationTable/kEventNameLocalizationTable.
 //--------------------------------------------------------------------------------
 const char* Tr(const char* aIdentifier);
 

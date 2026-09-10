@@ -71,10 +71,10 @@ static std::string SlotNameIdentifier(const std::string& groupId, const std::str
 //
 // customName/outIsLegacyName: a file predating the customName rename has "name"
 // instead. DeserializeEvent stashes that raw legacy text into customName as a
-// scratch value (outIsLegacyName = true) rather than resolving it here - id
-// might still be empty at this point (see EventKey backfill below), and
-// resolving needs a known id to compare against WE_NAME_BASIC_<id>. See
-// LoadEventsData's migration pass, which runs once ids are final.
+// scratch value (outIsLegacyName = true) rather than resolving it here - id might
+// still be empty at this point (see EventKey backfill below), and resolving needs
+// a known id to compare against WE_NAME_BASIC_<id>. See LoadEventsData's
+// migration pass, which runs once ids are final.
 //--------------------------------------------------------------------------------
 static json SerializeEvent(const WorldEvent& ev)
 {
@@ -225,9 +225,9 @@ static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
 // isVarying always written, varyingTimes only written/read when isVarying is
 // true.
 //
-// customName/outIsLegacyName: same scratch-value handling as
-// DeserializeEvent's customName/outIsLegacyName - see that function's header
-// comment. A file predating the customName rename has "name" instead.
+// customName/outIsLegacyName: same scratch-value handling as DeserializeEvent's
+// customName/outIsLegacyName - see that function's header comment. A file
+// predating the customName rename has "name" instead.
 //--------------------------------------------------------------------------------
 static json SerializeSlot(const CyclicGroup::Slot& slot)
 {
@@ -295,10 +295,10 @@ static CyclicGroup::Slot DeserializeSlot(const json& j, bool& outIsLegacyName)
 // checked like Slot::customColor above; shown/customName are omitted when
 // true/empty (their defaults), same convention as WorldEvent above.
 //
-// customName/outIsLegacyName: same scratch-value handling as
-// DeserializeEvent's customName/outIsLegacyName - see that function's header
-// comment. outIsLegacySlotNames is the same flag per nested slot, aligned
-// index-for-index with the returned group's slots vector.
+// customName/outIsLegacyName: same scratch-value handling as DeserializeEvent's
+// customName/outIsLegacyName - see that function's header comment.
+// outIsLegacySlotNames is the same flag per nested slot, aligned index-for-index
+// with the returned group's slots vector.
 //--------------------------------------------------------------------------------
 static json SerializeGroup(const CyclicGroup& grp)
 {

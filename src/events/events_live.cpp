@@ -7,8 +7,8 @@
 // logic, grouped by comment banner. eventId/mapId/continentX/Y and the
 // worldX/Y/Z+radius sphere come straight from the GW2 API v2 /events endpoint -
 // see events_live.h for why worldX/Y/Z/radius aren't used for anything yet.
-// Display names live in resources/localization/event_names.csv, keyed off
-// eventId - see DisplayName below - not in this roster.
+// Display names live in resources/localization/event_names.csv, keyed off eventId
+// - see DisplayName below - not in this roster.
 //--------------------------------------------------------------------------------
 
 #include "events_live.h"

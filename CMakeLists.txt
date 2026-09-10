@@ -71,61 +71,45 @@ add_custom_command(
     VERBATIM
 )
 
-# Regenerates src/generated/localization_table_ui.generated.h from
-# resources/localization/ui_strings.csv (see tools/generate_localization_table.py
-# / src/core/localization_table.h). Also depends on localization_table.h itself,
-# since the generator reads WE_LANGUAGE_LIST from it to know the CSV's required
-# columns.
-set(LOCALIZATION_UI_CSV ${CMAKE_SOURCE_DIR}/resources/localization/ui_strings.csv)
-set(LOCALIZATION_UI_GENERATED ${CMAKE_SOURCE_DIR}/src/generated/localization_table_ui.generated.h)
+# Generates a file in src/generated/ by running a tools/*.py script against a
+# resources/localization/*.csv file, passing --csv/--generated so the script
+# knows where to read from and write to. All three also depend on
+# src/core/localization_table.h, since each generator reads WE_LANGUAGE_LIST
+# from it to know the CSV's required columns.
+#
+# SYMBOL_PREFIX (optional, generate_localization_table.py only) is forwarded
+# as --symbol-prefix: every kLocalizationTable/.../generated.h included
+# together in one TU (localization_table.h) needs a distinct table/count
+# symbol name, since the default kLocalizationTable/kLocalizationCount can
+# only be claimed once.
+function(add_generated_file OUTPUT CSV SCRIPT COMMENT_TEXT)
+    cmake_parse_arguments(ARG "" "SYMBOL_PREFIX" "" ${ARGN})
+    set(script_path ${CMAKE_SOURCE_DIR}/tools/${SCRIPT})
+    set(csv_path ${CMAKE_SOURCE_DIR}/resources/localization/${CSV})
+    set(output_path ${CMAKE_SOURCE_DIR}/src/generated/${OUTPUT})
+    set(extra_args "")
+    if(ARG_SYMBOL_PREFIX)
+        set(extra_args --symbol-prefix ${ARG_SYMBOL_PREFIX})
+    endif()
+    add_custom_command(
+        OUTPUT ${output_path}
+        COMMAND ${Python3_EXECUTABLE} ${script_path} --csv ${csv_path} --generated ${output_path} ${extra_args}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        DEPENDS ${script_path} ${csv_path} ${CMAKE_SOURCE_DIR}/src/core/localization_table.h
+        COMMENT ${COMMENT_TEXT}
+        VERBATIM
+    )
+endfunction()
 
-add_custom_command(
-    OUTPUT ${LOCALIZATION_UI_GENERATED}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_localization_table.py
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS
-        ${CMAKE_SOURCE_DIR}/tools/generate_localization_table.py
-        ${LOCALIZATION_UI_CSV}
-        ${CMAKE_SOURCE_DIR}/src/core/localization_table.h
-    COMMENT "Generating localization_table_ui.generated.h from ui_strings.csv..."
-    VERBATIM
-)
+add_generated_file(localization_table_ui.generated.h ui_strings.csv generate_localization_table.py
+    "Generating localization_table_ui.generated.h from ui_strings.csv...")
 
-# Regenerates src/generated/version_history.generated.h from
-# resources/localization/version_history.csv (see tools/generate_version_history.py
-# / src/addon/version_history.h). Also depends on localization_table.h, since the
-# generator reads WE_LANGUAGE_LIST from it to know the CSV's required columns.
-set(VERSION_HISTORY_CSV ${CMAKE_SOURCE_DIR}/resources/localization/version_history.csv)
-set(VERSION_HISTORY_GENERATED ${CMAKE_SOURCE_DIR}/src/generated/version_history.generated.h)
+add_generated_file(version_history.generated.h version_history.csv generate_version_history.py
+    "Generating version_history.generated.h from version_history.csv...")
 
-add_custom_command(
-    OUTPUT ${VERSION_HISTORY_GENERATED}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_version_history.py
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS
-        ${CMAKE_SOURCE_DIR}/tools/generate_version_history.py
-        ${VERSION_HISTORY_CSV}
-        ${CMAKE_SOURCE_DIR}/src/core/localization_table.h
-    COMMENT "Generating version_history.generated.h from version_history.csv..."
-    VERBATIM
-)
-
-set(LOCALIZATION_EVENT_NAMES_CSV ${CMAKE_SOURCE_DIR}/resources/localization/event_names.csv)
-set(LOCALIZATION_EVENT_NAMES_GENERATED ${CMAKE_SOURCE_DIR}/src/generated/localization_table_event_names.generated.h)
-
-add_custom_command(
-    OUTPUT ${LOCALIZATION_EVENT_NAMES_GENERATED}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_localization_table.py
-        --csv ${LOCALIZATION_EVENT_NAMES_CSV}
-        --generated ${LOCALIZATION_EVENT_NAMES_GENERATED}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS
-        ${CMAKE_SOURCE_DIR}/tools/generate_localization_table.py
-        ${LOCALIZATION_EVENT_NAMES_CSV}
-        ${CMAKE_SOURCE_DIR}/src/core/localization_table.h
-    COMMENT "Generating localization_table_event_names.generated.h from event_names.csv..."
-    VERBATIM
-)
+add_generated_file(localization_table_event_names.generated.h event_names.csv generate_localization_table.py
+    "Generating localization_table_event_names.generated.h from event_names.csv..."
+    SYMBOL_PREFIX kEventNameLocalization)
 
 add_library(gw2-world-events SHARED
     src/addon/addon.cpp
