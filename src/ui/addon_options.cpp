@@ -690,14 +690,28 @@ void AddonOptions()
             ImGui::TextUnformatted(Tr("WE_OPT_BASIC_EVENTS"));
             MakeDropTarget(kBasicEventDragType, g_BasicCategories, -1);
             ImGui::SameLine();
-            bool pendingAdd = ImGui::SmallButton("+##add_basic_event");
+            bool pendingAdd = false;
+            DisabledBlock(IsBasicEventCreationPending())
+            {
+                pendingAdd = ImGui::SmallButton("+##add_basic_event");
+            }
+            if (IsBasicEventCreationPending() && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
 
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
             ImGui::TextUnformatted(Tr("WE_OPT_CATEGORIES"));
             ImGui::SameLine();
-            bool pendingAddBasicCategory = ImGui::SmallButton("+##add_basic_category");
+            //_ Persists (unlike s_pendingBasicCategoryFocus below) until that category is saved/cancelled.
+            static int s_newBasicCategoryIndex = -1;
+            bool pendingAddBasicCategory = false;
+            DisabledBlock(s_newBasicCategoryIndex >= 0)
+            {
+                pendingAddBasicCategory = ImGui::SmallButton("+##add_basic_category");
+            }
+            if (s_newBasicCategoryIndex >= 0 && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
         
             //_ Section-level bulk icon picker, applies to every Basic Event regardless of category; no per-category one.
             {
@@ -748,8 +762,9 @@ void AddonOptions()
                         editingBasicCategoryNames[c] = ""; //. freshly created - starts empty, forces the inline editor open
                         s_pendingBasicCategoryFocus = -1;
                     }
+                    bool categoryIsNew = (s_newBasicCategoryIndex == c);
                     NameRowResult nameResult = DrawNameAndContextMenu("##category_node", c, c, oldCategoryName, editingBasicCategoryNames, pendingRemoveBasicCategoryIndex,
-                        nullptr, std::string(), nullptr, nullptr, -1, nullptr, nullptr, true, categoryAutoFocus);
+                        nullptr, std::string(), nullptr, nullptr, -1, nullptr, nullptr, true, categoryAutoFocus, categoryIsNew);
                     catOpen = nameResult.open;
                     MakeDropTarget(kBasicEventDragType, g_BasicCategories, c);
                     if (nameResult.newName != oldCategoryName)
@@ -757,6 +772,9 @@ void AddonOptions()
                         //_ No rename-patching needed - members and forced-membership both reference the category by id, never customName.
                         cat.customName = nameResult.newName;
                     }
+                    //_ Resolved (saved or cancelled) - frees the "+" button back up.
+                    if (categoryIsNew && (nameResult.cancelled || nameResult.newName != oldCategoryName))
+                        s_newBasicCategoryIndex = -1;
                 }
 
                 //_ Bookkeeping (isCategorized) runs even when catOpen is false, so a folded category can't leak members.
@@ -823,6 +841,7 @@ void AddonOptions()
                 newCat.customName = ""; //. starts unnamed - forces the inline editor open on next draw
                 g_BasicCategories.push_back(newCat);
                 s_pendingBasicCategoryFocus = (int)g_BasicCategories.size() - 1;
+                s_newBasicCategoryIndex     = s_pendingBasicCategoryFocus;
             }
 
             ImGui::TableSetColumnIndex(1);
@@ -835,14 +854,28 @@ void AddonOptions()
             ImGui::TextUnformatted(Tr("WE_OPT_CYCLIC_EVENTS"));
             MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, -1); //. drop here to uncategorize
             ImGui::SameLine();
-            bool pendingAddGroup = ImGui::SmallButton("+##add_cyclic_group");
+            bool pendingAddGroup = false;
+            DisabledBlock(IsCyclicGroupCreationPending())
+            {
+                pendingAddGroup = ImGui::SmallButton("+##add_cyclic_group");
+            }
+            if (IsCyclicGroupCreationPending() && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
 
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
             ImGui::TextUnformatted(Tr("WE_OPT_CATEGORIES"));
             ImGui::SameLine();
-            bool pendingAddCyclicCategory = ImGui::SmallButton("+##add_cyclic_category");
+            //_ Persists (unlike s_pendingCyclicCategoryFocus below) until that category is saved/cancelled.
+            static int s_newCyclicCategoryIndex = -1;
+            bool pendingAddCyclicCategory = false;
+            DisabledBlock(s_newCyclicCategoryIndex >= 0)
+            {
+                pendingAddCyclicCategory = ImGui::SmallButton("+##add_cyclic_category");
+            }
+            if (s_newCyclicCategoryIndex >= 0 && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
 
             int pendingRemoveGroupIndex = -1;
             int pendingRemoveCyclicCategoryIndex = -1;
@@ -880,12 +913,16 @@ void AddonOptions()
                         editingCyclicCategoryNames[c] = ""; //. freshly created - starts empty, forces the inline editor open
                         s_pendingCyclicCategoryFocus = -1;
                     }
+                    bool categoryIsNew = (s_newCyclicCategoryIndex == c);
                     NameRowResult nameResult = DrawNameAndContextMenu("##cyclic_category_node", c, c, oldCategoryName, editingCyclicCategoryNames, pendingRemoveCyclicCategoryIndex,
-                        nullptr, std::string(), nullptr, nullptr, -1, nullptr, nullptr, true, categoryAutoFocus);
+                        nullptr, std::string(), nullptr, nullptr, -1, nullptr, nullptr, true, categoryAutoFocus, categoryIsNew);
                     catOpen = nameResult.open;
                     MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, c);
                     if (nameResult.newName != oldCategoryName)
                         cat.customName = nameResult.newName;
+                    //_ Resolved (saved or cancelled) - frees the "+" button back up.
+                    if (categoryIsNew && (nameResult.cancelled || nameResult.newName != oldCategoryName))
+                        s_newCyclicCategoryIndex = -1;
                 }
 
                 //_ Same unconditional-bookkeeping/gated-draw split as Basic Events above.
@@ -955,6 +992,7 @@ void AddonOptions()
                 newCat.customName = ""; //. starts unnamed - forces the inline editor open on next draw
                 g_CyclicCategories.push_back(newCat);
                 s_pendingCyclicCategoryFocus = (int)g_CyclicCategories.size() - 1;
+                s_newCyclicCategoryIndex     = s_pendingCyclicCategoryFocus;
             }
 
             ImGui::EndTable();

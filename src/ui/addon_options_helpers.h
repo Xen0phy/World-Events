@@ -192,25 +192,25 @@ void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const
 //********************************************************************************
 // NameRowResult
 //--------------------------------------------------------------------------------
-// open      TreeNode's current expand/collapse state
-// newName   possibly-edited name; unchanged from the input until Save is
-//           clicked
+// open        TreeNode's current expand/collapse state
+// newName     possibly-edited name; unchanged from the input until Save is
+//             clicked
+// cancelled   true the one frame the new-entry-only Cancel button (see isNew
+//             below) is clicked
 //--------------------------------------------------------------------------------
-struct NameRowResult { bool open; std::string newName; };
+struct NameRowResult { bool open; std::string newName; bool cancelled = false; };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNameAndContextMenu
 //--------------------------------------------------------------------------------
 // Shared expand/collapse + name + right-click "Edit name"/"Reset"/"Delete" row,
 // used for Basic Events, Cyclic Groups, Cyclic slots, and both category lists.
-// dragId is the MakeDragSource payload; only meaningful (and only read) when
-// dragType is non-null - the two category-list callers pass neither. autoFocus,
-// true only on the frame a freshly-created entry first draws (see
+// dragId is the MakeDragSource payload, read only when dragType is non-null - the
+// two category-list callers pass neither. autoFocus claims keyboard focus for the
+// inline edit box on the single frame a freshly-created entry first draws (see
 // RequestBasicEventNameEdit/RequestCyclicGroupNameEdit and the inline slot case
-// in DrawCyclicGroupRow), claims keyboard focus for the inline edit box that
-// frame, so a new entry opens ready to type. See the .cpp for the full contract
-// on editBuffers/editKey/removeIndex, autoTag, toggleDone, notifyLevel/
-// setNotifyLevel, and resetToDefault/resetAvailable.
+// in DrawCyclicGroupRow). isNew stays true every later frame until that entry is
+// saved or cancelled, gating the Cancel ("x") button that discards it outright.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
     const char*                 treeNodeId,
@@ -227,7 +227,8 @@ NameRowResult DrawNameAndContextMenu(
     std::function<void(int)>    setNotifyLevel  = nullptr,
     std::function<void()>       resetToDefault  = nullptr,
     bool                        resetAvailable  = true,
-    bool                        autoFocus       = false);
+    bool                        autoFocus       = false,
+    bool                        isNew           = false);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RequestBasicEventNameEdit / RequestCyclicGroupNameEdit
@@ -245,6 +246,18 @@ NameRowResult DrawNameAndContextMenu(
 //--------------------------------------------------------------------------------
 void RequestBasicEventNameEdit(int index);
 void RequestCyclicGroupNameEdit(int index);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsBasicEventCreationPending / IsCyclicGroupCreationPending
+//--------------------------------------------------------------------------------
+// True from the index passed to the matching Request*NameEdit call until that
+// entry is saved or cancelled (NameRowResult::cancelled) - the same span
+// DrawBasicEventRow/DrawCyclicGroupRow pass through as isNew. AddonOptions()
+// disables the matching "+" button while true, capping creation to one pending,
+// not-yet-named entry at a time.
+//--------------------------------------------------------------------------------
+bool IsBasicEventCreationPending();
+bool IsCyclicGroupCreationPending();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ContainsCaseInsensitive / EventMatchesSearch / GroupMatchesSearch

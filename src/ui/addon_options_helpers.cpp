@@ -507,14 +507,14 @@ void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const
 //--------------------------------------------------------------------------------
 // toggleDone, notifyLevel/setNotifyLevel, and resetToDefault add optional right-
 // click entries, left null/-1 where not applicable (e.g. categories pass none of
-// them - no "Reset" for those). resetToDefault, when non-null, adds "Reset"
-// between Edit name and Delete; resetAvailable greys it out for entries with no
-// compiled-in default (see GetDefaultEvent/GetDefaultCyclicGroup/
-// GetDefaultCyclicSlot in events_storage.h) instead of hiding the entry, so its
-// menu position stays predictable either way. editBuffers is the caller's own
-// edit-in-progress map, keyed by editKey (kept separate from removeIndex since
-// slots share one map across groups - see DrawCyclicGroupRow). Returns {open,
-// newName}; sets pendingRemoveIndex = removeIndex on Delete.
+// them). resetToDefault, when non-null, adds "Reset" between Edit name and
+// Delete; resetAvailable greys it out for entries with no compiled-in default
+// (see GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot in
+// events_storage.h) instead of hiding the entry. editBuffers is the caller's own
+// edit-in-progress map, keyed by editKey (separate from removeIndex since slots
+// share one map across groups - see DrawCyclicGroupRow). Delete and Cancel both
+// erase the editBuffers entry and set pendingRemoveIndex = removeIndex; Cancel
+// (isNew only) additionally returns cancelled = true.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
     const char*                 treeNodeId,
@@ -531,7 +531,8 @@ NameRowResult DrawNameAndContextMenu(
     std::function<void(int)>    setNotifyLevel,
     std::function<void()>       resetToDefault,
     bool                        resetAvailable,
-    bool                        autoFocus)
+    bool                        autoFocus,
+    bool                        isNew)
 {
     std::string label = currentName.empty() ? Tr("WE_UNNAMED") : currentName;
     if (autoTag)
@@ -608,13 +609,27 @@ NameRowResult DrawNameAndContextMenu(
         {
             std::string saved = it->second;
             editBuffers.erase(it);
-            return { open, saved };
+            return { open, saved, false };
         }
     }
     if (blank && ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", Tr("WE_ROW_NAME_REQUIRED_TIP"));
 
-    return { open, currentName }; //. unchanged until Save is clicked
+    //_ Only a freshly-created, never-saved entry can be discarded outright
+    if (isNew)
+    {
+        ImGui::SameLine();
+        if (ImGui::SmallButton("x##name_edit_cancel"))
+        {
+            editBuffers.erase(it);
+            pendingRemoveIndex = removeIndex;
+            return { open, currentName, true };
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", Tr("WE_TIP_CANCEL_NEW"));
+    }
+
+    return { open, currentName, false }; //. unchanged until Save/Cancel is clicked
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -652,14 +667,31 @@ bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RequestBasicEventNameEdit / RequestCyclicGroupNameEdit   (see: addon_options_helpers.h)
 //--------------------------------------------------------------------------------
-// One-shot, consumed (and cleared) by DrawBasicEventRow/DrawCyclicGroupRow the
-// next time that index draws - see each function's own editingNames seeding.
+// s_pending* is one-shot, consumed (and cleared) by DrawBasicEventRow/
+// DrawCyclicGroupRow the next time that index draws - see each function's own
+// editingNames seeding. s_new* is set alongside it but persists until
+// DrawBasicEventRow/DrawCyclicGroupRow clears it (entry saved or cancelled) - see
+// IsBasicEventCreationPending/IsCyclicGroupCreationPending.
 //--------------------------------------------------------------------------------
 static int s_pendingBasicEventEdit  = -1;
 static int s_pendingCyclicGroupEdit = -1;
+static int s_newBasicEventIndex     = -1;
+static int s_newCyclicGroupIndex    = -1;
 
-void RequestBasicEventNameEdit(int index)  { s_pendingBasicEventEdit  = index; }
-void RequestCyclicGroupNameEdit(int index) { s_pendingCyclicGroupEdit = index; }
+void RequestBasicEventNameEdit(int index)
+{
+    s_pendingBasicEventEdit = index;
+    s_newBasicEventIndex    = index;
+}
+
+void RequestCyclicGroupNameEdit(int index)
+{
+    s_pendingCyclicGroupEdit = index;
+    s_newCyclicGroupIndex    = index;
+}
+
+bool IsBasicEventCreationPending()  { return s_newBasicEventIndex  >= 0; }
+bool IsCyclicGroupCreationPending() { return s_newCyclicGroupIndex >= 0; }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBasicEventRow   (pairs with: DrawCyclicGroupRow)
@@ -699,18 +731,22 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
         editingNames[i] = ""; //. freshly created - starts empty, forces the inline editor open
         s_pendingBasicEventEdit = -1;
     }
+    bool isNew = (s_newBasicEventIndex == i);
 
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, DisplayName(ev), editingNames, pendingRemoveIndex, kBasicEventDragType, ev.id,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
         [&ev]() { ToggleBasicEventDoneToday(ev.id); },
         notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.id, lvl); },
         [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. customName cleared for free - defaultEv's own customName is always ""
-        defaultEv != nullptr, autoFocus);
+        defaultEv != nullptr, autoFocus, isNew);
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
         ev.customName = nameResult.newName;
     }
+    //_ Resolved (saved or cancelled) - frees the "+" button back up.
+    if (isNew && (nameResult.cancelled || nameResult.newName != oldName))
+        s_newBasicEventIndex = -1;
 
     if (IsDuplicateEventName(g_Events, i))
         DrawDuplicateWarning();
@@ -902,15 +938,19 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         editingNames[i] = ""; //. freshly created - starts empty, forces the inline editor open
         s_pendingCyclicGroupEdit = -1;
     }
+    bool isNew = (s_newCyclicGroupIndex == i);
 
     NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, DisplayName(grp), editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
         grp.apiMapChestId.empty() ? nullptr : "(auto)",
         nullptr, -1, nullptr,
         [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. customName cleared for free - defaultGrp's own customName is always ""
-        defaultGrp != nullptr, autoFocus);
+        defaultGrp != nullptr, autoFocus, isNew);
     bool open = nameResult.open;
     if (nameResult.newName != oldGroupName)
         grp.customName = nameResult.newName;
+    //_ Resolved (saved or cancelled) - frees the "+" button back up.
+    if (isNew && (nameResult.cancelled || nameResult.newName != oldGroupName))
+        s_newCyclicGroupIndex = -1;
 
     if (IsDuplicateGroupName(g_CyclicGroups, i))
         DrawDuplicateWarning();
@@ -962,15 +1002,25 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         ImGui::Spacing();
         ImGui::TextUnformatted(Tr("WE_GROUP_EVENTS_LABEL"));
         ImGui::SameLine();
-        bool pendingAddSlot = ImGui::SmallButton("+##add_slot");
-
-        int pendingRemoveSlotIndex = -1;
 
         //_ Function-static, shared across every group; keyed by (group i, slot s) so slot 0 in different groups can't collide.
         static std::map<int, std::string> editingSlotNames;
 
         //_ One-shot; set on push, consumed next draw - same pattern as RequestBasicEventNameEdit, but local since add and draw both happen in this one function.
         static int s_pendingSlotEditKey = -1;
+
+        //_ Persists (unlike s_pendingSlotEditKey) until that slot is saved/cancelled; shared across every group, same as editingSlotNames above.
+        static int s_newSlotEditKey = -1;
+
+        bool pendingAddSlot = false;
+        DisabledBlock(s_newSlotEditKey >= 0)
+        {
+            pendingAddSlot = ImGui::SmallButton("+##add_slot");
+        }
+        if (s_newSlotEditKey >= 0 && ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
+
+        int pendingRemoveSlotIndex = -1;
 
         for (int s = 0; s < (int)grp.slots.size(); s++)
         {
@@ -1001,17 +1051,21 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
                 editingSlotNames[slotEditKey] = ""; //. freshly created - starts empty, forces the inline editor open
                 s_pendingSlotEditKey = -1;
             }
+            bool slotIsNew = (s_newSlotEditKey == slotEditKey);
 
             //_ Slot rows aren't draggable (dragType left null) - a slot moves with its group, not independently between categories.
             NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, oldSlotName, editingSlotNames, pendingRemoveSlotIndex,
                 nullptr, std::string(), nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
                 notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); },
                 [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. customName cleared for free - defaultSlot's own customName is always ""
-                defaultSlot != nullptr, slotAutoFocus);
+                defaultSlot != nullptr, slotAutoFocus, slotIsNew);
             bool slotOpen = slotNameResult.open;
             //_ Slots aren't categorized and subscriptions key on (group id, slot id), not name, so no rename fixups are needed.
             if (slotNameResult.newName != oldSlotName)
                 slot.customName = slotNameResult.newName;
+            //_ Resolved (saved or cancelled) - frees the "+" button back up.
+            if (slotIsNew && (slotNameResult.cancelled || slotNameResult.newName != oldSlotName))
+                s_newSlotEditKey = -1;
 
             if (IsDuplicateSlotKey(grp.slots, s, grp.id))
                 DrawDuplicateWarning();
@@ -1158,6 +1212,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         if (pendingAddSlot)
         {
             s_pendingSlotEditKey = i * 100000 + (int)grp.slots.size(); //. index this slot will land at, below
+            s_newSlotEditKey     = s_pendingSlotEditKey;
             CyclicGroup::Slot newSlot{};
             newSlot.customName = ""; //. starts unnamed - forces the inline editor open on next draw (see s_pendingSlotEditKey above)
             newSlot.offset   = 0;
