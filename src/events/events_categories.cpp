@@ -54,6 +54,21 @@ static const CategoryDefault* GetDefaultCategory(const std::string& id, Category
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsAbandonedEntry
+//--------------------------------------------------------------------------------
+// True for a Category with a blank (or whitespace-only) name that also doesn't
+// resolve to a compiled-in default - same "+"-created-and-never-named state as
+// events_storage.cpp's IsAbandonedEntry (kept as a separate local copy, since the
+// two take different default-lookup shapes). SerializeCategoryList drops these
+// instead of writing them as a permanent "(unnamed)" row.
+//--------------------------------------------------------------------------------
+static bool IsAbandonedEntry(const std::string& customName, bool hasDefault)
+{
+    bool blank = customName.find_first_not_of(" \t") == std::string::npos;
+    return blank && !hasDefault;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DisplayName / DisplayNameEnglish   (see: events_categories.h)
 //--------------------------------------------------------------------------------
 const char* DisplayName(const Category& cat, CategoryListKind kind)
@@ -91,15 +106,14 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 // SerializeCategory / DeserializeCategory / SerializeCategoryList / DeserializeCategoryList
 //--------------------------------------------------------------------------------
 // Category <-> json conversion; the List variants map the single-item versions
-// over a json array, also collecting each entry's outIsLegacyName so
-// LoadCategoriesData's id-assignment pass knows which ones need it.
-// customName/outIsLegacyName: a file predating the id/customName rename has
-// "name" instead. DeserializeCategory stashes it into customName as a scratch
-// value (outIsLegacyName = true); id is still empty at this point, so resolving
-// against WE_NAME_CATEGORY_*_<id> waits for LoadCategoriesData's migration pass.
-// id/customName both missing (malformed row): same path as any other id-less
-// entry - fresh id from UniqueId, customName left empty so DisplayName resolves
-// it to WE_UNNAMED.
+// over a json array (dropping abandoned unnamed entries - IsAbandonedEntry
+// above), also collecting outIsLegacyName so LoadCategoriesData's id-assignment
+// pass knows which ones need it. customName/outIsLegacyName: a file predating the
+// id/customName rename has "name" instead; DeserializeCategory stashes it into
+// customName as a scratch value (outIsLegacyName = true) until
+// LoadCategoriesData's migration pass resolves it against
+// WE_NAME_CATEGORY_*_<id>. id/customName both missing (malformed row): fresh id
+// from UniqueId, customName empty -> WE_UNNAMED.
 //--------------------------------------------------------------------------------
 static json SerializeCategory(const Category& cat)
 {
@@ -126,11 +140,12 @@ static Category DeserializeCategory(const json& j, bool& outIsLegacyName)
     return cat;
 }
 
-static json SerializeCategoryList(const std::vector<Category>& categories)
+static json SerializeCategoryList(const std::vector<Category>& categories, CategoryListKind kind)
 {
     json arr = json::array();
     for (const auto& cat : categories)
-        arr.push_back(SerializeCategory(cat));
+        if (!IsAbandonedEntry(cat.customName, GetDefaultCategory(cat.id, kind) != nullptr))
+            arr.push_back(SerializeCategory(cat));
     return arr;
 }
 
@@ -320,8 +335,8 @@ bool SaveCategoriesData(const std::string& addonDir)
             }
         }
 
-        j["basicCategories"]  = SerializeCategoryList(g_BasicCategories);
-        j["cyclicCategories"] = SerializeCategoryList(g_CyclicCategories);
+        j["basicCategories"]  = SerializeCategoryList(g_BasicCategories, CategoryListKind::Basic);
+        j["cyclicCategories"] = SerializeCategoryList(g_CyclicCategories, CategoryListKind::Cyclic);
 
         fs::create_directories(addonDir);
         std::ofstream out(filepath);

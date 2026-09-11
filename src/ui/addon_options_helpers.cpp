@@ -530,7 +530,8 @@ NameRowResult DrawNameAndContextMenu(
     int                         notifyLevel,
     std::function<void(int)>    setNotifyLevel,
     std::function<void()>       resetToDefault,
-    bool                        resetAvailable)
+    bool                        resetAvailable,
+    bool                        autoFocus)
 {
     std::string label = currentName.empty() ? Tr("WE_UNNAMED") : currentName;
     if (autoTag)
@@ -590,17 +591,28 @@ NameRowResult DrawNameAndContextMenu(
     strncpy(buf, it->second.c_str(), sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
 
+    if (autoFocus)
+        ImGui::SetKeyboardFocusHere();
+
     ImGui::SetNextItemWidth(160.0f);
     if (ImGui::InputText("##inline_name_edit", buf, sizeof(buf)))
         it->second = buf; //. persists into next frame
 
+    //_ Whitespace-only counts as blank - a name of all spaces would look identical to (unnamed) anyway.
+    bool blank = it->second.find_first_not_of(" \t") == std::string::npos;
+
     ImGui::SameLine();
-    if (ImGui::SmallButton(TrId("WE_ROW_SAVE", "##name_edit_save").c_str()))
+    DisabledBlock(blank)
     {
-        std::string saved = it->second;
-        editBuffers.erase(it);
-        return { open, saved };
+        if (ImGui::SmallButton(TrId("WE_ROW_SAVE", "##name_edit_save").c_str()))
+        {
+            std::string saved = it->second;
+            editBuffers.erase(it);
+            return { open, saved };
+        }
     }
+    if (blank && ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", Tr("WE_ROW_NAME_REQUIRED_TIP"));
 
     return { open, currentName }; //. unchanged until Save is clicked
 }
@@ -638,6 +650,18 @@ bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RequestBasicEventNameEdit / RequestCyclicGroupNameEdit   (see: addon_options_helpers.h)
+//--------------------------------------------------------------------------------
+// One-shot, consumed (and cleared) by DrawBasicEventRow/DrawCyclicGroupRow the
+// next time that index draws - see each function's own editingNames seeding.
+//--------------------------------------------------------------------------------
+static int s_pendingBasicEventEdit  = -1;
+static int s_pendingCyclicGroupEdit = -1;
+
+void RequestBasicEventNameEdit(int index)  { s_pendingBasicEventEdit  = index; }
+void RequestCyclicGroupNameEdit(int index) { s_pendingCyclicGroupEdit = index; }
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBasicEventRow   (pairs with: DrawCyclicGroupRow)
 //--------------------------------------------------------------------------------
 // Draws one g_Events[i] row in full - extracted out of the main loop so both the
@@ -668,12 +692,20 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
     std::string oldName = DisplayName(ev);
     const WorldEvent* defaultEv = GetDefaultEvent(ev.id);
+
+    bool autoFocus = (s_pendingBasicEventEdit == i);
+    if (autoFocus)
+    {
+        editingNames[i] = ""; //. freshly created - starts empty, forces the inline editor open
+        s_pendingBasicEventEdit = -1;
+    }
+
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, DisplayName(ev), editingNames, pendingRemoveIndex, kBasicEventDragType, ev.id,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
         [&ev]() { ToggleBasicEventDoneToday(ev.id); },
         notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.id, lvl); },
         [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. customName cleared for free - defaultEv's own customName is always ""
-        defaultEv != nullptr);
+        defaultEv != nullptr, autoFocus);
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
@@ -863,11 +895,19 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
     std::string oldGroupName = DisplayName(grp);
     const CyclicGroup* defaultGrp = GetDefaultCyclicGroup(grp.id);
+
+    bool autoFocus = (s_pendingCyclicGroupEdit == i);
+    if (autoFocus)
+    {
+        editingNames[i] = ""; //. freshly created - starts empty, forces the inline editor open
+        s_pendingCyclicGroupEdit = -1;
+    }
+
     NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, DisplayName(grp), editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
         grp.apiMapChestId.empty() ? nullptr : "(auto)",
         nullptr, -1, nullptr,
         [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. customName cleared for free - defaultGrp's own customName is always ""
-        defaultGrp != nullptr);
+        defaultGrp != nullptr, autoFocus);
     bool open = nameResult.open;
     if (nameResult.newName != oldGroupName)
         grp.customName = nameResult.newName;
@@ -929,6 +969,9 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         //_ Function-static, shared across every group; keyed by (group i, slot s) so slot 0 in different groups can't collide.
         static std::map<int, std::string> editingSlotNames;
 
+        //_ One-shot; set on push, consumed next draw - same pattern as RequestBasicEventNameEdit, but local since add and draw both happen in this one function.
+        static int s_pendingSlotEditKey = -1;
+
         for (int s = 0; s < (int)grp.slots.size(); s++)
         {
             CyclicGroup::Slot& slot = grp.slots[s];
@@ -951,12 +994,20 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             int slotEditKey = i * 100000 + s;
             const CyclicGroup::Slot* defaultSlot = GetDefaultCyclicSlot(grp.id, slot.id);
             std::string oldSlotName = DisplayName(slot, grp.id);
+
+            bool slotAutoFocus = (s_pendingSlotEditKey == slotEditKey);
+            if (slotAutoFocus)
+            {
+                editingSlotNames[slotEditKey] = ""; //. freshly created - starts empty, forces the inline editor open
+                s_pendingSlotEditKey = -1;
+            }
+
             //_ Slot rows aren't draggable (dragType left null) - a slot moves with its group, not independently between categories.
             NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, oldSlotName, editingSlotNames, pendingRemoveSlotIndex,
                 nullptr, std::string(), nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
                 notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); },
                 [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. customName cleared for free - defaultSlot's own customName is always ""
-                defaultSlot != nullptr);
+                defaultSlot != nullptr, slotAutoFocus);
             bool slotOpen = slotNameResult.open;
             //_ Slots aren't categorized and subscriptions key on (group id, slot id), not name, so no rename fixups are needed.
             if (slotNameResult.newName != oldSlotName)
@@ -1106,8 +1157,9 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
         if (pendingAddSlot)
         {
+            s_pendingSlotEditKey = i * 100000 + (int)grp.slots.size(); //. index this slot will land at, below
             CyclicGroup::Slot newSlot{};
-            newSlot.customName = "New Event";
+            newSlot.customName = ""; //. starts unnamed - forces the inline editor open on next draw (see s_pendingSlotEditKey above)
             newSlot.offset   = 0;
             newSlot.duration = 600; //. 10 min, a reasonable default
             newSlot.tier     = ColorTier::Primary;

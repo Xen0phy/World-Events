@@ -204,9 +204,13 @@ struct NameRowResult { bool open; std::string newName; };
 // Shared expand/collapse + name + right-click "Edit name"/"Reset"/"Delete" row,
 // used for Basic Events, Cyclic Groups, Cyclic slots, and both category lists.
 // dragId is the MakeDragSource payload; only meaningful (and only read) when
-// dragType is non-null - the two category-list callers pass neither. See the .cpp
-// for the full contract on editBuffers/editKey/removeIndex, autoTag, toggleDone,
-// notifyLevel/setNotifyLevel, and resetToDefault/resetAvailable.
+// dragType is non-null - the two category-list callers pass neither. autoFocus,
+// true only on the frame a freshly-created entry first draws (see
+// RequestBasicEventNameEdit/RequestCyclicGroupNameEdit and the inline slot case
+// in DrawCyclicGroupRow), claims keyboard focus for the inline edit box that
+// frame, so a new entry opens ready to type. See the .cpp for the full contract
+// on editBuffers/editKey/removeIndex, autoTag, toggleDone, notifyLevel/
+// setNotifyLevel, and resetToDefault/resetAvailable.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
     const char*                 treeNodeId,
@@ -222,7 +226,25 @@ NameRowResult DrawNameAndContextMenu(
     int                         notifyLevel     = -1,
     std::function<void(int)>    setNotifyLevel  = nullptr,
     std::function<void()>       resetToDefault  = nullptr,
-    bool                        resetAvailable  = true);
+    bool                        resetAvailable  = true,
+    bool                        autoFocus       = false);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RequestBasicEventNameEdit / RequestCyclicGroupNameEdit
+//--------------------------------------------------------------------------------
+// Called once, right after pushing a freshly-created (empty-customName) entry
+// onto g_Events/g_CyclicGroups, from AddonOptions() (addon_options.cpp) - which
+// has no access to DrawBasicEventRow's/DrawCyclicGroupRow's own file-static
+// editBuffers maps. The next time that row actually draws (the following frame -
+// add/remove is applied after the draw loop, same as everywhere else in this
+// file), it seeds its own editBuffers entry and opens already focused for typing,
+// instead of showing a placeholder name the player has to notice and replace.
+// Cyclic Slots don't need an equivalent: their add button lives in the same
+// function as their editBuffers map (DrawCyclicGroupRow), so that seeding happens
+// inline instead - see the .cpp.
+//--------------------------------------------------------------------------------
+void RequestBasicEventNameEdit(int index);
+void RequestCyclicGroupNameEdit(int index);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ContainsCaseInsensitive / EventMatchesSearch / GroupMatchesSearch

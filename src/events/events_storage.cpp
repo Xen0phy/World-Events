@@ -59,6 +59,23 @@ static std::string SlotNameIdentifier(const std::string& groupId, const std::str
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsAbandonedEntry
+//--------------------------------------------------------------------------------
+// True for a WorldEvent/CyclicGroup/Slot with a blank (or whitespace-only) name
+// that also doesn't resolve to a compiled-in default - the state a "+"-created
+// entry is left in if the player never gets around to naming it (see
+// RequestBasicEventNameEdit, addon_options_helpers.h) and closes/unloads anyway.
+// SaveEventsData drops these instead of writing them to events.json as a
+// permanent "(unnamed)" row; a real stock default with an unedited (blank)
+// customName still resolves via its id and is kept.
+//--------------------------------------------------------------------------------
+static bool IsAbandonedEntry(const std::string& customName, bool hasDefault)
+{
+    bool blank = customName.find_first_not_of(" \t") == std::string::npos;
+    return blank && !hasDefault;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeEvent / DeserializeEvent
 //--------------------------------------------------------------------------------
 // (De)serializes one WorldEvent. id is the merge/identity key (see EventKey);
@@ -281,15 +298,15 @@ static CyclicGroup::Slot DeserializeSlot(const json& j, bool& outIsLegacyName)
 // SerializeGroup / DeserializeGroup
 //--------------------------------------------------------------------------------
 // (De)serializes one CyclicGroup, including its nested slots array via
-// SerializeSlot/DeserializeSlot. id is the merge/identity key (see GroupKey),
-// left empty on deserialize for a pre-migration file - same deferred-backfill
-// reasoning as SerializeEvent/DeserializeEvent above. idleColor is presence-
-// checked like Slot::customColor above; shown/customName are omitted when
-// true/empty (their defaults), same convention as WorldEvent above.
-// customName/outIsLegacyName: same scratch-value handling as DeserializeEvent's
-// customName/outIsLegacyName - see that function's header comment.
-// outIsLegacySlotNames is the same flag per nested slot, aligned index-for-index
-// with the returned group's slots vector.
+// SerializeSlot/DeserializeSlot - abandoned (unnamed, non-default) slots are
+// dropped on serialize, same as SaveEventsData (IsAbandonedEntry above). id is
+// the merge/identity key (see GroupKey), left empty on deserialize for a pre-
+// migration file - same deferred-backfill reasoning as SerializeEvent/
+// DeserializeEvent above. idleColor is presence-checked like Slot::customColor
+// above; shown/customName are omitted when true/empty (their defaults), same
+// convention as WorldEvent above. customName/outIsLegacyName: same scratch-value
+// handling as DeserializeEvent's - see its header comment. outIsLegacySlotNames
+// is the same flag per nested slot, index-aligned.
 //--------------------------------------------------------------------------------
 static json SerializeGroup(const CyclicGroup& grp)
 {
@@ -311,7 +328,8 @@ static json SerializeGroup(const CyclicGroup& grp)
 
     json slots = json::array();
     for (const auto& slot : grp.slots)
-        slots.push_back(SerializeSlot(slot));
+        if (!IsAbandonedEntry(slot.customName, GetDefaultCyclicSlot(grp.id, slot.id) != nullptr))
+            slots.push_back(SerializeSlot(slot));
     j["slots"] = slots;
 
     return j;
@@ -598,16 +616,16 @@ std::string UniqueId(const std::string& candidate, std::unordered_set<std::strin
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveEventsData / LoadEventsData
 //--------------------------------------------------------------------------------
-// SaveEventsData serializes g_Events/g_CyclicGroups straight to events.json.
-// LoadEventsData backfills a missing id (pre-migration file - see
-// SlugifyName/UniqueId above) before anything else runs, then merges from disk
-// via MergeByKey/MergeGroups, using resurrectMissingDefaults = (saved
-// data_version < EVENTS_DATA_VERSION), then restamps apiWorldBossId/doneGroup/
-// apiMapChestId from the compiled-in defaults by id, since those cross-reference
-// fields are never read from or written to the file. A missing file isn't an
-// error - g_Events/g_CyclicGroups are simply left at their compiled-in defaults;
-// the caller (addon.cpp) is expected to call SaveEventsData right after so the
-// file exists from then on.
+// SaveEventsData serializes g_Events/g_CyclicGroups to events.json, dropping any
+// abandoned unnamed entry along the way (IsAbandonedEntry above) so it isn't
+// written as a permanent "(unnamed)" row - the in-memory vectors themselves are
+// untouched, only what gets written. LoadEventsData backfills a missing id (pre-
+// migration file - see SlugifyName/UniqueId above), then merges from disk via
+// MergeByKey/MergeGroups, using resurrectMissingDefaults = (saved data_version <
+// EVENTS_DATA_VERSION), then restamps apiWorldBossId/doneGroup/ apiMapChestId
+// from the compiled-in defaults by id, since those cross-reference fields are
+// never read from or written to the file. A missing file isn't an error -
+// g_Events/g_CyclicGroups are simply left at their compiled-in defaults.
 //--------------------------------------------------------------------------------
 bool SaveEventsData(const std::string& addonDir)
 {
@@ -621,12 +639,14 @@ bool SaveEventsData(const std::string& addonDir)
 
         json eventsArr = json::array();
         for (const auto& ev : g_Events)
-            eventsArr.push_back(SerializeEvent(ev));
+            if (!IsAbandonedEntry(ev.customName, GetDefaultEvent(ev.id) != nullptr))
+                eventsArr.push_back(SerializeEvent(ev));
         j["events"] = eventsArr;
 
         json groupsArr = json::array();
         for (const auto& grp : g_CyclicGroups)
-            groupsArr.push_back(SerializeGroup(grp));
+            if (!IsAbandonedEntry(grp.customName, GetDefaultCyclicGroup(grp.id) != nullptr))
+                groupsArr.push_back(SerializeGroup(grp));
         j["cyclicGroups"] = groupsArr;
 
         std::ofstream file(filepath);

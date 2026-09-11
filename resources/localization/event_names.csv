@@ -1,20 +1,20 @@
 identifier,en,de,fr,es,cn,note
 #,events_basic.cpp - g_Events (WorldEvent) - compiled-in Basic Event default names.,,,,,
-WE_NAME_BASIC_outer_nayos,Outer Nayos,Äußeres Nayos,Nayos Extérieur,Zona exterior de Nayos,外域纳约斯,es corrected per wiki-es (was: Nayos Exterior)
+WE_NAME_BASIC_outer_nayos,Outer Nayos,Äußeres Nayos,Nayos Extérieur,Zona exterior de Nayos,外域纳约斯,
 WE_NAME_BASIC_mount_balrior,Mount Balrior,Berg Balrior,Mont Balrior,Monte Balrior,巴尔里奥山,
 WE_NAME_BASIC_admiral_taidha_covington,Admiral Taidha Covington,Admiral Taidha Covington,Amiral Taidha Covington,Almirante Taidha Covington,上将泰达·科文顿,
 WE_NAME_BASIC_claw_of_jormag,Claw of Jormag,Klaue von Jormag,Griffe de Jormag,Garra de Jormag,卓玛之爪,
 WE_NAME_BASIC_fire_elemental,Fire Elemental,Feuerelementar,Élémentaire de feu,Elemental de Fuego,火元素,
-WE_NAME_BASIC_inquest_golem_mark_ii,Golem Mark II,Golem Typ II,Golem de l'Enqueste Marque II,Gólem de la Inquisa serie II,审讯团魔像马克II型,es corrected per wiki-es (was: Gólem Mark II)
-WE_NAME_BASIC_great_jungle_wurm,Great Jungle Wurm,Großer Dschungelwurm,Grande Guivre de la Jungle,Gran sierpe de la selva,巨型丛林地虫,es corrected per wiki-es (was: Gusano Selvático Colosal)
+WE_NAME_BASIC_inquest_golem_mark_ii,Golem Mark II,Golem Typ II,Golem de l'Enqueste Marque II,Gólem de la Inquisa serie II,审讯团魔像马克II型,
+WE_NAME_BASIC_great_jungle_wurm,Great Jungle Wurm,Großer Dschungelwurm,Grande Guivre de la Jungle,Gran sierpe de la selva,巨型丛林地虫,
 WE_NAME_BASIC_karka_queen,Karka Queen,Karka-Königin,Reine Karka,Reina Karka,喀壳虫女王,
 WE_NAME_BASIC_megadestroyer,Megadestroyer,Megazerstörer,Mégadestructeur,Megadestructor,超能毁灭者,
-WE_NAME_BASIC_modniir_ulgoth,Modniir Ulgoth,Modniir Ulgoth,Ulgoth le Modniir,Ulgoth modniir,莫迪尔沃尔格斯,"es corrected per wiki-es (was: Modniir Ulgoth, word order)"
-WE_NAME_BASIC_shadow_behemoth,Shadow Behemoth,Schatten-Behemoth,Béhémoth des Ombres,Behemot de las sombras,暗影巨兽,es corrected per wiki-es (was: Behemoth de las Sombras)
+WE_NAME_BASIC_modniir_ulgoth,Modniir Ulgoth,Modniir Ulgoth,Ulgoth le Modniir,Ulgoth modniir,莫迪尔沃尔格斯,""
+WE_NAME_BASIC_shadow_behemoth,Shadow Behemoth,Schatten-Behemoth,Béhémoth des Ombres,Behemot de las sombras,暗影巨兽,
 WE_NAME_BASIC_svanir_shaman_chief,Svanir Shaman Chief,Schamanenoberhaupt der Svanir,Chef chamane de Svanir,Jefe Chamán Svanir,斯瓦尼亚萨满酋长,
-WE_NAME_BASIC_tequatl_the_sunless,Tequatl the Sunless,Tequatl der Sonnenlose,Tequatl le Sans-Soleil,Tequatl el Sombrío,阴鬼“吞噬托”,es corrected per wiki-es (was: Tequatl el Oscuro)
-WE_NAME_BASIC_the_shatterer,The Shatterer,Der Zerschmetterer,Le Destructeur,El Asolador,碎裂巨兽,es corrected per wiki-es (was: El Destructor)
-WE_NAME_BASIC_triple_trouble_wurm,Triple Trouble,Dreifacher Ärger,Triple Terreur,Triple Amenaza,三重麻烦地虫,UNVERIFIED: wiki has no single title; names the 3 worms individually (Gran sierpe de la selva Ámbar/Cobalto/Carmesí)
+WE_NAME_BASIC_tequatl_the_sunless,Tequatl the Sunless,Tequatl der Sonnenlose,Tequatl le Sans-Soleil,Tequatl el Sombrío,阴鬼“吞噬托”,
+WE_NAME_BASIC_the_shatterer,The Shatterer,Der Zerschmetterer,Le Destructeur,El Asolador,碎裂巨兽,
+WE_NAME_BASIC_triple_trouble_wurm,Triple Trouble,Dreifacher Ärger,Triple Terreur,Problema x3,三重麻烦地虫,
 WE_NAME_BASIC_ley_line_anomaly_timberline,Ley-Line Anomaly (Timberline Falls),Ley-Linien-Anomalie (Baumgrenzen-Fälle),Anomalie des lignes telluriques (Chutes-du-Bois),Anomalía de Línea Ley (Cascadas del Bosque),魔径异常体（林线瀑布）,
 WE_NAME_BASIC_ley_line_anomaly_iron_marches,Ley-Line Anomaly (Iron Marches),Ley-Linien-Anomalie (Eisenmark),Anomalie des lignes telluriques (Marches de Fer),Anomalía de Línea Ley (Marcas de Hierro),魔径异常体（铁域）,
 WE_NAME_BASIC_ley_line_anomaly_gendarran,Ley-Line Anomaly (Gendarran Fields),Ley-Linien-Anomalie (Gendarran-Felder),Anomalie des lignes telluriques (Plaines de Gendarran),Anomalía de Línea Ley (Llanuras de Gendarran),魔径异常体（甘达拉战区）,
@@ -31,10 +31,10 @@ WE_NAME_BASIC_fractal_incursion_snowden,Fractal Incursion (Snowden Drifts),Frakt
 WE_NAME_BASIC_fractal_incursion_kessex,Fractal Incursion (Kessex Hills),Fraktal-Ansturm (Kessex-Hügel),Incursion de Fractale (Collines de Kessex),Incursión de Fractal (Colinas de Kessex),裂隙入侵（凯席斯山）,
 WE_NAME_BASIC_fractal_incursion_diessa,Fractal Incursion (Diessa Plateau),Fraktal-Ansturm (Diessa-Hochebene),Incursion de Fractale (Plateau de Diessa),Incursión de Fractal (Meseta de Diessa),裂隙入侵（迪萨高原）,
 WE_NAME_BASIC_your_mad_king_says,Your Mad King Says...,Euer verrückter König spricht...,Votre Roi Fou dit...,Vuestro Rey Loco dice...,你的疯王说……,
-WE_NAME_BASIC_dragon_bash_wayfarer,Dragon Bash (Wayfarer Foothills),Drachen-Gepolter (Wandererhöhen),Festival du Dragon (Repos-du-Voyageur),Festival del Dragonicidio (Refugio del Viajero),斗龙节（旅人山麓）,es corrected per wiki-es: event renamed from 'Fiesta del Dragón' to 'Festival del Dragonicidio'
-WE_NAME_BASIC_dragon_bash_dredgehaunt,Dragon Bash (Dredgehaunt Cliffs),Drachen-Gepolter (Gräberklippen),Festival du Dragon (Falaise-des-Nains),Festival del Dragonicidio (Acantilados Encantados),斗龙节（掘洞鬼崖）,es corrected per wiki-es: event renamed from 'Fiesta del Dragón' to 'Festival del Dragonicidio'
-WE_NAME_BASIC_dragon_bash_lornars,Dragon Bash (Lornar's Pass),Drachen-Gepolter (Lornars-Pass),Festival du Dragon (Col de Lornar),Festival del Dragonicidio (Paso de Lornar),斗龙节（洛纳尔隘口）,es corrected per wiki-es: event renamed from 'Fiesta del Dragón' to 'Festival del Dragonicidio'
-WE_NAME_BASIC_dragon_bash_snowden,Dragon Bash (Snowden Drifts),Drachen-Gepolter (Schneegipfelzüge),Festival du Dragon (Cimes-Enneigées),Festival del Dragonicidio (Cumbres Nevadas),斗龙节（漂流雪境）,es corrected per wiki-es: event renamed from 'Fiesta del Dragón' to 'Festival del Dragonicidio'
+WE_NAME_BASIC_dragon_bash_wayfarer,Dragon Bash (Wayfarer Foothills),Drachen-Gepolter (Wandererhöhen),Festival du Dragon (Repos-du-Voyageur),Festival del Dragonicidio (Refugio del Viajero),斗龙节（旅人山麓）,
+WE_NAME_BASIC_dragon_bash_dredgehaunt,Dragon Bash (Dredgehaunt Cliffs),Drachen-Gepolter (Gräberklippen),Festival du Dragon (Falaise-des-Nains),Festival del Dragonicidio (Acantilados Encantados),斗龙节（掘洞鬼崖）,
+WE_NAME_BASIC_dragon_bash_lornars,Dragon Bash (Lornar's Pass),Drachen-Gepolter (Lornars-Pass),Festival du Dragon (Col de Lornar),Festival del Dragonicidio (Paso de Lornar),斗龙节（洛纳尔隘口）,
+WE_NAME_BASIC_dragon_bash_snowden,Dragon Bash (Snowden Drifts),Drachen-Gepolter (Schneegipfelzüge),Festival du Dragon (Cimes-Enneigées),Festival del Dragonicidio (Cumbres Nevadas),斗龙节（漂流雪境）,
 #,events_basic.cpp - g_DefaultBasicCategories (CategoryDefault) - compiled-in Basic Category default names.,,,,,
 WE_NAME_CATEGORY_BASIC_instanced,Instanced,Instanziert,Instancié,De Instancia,副本,
 WE_NAME_CATEGORY_BASIC_core_bosses,World Bosses,Weltbosse,Boss Mondiaux,Jefes del Mundo,世界首领,
@@ -46,38 +46,38 @@ WE_NAME_CATEGORY_BASIC_festivals,Festivals,Feste,Festivals,Festivales,节日,
 WE_NAME_GROUP_eye_of_the_north,Eye of the North,Auge des Nordens,Œil du Nord,Ojo del Norte,北方之眼,
 WE_NAME_GROUP_festival_of_the_four_winds,Festival of the Four Winds,Fest der Vier Winde,Festival des Quatre Vents,Festival de los Cuatro Vientos,四风节,
 WE_NAME_GROUP_dry_top,Dry Top,Trockenkuppe,Sommet Aride,Cima Seca,旱丘,
-WE_NAME_GROUP_verdant_brink,Verdant Brink,Grasgrüne Schwelle,Orée d'Émeraude,Umbral Verdeante,青蔓边境,es corrected per wiki-es (was: Linde Verdeante)
-WE_NAME_GROUP_auric_basin,Auric Basin,Güldener Talkessel,Bassin aurique,Valle Áurico,金水盆地,es corrected per wiki-es (was: Cuenca Áurea)
-WE_NAME_GROUP_tangled_depths,Tangled Depths,Verschlungene Tiefen,Profondeurs Verdoyantes,Profundidades Enredadas,缠结深域,es corrected per wiki-es (was: Profundidades Enmarañadas)
-WE_NAME_GROUP_dragons_stand,Dragon's Stand,Widerstand des Drachen,Repli du Dragon,Defensa del Dragón,龙立之地,es corrected per wiki-es (was: Posición del Dragón)
-WE_NAME_GROUP_lake_doric,Lake Doric,Doric-See,Lac Doric,Lago Doric,多瑞克湖,es corrected per wiki-es (was: Lago Dórico)
+WE_NAME_GROUP_verdant_brink,Verdant Brink,Grasgrüne Schwelle,Orée d'Émeraude,Umbral Verdeante,青蔓边境,
+WE_NAME_GROUP_auric_basin,Auric Basin,Güldener Talkessel,Bassin aurique,Valle Áurico,金水盆地,
+WE_NAME_GROUP_tangled_depths,Tangled Depths,Verschlungene Tiefen,Profondeurs Verdoyantes,Profundidades Enredadas,缠结深域,
+WE_NAME_GROUP_dragons_stand,Dragon's Stand,Widerstand des Drachen,Repli du Dragon,Defensa del Dragón,龙立之地,
+WE_NAME_GROUP_lake_doric,Lake Doric,Doric-See,Lac Doric,Lago Doric,多瑞克湖,
 WE_NAME_GROUP_crystal_oasis,Crystal Oasis,Kristalloase,Oasis de Cristal,Oasis de Cristal,水晶绿洲,
 WE_NAME_GROUP_desert_highlands,Desert Highlands,Wüsten-Hochland,Hautes-Terres du Désert,Tierras Altas del Desierto,荒漠高地,
-WE_NAME_GROUP_elon_riverlands,Elon Riverlands,Elon-Flusslande,Rives de l'Elon,La Ribera del Elon,埃隆河川地,es corrected per wiki-es (was: Tierras Fluviales de Elon)
+WE_NAME_GROUP_elon_riverlands,Elon Riverlands,Elon-Flusslande,Rives de l'Elon,La Ribera del Elon,埃隆河川地,
 WE_NAME_GROUP_the_desolation,The Desolation,Das Ödland,La Désolation,La Desolación,荒芜之地,
 WE_NAME_GROUP_domain_of_vabbi,Domain of Vabbi,Domäne Vaabi,Domaine de Vabbi,Dominio de Vabbi,瓦比领域,
 WE_NAME_GROUP_domain_of_istan,Domain of Istan,Domäne Istan,Domaine d'Istan,Dominio de Istan,伊斯坦领域,
 WE_NAME_GROUP_jahai_bluffs,Jahai Bluffs,Jahai-Klippen,Promontoire de Jahai,Acantilados de Jahai,贾海崖地,
-WE_NAME_GROUP_thunderhead_peaks,Thunderhead Peaks,Donnerkopf-Gipfel,Pics de Chef-Tonnerre,Picos del Trueno,雷首峰,es corrected per wiki-es (was: Picos Cabeza de Trueno)
+WE_NAME_GROUP_thunderhead_peaks,Thunderhead Peaks,Donnerkopf-Gipfel,Pics de Chef-Tonnerre,Picos del Trueno,雷首峰,
 WE_NAME_GROUP_grothmar_valley,Grothmar Valley,Grothmar-Tal,Vallée de Grothmar,Valle de Grothmar,格罗斯马尔谷,
-WE_NAME_GROUP_bjora_marches,Bjora Marches,Bjora-Marken,Frontière de Bjora,Marca de Bjora,比约拉边域,"es corrected per wiki-es (was: Marcas de Bjora, plural)"
+WE_NAME_GROUP_bjora_marches,Bjora Marches,Bjora-Marken,Frontière de Bjora,Marca de Bjora,比约拉边域,""
 WE_NAME_GROUP_seitung_province,Seitung Province,Provinz Seitung,Province de Seitung,Provincia de Seitung,晴空省,
-WE_NAME_GROUP_new_kaineng_city,New Kaineng City,Stadt Neu-Kaineng,Néo-Kaineng,Ciudad de Nueva Kaineng,新凯宁城,"es corrected per wiki-es (was: Nueva Ciudad de Kaineng, word order)"
-WE_NAME_GROUP_the_echovald_wilds,The Echovald Wilds,Die Echovald-Wildnis,Terres Sauvages d'Echovald,Las Selvas de Echovald,回音谷荒野,es corrected per wiki-es (was: Yermos de Echovald)
-WE_NAME_GROUP_dragons_end,Dragon's End,Drachen-Ende,Trépas du Dragon,Muerte del Dragón,巨龙末路,es corrected per wiki-es (was: Fin del Dragón)
-WE_NAME_GROUP_skywatch_archipelago,Skywatch Archipelago,Himmelswacht-Archipel,Archipel de l'Observatoire Céleste,Archipiélago Vistacielo,天穹群岛,es corrected per wiki-es (was: Archipiélago Vigía del Cielo)
-WE_NAME_GROUP_wizards_tower,Wizard's Tower,Der Turm des Zauberers,Tour du Sorcier,La torre del brujo,法师塔,es corrected per wiki-es (was: Torre del Mago)
+WE_NAME_GROUP_new_kaineng_city,New Kaineng City,Stadt Neu-Kaineng,Néo-Kaineng,Ciudad de Nueva Kaineng,新凯宁城,""
+WE_NAME_GROUP_the_echovald_wilds,The Echovald Wilds,Die Echovald-Wildnis,Terres Sauvages d'Echovald,Las Selvas de Echovald,回音谷荒野,
+WE_NAME_GROUP_dragons_end,Dragon's End,Drachen-Ende,Trépas du Dragon,Muerte del Dragón,巨龙末路,
+WE_NAME_GROUP_skywatch_archipelago,Skywatch Archipelago,Himmelswacht-Archipel,Archipel de l'Observatoire Céleste,Archipiélago Vistacielo,天穹群岛,
+WE_NAME_GROUP_wizards_tower,Wizard's Tower,Der Turm des Zauberers,Tour du Sorcier,La torre del brujo,法师塔,
 WE_NAME_GROUP_amnytas,Amnytas,Amnytas,Amnytas,Amnytas,阿姆尼塔斯,
 WE_NAME_GROUP_janthir_syntri,Janthir Syntri,Janthir Syntri,Syntri de Janthir,Janthir Syntri,詹希尔·辛特里,
 WE_NAME_GROUP_bava_nisos,Bava Nisos,Bava Nisos,Bava Nisos,Bava Nisos,巴瓦·尼索斯,
-WE_NAME_GROUP_shipwreck_strand,Shipwreck Strand,Strand der Wracks,Rive aux Épaves,Litoral del Naufragio,沉船海滩,es corrected per wiki-es (was: Playa del Naufragio)
-WE_NAME_GROUP_starlit_weald,Starlit Weald,Sternenlicht-Gehölz,Bois Étoilé,Bosquezuelo Estelar,星光林地,es corrected per wiki-es (was: Bosque Estrellado)
+WE_NAME_GROUP_shipwreck_strand,Shipwreck Strand,Strand der Wracks,Rive aux Épaves,Litoral del Naufragio,沉船海滩,
+WE_NAME_GROUP_starlit_weald,Starlit Weald,Sternenlicht-Gehölz,Bois Étoilé,Bosquezuelo Estelar,星光林地,
 WE_NAME_GROUP_eternitys_garden,Eternity's Garden,Ewigkeitsgarten,Jardin de l'Éternité,Jardín de la Eternidad,永恒花园,
 #,events_cyclic.cpp - g_CyclicGroups (CyclicGroup::Slot) - compiled-in Cyclic Slot default names.,,,,,
-WE_NAME_SLOT_eye_of_the_north_twisted_marionette,Twisted Marionette,Verdrehte Marionette,Marionnette Détraquée,La marioneta retorcida,扭曲傀儡,es corrected per wiki-es (was: Marioneta Retorcida)
-WE_NAME_SLOT_eye_of_the_north_battle_for_lions_arch,Battle for Lions Arch,Schlacht um Löwenstein,Bataille de l'Arche du Lion,La batalla de Arco del León,狮子拱门之战,es corrected per wiki-es (was: Batalla por Arco del León)
-WE_NAME_SLOT_eye_of_the_north_dragonstorm,Dragonstorm,Drachensturm,Tempête de Dragons,Tormenta Dracónica,龙之风暴,es corrected per wiki-es (was: Tormenta del Dragón)
-WE_NAME_SLOT_eye_of_the_north_tower_of_nightmares,Tower of Nightmares,Turm der Albträume,Tour des Cauchemars,La Torre de las Pesadillas,梦魇塔,es corrected per wiki-es (was: Torre de las Pesadillas)
+WE_NAME_SLOT_eye_of_the_north_twisted_marionette,Twisted Marionette,Verdrehte Marionette,Marionnette Détraquée,La marioneta retorcida,扭曲傀儡,
+WE_NAME_SLOT_eye_of_the_north_battle_for_lions_arch,Battle for Lions Arch,Schlacht um Löwenstein,Bataille de l'Arche du Lion,La batalla de Arco del León,狮子拱门之战,
+WE_NAME_SLOT_eye_of_the_north_dragonstorm,Dragonstorm,Drachensturm,Tempête de Dragons,Tormenta Dracónica,龙之风暴,
+WE_NAME_SLOT_eye_of_the_north_tower_of_nightmares,Tower of Nightmares,Turm der Albträume,Tour des Cauchemars,La Torre de las Pesadillas,梦魇塔,
 WE_NAME_SLOT_festival_of_the_four_winds_skiff_race,Skiff Race,Boots-Rennen,Esquifs Labyrinthiques,Carrera de Esquife,小艇竞速,
 WE_NAME_SLOT_festival_of_the_four_winds_water_balloons,Water Balloons,Wasserballons,Ballons d'Eau,Globos de Agua,水气球,
 WE_NAME_SLOT_festival_of_the_four_winds_treasure_hunt,Treasure Hunt,Schatzsuche,Chasse au Trésor,Búsqueda del Tesoro,寻宝,
@@ -125,10 +125,10 @@ WE_NAME_SLOT_verdant_brink_night_bosses,Night Bosses,Nachtbosse,Boss de Nuit,Jef
 WE_NAME_SLOT_verdant_brink_securing_day,Securing Day,Tag sichern,Sécurisation du Jour,Asegurar el Día,巩固白昼,
 WE_NAME_SLOT_verdant_brink_night_enemy,Night Enemy,Nachtfeind,Ennemi de Nuit,Enemigo Nocturno,夜间敌人,
 WE_NAME_SLOT_auric_basin_challenges,Challenges,Herausforderungen,Défis,Desafíos,挑战,
-WE_NAME_SLOT_auric_basin_octovine,Octovine,Octovine,Octoliane,Octohiedra,章鱼藤,es corrected per wiki-es (was: Octovina)
+WE_NAME_SLOT_auric_basin_octovine,Octovine,Octovine,Octoliane,Octohiedra,章鱼藤,
 WE_NAME_SLOT_auric_basin_pylons,Pylons,Pylonen,Pylônes,Pilones,塔柱,
 WE_NAME_SLOT_tangled_depths_prep,Prep,Vorbereitung,Préparation,Preparación,准备,
-WE_NAME_SLOT_tangled_depths_chak_gerent,Chak Gerent,Chak-Gerent,Chak Gerent,Regente chak,恰克督军,es corrected per wiki-es (was: Chak Gerent)
+WE_NAME_SLOT_tangled_depths_chak_gerent,Chak Gerent,Chak-Gerent,Chak Gerent,Regente chak,恰克督军,
 WE_NAME_SLOT_tangled_depths_outposts,Outposts,Außenposten,Avant-Postes,Puestos Avanzados,前哨站,
 WE_NAME_SLOT_dragons_stand_mordremoth_start,Mordremoth Start,Mordremoth-Beginn,Début de Mordremoth,Inicio de Mordremoth,摩德雷慕斯开始,
 WE_NAME_SLOT_dragons_stand_mordremoth_progress,Mordremoth Progress,Mordremoth-Fortschritt,Progression de Mordremoth,Progreso de Mordremoth,摩德雷慕斯进度,
@@ -183,17 +183,17 @@ WE_NAME_CATEGORY_CYCLIC_janthir_wilds,Janthir Wilds,Janthir Wilds,Janthir Wilds,
 WE_NAME_CATEGORY_CYCLIC_visions_of_eternity,Visions of Eternity,Visions of Eternity,Visions of Eternity,Visions of Eternity,永恒愿景,
 WE_NAME_CATEGORY_CYCLIC_festivals,Festivals,Feste,Festivals,Festivales,节日,
 #,events_live.cpp - g_LiveEvents (LiveEvent) - compiled-in Live Event default names.,,,,,
-WE_NAME_LIVE_5869C555-53AF-4701-876B-02BFB5F0AD7A,Treasure Mushroom (Verdant Brink),Schatzpilz (Grüner Rand),Champignon au Trésor (Orée Verdoyante),Hongo del Tesoro (Umbral Verdeante),藏宝蘑菇（青蔓边境）,es corrected per wiki-es (zone name update)
-WE_NAME_LIVE_38F28682-B136-4B4D-9F87-E15379771C72,Treasure Mushroom (Auric Basin),Schatzpilz (Goldbecken),Champignon au Trésor (Bassin Doré),Hongo del Tesoro (Valle Áurico),藏宝蘑菇（金水盆地）,es corrected per wiki-es (zone name update)
-WE_NAME_LIVE_EAE3DF8F-244D-4BC3-9B7E-3B3A2BDAAFAB,Treasure Mushroom (Tangled Depth),Schatzpilz (Verworrene Tiefen),Champignon au Trésor (Profondeurs Enchevêtrées),Hongo del Tesoro (Profundidades Enredadas),藏宝蘑菇（缠结深域）,es corrected per wiki-es (zone name update)
-WE_NAME_LIVE_4A9E691A-BBFD-4C17-B2D6-D0B88D7C446F,Treasure Mushroom (Dragon's Stand North),"Schatzpilz (Widerstand des Drachen, Norden)","Champignon au Trésor (Antre du Dragon, Nord)","Hongo del Tesoro (Defensa del Dragón, Norte)",藏宝蘑菇（龙立之地北）,es corrected per wiki-es (zone name update)
-WE_NAME_LIVE_32C14803-A210-4443-B8F4-F91641035B81,Treasure Mushroom (Dragon's Stand Center),"Schatzpilz (Widerstand des Drachen, Zentrum)","Champignon au Trésor (Antre du Dragon, Centre)","Hongo del Tesoro (Defensa del Dragón, Centro)",藏宝蘑菇（龙立之地中）,es corrected per wiki-es (zone name update)
-WE_NAME_LIVE_1ADCD34C-3281-4A52-9C4F-DBA62B75F94C,Treasure Mushroom (Dragon's Stand South),"Schatzpilz (Widerstand des Drachen, Süden)","Champignon au Trésor (Antre du Dragon, Sud)","Hongo del Tesoro (Defensa del Dragón, Sur)",藏宝蘑菇（龙立之地南）,es corrected per wiki-es (zone name update)
+WE_NAME_LIVE_5869C555-53AF-4701-876B-02BFB5F0AD7A,Treasure Mushroom (Verdant Brink),Schatzpilz (Grüner Rand),Champignon au Trésor (Orée Verdoyante),Hongo del Tesoro (Umbral Verdeante),藏宝蘑菇（青蔓边境）,
+WE_NAME_LIVE_38F28682-B136-4B4D-9F87-E15379771C72,Treasure Mushroom (Auric Basin),Schatzpilz (Goldbecken),Champignon au Trésor (Bassin Doré),Hongo del Tesoro (Valle Áurico),藏宝蘑菇（金水盆地）,
+WE_NAME_LIVE_EAE3DF8F-244D-4BC3-9B7E-3B3A2BDAAFAB,Treasure Mushroom (Tangled Depth),Schatzpilz (Verworrene Tiefen),Champignon au Trésor (Profondeurs Enchevêtrées),Hongo del Tesoro (Profundidades Enredadas),藏宝蘑菇（缠结深域）,
+WE_NAME_LIVE_4A9E691A-BBFD-4C17-B2D6-D0B88D7C446F,Treasure Mushroom (Dragon's Stand North),"Schatzpilz (Widerstand des Drachen, Norden)","Champignon au Trésor (Antre du Dragon, Nord)","Hongo del Tesoro (Defensa del Dragón, Norte)",藏宝蘑菇（龙立之地北）,
+WE_NAME_LIVE_32C14803-A210-4443-B8F4-F91641035B81,Treasure Mushroom (Dragon's Stand Center),"Schatzpilz (Widerstand des Drachen, Zentrum)","Champignon au Trésor (Antre du Dragon, Centre)","Hongo del Tesoro (Defensa del Dragón, Centro)",藏宝蘑菇（龙立之地中）,
+WE_NAME_LIVE_1ADCD34C-3281-4A52-9C4F-DBA62B75F94C,Treasure Mushroom (Dragon's Stand South),"Schatzpilz (Widerstand des Drachen, Süden)","Champignon au Trésor (Antre du Dragon, Sud)","Hongo del Tesoro (Defensa del Dragón, Sur)",藏宝蘑菇（龙立之地南）,
 WE_NAME_LIVE_704DF521-84B3-46C1-9FE4-304AF55E6FB6,Treasure Mushroom (Bloodstone Fen),Schatzpilz (Blutsteinmoor),Champignon au Trésor (Marais de Pierresang),Hongo del Tesoro (Marjal de Piedrasangre),藏宝蘑菇（血石沼泽）,
 WE_NAME_LIVE_D3109A18-8A51-4F79-94EB-B474024063F0,Treasure Mushroom (Draconis Mons),Schatzpilz (Draconis Mons),Champignon au Trésor (Draconis Mons),Hongo del Tesoro (Draconis Mons),藏宝蘑菇（龙落山）,
-WE_NAME_LIVE_6BD7C8B0-2605-4819-9AE6-EF2849098090,Rhendak the Crazed (Diessa Plateau),Rhendak der Wahnsinnige (Diessa-Hochebene),Rhendak le Fou (Plateau de Diessa),Rhendak el Perturbado (Meseta de Diessa),疯狂的伦达克（迪萨高原）,es corrected per wiki-es (was: Rhendak el Loco)
-WE_NAME_LIVE_95CA969B-0CC6-4604-B166-DBCCE125864F,Dredge Commissar (Dredgehaunt Cliffs),Grundlingskommissar (Gräberklippen),Commissaire des Mineurs (Falaise-des-Nains),Comisario draga (Acantilados Encantados),掘洞者政委（掘洞鬼崖）,es corrected per wiki-es (was: Comisario Excavador)
-WE_NAME_LIVE_B4E6588F-232C-4F68-9D58-8803D67E564D,Foulbear Kraal (Fields of Ruin),Grimmbär-Lager (Trümmerfelder),Kraal des Ours Fétides (Champs de la Ruine),Corral de Osos Pestilentes (Campos de la Ruina),秽熊营地（废墟之地）,"UNVERIFIED/LIKELY MISMATCH: wiki nav lists boss as 'Cabecilla Osoinmundo', not a direct match to CSV 'Corral de Osos Pestilentes' (Foulbear Kraal)"
-WE_NAME_LIVE_A0796EC5-191D-4389-9C09-E48829D1FDB2,Eye of Zhaitan (Straits of Devestation),Auge Zhaitans (Straße der Verwüstung),Œil de Zhaitan (Détroits de la Dévastation),Ojo de Zhaitan (Estrechos de la Devastación),查坦之眼（浩劫海峡）,es confirmed match per wiki-es
-WE_NAME_LIVE_BFA71CD0-ED1E-4EE3-B8A9-B23B98C3B786,Statue of Lyssa (Malchor's Leap),Statue der Lyssa (Malchors Sprung),Statue de Lyssa (Saut de Malchor),Estatua de Lyssa (Salto de Malchor),莱莎雕像（马尔科长眠地）,"UNVERIFIED/LIKELY MISMATCH: wiki nav lists boss as 'Sacerdotisa de Lyssa resurgida', not 'Estatua de Lyssa'"
-WE_NAME_LIVE_02DECBE6-A0BA-47CC-9256-A6D59881D92A,High Wizard (Cursed Shore),Hochmagier (Verfluchtes Gestade),Grand Sorcier (Rivage Maudit),Alto brujo resurgido (Costa Maldita),高阶巫师（诅咒海岸）,es corrected per wiki-es (was: Alto Mago)
+WE_NAME_LIVE_6BD7C8B0-2605-4819-9AE6-EF2849098090,Rhendak the Crazed (Diessa Plateau),Rhendak der Wahnsinnige (Diessa-Hochebene),Rhendak le Fou (Plateau de Diessa),Rhendak el Perturbado (Meseta de Diessa),疯狂的伦达克（迪萨高原）,
+WE_NAME_LIVE_95CA969B-0CC6-4604-B166-DBCCE125864F,Dredge Commissar (Dredgehaunt Cliffs),Grundlingskommissar (Gräberklippen),Commissaire des Mineurs (Falaise-des-Nains),Comisario draga (Acantilados Encantados),掘洞者政委（掘洞鬼崖）,
+WE_NAME_LIVE_B4E6588F-232C-4F68-9D58-8803D67E564D,Foulbear Kraal (Fields of Ruin),Faulbär-Kral (Trümmerfelder),Kraal d'Oursefol (Champs de la Ruine),Corral Osoinmundo (Campos de la Ruina),秽熊营地（废墟之地）,""
+WE_NAME_LIVE_A0796EC5-191D-4389-9C09-E48829D1FDB2,Eye of Zhaitan (Straits of Devestation),Auge Zhaitans (Straße der Verwüstung),Œil de Zhaitan (Détroits de la Dévastation),Ojo de Zhaitan (Estrechos de la Devastación),查坦之眼（浩劫海峡）,
+WE_NAME_LIVE_BFA71CD0-ED1E-4EE3-B8A9-B23B98C3B786,Statue of Lyssa (Malchor's Leap),Lyssa-Statue (Malchors Sprung),Statue de Lyssa (Saut de Malchor),Estatua de Lyssa (Salto de Malchor),莱莎雕像（马尔科长眠地）,""
+WE_NAME_LIVE_02DECBE6-A0BA-47CC-9256-A6D59881D92A,High Wizard (Cursed Shore),Hochmagier (Verfluchtes Gestade),Grand Sorcier (Rivage Maudit),Alto brujo resurgido (Costa Maldita),高阶巫师（诅咒海岸）,

@@ -710,6 +710,8 @@ void AddonOptions()
             int pendingRemoveIndex = -1;
             int pendingRemoveBasicCategoryIndex = -1;
             static std::map<int, std::string> editingBasicCategoryNames;
+            //_ One-shot; set on push, consumed next draw - same pattern as RequestBasicEventNameEdit, but local since add and draw both happen here.
+            static int s_pendingBasicCategoryFocus = -1;
 
             std::vector<bool> isCategorized(g_Events.size(), false);
 
@@ -740,7 +742,14 @@ void AddonOptions()
                         ImGui::SetNextItemOpen(categoryHasMatch, ImGuiCond_Always);
 
                     std::string oldCategoryName = DisplayName(cat, CategoryListKind::Basic);
-                    NameRowResult nameResult = DrawNameAndContextMenu("##category_node", c, c, oldCategoryName, editingBasicCategoryNames, pendingRemoveBasicCategoryIndex);
+                    bool categoryAutoFocus = (s_pendingBasicCategoryFocus == c);
+                    if (categoryAutoFocus)
+                    {
+                        editingBasicCategoryNames[c] = ""; //. freshly created - starts empty, forces the inline editor open
+                        s_pendingBasicCategoryFocus = -1;
+                    }
+                    NameRowResult nameResult = DrawNameAndContextMenu("##category_node", c, c, oldCategoryName, editingBasicCategoryNames, pendingRemoveBasicCategoryIndex,
+                        nullptr, std::string(), nullptr, nullptr, -1, nullptr, nullptr, true, categoryAutoFocus);
                     catOpen = nameResult.open;
                     MakeDropTarget(kBasicEventDragType, g_BasicCategories, c);
                     if (nameResult.newName != oldCategoryName)
@@ -789,7 +798,7 @@ void AddonOptions()
             if (pendingAdd)
             {
                 WorldEvent newEvent{};
-                newEvent.customName = "New Event";
+                newEvent.customName = ""; //. starts unnamed - forces the inline editor open on next draw (RequestBasicEventNameEdit below)
                 newEvent.continentX = 49332.0f;
                 newEvent.continentY = 31457.0f;
                 newEvent.isVarying  = false;
@@ -797,6 +806,7 @@ void AddonOptions()
                 newEvent.period     = 7200; //. 2h, most common period
                 newEvent.offset     = 0;
                 g_Events.push_back(newEvent);
+                RequestBasicEventNameEdit((int)g_Events.size() - 1);
             }
 
             if (pendingRemoveBasicCategoryIndex >= 0)
@@ -808,9 +818,11 @@ void AddonOptions()
                 for (const auto& c : g_BasicCategories) usedIds.insert(c.id);
 
                 Category newCat;
-                newCat.id         = UniqueId(SlugifyName("New Category"), usedIds);
-                newCat.customName = "New Category";
+                //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
+                newCat.id         = UniqueId(SlugifyName("category"), usedIds);
+                newCat.customName = ""; //. starts unnamed - forces the inline editor open on next draw
                 g_BasicCategories.push_back(newCat);
+                s_pendingBasicCategoryFocus = (int)g_BasicCategories.size() - 1;
             }
 
             ImGui::TableSetColumnIndex(1);
@@ -835,6 +847,8 @@ void AddonOptions()
             int pendingRemoveGroupIndex = -1;
             int pendingRemoveCyclicCategoryIndex = -1;
             static std::map<int, std::string> editingCyclicCategoryNames;
+            //_ One-shot, same pattern as s_pendingBasicCategoryFocus above.
+            static int s_pendingCyclicCategoryFocus = -1;
 
             std::vector<bool> isGroupCategorized(g_CyclicGroups.size(), false);
 
@@ -860,7 +874,14 @@ void AddonOptions()
                         ImGui::SetNextItemOpen(categoryHasMatch, ImGuiCond_Always);
 
                     std::string oldCategoryName = DisplayName(cat, CategoryListKind::Cyclic);
-                    NameRowResult nameResult = DrawNameAndContextMenu("##cyclic_category_node", c, c, oldCategoryName, editingCyclicCategoryNames, pendingRemoveCyclicCategoryIndex);
+                    bool categoryAutoFocus = (s_pendingCyclicCategoryFocus == c);
+                    if (categoryAutoFocus)
+                    {
+                        editingCyclicCategoryNames[c] = ""; //. freshly created - starts empty, forces the inline editor open
+                        s_pendingCyclicCategoryFocus = -1;
+                    }
+                    NameRowResult nameResult = DrawNameAndContextMenu("##cyclic_category_node", c, c, oldCategoryName, editingCyclicCategoryNames, pendingRemoveCyclicCategoryIndex,
+                        nullptr, std::string(), nullptr, nullptr, -1, nullptr, nullptr, true, categoryAutoFocus);
                     catOpen = nameResult.open;
                     MakeDropTarget(kCyclicGroupDragType, g_CyclicCategories, c);
                     if (nameResult.newName != oldCategoryName)
@@ -911,12 +932,13 @@ void AddonOptions()
             if (pendingAddGroup)
             {
                 CyclicGroup newGroup{};
-                newGroup.customName = "New Cycle";
+                newGroup.customName = ""; //. starts unnamed - forces the inline editor open on next draw (RequestCyclicGroupNameEdit below)
                 newGroup.continentX = 49332.0f;
                 newGroup.continentY = 31457.0f;
                 newGroup.period     = 7200; //. 2h, most common period
                 newGroup.colors     = ColorSet{ ImVec4(0.502f, 0.502f, 0.502f, 1.0f) }; //. neutral gray, placeholder
                 g_CyclicGroups.push_back(newGroup);
+                RequestCyclicGroupNameEdit((int)g_CyclicGroups.size() - 1);
             }
 
             if (pendingRemoveCyclicCategoryIndex >= 0)
@@ -928,9 +950,11 @@ void AddonOptions()
                 for (const auto& c : g_CyclicCategories) usedIds.insert(c.id);
 
                 Category newCat;
-                newCat.id         = UniqueId(SlugifyName("New Category"), usedIds);
-                newCat.customName = "New Category";
+                //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
+                newCat.id         = UniqueId(SlugifyName("category"), usedIds);
+                newCat.customName = ""; //. starts unnamed - forces the inline editor open on next draw
                 g_CyclicCategories.push_back(newCat);
+                s_pendingCyclicCategoryFocus = (int)g_CyclicCategories.size() - 1;
             }
 
             ImGui::EndTable();
