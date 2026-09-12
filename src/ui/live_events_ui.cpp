@@ -116,11 +116,10 @@ static void RenderLiveEventButtonMovePreview()
 // See header. MumbleLink/NexusLink are null-checked here too - addon.cpp's
 // AddonRender already gates on both, but this file doesn't assume that ordering
 // holds forever. UpdateShard runs regardless of LiveEventsSubscribed, throttled
-// to ~1x/sec (the render-tick hook networking-handoff.md section 9 #5 calls for),
-// so unticking it disconnects an open shard within ~1s. Only issued with a real
-// shard when liveEventsReady (== LiveEventsSubscribed, no API key needed) AND
-// MapHasLiveEvents (events_live.h) agree; a default ShardIdentity is sent
-// otherwise, a no-op if already disconnected. UpdateNotificationState
+// to ~1x/sec here, so unticking it disconnects an open shard within ~1s. Only
+// issued with a real shard when liveEventsReady (== LiveEventsSubscribed, no API
+// key needed) AND MapHasLiveEvents (events_live.h) agree; a default ShardIdentity
+// is sent otherwise, a no-op if already disconnected. UpdateNotificationState
 // (notification_client.h) rides the same tick, self-gated on GetLiveEventsRegion
 // (gw2_api.h) - an empty key only drops the toast relay.
 //--------------------------------------------------------------------------------

@@ -5,23 +5,20 @@
 // manually-marked "done for today" flags.
 //
 // Structurally mirrors subscriptions.cpp closely (same two-vector, same key
-// shape, same events.json read-modify-write pattern, same legacy-offset-key
-// expansion on load); the difference is the stored UTC-day stamp and the lazy
-// rollover check on every read, which subscriptions.cpp has no equivalent of
-// since a subscription doesn't expire on its own.
+// shape, same events.json read-modify-write pattern); the difference is the
+// stored UTC-day stamp and the lazy rollover check on every read, which
+// subscriptions.cpp has no equivalent of since a subscription doesn't expire on
+// its own.
 //--------------------------------------------------------------------------------
 
 #include "events_tracking.h"
 #include "events.h"
-#include "events_storage.h" //. DisplayNameEnglish, for the eventNameToId migration map below
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
-#include <unordered_map>
-#include <unordered_set>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -172,11 +169,7 @@ void ClearAllDoneMarkers()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
-// Same (groupId, slotId) key shape as subscriptions.cpp, including the same
-// legacy-"groupName"-field fallback on read for a pre-id-migration events.json. A
-// saved "slotOffset" instead of "slotId" predates the collision fix; those marks
-// are best-effort-expanded the same way subscriptions.cpp expands its own lists -
-// see LoadDailyTrackingData below.
+// Same (groupId, slotId) key shape as subscriptions.cpp.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
@@ -189,77 +182,9 @@ static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 {
     CyclicSubscriptionKey key;
-    key.groupId = j.value("groupId", j.value("groupName", std::string()));
+    key.groupId = j.value("groupId", std::string());
     key.slotId  = j.value("slotId", std::string());
     return key;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// MigrateLegacyOffsetMarks
-//--------------------------------------------------------------------------------
-// Same best-effort expansion as subscriptions.cpp's ExpandLegacyOffsetKey/
-// MigrateLegacyOffsetEntries: a pre-fix mark (json.slotId absent, key.slotId left
-// empty) is resolved against every slot in its group sharing the saved
-// legacyOffset, so a genuinely ambiguous old entry preserves what the user was
-// actually seeing. A current-format entry (non-empty key.slotId) passes through
-// untouched.
-//--------------------------------------------------------------------------------
-static void MigrateLegacyOffsetMarks(std::vector<CyclicSubscriptionKey>& list, const json& arr)
-{
-    std::vector<CyclicSubscriptionKey> migrated;
-    for (size_t i = 0; i < list.size() && i < arr.size(); i++)
-    {
-        if (!list[i].slotId.empty())
-        {
-            migrated.push_back(list[i]);
-            continue;
-        }
-
-        int legacyOffset = arr[i].value("slotOffset", 0);
-        auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-            [&](const CyclicGroup& g) { return g.id == list[i].groupId; });
-        if (grpIt == g_CyclicGroups.end()) continue;   //. group deleted
-
-        for (const auto& slot : grpIt->slots)
-            if (slot.offset == legacyOffset)
-                migrated.push_back({ list[i].groupId, slot.id });
-    }
-    list = std::move(migrated);
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// MigrateBasicMarksToIds / MigrateCyclicMarksToIds
-//--------------------------------------------------------------------------------
-// One-time upgrade for a pre-id-migration events.json, whose done-today marks are
-// still WorldEvent::name/CyclicGroup::name values. Self-triggering, no version
-// gate: an entry already found in validIds is left alone (also true of any
-// doneGroup value, which was never name-shaped to begin with); only an entry that
-// misses as an id but hits nameToId gets rewritten. An entry matching neither (a
-// doneGroup value, or a removed event/group) is left as-is - mirrors
-// MigrateMembersToIds (events_categories.cpp).
-//--------------------------------------------------------------------------------
-static void MigrateBasicMarksToIds(std::vector<std::string>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
-{
-    for (auto& value : list)
-    {
-        if (validIds.count(value)) continue;
-
-        auto it = nameToId.find(value);
-        if (it != nameToId.end())
-            value = it->second;
-    }
-}
-
-static void MigrateCyclicMarksToIds(std::vector<CyclicSubscriptionKey>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
-{
-    for (auto& key : list)
-    {
-        if (validIds.count(key.groupId)) continue;
-
-        auto it = nameToId.find(key.groupId);
-        if (it != nameToId.end())
-            key.groupId = it->second;
-    }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -331,27 +256,6 @@ bool LoadDailyTrackingData(const std::string& addonDir)
 
         if (j.contains("doneTodayLiveEvents"))
             s_DoneTodayLiveEvents = j.value("doneTodayLiveEvents", std::vector<std::string>{});
-
-        //_ Requires g_Events/g_CyclicGroups already populated - see LoadDailyTrackingData's own comment (events_tracking.h) on load order.
-        std::unordered_map<std::string, std::string> eventNameToId;
-        std::unordered_set<std::string> eventIds;
-        for (const auto& ev : g_Events)
-        {
-            eventNameToId[DisplayNameEnglish(ev)] = ev.id;
-            eventIds.insert(ev.id);
-        }
-        MigrateBasicMarksToIds(s_DoneTodayBasicEvents, eventNameToId, eventIds);
-
-        std::unordered_map<std::string, std::string> groupNameToId;
-        std::unordered_set<std::string> groupIds;
-        for (const auto& grp : g_CyclicGroups)
-        {
-            groupNameToId[DisplayNameEnglish(grp)] = grp.id;
-            groupIds.insert(grp.id);
-        }
-        MigrateCyclicMarksToIds(s_DoneTodayCyclicSlots, groupNameToId, groupIds);
-        if (j.contains("doneTodayCyclicSlots") && j["doneTodayCyclicSlots"].is_array())
-            MigrateLegacyOffsetMarks(s_DoneTodayCyclicSlots, j["doneTodayCyclicSlots"]);
 
         s_doneMarkersGeneration++;
         return true;

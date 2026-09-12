@@ -6,10 +6,11 @@
 // OpenLiveEventReportsWindow    opens the window; see below for what it shows
 // RenderLiveEventReportsWindow  draws the window; no-op unless open
 //--------------------------------------------------------------------------------
-// The UI half of the live-event-reporting feature (networking-handoff.md), the
-// last piece section 9 of that handoff calls out as not yet built. Two views: a
-// per-event button stack (see RenderLiveEventButtons below) and a popup listing
-// recent reports for whichever button was last pressed (see
+// The UI half of the live-event-reporting feature: report submission
+// (RenderLiveEventButtons -> ws_client.h's SendReport) and the recent-reports
+// popup, on top of the wire/storage layer ws_client.h and events_live.h provide.
+// Two views: a per-event button stack (see RenderLiveEventButtons below) and a
+// popup listing recent reports for whichever button was last pressed (see
 // RenderLiveEventReportsWindow below).
 //
 // ShowLiveEventReportsWindow (settings_table.h) is itself a SETTING, so the

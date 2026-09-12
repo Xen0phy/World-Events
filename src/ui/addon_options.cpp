@@ -26,6 +26,7 @@
 #include "addon_options_helpers.h"
 #include "better_chat.h"
 #include "build_info.h"
+#include "changelog_window.h"
 #include "events.h"
 #include "events_categories.h"
 #include "events_live.h"
@@ -64,10 +65,14 @@ void AddonOptions()
     OptionsRenderTimer optionsRenderTimer; //. no-op unless ShowDebug
     ImVec2 dummySquare = ImVec2(ImGui::GetFrameHeight(),ImGui::GetFrameHeight());
     
-    ImGui::Text("%s", Tr("WE_OPT_PANEL_TITLE"));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+    if (ImGui::SmallButton(Tr("WE_CHANGELOG_TITLE")))
+        ShowVersionHistoryWindow = true;
+    ImGui::PopStyleVar();
     ImGui::SameLine();
     ImGui::TextDisabled("%s: %s", Tr("WE_OPT_RELEASE"), DateAndTime.c_str());
     ImGui::SameLine();
+    
     if constexpr (ShowDebug)
     {
         //_ "Render" = AddonRender's own cost (rings/bar/window/notify); "Options UI" = this panel's per-frame cost.

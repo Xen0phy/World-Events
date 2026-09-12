@@ -4,8 +4,8 @@ Generates a host_config.h-style header from a Worker's hostname,
 XOR-obfuscated with the same fixed key the matching .cpp decodes with at
 runtime (see kHostXorKey in src/networking/ws_client.cpp -- keep KEY below in
 sync with that one if you ever change it). Both host_config.h (the per-shard
-relay) and notify_host_config.h (the region-wide notify worker, see
-live-toast-handoff.md section 5) come out of this same script - one call per
+relay) and notify_host_config.h (the region-wide notify worker in
+server-notify/) come out of this same script - one call per
 file, distinguished by the optional prefix argument below.
 
 This is NOT encryption and isn't meant to be -- it only keeps the hostname

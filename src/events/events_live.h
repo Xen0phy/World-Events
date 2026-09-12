@@ -8,8 +8,9 @@
 // Third event category, alongside "Basic Events" (WorldEvent, events.h) and
 // "Cyclic Events" (CyclicGroup, events.h). Unlike those two, a LiveEvent has NO
 // schedule of its own - GW2 doesn't expose one, which is the entire reason the
-// live-reporting feature (see networking-handoff.md) exists: players report "it's
-// up right now" instead of the addon predicting it.
+// live-reporting feature exists (ws_client.h/notification_client.h for the wire
+// side, live_events_ui.h for the UI): players report "it's up right now" instead
+// of the addon predicting it.
 //
 // Compiled-in, not user-editable. g_Events/g_CyclicGroups go through
 // events_storage.cpp's JSON merge and maprender.cpp's drag-to-reposition edit
@@ -35,13 +36,13 @@
 // LiveEvent
 //--------------------------------------------------------------------------------
 // eventId       GW2 API v2 /events GUID; doubles as the wire protocol's
-//               event_id (networking-handoff.md #5) - same id for both.
+//               event_id (ws_client.h) - same id for both.
 // continentX/Y  map coords (continent 1 / Tyria) - same space as
 //               WorldEvent::continentX/Y, what actually places the dot
 // mapId         GW2 map id (API's map_id); gates which map's overlay/report
 //               button offers this dot - only relevant on the map it occurs on
 // chatCode      waypoint chat code pasted on a toast click when the reporter
-//               withheld their name (see live-toast-handoff.md #1); empty = unset
+//               withheld their name (ShareNameInReports off); empty = unset
 // worldX/Y/Z    API's location.center, in-world (not continent) coordinates -
 //               same space as Mumble Link's raw avatar position (see below)
 // radius        API's location.radius, in meters - same units as
@@ -91,9 +92,9 @@ const char* DisplayName(const LiveEvent& ev);
 //--------------------------------------------------------------------------------
 // True only when the player is on event.mapId AND within event.radius (full 3D
 // sphere) of (event.worldX, event.worldY, event.worldZ). Gates the report button
-// per networking-handoff.md #3/#4 - a LiveEvent's button should only be offered
-// when this returns true, so players can't report something they aren't actually
-// near. See events_live.cpp for the unit-conversion story.
+// in live_events_ui.cpp's RenderLiveEventButtons - a LiveEvent's button should
+// only be offered when this returns true, so players can't report something they
+// aren't actually near. See events_live.cpp for the unit-conversion story.
 //--------------------------------------------------------------------------------
 bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble);
 

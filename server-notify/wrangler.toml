@@ -9,7 +9,7 @@ compatibility_date = "2026-08-01"
 enabled = true
 
 # One RegionHub per region ("EU"/"NA"), holding live WS connections only - no
-# SQLite, no history to replay (see live-toast-handoff.md section 3). Separate
+# SQLite, no history to replay. Separate
 # Worker script from gw2-world-events/gw2-world-events-relay on purpose: a
 # broken deploy here can't affect the shipping shard worker's uptime.
 [[durable_objects.bindings]]

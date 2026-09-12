@@ -14,7 +14,6 @@
 
 #include "events.h"   //. EVENTS_DATA_VERSION
 #include "events_categories.h"
-#include "events_storage.h"   //. DisplayNameEnglish/SlugifyName/UniqueId
 #include "localization.h"
 #include <nlohmann/json.hpp>
 
@@ -22,7 +21,6 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_map>
-#include <unordered_set>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -107,13 +105,9 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 //--------------------------------------------------------------------------------
 // Category <-> json conversion; the List variants map the single-item versions
 // over a json array (dropping abandoned unnamed entries - IsAbandonedEntry
-// above), also collecting outIsLegacyName so LoadCategoriesData's id-assignment
-// pass knows which ones need it. customName/outIsLegacyName: a file predating the
-// id/customName rename has "name" instead; DeserializeCategory stashes it into
-// customName as a scratch value (outIsLegacyName = true) until
-// LoadCategoriesData's migration pass resolves it against
-// WE_NAME_CATEGORY_*_<id>. id/customName both missing (malformed row): fresh id
-// from UniqueId, customName empty -> WE_UNNAMED.
+// above). A Category always has an id by the time it reaches disk - assigned up
+// front at creation (see addon_options.cpp) - so there's nothing to backfill on
+// load, unlike WorldEvent/CyclicGroup/Slot (events_storage.cpp).
 //--------------------------------------------------------------------------------
 static json SerializeCategory(const Category& cat)
 {
@@ -125,18 +119,12 @@ static json SerializeCategory(const Category& cat)
     return j;
 }
 
-static Category DeserializeCategory(const json& j, bool& outIsLegacyName)
+static Category DeserializeCategory(const json& j)
 {
     Category cat;
-    cat.id      = j.value("id", std::string());
-    cat.members = j.value("members", std::vector<std::string>{});
-
-    outIsLegacyName = j.contains("name") && !j.contains("customName");
-    if (j.contains("customName"))
-        cat.customName = j.value("customName", std::string());
-    else if (j.contains("name"))
-        cat.customName = j.value("name", std::string());   //. scratch - see header comment above
-
+    cat.id         = j.value("id", std::string());
+    cat.members    = j.value("members", std::vector<std::string>{});
+    cat.customName = j.value("customName", std::string());
     return cat;
 }
 
@@ -149,17 +137,12 @@ static json SerializeCategoryList(const std::vector<Category>& categories, Categ
     return arr;
 }
 
-static std::vector<Category> DeserializeCategoryList(const json& arr, std::vector<bool>& outIsLegacyName)
+static std::vector<Category> DeserializeCategoryList(const json& arr)
 {
     std::vector<Category> result;
-    outIsLegacyName.clear();
     if (arr.is_array())
         for (const auto& cj : arr)
-        {
-            bool isLegacyName = false;
-            result.push_back(DeserializeCategory(cj, isLegacyName));
-            outIsLegacyName.push_back(isLegacyName);
-        }
+            result.push_back(DeserializeCategory(cj));
     return result;
 }
 
@@ -180,42 +163,20 @@ static Category CategoryDefaultToCategory(const CategoryDefault& def)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// MigrateMembersToIds
-//--------------------------------------------------------------------------------
-// One-time upgrade for a pre-id-migration events.json, whose category members are
-// still WorldEvent::name/CyclicGroup::name values. Self-triggering, no version
-// gate: a member already found in validIds is left alone; only one that misses as
-// an id but hits nameToId gets rewritten. A member matching neither (an
-// event/group the user has since removed) is left as-is, same as before this
-// migration existed.
-//--------------------------------------------------------------------------------
-static void MigrateMembersToIds(std::vector<Category>& categories, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
-{
-    for (auto& cat : categories)
-        for (auto& member : cat.members)
-        {
-            if (validIds.count(member)) continue;
-
-            auto it = nameToId.find(member);
-            if (it != nameToId.end())
-                member = it->second;
-        }
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MergeCategoryDefaults
 //--------------------------------------------------------------------------------
 // Same idea as MergeByKey in events_storage.cpp, keyed by category id - but a
 // Category's only content beyond identity is its member list, so "JSON wins" is
-// the whole merge for a matched id, not just a starting point. Requires every
-// loaded entry to already have an id - call after the id-assignment pass in
-// LoadCategoriesData, never before.
+// the whole merge for a matched id, not just a starting point. Every loaded
+// entry already has an id (see DeserializeCategory above).
 //
-// Id in both: keep the JSON category as-is. Id only in defaults: added only when
-// resurrectMissingDefaults is true (an up-to-date file treats a missing default
-// as user-deleted, not new). Id only in JSON: always kept.
+// Id in both: keep the JSON category as-is. Id only in defaults: always added -
+// a compiled-in default can only be hidden or overridden, never truly deleted,
+// so a missing id here means the default is new since the file was last saved,
+// not user-removed (same reasoning as MergeByKey, events_storage.cpp). Id only
+// in JSON: always kept.
 //--------------------------------------------------------------------------------
-static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDefault>& defaults, const std::vector<Category>& loaded, bool resurrectMissingDefaults)
+static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDefault>& defaults, const std::vector<Category>& loaded)
 {
     std::unordered_map<std::string, size_t> loadedIndexById;
     for (size_t i = 0; i < loaded.size(); i++)
@@ -233,7 +194,7 @@ static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDef
             result.push_back(loaded[it->second]);
             matched[it->second] = true;
         }
-        else if (resurrectMissingDefaults)
+        else
         {
             result.push_back(CategoryDefaultToCategory(def));
         }
@@ -279,43 +240,6 @@ static void ForceCategoryMembership(std::vector<Category>& categories, const std
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// AssignCategoryIds
-//--------------------------------------------------------------------------------
-// One-time id backfill for a pre-id-migration categories.json, whose entries have
-// no "id" at all. Mirrors the id-assignment loop LoadEventsData runs for
-// WorldEvent/CyclicGroup (events_storage.cpp), condensed to one pass since
-// Category's id and customName are introduced together: an empty id unambiguously
-// means "needs both steps". isLegacyName (from DeserializeCategoryList) gates
-// only the customName half: customName holds DeserializeCategory's scratch legacy
-// "name" text, compared against the matched default's TrEnglish text, then
-// cleared if it matches (starts localizing going forward) or left as-is if not
-// (the user's rename). An entry that already had "customName" on disk
-// (isLegacyName = false) is left alone.
-//--------------------------------------------------------------------------------
-static void AssignCategoryIds(std::vector<Category>& categories, const std::vector<bool>& isLegacyName, const std::vector<CategoryDefault>& defaults, CategoryListKind kind)
-{
-    std::unordered_set<std::string> usedIds;
-    for (const auto& def : defaults)
-        usedIds.insert(def.id);
-
-    for (size_t i = 0; i < categories.size(); i++)
-    {
-        Category& cat = categories[i];
-        if (!cat.id.empty()) { usedIds.insert(cat.id); continue; }
-
-        const CategoryDefault* def = nullptr;
-        for (const auto& d : defaults)
-            if (TrEnglish(CategoryNameIdentifier(d.id, kind).c_str()) == cat.customName) { def = &d; break; }
-
-        cat.id = def ? def->id : UniqueId(SlugifyName(cat.customName), usedIds);
-
-        if (i < isLegacyName.size() && isLegacyName[i] && def)
-            cat.customName.clear();   //. matches the compiled default - starts localizing going forward
-        //. else: keep the literal legacy text (or leave empty for a malformed row) - see DeserializeCategory's header comment
-    }
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveCategoriesData / LoadCategoriesData   (see: events_categories.h)
 //--------------------------------------------------------------------------------
 bool SaveCategoriesData(const std::string& addonDir)
@@ -353,14 +277,10 @@ bool LoadCategoriesData(const std::string& addonDir)
     {
         std::string filepath = addonDir + "\\events.json";
 
-        //_ Stays 0 with empty loaded lists when there's no file yet, so resurrectMissingDefaults naturally resolves to the defaults.
         int64_t savedVersion = 0;
         std::vector<Category> loadedBasic;
         std::vector<Category> loadedCyclic;
         bool fileExisted = false;
-
-        std::vector<bool> loadedBasicIsLegacyName;
-        std::vector<bool> loadedCyclicIsLegacyName;
 
         std::ifstream file(filepath);
         if (file.is_open())
@@ -371,41 +291,16 @@ bool LoadCategoriesData(const std::string& addonDir)
             savedVersion = j.value("data_version", (int64_t)0);
 
             if (j.contains("basicCategories"))
-                loadedBasic = DeserializeCategoryList(j["basicCategories"], loadedBasicIsLegacyName);
+                loadedBasic = DeserializeCategoryList(j["basicCategories"]);
             if (j.contains("cyclicCategories"))
-                loadedCyclic = DeserializeCategoryList(j["cyclicCategories"], loadedCyclicIsLegacyName);
+                loadedCyclic = DeserializeCategoryList(j["cyclicCategories"]);
         }
 
-        //_ Same rule as LoadEventsData: an up-to-date file means the user's own edits win, so forced members aren't re-applied.
-        bool resurrectMissingDefaults = savedVersion < EVENTS_DATA_VERSION;
+        g_BasicCategories  = MergeCategoryDefaults(g_DefaultBasicCategories,  loadedBasic);
+        g_CyclicCategories = MergeCategoryDefaults(g_DefaultCyclicCategories, loadedCyclic);
 
-        //_ Requires g_Events/g_CyclicGroups already populated - see LoadCategoriesData's own comment (events_categories.h) on load order.
-        std::unordered_map<std::string, std::string> eventNameToId;
-        std::unordered_set<std::string> eventIds;
-        for (const auto& ev : g_Events)
-        {
-            eventNameToId[DisplayNameEnglish(ev)] = ev.id;
-            eventIds.insert(ev.id);
-        }
-        MigrateMembersToIds(loadedBasic, eventNameToId, eventIds);
-
-        std::unordered_map<std::string, std::string> groupNameToId;
-        std::unordered_set<std::string> groupIds;
-        for (const auto& grp : g_CyclicGroups)
-        {
-            groupNameToId[DisplayNameEnglish(grp)] = grp.id;
-            groupIds.insert(grp.id);
-        }
-        MigrateMembersToIds(loadedCyclic, groupNameToId, groupIds);
-
-        //_ Category itself never had an id before this pass - a loaded entry either already has one (post-migration file) or gets one assigned here (see the plan this implements, category-localization-handoff.md).
-        AssignCategoryIds(loadedBasic,  loadedBasicIsLegacyName,  g_DefaultBasicCategories,  CategoryListKind::Basic);
-        AssignCategoryIds(loadedCyclic, loadedCyclicIsLegacyName, g_DefaultCyclicCategories, CategoryListKind::Cyclic);
-
-        g_BasicCategories  = MergeCategoryDefaults(g_DefaultBasicCategories,  loadedBasic,  resurrectMissingDefaults);
-        g_CyclicCategories = MergeCategoryDefaults(g_DefaultCyclicCategories, loadedCyclic, resurrectMissingDefaults);
-
-        if (resurrectMissingDefaults)
+        //_ Same rule as ApplyCategoryOffsetOverrides/etc (events_storage.cpp): an up-to-date file means the user's own edits win, so forced members aren't re-applied.
+        if (savedVersion < EVENTS_DATA_VERSION)
         {
             for (const auto& def : g_DefaultBasicCategories)
                 for (const auto& m : def.members)

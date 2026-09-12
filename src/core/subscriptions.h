@@ -68,11 +68,10 @@ struct CyclicSubscriptionKey
 // SubscriptionKind
 //--------------------------------------------------------------------------------
 // Which of the three event flavors a row/candidate/popup/deep-link target
-// identifies (live-toast-handoff.md section 6). Basic/Cyclic identify by id /
-// CyclicSubscriptionKey as before; Live identifies by LiveEvent::eventId, carried
-// alongside as a plain string wherever this enum appears - an enum instead of the
-// old binary isBasic bool, so a Live identity has somewhere to go instead of
-// being forced into one of the other two.
+// identifies. Basic/Cyclic identify by id / CyclicSubscriptionKey as before; Live
+// identifies by LiveEvent::eventId, carried alongside as a plain string wherever
+// this enum appears - an enum instead of the old binary isBasic bool, so a Live
+// identity has somewhere to go instead of being forced into one of the other two.
 //--------------------------------------------------------------------------------
 enum class SubscriptionKind
 {
@@ -198,11 +197,6 @@ uint64_t GetSubscriptionListGeneration();
 // events.json used by g_Events/g_CyclicGroups/categories. Call SaveEventsData()
 // first - this reads the file back in and rewrites it. Both swallow exceptions
 // and return false on failure.
-//
-// Load also migrates any pre-id Basic/Cyclic entry still keyed by name against
-// the now-populated g_Events/g_CyclicGroups, the same self-triggering approach as
-// MigrateMembersToIds (events_categories.cpp) - requires LoadEventsData to have
-// already run.
 //--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir);
 bool LoadSubscriptionsData(const std::string& addonDir);
@@ -229,11 +223,11 @@ std::string BuildChatPasteMessage(const std::string& name, const std::string& ch
 //--------------------------------------------------------------------------------
 // Sends "/w <targetName> <message>" via the same three-segment
 // PasteSegmentsToChat shape PasteToChat's own /w branch uses, generalized to an
-// arbitrary target instead of always whispering the local player's own name
-// (live-toast-handoff.md section 6). ChatChannelPrefix plays no part here - the
-// whisper channel is fixed regardless of the user's configured prefix. Used for a
-// Live Event toast whose reporter shared their name
-// (subscriptions_notification.cpp); a no-op on an empty targetName.
+// arbitrary target instead of always whispering the local player's own name.
+// ChatChannelPrefix plays no part here - the whisper channel is fixed regardless
+// of the user's configured prefix. Used for a Live Event toast whose reporter
+// shared their name (subscriptions_notification.cpp); a no-op on an empty
+// targetName.
 //--------------------------------------------------------------------------------
 void WhisperToChat(const std::string& targetName, const std::string& message, std::chrono::milliseconds delay_ms);
 

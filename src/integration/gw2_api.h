@@ -122,12 +122,12 @@ uint64_t GetGw2ApiFetchGeneration();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // LiveEventsRegion
 //--------------------------------------------------------------------------------
-// NA/EU are the wire values (live-toast-handoff.md section 2); Unknown covers no
-// key, a fetch that hasn't landed yet, an invalid/under-permissioned key, or a
-// home world outside both ranges. An enum, not a bare wire string: a typo'd
-// literal ("Na", "eu", ...) fails to compile instead of silently comparing false
-// everywhere - every comparison against a region goes through this type, and the
-// wire string is produced in exactly one place (LiveEventsRegionToWireString).
+// NA/EU are the wire values; Unknown covers no key, a fetch that hasn't landed
+// yet, an invalid/under-permissioned key, or a home world outside both ranges. An
+// enum, not a bare wire string: a typo'd literal ("Na", "eu", ...) fails to
+// compile instead of silently comparing false everywhere - every comparison
+// against a region goes through this type, and the wire string is produced in
+// exactly one place (LiveEventsRegionToWireString).
 //--------------------------------------------------------------------------------
 enum class LiveEventsRegion
 {
@@ -139,21 +139,20 @@ enum class LiveEventsRegion
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetLiveEventsRegion
 //--------------------------------------------------------------------------------
-// NA/EU home-world id ranges (1xxx/2xxx respectively - see live-toast- handoff.md
-// section 1 - the same grouping guesting already uses) applied to the most recent
-// successful /v2/account fetch's "world" field. Unknown wherever the degradation
-// rule (see file header) applies to that fetch - in particular, always Unknown
-// with no key set, so callers can gate on this alone instead of separately
-// checking Gw2ApiKey. Cheap: reads an already- cached value, safe to call every
-// frame.
+// NA/EU home-world id ranges (1xxx/2xxx respectively - the same grouping guesting
+// already uses) applied to the most recent successful /v2/account fetch's "world"
+// field. Unknown wherever the degradation rule (see file header) applies to that
+// fetch - in particular, always Unknown with no key set, so callers can gate on
+// this alone instead of separately checking Gw2ApiKey. Cheap: reads an already-
+// cached value, safe to call every frame.
 //--------------------------------------------------------------------------------
 LiveEventsRegion GetLiveEventsRegion();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // LiveEventsRegionToWireString
 //--------------------------------------------------------------------------------
-// "NA" / "EU" (live-toast-handoff.md section 2); empty for Unknown - callers must
-// check for that before sending/connecting. The only place a LiveEventsRegion
-// becomes a wire-protocol string.
+// "NA" / "EU"; empty for Unknown - callers must check for that before
+// sending/connecting. The only place a LiveEventsRegion becomes a wire-protocol
+// string.
 //--------------------------------------------------------------------------------
 std::string LiveEventsRegionToWireString(LiveEventsRegion region);

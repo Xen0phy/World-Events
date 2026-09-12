@@ -8,8 +8,7 @@
 // the Workers Free plan. History lives in an embedded SQLite table capped at
 // MAX_REPORTS_PER_EVENT rows per event_id, so late joiners get history
 // without a separate database.
-// Wire protocol (must match ws_client.cpp exactly - see networking-handoff.md
-// section 5):
+// Wire protocol (must match ws_client.cpp exactly):
 //   Connect:  GET /ws?shard=<key> -> WS upgrade (routing lives in index.ts)
 //   Server->client on connect:
 //     {"type":"history","reports":[{"event_id":"...","ts":1234567890}, ...]}
@@ -18,8 +17,8 @@
 //   Server->client broadcast (incl. sender), ts server-stamped at receipt:
 //     {"type":"report","event_id":"...","ts":1234567890}
 // reporter_name/region are relayed onward to the region hub (see
-// relayToNotify) - the shard's own broadcast above never repeats them, unlike
-// networking-handoff.md's not-yet-upgraded shard worker (see index.ts).
+// relayToNotify) - the shard's own broadcast above never repeats them, since
+// per-shard viewers only ever see the anonymous {event_id, ts} form.
 //--------------------------------------------------------------------------------
 
 import { DurableObject } from "cloudflare:workers";

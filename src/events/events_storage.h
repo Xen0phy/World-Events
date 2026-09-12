@@ -69,8 +69,11 @@ const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string&
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SlugifyName / UniqueId
 //--------------------------------------------------------------------------------
-// Migration-only id-backfill helpers, shared with events_categories.cpp's own
-// pre-id Category migration. See the .cpp for what each does.
+// Id-backfill helpers: a WorldEvent/CyclicGroup/Slot created via the options
+// panel's "+" button starts with an empty id (see addon_options.cpp), assigned
+// from its name the first time LoadEventsData sees it saved that way (see the
+// .cpp). Also used directly by addon_options.cpp/events_categories.cpp for a
+// brand-new user-created Category, which gets its id up front instead.
 //--------------------------------------------------------------------------------
 std::string SlugifyName(const std::string& name);
 std::string UniqueId(const std::string& candidate, std::unordered_set<std::string>& used);

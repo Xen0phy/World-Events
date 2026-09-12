@@ -97,6 +97,28 @@ bool ResetAllDataToDefaults()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// WipeLegacyEventsFile
+//--------------------------------------------------------------------------------
+// Pre-1.8.0.0 events.json is the old name-keyed format (WorldEvent/CyclicGroup/
+// Category, no id/customName). name/xy/chatCode were all independently user-
+// editable in the old UI, so none of them can recover identity reliably -
+// deleted instead of merged, letting LoadEventsData/LoadCategoriesData/
+// LoadSubscriptionsData below rebuild fresh compiled defaults, the same path a
+// first install already takes.
+//
+// Must run in AddonLoad before CheckForVersionHistoryOnLoad: that call stamps
+// LastKnownVersion to this build's own version before LoadEventsData ever runs,
+// so checking after it would always see the new version and never wipe.
+//--------------------------------------------------------------------------------
+static void WipeLegacyEventsFile(const std::string& addonDir)
+{
+    if (LastKnownVersion >= 1080000) return;
+
+    std::error_code ec;
+    std::filesystem::remove(addonDir + "\\events.json", ec);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonLoad
 //--------------------------------------------------------------------------------
 // Nexus calls this once, synchronously, before the addon does anything else.
@@ -136,13 +158,16 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
 
+    //_ Must run before CheckForVersionHistoryOnLoad bumps LastKnownVersion - see WipeLegacyEventsFile's header comment.
+    WipeLegacyEventsFile(g_AddonDir);
+
     //_ Shows the "What's New" notice at most once per version - see changelog_window.h. Runs after LoadSettings (needs the persisted LastKnownVersion) and before anything renders.
     CheckForVersionHistoryOnLoad(g_AddonDir);
 
     //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by id, saved back below.
     LoadEventsData(g_AddonDir);
 
-    //_ Compiled-in category defaults merged with events.json by id; must run after LoadEventsData - it migrates any pre-id member against the now-populated g_Events/g_CyclicGroups.
+    //_ Compiled-in category defaults merged with events.json by id; must run after LoadEventsData - a member id references g_Events/g_CyclicGroups.
     LoadCategoriesData(g_AddonDir);
 
     //_ No compiled-in defaults to merge (see subscriptions.h); read-order doesn't matter, only save order does.

@@ -16,17 +16,18 @@
 // events_basic.cpp/events_cyclic.cpp; maprender.cpp/cyclicrender.cpp are the
 // respective renderers.
 //
-// EVENTS_DATA_VERSION is a YYYYMMDD(HHmm) int, bumped whenever EITHER the on-disk
-// SHAPE changes in a way old files can't fall through defaults for (a field
-// removed/renamed - a new optional field with a j.value() default does NOT need a
-// bump), OR the COMPILED-IN CONTENT changes (a group/event/ slot added, removed,
-// or renamed, or a default category/forced membership changed - see
-// events_categories.h). It drives the merge behavior in
-// LoadEventsData/LoadCategoriesData (see MergeByKey's comment in
-// events_storage.cpp), and is shared by events/cyclicGroups/categories, since all
-// three live under one "data_version" key in events.json. int64_t, not int: the
-// HHmm-precision form (e.g. 202607051350) exceeds INT32_MAX and would silently
-// wrap.
+// EVENTS_DATA_VERSION is a YYYYMMDD(HHmm) int, bumped whenever a one-time
+// compiled-in-data correction is added: a default category/forced membership
+// change (events_categories.h), or a WorldEvent/Slot offset or duration fix (see
+// CategoryDefaultMember::offset/duration, SlotOverride below). It gates those
+// corrections in ApplyCategoryOffsetOverrides/ApplyCategoryDurationOverrides/
+// ApplySlotOverrides (events_storage.cpp) so each applies once, on the first load
+// past the version that introduced it, and never again overwrites a user's own
+// edit. New compiled-in events/groups/slots need no bump - MergeByKey/MergeGroups
+// (events_storage.cpp) always add whatever's missing from the loaded file,
+// unconditionally. Shared by events/cyclicGroups/categories, since all three live
+// under one "data_version" key in events.json. int64_t, not int: the HHmm-
+// precision form (e.g. 202607051350) exceeds INT32_MAX and would silently wrap.
 //--------------------------------------------------------------------------------
 
 #pragma once

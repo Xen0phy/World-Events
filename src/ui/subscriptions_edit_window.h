@@ -13,10 +13,11 @@
 // with none of that panel's structural editing (add/remove/rename, drag-and-drop,
 // coordinates, icon/color pickers, chat codes). Two tabs: "Basic & Cyclic" (the
 // original two-column view) and "Live Events" (flat list, no notify-level ladder
-// - see live-toast-handoff.md section 6). Reached via the new "Edit
-// Subscriptions" entry in the bar segment / window row / toast right-click
-// popups, plus a background right-click on the bar strip and the window's empty
-// content area - see
+// - Live Events are all-or-nothing subscribe/unsubscribe, unlike Basic/Cyclic's
+// four-level DrawNotifyLevelIcon/DrawNotifyLevelButtons in
+// addon_options_helpers.cpp). Reached via the "Edit Subscriptions" entry in the
+// bar segment / window row / toast right-click popups, plus a background right-
+// click on the bar strip and the window's empty content area - see
 // subscriptions_bar.cpp/subscriptions_window.cpp/subscriptions_notification.cpp.
 //
 // ShowEditSubscriptionsWindow is NOT a persisted setting (contrast

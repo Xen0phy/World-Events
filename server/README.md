@@ -1,9 +1,9 @@
 # gw2-world-events relay (Cloudflare Worker + Durable Object)
 
-Server side of the live event reporting feature described in
-`networking-handoff.md`. Implements the wire protocol in that doc, section 5,
-exactly - this is what `src/networking/ws_client.cpp` in the addon already
-assumes exists.
+Server side of the live event reporting feature. Implements the wire
+protocol `src/networking/ws_client.cpp` in the addon already assumes
+exists: one persistent WebSocket per shard, JSON report/history messages
+keyed by `event_id`.
 
 ## What it is
 
@@ -17,8 +17,7 @@ assumes exists.
   name; all protocol logic lives in `src/shard-object.ts`.
 - Uses the **WebSocket Hibernation API**
   (`ctx.acceptWebSocket` / `webSocketMessage` / `webSocketClose`), so idle
-  connections aren't billed for duration on the Workers Free plan - see the
-  cost notes in `networking-handoff.md`.
+  connections aren't billed for duration on the Workers Free plan.
 
 ## One thing added beyond the original spec
 
@@ -26,9 +25,10 @@ A per-connection throttle (`MIN_SECONDS_BETWEEN_REPORTS` in
 `shard-object.ts`, currently 2s) silently drops reports sent too close
 together from the same socket. There's no auth on this endpoint at all, so a
 minimal guard against a stuck or spammy client felt worth the few lines. Not
-in the wire protocol doc - easy to rip out if it's unwanted, and it doesn't
-change the client-visible contract (bursty reports are just dropped, same as
-any other drop).
+part of the client's own wire-protocol contract (`ws_client.cpp` never
+throttles outgoing SendReport calls) - easy to rip out if it's unwanted, and
+it doesn't change the client-visible contract (bursty reports are just
+dropped, same as any other drop).
 
 ## Setup
 
@@ -62,12 +62,12 @@ npm run deploy
 
 First deploy will print your Worker's `*.workers.dev` URL. That's the
 `kHost` value that needs to replace `CHANGEME.workers.dev` in
-`src/networking/ws_client.cpp` (see "Next steps" #1 in
-`networking-handoff.md`) - no code changes needed here after that, only in
-the addon.
+`src/networking/ws_client.cpp` (generated via
+`tools/generate_host_config.py`, see that script's docstring) - no code
+changes needed here after that, only in the addon.
 
 ## Verifying free-tier fit
 
 `wrangler tail` after deploying shows live logs/requests if you want to
-sanity-check the request/duration numbers referenced in the handoff doc
-against actual usage once the button ships.
+sanity-check request volume and Durable Object duration against the
+Workers Free plan's limits once the button ships.

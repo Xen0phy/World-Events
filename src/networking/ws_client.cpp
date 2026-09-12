@@ -276,8 +276,7 @@ static bool s_wakeHookRegistered = ([]
 // "report" message, or one entry of a "history" message's "reports" array - same
 // field set either way, see file header). reporter_name/region default to empty
 // instead of failing the whole entry, since a server that hasn't been upgraded to
-// send them yet (live-toast-handoff.md section 8) still sends a valid event_id/ts
-// otherwise.
+// send them yet still sends a valid event_id/ts otherwise.
 //--------------------------------------------------------------------------------
 static EventReport ParseEventReportFields(const std::string& eventId, const json& entry)
 {

@@ -227,11 +227,14 @@ def main() -> None:
             f"[generate_localization_table] ERROR: {source_csv} produced zero entries"
         )
 
+    if warnings:
+        for w in warnings:
+            print(f"[generate_localization_table] ERROR: {w}")
+        raise SystemExit(1)
+
     generated_file.parent.mkdir(parents=True, exist_ok=True)
     generated_file.write_text("\n".join(lines), encoding="utf-8")
 
-    for w in warnings:
-        print(f"[generate_localization_table] WARNING: {w}")
     print(
         f"[generate_localization_table] wrote {generated_file} with "
         f"{len(seen_identifiers)} entries, {len(codes)} language(s)"

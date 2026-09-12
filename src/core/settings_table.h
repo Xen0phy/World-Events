@@ -354,8 +354,8 @@ SETTING_ARRAY(Subscriptions, SubscriptionsSoonColor,   4, ARR(1.000f, 0.549f, 0.
 // Toast accent-stripe color for a subscribed Live Event report (subscriptions_
 // notification.cpp's CollectLiveEventPopups), distinct from SubscriptionsActive-
 // Color so a player-reported toast reads differently at a glance from a schedule-
-// driven "now active" one - see live-toast-handoff.md section 6. Not used by the
-// watchlist window/bar, which have no live-report row to begin with.
+// driven "now active" one. Not used by the watchlist window/bar, which have no
+// live-report row to begin with.
 //--------------------------------------------------------------------------------
 SETTING_ARRAY(Subscriptions, SubscriptionsLiveColor, 4, ARR(0.300f, 0.600f, 1.000f, 1.000f)) //. blue
 

@@ -570,7 +570,6 @@ WE_REPETITION_LABEL,Repetition,Wiederholung,Répétition,Repetición,重复次�
 WE_TIMES_MIN_INTO_PERIOD_LABEL,Times (min into period),Zeiten (Minuten im Zyklus),Heures (min dans la période),Horas (min dentro del periodo),时间（周期内分钟）,
 WE_MINUTES_UNIT_LABEL,min,Min.,min,min,分钟,
 #,addon_options.cpp - the Nexus options panel. Only the generic settings.,,,,,
-WE_OPT_PANEL_TITLE,World Events,World Events,World Events,World Events,世界事件,
 WE_OPT_RELEASE,Release,Version,Version,Versión,版本,
 WE_OPT_DISABLE_COMPETITIVE,Disable overlay in PvP/WvW,Overlay in PvP/WvW deaktivieren,Désactiver la superposition en PvP/McM,Desactivar la superposición en PvP/McM,PvP/世界之战(WvW)下关闭叠加界面,
 WE_OPT_WINDOW,Window,Fenster,Fenêtre,Ventana,窗口,

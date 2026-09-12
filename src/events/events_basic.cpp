@@ -74,10 +74,10 @@ std::vector<WorldEvent> g_Events =
     {"awakened_invasion_metrica",     41010.0f, 35462.0f,  false, m15, "[&BEgAAAA=]", false, "EventMap.png",    {}, MIN(420), MIN(390)},
 
     //_ Fractal Incursions
-    {"fractal_incursion_brisban",     40826.0f, 33123.0f,  false, m15, "[&BBIAAAA=]", false, "EventBoss.png",   {}, MIN(240),        0},
-    {"fractal_incursion_snowden",     51347.0f, 29164.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, MIN(240),      m60},
-    {"fractal_incursion_kessex",      45568.0f, 32025.0f,  false, m15, "[&BHUAAAA=]", false, "EventBoss.png",   {}, MIN(240),     m120},
-    {"fractal_incursion_diessa",      58085.0f, 29462.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, MIN(240), MIN(180)},
+    {"fractal_incursion_kessex",      45568.0f, 32025.0f,  false, m15, "[&BHUAAAA=]", false, "EventBoss.png",   {}, MIN(240),        0},
+    {"fractal_incursion_diessa",      58085.0f, 29462.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, MIN(240),      m60},
+    {"fractal_incursion_brisban",     40826.0f, 33123.0f,  false, m15, "[&BBIAAAA=]", false, "EventBoss.png",   {}, MIN(240),     m120},
+    {"fractal_incursion_snowden",     51347.0f, 29164.0f,  false, m15, "[&BLQAAAA=]", false, "EventBoss.png",   {}, MIN(240), MIN(180)},
 
     //_ Festivals
     {"your_mad_king_says",            49178.0f, 31170.0f,  false, m10, "[&BBEEAAA=]", false,  "Festival.png",   {},     m120,        0},
@@ -125,10 +125,10 @@ std::vector<CategoryDefault> g_DefaultBasicCategories =
         {"awakened_invasion_metrica"},
     }},
     {"fractal_incursions", {
-        {"fractal_incursion_brisban", true},
-        {"fractal_incursion_snowden", true},
-        {"fractal_incursion_kessex", true},
-        {"fractal_incursion_diessa", true},
+        {"fractal_incursion_kessex"},
+        {"fractal_incursion_diessa"},
+        {"fractal_incursion_brisban"},
+        {"fractal_incursion_snowden"},
     }},
     {"festivals", {
         {"your_mad_king_says"},

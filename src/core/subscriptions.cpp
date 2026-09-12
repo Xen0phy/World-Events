@@ -16,8 +16,6 @@
 #include "addon.h"
 #include "background_threads.h"
 #include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for PasteToChat's /self fallback
-#include "events.h" //. g_Events/g_CyclicGroups, for LoadSubscriptionsData's name->id migration
-#include "events_storage.h" //. DisplayNameEnglish, for LoadSubscriptionsData's name->id migration
 #include <nlohmann/json.hpp>
 #include "settings.h"
 #include "mumble_identity.h" //. ParseMumbleIdentity, for GetMumbleCharacterName below
@@ -32,8 +30,6 @@
 #include <filesystem>
 #include <optional>
 #include <thread>
-#include <unordered_map>
-#include <unordered_set>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -252,15 +248,7 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
-// Deserialize defaults missing fields to empty string instead of throwing. Falls
-// back to the legacy "groupName" key when "groupId" is absent, so a pre-id-
-// migration events.json still loads - the group NAME that lands in key.groupId
-// this way is converted to an id below, by the same self-triggering migration
-// LoadSubscriptionsData runs for the other lists.
-//
-// A saved "slotOffset" instead of "slotId" means this entry predates the
-// collision fix (cyclic-subscription-key-handoff.md) - see ExpandLegacyOffsetKey
-// below for how those get resolved into real slot ids.
+// Deserialize defaults missing fields to empty string instead of throwing.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
@@ -273,98 +261,9 @@ static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 {
     CyclicSubscriptionKey key;
-    key.groupId = j.value("groupId", j.value("groupName", std::string()));
+    key.groupId = j.value("groupId", std::string());
     key.slotId  = j.value("slotId", std::string());
     return key;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ExpandLegacyOffsetKey
-//--------------------------------------------------------------------------------
-// A pre-fix entry, still holding a raw "slotOffset" int in place of "slotId", is
-// genuinely ambiguous: every isVarying slot in the group that shared that
-// (unused) offset value looked identical under the old key, so there's no way to
-// recover which one the user actually meant. Best-effort expansion: return every
-// slot in the named group whose own offset matches, under its real slotId. For a
-// non-varying slot this is normally exactly one match, a no-op. Empty when
-// legacyOffset has no value (already a current-format entry) or the group can't
-// be found.
-//--------------------------------------------------------------------------------
-static std::vector<CyclicSubscriptionKey> ExpandLegacyOffsetKey(const std::string& groupId, int legacyOffset)
-{
-    std::vector<CyclicSubscriptionKey> expanded;
-
-    auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-        [&](const CyclicGroup& g) { return g.id == groupId; });
-    if (grpIt == g_CyclicGroups.end()) return expanded;
-
-    for (const auto& slot : grpIt->slots)
-        if (slot.offset == legacyOffset)
-            expanded.push_back({ groupId, slot.id });
-
-    return expanded;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// MigrateLegacyOffsetEntries
-//--------------------------------------------------------------------------------
-// Runs once per load, after DeserializeCyclicKey, against a list that may still
-// contain pre-fix entries (json.slotId absent, key.slotId left empty).
-// ExpandLegacyOffsetKey resolves each against legacyOffset, read straight from
-// the same json object since key.slotId can't carry it. A current-format entry
-// (non-empty key.slotId) passes through untouched.
-//--------------------------------------------------------------------------------
-static void MigrateLegacyOffsetEntries(std::vector<CyclicSubscriptionKey>& list, const json& arr)
-{
-    std::vector<CyclicSubscriptionKey> migrated;
-    for (size_t i = 0; i < list.size() && i < arr.size(); i++)
-    {
-        if (!list[i].slotId.empty())
-        {
-            migrated.push_back(list[i]);
-            continue;
-        }
-
-        int legacyOffset = arr[i].value("slotOffset", 0);
-        auto expanded = ExpandLegacyOffsetKey(list[i].groupId, legacyOffset);
-        migrated.insert(migrated.end(), expanded.begin(), expanded.end());
-    }
-    list = std::move(migrated);
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// MigrateBasicEntriesToIds / MigrateCyclicEntriesToIds
-//--------------------------------------------------------------------------------
-// One-time upgrade for a pre-id-migration events.json, whose Basic/Cyclic
-// subscription and toast/sound lists are still WorldEvent::name/
-// CyclicGroup::name values. Self-triggering, no version gate: an entry already
-// found in validIds is left alone; only one that misses as an id but hits
-// nameToId gets rewritten. An entry matching neither (an event/group the user has
-// since removed) is left as-is, same as before this migration existed - mirrors
-// MigrateMembersToIds (events_categories.cpp).
-//--------------------------------------------------------------------------------
-static void MigrateBasicEntriesToIds(std::vector<std::string>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
-{
-    for (auto& value : list)
-    {
-        if (validIds.count(value)) continue;
-
-        auto it = nameToId.find(value);
-        if (it != nameToId.end())
-            value = it->second;
-    }
-}
-
-static void MigrateCyclicEntriesToIds(std::vector<CyclicSubscriptionKey>& list, const std::unordered_map<std::string, std::string>& nameToId, const std::unordered_set<std::string>& validIds)
-{
-    for (auto& key : list)
-    {
-        if (validIds.count(key.groupId)) continue;
-
-        auto it = nameToId.find(key.groupId);
-        if (it != nameToId.end())
-            key.groupId = it->second;
-    }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -376,8 +275,7 @@ static void MigrateCyclicEntriesToIds(std::vector<CyclicSubscriptionKey>& list, 
 //
 // Load defaults any missing key to empty via .value(...), so an events.json from
 // before this feature existed loads with every subscription non-toast/non-sound
-// instead of opting in silently. Also runs MigrateLegacyOffsetEntries on each
-// cyclic list, for an events.json from before the slotId collision fix.
+// instead of opting in silently.
 //--------------------------------------------------------------------------------
 bool SaveSubscriptionsData(const std::string& addonDir)
 {
@@ -444,53 +342,21 @@ bool LoadSubscriptionsData(const std::string& addonDir)
 
         g_SubscribedCyclicSlots.clear();
         if (j.contains("subscribedCyclicSlots") && j["subscribedCyclicSlots"].is_array())
-        {
             for (const auto& kj : j["subscribedCyclicSlots"])
                 g_SubscribedCyclicSlots.push_back(DeserializeCyclicKey(kj));
-            MigrateLegacyOffsetEntries(g_SubscribedCyclicSlots, j["subscribedCyclicSlots"]);
-        }
 
         g_ToastEnabledCyclicSlots.clear();
         if (j.contains("toastEnabledCyclicSlots") && j["toastEnabledCyclicSlots"].is_array())
-        {
             for (const auto& kj : j["toastEnabledCyclicSlots"])
                 g_ToastEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
-            MigrateLegacyOffsetEntries(g_ToastEnabledCyclicSlots, j["toastEnabledCyclicSlots"]);
-        }
 
         g_SoundEnabledCyclicSlots.clear();
         if (j.contains("soundEnabledCyclicSlots") && j["soundEnabledCyclicSlots"].is_array())
-        {
             for (const auto& kj : j["soundEnabledCyclicSlots"])
                 g_SoundEnabledCyclicSlots.push_back(DeserializeCyclicKey(kj));
-            MigrateLegacyOffsetEntries(g_SoundEnabledCyclicSlots, j["soundEnabledCyclicSlots"]);
-        }
 
         g_SubscribedLiveEvents = j.value("subscribedLiveEvents", std::vector<std::string>{});
         g_NamedOnlyLiveEvents = j.value("namedOnlyLiveEvents", std::vector<std::string>{});
-
-        //_ Requires g_Events/g_CyclicGroups already populated - see LoadSubscriptionsData's own comment (subscriptions.h) on load order.
-        std::unordered_map<std::string, std::string> eventNameToId;
-        std::unordered_set<std::string> eventIds;
-        for (const auto& ev : g_Events)
-        {
-            eventNameToId[DisplayNameEnglish(ev)] = ev.id;
-            eventIds.insert(ev.id);
-        }
-        MigrateBasicEntriesToIds(g_SubscribedBasicEvents, eventNameToId, eventIds);
-        MigrateBasicEntriesToIds(g_ToastEnabledBasicEvents, eventNameToId, eventIds);
-        MigrateBasicEntriesToIds(g_SoundEnabledBasicEvents, eventNameToId, eventIds);
-
-        std::unordered_map<std::string, std::string> groupNameToId;
-        std::unordered_set<std::string> groupIds;
-        for (const auto& grp : g_CyclicGroups)
-        {
-            groupNameToId[DisplayNameEnglish(grp)] = grp.id;
-            groupIds.insert(grp.id);
-        }
-        MigrateCyclicEntriesToIds(g_SubscribedCyclicSlots, groupNameToId, groupIds);
-        MigrateCyclicEntriesToIds(g_ToastEnabledCyclicSlots, groupNameToId, groupIds);
-        MigrateCyclicEntriesToIds(g_SoundEnabledCyclicSlots, groupNameToId, groupIds);
 
         s_subscriptionListGeneration++;
         return true;

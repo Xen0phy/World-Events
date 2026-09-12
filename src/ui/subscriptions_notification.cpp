@@ -12,7 +12,7 @@
 // Toast-style popup notifications for subscribed Basic Events / Cyclic slots,
 // plus auto-tracked active-and-incomplete weekly Wizard's Vault targets
 // (weekly_vault.h) not already manually subscribed, plus subscribed Live Events
-// (live-toast-handoff.md section 6). A fourth view of the same subscription data
+// via CollectLiveEventPopups below. A fourth view of the same subscription data
 // as subscriptions_window.cpp / subscriptions_bar.cpp - see subscriptions.h.
 //
 // Basic/Cyclic fire two independent popups per occurrence: "starting soon"

@@ -8,8 +8,8 @@
 // Template for notify_host_config.h, which notification_client.cpp actually
 // includes. notify_host_config.h itself is gitignored -- never commit it. See
 // host_config.example.h for the sibling per-shard relay's template - this is the
-// same story, one level up, for the region-wide notify worker (live-toast-
-// handoff.md section 5).
+// same story, one level up, for the region-wide notify worker that fans toast
+// notifications out to every shard (see server-notify/ for that worker).
 //
 // Don't hand-edit the byte array below -- regenerate it instead, from the repo
 // root:
