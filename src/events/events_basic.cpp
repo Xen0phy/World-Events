@@ -13,15 +13,15 @@
 
 #include "events.h"
 #include "events_categories.h"
-#include <optional>
+#include <optional> //. std::nullopt
 
 //_ Coords, most of which were taken directly from Sognus's World Bosses data.
 std::vector<WorldEvent> g_Events =
 {
     //_ Instanced
-    {"outer_nayos",                   24046.0f, 22754.0f, false, m10, "[&BB8OAAA=]",  true, "Convergence.png", {}, MIN(180),       m90},
-    {"mount_balrior",                 43095.0f, 22672.0f, false, m10, "[&BK4OAAA=]",  true, "Convergence.png", {}, MIN(180),         0},
-    {"nexus_of_eternity",             40095.0f, 20672.0f, false, m10, "[&BK4OAAA=]",  true, "Convergence.png", {}, MIN(180),  MIN(150)},
+    {"outer_nayos",                   24046.0f, 22754.0f, false, m10, "[&BB8OAAA=]",  true,  "Convergence.png", {}, MIN(180),       m90},
+    {"mount_balrior",                 43095.0f, 22672.0f, false, m10, "[&BK4OAAA=]",  true,  "Convergence.png", {}, MIN(180),         0},
+    {"nexus_of_eternity",              4439.0f, 57712.0f, false, m10, "[&BB8QAAA=]",  false, "Convergence.png", {}, MIN(180),       m60},
 
     //_ Core bosses; id reuses that boss's apiWorldBossId (trailing string per row).
     {"admiral_taidha_covington",      48872.0f, 33548.0f, false, m15, "[&BKgBAAA=]",  true, "WorldBoss.png",   {}, MIN(180),         0, "admiral_taidha_covington"},
@@ -92,8 +92,9 @@ std::vector<WorldEvent> g_Events =
 std::vector<CategoryDefault> g_DefaultBasicCategories =
 {
     {"instanced", {
-        {"outer_nayos", false, std::nullopt, m10},
-        {"mount_balrior", false, std::nullopt, m10},
+        {"outer_nayos"},
+        {"mount_balrior"},
+        {"nexus_of_eternity"},
     }},
     {"core_bosses", {
         {"admiral_taidha_covington"},

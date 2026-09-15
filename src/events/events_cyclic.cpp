@@ -322,9 +322,10 @@ std::vector<CyclicGroup> g_CyclicGroups =
         }
     },
     { "leyspring_hollows",
-        4000.0f, 60000.0f, m120, COL_VOE,
+        5384.0f, 57790.0f, MIN(180), COL_VOE,
         {
-            { "the_depths_of_cruelty", 0, m25, ColorTier::Primary, "" },
+            { "nexus_of_eternity",     m60,  m25, ColorTier::Secondary, "[&BB8QAAA=]" },
+            { "the_depths_of_cruelty", m115, m25, ColorTier::Primary,   "[&BDYQAAA=]" },
         }
     },
 };

@@ -1,25 +1,45 @@
 version,en,de,fr,es,cn
-1.8.0.0 - Events Reset,"Events Reset
-  Events settings (subscriptions, notifications, custom events/groups, renames, categories) are reset once with this update, due to an internal storage format change. Sorry about that – should be a few minutes to set back up.
+1.8.0.0 - Localization,"New Features
+  * Added localization for German, French, Spanish and Chinese. Can be set in the Nexus settings.
+  * Added new Meta-Event and Covergence.
+
+Events Reset
+  Events settings (custom events/groups, renames, categories) are reset once with this update, due to an internal storage format change. Sorry about that – should be a few minutes to set back up. Subscriptions should survive this.
 
 Personal Note:
-  Translations have been created from English using AI, if you find any issues, please feel free to report them to me.","Events zurückgesetzt
-  Die Events-Einstellungen (Abonnements, Benachrichtigungen, benutzerdefinierte Events/Gruppen, Umbenennungen, Kategorien) werden mit diesem Update einmalig zurückgesetzt, aufgrund einer internen Änderung des Speicherformats. Tut mir leid – die Neueinrichtung sollte nur ein paar Minuten dauern.
+  Translations have been created from English using AI, events have been checked against the wiki. If you find any issues, please feel free to report them to me.","Neue Funktionen
+  * Lokalisierung für Deutsch, Französisch, Spanisch und Chinesisch hinzugefügt. Kann in den Nexus-Einstellungen festgelegt werden.
+  * Neues Meta-Event und Covergence hinzugefügt.
 
-Persönliche Notiz:
-  Übersetzungen wurden aus dem Englischen mit KI erstellt. Falls du Fehler findest, kannst du diese jederzeit direkt bei mir melden.","Réinitialisation des événements
-  Les paramètres des événements (abonnements, notifications, événements/groupes personnalisés, renommages, catégories) sont réinitialisés une seule fois avec cette mise à jour, en raison d'un changement interne du format de stockage. Désolé pour la gêne occasionnée – la reconfiguration ne devrait prendre que quelques minutes.
+Events zurückgesetzt
+  Die Event-Einstellungen (benutzerdefinierte Events/Gruppen, Umbenennungen, Kategorien) werden mit diesem Update einmalig zurückgesetzt, aufgrund einer Änderung des internen Speicherformats. Entschuldigung dafür – es sollte nur wenige Minuten dauern, alles wieder einzurichten. Abonnements sollten erhalten bleiben.
+
+Persönliche Anmerkung:
+  Übersetzungen wurden mithilfe von KI aus dem Englischen erstellt, Events wurden anhand des Wikis überprüft. Falls ihr Probleme findet, könnt ihr sie mir gerne melden.","Nouvelles fonctionnalités
+  * Ajout de la localisation en allemand, français, espagnol et chinois. Peut être configurée dans les paramètres de Nexus.
+  * Ajout d'un nouveau Meta-Event et de Covergence.
+
+Réinitialisation des événements
+  Les paramètres des événements (événements/groupes personnalisés, renommages, catégories) sont réinitialisés une fois avec cette mise à jour, en raison d'une modification du format de stockage interne. Désolé pour cela – cela ne devrait prendre que quelques minutes pour tout reconfigurer. Les abonnements devraient être conservés.
 
 Note personnelle :
-  Les traductions ont été générées à partir de l'anglais à l'aide de l'IA. Si vous constatez des erreurs, n'hésitez pas à me les signaler.","Restablecimiento de eventos
-  La configuración de eventos (suscripciones, notificaciones, eventos/grupos personalizados, renombrados, categorías) se restablece una vez con esta actualización, debido a un cambio interno en el formato de almacenamiento. Lo siento – la reconfiguración debería tardar solo unos minutos.
+  Les traductions ont été créées à partir de l'anglais à l'aide de l'IA, les événements ont été vérifiés par rapport au wiki. Si vous trouvez des problèmes, n'hésitez pas à me les signaler.","Nuevas funciones
+  * Se ha añadido la localización para alemán, francés, español y chino. Se puede configurar en los ajustes de Nexus.
+  * Se ha añadido un nuevo Meta-Event y Covergence.
+
+Restablecimiento de eventos
+  Los ajustes de los eventos (eventos/grupos personalizados, cambios de nombre, categorías) se restablecen una vez con esta actualización debido a un cambio en el formato de almacenamiento interno. Disculpad las molestias – solo debería llevar unos minutos volver a configurarlo todo. Las suscripciones deberían conservarse.
 
 Nota personal:
-  Las traducciones se han generado a partir del inglés mediante IA. Si encuentras algún problema, no dudes en informarmelo.","事件设置重置
-  由于内部存储格式的更改，此次更新会一次性重置事件设置（订阅、通知、自定义事件/组、重命名、分类）。给您带来不便，敬请谅解——重新设置大约只需几分钟。
+  Las traducciones se han creado a partir del inglés utilizando IA, los eventos se han comprobado con la wiki. Si encontráis algún problema, no dudéis en informármelo.","新功能
+  * 新增德语、法语、西班牙语和中文本地化支持。可在 Nexus 设置中进行设置。
+  * 新增元事件和汇聚。
+
+事件重置
+  由于内部存储格式发生变化，此次更新会将事件设置（自定义事件/组、重命名、分类）重置一次。对此很抱歉 – 重新设置应该只需要几分钟。订阅应该会保留。
 
 个人说明：
-  译文由AI根据英文生成，如发现问题，请随时反馈给我。"
+  翻译使用 AI 从英文翻译而来，事件已根据 Wiki 进行核对。如果发现任何问题，欢迎随时向我反馈。"
 1.7.0.0 - Live Event Notifications,"New Features
   * Added region-wide live event toast notifications
     * Split by EU/NA, requires an API-key to know what region you're on
