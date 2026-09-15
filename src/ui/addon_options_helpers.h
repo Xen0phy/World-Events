@@ -88,15 +88,15 @@ void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsDuplicateEventName / IsDuplicateGroupName / IsDuplicateSlotKey
 //--------------------------------------------------------------------------------
-// Match the actual merge keys used in events_storage.cpp: events/groups are
-// matched by name alone, slots by name+offset together (two slots can
-// legitimately share a name at different offsets - see the .cpp for the full
-// explanation). Each takes the index of the entry being checked so it can exclude
-// it from the comparison.
+// Display-only check, not a merge-key check: compares DisplayName's resolved text
+// (events_storage.h), not the raw customName - see the .cpp for why. Each takes
+// the index of the entry being checked so it can exclude it from the comparison;
+// IsDuplicateSlotKey also takes groupId, since Slot::id (and its display name) is
+// only unique within its group.
 //--------------------------------------------------------------------------------
 bool IsDuplicateEventName(const std::vector<WorldEvent>& events, int selfIndex);
 bool IsDuplicateGroupName(const std::vector<CyclicGroup>& groups, int selfIndex);
-bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfIndex);
+bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfIndex, const std::string& groupId);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawDuplicateWarning   (pairs with: IsDuplicateEventName/GroupName/SlotKey)
@@ -116,8 +116,11 @@ extern const char* const kCyclicGroupDragType;
 // Drag-and-drop: moving an item into/out of a category. MakeDragSource goes right
 // after the draggable widget; MakeDropTarget goes on whatever should accept the
 // drop (a category header, or a section's "drop here to uncategorize" target).
+//
+// itemId is the payload (matches Category::members); displayName is only the text
+// shown under the cursor while dragging.
 //--------------------------------------------------------------------------------
-void MakeDragSource(const char* dragType, const std::string& itemName);
+void MakeDragSource(const char* dragType, const std::string& itemId, const std::string& displayName);
 bool MakeDropTarget(const char* dragType, std::vector<Category>& categories, int targetCategoryIndex);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -189,20 +192,25 @@ void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const
 //********************************************************************************
 // NameRowResult
 //--------------------------------------------------------------------------------
-// open      TreeNode's current expand/collapse state
-// newName   possibly-edited name; unchanged from the input until Save is
-//           clicked
+// open        TreeNode's current expand/collapse state
+// newName     possibly-edited name; unchanged from the input until Save is
+//             clicked
+// cancelled   true the one frame the new-entry-only Cancel button (see isNew
+//             below) is clicked
 //--------------------------------------------------------------------------------
-struct NameRowResult { bool open; std::string newName; };
+struct NameRowResult { bool open; std::string newName; bool cancelled = false; };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNameAndContextMenu
 //--------------------------------------------------------------------------------
 // Shared expand/collapse + name + right-click "Edit name"/"Reset"/"Delete" row,
 // used for Basic Events, Cyclic Groups, Cyclic slots, and both category lists.
-// See the .cpp for the full contract on editBuffers/ editKey/removeIndex,
-// autoTag, toggleDone, notifyLevel/setNotifyLevel, and
-// resetToDefault/resetAvailable.
+// dragId is the MakeDragSource payload, read only when dragType is non-null - the
+// two category-list callers pass neither. autoFocus claims keyboard focus for the
+// inline edit box on the single frame a freshly-created entry first draws (see
+// RequestBasicEventNameEdit/RequestCyclicGroupNameEdit and the inline slot case
+// in DrawCyclicGroupRow). isNew stays true every later frame until that entry is
+// saved or cancelled, gating the Cancel ("x") button that discards it outright.
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
     const char*                 treeNodeId,
@@ -212,12 +220,44 @@ NameRowResult DrawNameAndContextMenu(
     std::map<int, std::string>& editBuffers,
     int&                        pendingRemoveIndex,
     const char*                 dragType        = nullptr,
+    const std::string&          dragId          = std::string(),
     const char*                 autoTag         = nullptr,
     std::function<void()>       toggleDone      = nullptr,
     int                         notifyLevel     = -1,
     std::function<void(int)>    setNotifyLevel  = nullptr,
     std::function<void()>       resetToDefault  = nullptr,
-    bool                        resetAvailable  = true);
+    bool                        resetAvailable  = true,
+    bool                        autoFocus       = false,
+    bool                        isNew           = false);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RequestBasicEventNameEdit / RequestCyclicGroupNameEdit
+//--------------------------------------------------------------------------------
+// Called once, right after pushing a freshly-created (empty-customName) entry
+// onto g_Events/g_CyclicGroups, from AddonOptions() (addon_options.cpp) - which
+// has no access to DrawBasicEventRow's/DrawCyclicGroupRow's own file-static
+// editBuffers maps. The next time that row actually draws (the following frame -
+// add/remove is applied after the draw loop, same as everywhere else in this
+// file), it seeds its own editBuffers entry and opens already focused for typing,
+// instead of showing a placeholder name the player has to notice and replace.
+// Cyclic Slots don't need an equivalent: their add button lives in the same
+// function as their editBuffers map (DrawCyclicGroupRow), so that seeding happens
+// inline instead - see the .cpp.
+//--------------------------------------------------------------------------------
+void RequestBasicEventNameEdit(int index);
+void RequestCyclicGroupNameEdit(int index);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsBasicEventCreationPending / IsCyclicGroupCreationPending
+//--------------------------------------------------------------------------------
+// True from the index passed to the matching Request*NameEdit call until that
+// entry is saved or cancelled (NameRowResult::cancelled) - the same span
+// DrawBasicEventRow/DrawCyclicGroupRow pass through as isNew. AddonOptions()
+// disables the matching "+" button while true, capping creation to one pending,
+// not-yet-named entry at a time.
+//--------------------------------------------------------------------------------
+bool IsBasicEventCreationPending();
+bool IsCyclicGroupCreationPending();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ContainsCaseInsensitive / EventMatchesSearch / GroupMatchesSearch

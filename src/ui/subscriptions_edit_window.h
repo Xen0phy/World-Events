@@ -3,7 +3,7 @@
 //--------------------------------------------------------------------------------
 // ShowEditSubscriptionsWindow    transient visibility flag (see below)
 // OpenEditSubscriptionsWindow()  open with no particular row targeted
-// OpenEditSubscriptionsWindow(kind, basicName, cyclicKey, liveEventId)
+// OpenEditSubscriptionsWindow(kind, basicId, cyclicKey, liveEventId)
 //                                 open with that row already expanded
 // RenderEditSubscriptionsWindow  draws the window; no-op unless open
 //--------------------------------------------------------------------------------
@@ -13,10 +13,11 @@
 // with none of that panel's structural editing (add/remove/rename, drag-and-drop,
 // coordinates, icon/color pickers, chat codes). Two tabs: "Basic & Cyclic" (the
 // original two-column view) and "Live Events" (flat list, no notify-level ladder
-// - see live-toast-handoff.md section 6). Reached via the new "Edit
-// Subscriptions" entry in the bar segment / window row / toast right-click
-// popups, plus a background right-click on the bar strip and the window's empty
-// content area - see
+// - Live Events are all-or-nothing subscribe/unsubscribe, unlike Basic/Cyclic's
+// four-level DrawNotifyLevelIcon/DrawNotifyLevelButtons in
+// addon_options_helpers.cpp). Reached via the "Edit Subscriptions" entry in the
+// bar segment / window row / toast right-click popups, plus a background right-
+// click on the bar strip and the window's empty content area - see
 // subscriptions_bar.cpp/subscriptions_window.cpp/subscriptions_notification.cpp.
 //
 // ShowEditSubscriptionsWindow is NOT a persisted setting (contrast
@@ -35,8 +36,8 @@
 //_ Transient only - see file header for why this isn't a SETTING().
 extern bool ShowEditSubscriptionsWindow;
 
-//_ Shared between the ImGui::Begin() call in RenderEditSubscriptionsWindow and the APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls in addon.cpp
-inline constexpr const char* kEditSubscriptionsWindowTitle = "World Events — Edit Subscriptions";
+//_ Untranslated on purpose (see WE_EDIT_SUBS_WINDOW_TITLE, localization_table.h) - the "###" drops everything before it from ImGui's ID hash, so this stays stable across languages. Shared between the ImGui::Begin() call in RenderEditSubscriptionsWindow and the APIDefs->GUI_RegisterCloseOnEscape/GUI_DeregisterCloseOnEscape calls in addon.cpp
+inline constexpr const char* kEditSubscriptionsWindowId = "###WorldEventsEditSubscriptions";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenEditSubscriptionsWindow
@@ -45,15 +46,15 @@ inline constexpr const char* kEditSubscriptionsWindowTitle = "World Events — E
 // background right-click entry point (bar strip / window empty area).
 //
 // Four-argument overload: opens the window, switches to the matching tab, and on
-// the very next draw expands the row identified by (kind, basicName, cyclicKey)
-// for Basic/Cyclic - and, for a Cyclic slot, its enclosing group too - or
-// liveEventId for Live. Same identity trio (now three-way via SubscriptionKind,
+// the very next draw expands the row identified by (kind, basicId, cyclicKey) for
+// Basic/Cyclic - and, for a Cyclic slot, its enclosing group too - or liveEventId
+// for Live. Same identity trio (now three-way via SubscriptionKind,
 // subscriptions.h) already threaded through LineSegment/Row/Popup in
 // subscriptions_bar.cpp/subscriptions_window.cpp/subscriptions_notification.cpp;
 // liveEventId defaults to empty, meaningful only when kind is Live.
 //--------------------------------------------------------------------------------
 void OpenEditSubscriptionsWindow();
-void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicName,
+void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicId,
     const CyclicSubscriptionKey& cyclicKey, const std::string& liveEventId = std::string());
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

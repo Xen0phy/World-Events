@@ -53,44 +53,19 @@ uint64_t GetSubscriptionListGeneration() { return s_subscriptionListGeneration; 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventSubscribed / ToggleBasicEventSubscription   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
-bool IsBasicEventSubscribed(const std::string& eventName)
+bool IsBasicEventSubscribed(const std::string& eventId)
 {
-    return std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventName)
+    return std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventId)
         != g_SubscribedBasicEvents.end();
 }
 
-void ToggleBasicEventSubscription(const std::string& eventName)
+void ToggleBasicEventSubscription(const std::string& eventId)
 {
-    auto it = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventName);
+    auto it = std::find(g_SubscribedBasicEvents.begin(), g_SubscribedBasicEvents.end(), eventId);
     if (it != g_SubscribedBasicEvents.end())
         g_SubscribedBasicEvents.erase(it);
     else
-        g_SubscribedBasicEvents.push_back(eventName);
-    s_subscriptionListGeneration++;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// RenameSubscribedBasicEvent
-//--------------------------------------------------------------------------------
-// Patches every occurrence in each list, not just the first, in case of a prior
-// data inconsistency; see subscriptions.h for what gets patched.
-//--------------------------------------------------------------------------------
-void RenameSubscribedBasicEvent(const std::string& oldName, const std::string& newName)
-{
-    if (oldName == newName) return;
-
-    for (auto& name : g_SubscribedBasicEvents)
-        if (name == oldName)
-            name = newName;
-
-    for (auto& name : g_ToastEnabledBasicEvents)
-        if (name == oldName)
-            name = newName;
-
-    for (auto& name : g_SoundEnabledBasicEvents)
-        if (name == oldName)
-            name = newName;
-
+        g_SubscribedBasicEvents.push_back(eventId);
     s_subscriptionListGeneration++;
 }
 
@@ -170,9 +145,9 @@ void ClearAllSubscriptions()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventToastEnabled / IsCyclicSlotToastEnabled   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
-bool IsBasicEventToastEnabled(const std::string& eventName)
+bool IsBasicEventToastEnabled(const std::string& eventId)
 {
-    return std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventName)
+    return std::find(g_ToastEnabledBasicEvents.begin(), g_ToastEnabledBasicEvents.end(), eventId)
         != g_ToastEnabledBasicEvents.end();
 }
 
@@ -185,9 +160,9 @@ bool IsCyclicSlotToastEnabled(const CyclicSubscriptionKey& key)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventSoundEnabled / IsCyclicSlotSoundEnabled   (see: subscriptions.h)
 //--------------------------------------------------------------------------------
-bool IsBasicEventSoundEnabled(const std::string& eventName)
+bool IsBasicEventSoundEnabled(const std::string& eventId)
 {
-    return std::find(g_SoundEnabledBasicEvents.begin(), g_SoundEnabledBasicEvents.end(), eventName)
+    return std::find(g_SoundEnabledBasicEvents.begin(), g_SoundEnabledBasicEvents.end(), eventId)
         != g_SoundEnabledBasicEvents.end();
 }
 
@@ -222,25 +197,25 @@ static void SetMembership(std::vector<T>& list, const T& value, bool want)
 // then brings subscribed/toast/sound into agreement via
 // ToggleBasicEventSubscription (bumps the generation) and SetMembership.
 //--------------------------------------------------------------------------------
-int GetBasicEventNotifyLevel(const std::string& eventName)
+int GetBasicEventNotifyLevel(const std::string& eventId)
 {
-    if (!IsBasicEventSubscribed(eventName)) return 0;
-    if (!IsBasicEventToastEnabled(eventName)) return 1;
-    return IsBasicEventSoundEnabled(eventName) ? 3 : 2;
+    if (!IsBasicEventSubscribed(eventId)) return 0;
+    if (!IsBasicEventToastEnabled(eventId)) return 1;
+    return IsBasicEventSoundEnabled(eventId) ? 3 : 2;
 }
 
-void SetBasicEventNotifyLevel(const std::string& eventName, int level)
+void SetBasicEventNotifyLevel(const std::string& eventId, int level)
 {
     level = level < 0 ? 0 : (level > 3 ? 3 : level);
     bool wantSubscribed = level >= 1;
     bool wantToast      = level >= 2;
     bool wantSound      = level >= 3;
 
-    if (IsBasicEventSubscribed(eventName) != wantSubscribed)
-        ToggleBasicEventSubscription(eventName);
+    if (IsBasicEventSubscribed(eventId) != wantSubscribed)
+        ToggleBasicEventSubscription(eventId);
 
-    SetMembership(g_ToastEnabledBasicEvents, eventName, wantSubscribed && wantToast);
-    SetMembership(g_SoundEnabledBasicEvents, eventName, wantSubscribed && wantSound);
+    SetMembership(g_ToastEnabledBasicEvents, eventId, wantSubscribed && wantToast);
+    SetMembership(g_SoundEnabledBasicEvents, eventId, wantSubscribed && wantSound);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -273,21 +248,21 @@ void SetCyclicSlotNotifyLevel(const CyclicSubscriptionKey& key, int level)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
-// Deserialize defaults missing fields to empty string / 0 instead of throwing.
+// Deserialize defaults missing fields to empty string instead of throwing.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
     json j;
-    j["groupName"]  = key.groupName;
-    j["slotOffset"] = key.slotOffset;
+    j["groupId"] = key.groupId;
+    j["slotId"]  = key.slotId;
     return j;
 }
 
 static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 {
     CyclicSubscriptionKey key;
-    key.groupName  = j.value("groupName", std::string());
-    key.slotOffset = j.value("slotOffset", 0);
+    key.groupId = j.value("groupId", std::string());
+    key.slotId  = j.value("slotId", std::string());
     return key;
 }
 
@@ -395,26 +370,36 @@ bool LoadSubscriptionsData(const std::string& addonDir)
 // Plain Win32 clipboard write. No synthetic keystrokes, no window-handle
 // targeting, nothing sent to the game process - this only touches the shared OS
 // clipboard, same as any other app's "Copy" button.
+//
+// text is UTF-8, converted here to UTF-16 and published as CF_UNICODETEXT, never
+// CF_TEXT: CF_TEXT holds single-byte-per-character ANSI codepage bytes, which
+// can't represent most non-Latin scripts (e.g. Chinese) at all and silently
+// corrupts them on paste. CF_UNICODETEXT is what every modern Unicode paste
+// target, including GW2's own chat box, actually reads.
 //--------------------------------------------------------------------------------
 bool CopyTextToClipboard(const std::string& text)
 {
+    int wideLen = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+    if (wideLen <= 0)
+        return false;
+
     if (!OpenClipboard(nullptr))
         return false;
 
     EmptyClipboard();
 
-    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (SIZE_T)wideLen * sizeof(wchar_t));
     if (!hMem)
     {
         CloseClipboard();
         return false;
     }
 
-    void* pMem = GlobalLock(hMem);
-    memcpy(pMem, text.c_str(), text.size() + 1);
+    wchar_t* pMem = static_cast<wchar_t*>(GlobalLock(hMem));
+    MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, pMem, wideLen);
     GlobalUnlock(hMem);
 
-    SetClipboardData(CF_TEXT, hMem);
+    SetClipboardData(CF_UNICODETEXT, hMem);
     CloseClipboard();
     return true;
 }
@@ -458,9 +443,8 @@ std::string BuildChatPasteMessage(const std::string& name, const std::string& ch
 //--------------------------------------------------------------------------------
 // Mumble::Data::Identity (Mumble.h) is a UTF-16 JSON string, not a plain name
 // field - {"name":"...", "profession":N, ...}. ParseMumbleIdentity
-// (mumble_identity.h) does the UTF-16 -> UTF-8 -> JSON parse; "name" is then
-// narrowed again to the clipboard's ANSI codepage so accented names survive
-// CopyTextToClipboard's CF_TEXT write the same as any other pasted segment.
+// (mumble_identity.h) does the UTF-16 -> UTF-8 -> JSON parse; the result is
+// already what CopyTextToClipboard expects, no further conversion needed here.
 // Returns empty on any failure: MumbleLink not ready yet, malformed/empty
 // identity, missing "name".
 //--------------------------------------------------------------------------------
@@ -470,21 +454,7 @@ std::string GetMumbleCharacterName()
     if (!id || id->name.empty())
         return "";
 
-    const std::string& name = id->name;
-
-    int wideLen = MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, nullptr, 0);
-    if (wideLen <= 0)
-        return "";
-    std::wstring wideName(wideLen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, wideName.data(), wideLen);
-
-    int ansiLen = WideCharToMultiByte(CP_ACP, 0, wideName.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    if (ansiLen <= 0)
-        return "";
-    std::string ansiName(ansiLen - 1, '\0');
-    WideCharToMultiByte(CP_ACP, 0, wideName.c_str(), -1, ansiName.data(), ansiLen, nullptr, nullptr);
-
-    return ansiName;
+    return id->name;
 }
 
 //_ Guards PasteSegmentsToChat below against overlapping calls.

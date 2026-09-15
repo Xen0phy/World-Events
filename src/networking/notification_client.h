@@ -16,25 +16,25 @@
 //                                 nullopt (see below)
 //--------------------------------------------------------------------------------
 // Second, independent persistent WebSocket connection alongside ws_client.cpp's
-// per-shard one - see live-toast-handoff.md sections 2/5. Kept in its own file:
-// the shard connection follows map transitions every few minutes, this one
-// follows world transfers, almost never, and the two share little else - no
-// outgoing message beyond an internal keepalive ping (no SendReport-equivalent
-// exposed to callers), no per-event history (late joiners just wait for the next
-// live report), keyed by region ("EU"/"NA") instead of a per-shard hash. Built on
-// the same WinHTTP asynchronous-mode pattern as ws_client.cpp, for the same
-// reason; not shared code, the two connections' lifecycles differ enough that
-// sharing would mostly add indirection.
+// per-shard one, pointed at the region-wide notify worker in server-notify/
+// instead of a per-shard relay. Kept in its own file: the shard connection
+// follows map transitions every few minutes, this one follows world transfers,
+// almost never, and the two share little else - no outgoing message beyond an
+// internal keepalive ping (no SendReport-equivalent exposed to callers), no per-
+// event history (late joiners just wait for the next live report), keyed by
+// region ("EU"/"NA") instead of a per-shard hash. Built on the same WinHTTP
+// asynchronous-mode pattern as ws_client.cpp, for the same reason; not shared
+// code, the two connections' lifecycles differ enough that sharing would mostly
+// add indirection.
 //
-// This module decides on its own whether it should be connected at all (see
-// UpdateNotificationState), by reading g_SubscribedLiveEvents (subscriptions.h)
-// and IsLiveEventMarkedDoneToday (events_tracking.h) directly - the same way
-// subscriptions_cache.cpp derives its own state, instead of requiring a caller to
-// pass that decision in. It does NOT decide which incoming notification is toast-
-// worthy: DrainLiveEventNotifications returns every report the server sent,
-// subscribed or not, done-today or not. That filtering is
-// subscriptions_notification.cpp's job at toast-candidate collection time
-// (section 6) - the same split ws_client.h's GetRecentReports leaves callers.
+// This module self-gates whether it should be connected at all (see
+// UpdateNotificationState), reading g_SubscribedLiveEvents (subscriptions.h) and
+// IsLiveEventMarkedDoneToday (events_tracking.h) directly, the same way
+// subscriptions_cache.cpp derives its own state - no caller passes that decision
+// in. It does NOT decide toast-worthiness: DrainLiveEventNotifications returns
+// every report the server sent, subscribed or not, done-today or not. Filtering
+// is subscriptions_notification.cpp's job, the same split ws_client.h's
+// GetRecentReports leaves callers.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -52,8 +52,8 @@
 //--------------------------------------------------------------------------------
 // eventId          matches LiveEvent::eventId (events_live.h)
 // timestampUnix    server-stamped seconds since epoch (UTC)
-// reporterName     empty if the reporter had sharing off (see
-//                  live-toast-handoff.md section 1)
+// reporterName     empty if the reporter had ShareNameInReports off
+//                  (settings_table.h)
 // mapId            GW2 map id the report was filed on - lets a caller show/skip
 //                  a "which map" hint without a g_LiveEvents lookup
 //--------------------------------------------------------------------------------
@@ -107,9 +107,10 @@ void UpdateNotificationState(LiveEventsRegion region);
 // Returns every notification received since the last call, oldest first, then
 // empties the internal queue - unlike ws_client.h's GetRecentReports (a
 // repeatedly-readable snapshot), this is drain-once: each incoming report is a
-// one-shot toast candidate (live-toast-handoff.md section 6), not standing state
-// to re-read every frame. Safe to call from the render thread; returns empty when
-// nothing new has arrived, including while disconnected.
+// one-shot toast candidate for subscriptions_notification.cpp's toast-candidate
+// collection pass, not standing state to re-read every frame. Safe to call from
+// the render thread; returns empty when nothing new has arrived, including while
+// disconnected.
 //--------------------------------------------------------------------------------
 std::vector<LiveEventNotification> DrainLiveEventNotifications();
 

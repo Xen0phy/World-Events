@@ -3,20 +3,22 @@
 //--------------------------------------------------------------------------------
 // LiveEvent            one player-reportable live event
 // g_LiveEvents          compiled-in roster (see events_live.cpp)
+// DisplayName           resolves a LiveEvent's translated name
 //--------------------------------------------------------------------------------
 // Third event category, alongside "Basic Events" (WorldEvent, events.h) and
 // "Cyclic Events" (CyclicGroup, events.h). Unlike those two, a LiveEvent has NO
 // schedule of its own - GW2 doesn't expose one, which is the entire reason the
-// live-reporting feature (see networking-handoff.md) exists: players report "it's
-// up right now" instead of the addon predicting it.
+// live-reporting feature exists (ws_client.h/notification_client.h for the wire
+// side, live_events_ui.h for the UI): players report "it's up right now" instead
+// of the addon predicting it.
 //
 // Compiled-in, not user-editable. g_Events/g_CyclicGroups go through
 // events_storage.cpp's JSON merge and maprender.cpp's drag-to-reposition edit
 // mode (EditTarget::BasicEvent/CyclicGroup) so a user's own additions/tweaks
-// survive updates; g_LiveEvents gets neither. Position, name, and id are only
-// ever meaningful if they match what every other client and the relay server
-// agree on, so they ship compiled-in only, the same way bundled_icons.h's icon
-// table isn't user-editable.
+// survive updates; g_LiveEvents gets neither, display name included - see
+// DisplayName below. Position and id are only ever meaningful if they match what
+// every other client and the relay server agree on, so they ship compiled-in
+// only, the same way bundled_icons.h's icon table isn't user-editable.
 //
 // What IS user-controlled is whether the whole feature is on at all - see
 // LiveEventsSubscribed (settings_table.h). There's no per-event opt-in: when
@@ -34,14 +36,13 @@
 // LiveEvent
 //--------------------------------------------------------------------------------
 // eventId       GW2 API v2 /events GUID; doubles as the wire protocol's
-//               event_id (networking-handoff.md #5) - same id for both.
-// name          display name
+//               event_id (ws_client.h) - same id for both.
 // continentX/Y  map coords (continent 1 / Tyria) - same space as
 //               WorldEvent::continentX/Y, what actually places the dot
 // mapId         GW2 map id (API's map_id); gates which map's overlay/report
 //               button offers this dot - only relevant on the map it occurs on
 // chatCode      waypoint chat code pasted on a toast click when the reporter
-//               withheld their name (see live-toast-handoff.md #1); empty = unset
+//               withheld their name (ShareNameInReports off); empty = unset
 // worldX/Y/Z    API's location.center, in-world (not continent) coordinates -
 //               same space as Mumble Link's raw avatar position (see below)
 // radius        API's location.radius, in meters - same units as
@@ -60,7 +61,6 @@
 struct LiveEvent
 {
     std::string eventId;
-    std::string name;
     float       continentX;
     float       continentY;
     int         mapId;
@@ -77,13 +77,24 @@ struct LiveEvent
 extern std::vector<LiveEvent> g_LiveEvents;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DisplayName
+//--------------------------------------------------------------------------------
+// Tr(WE_NAME_LIVE_<eventId>) (resources/localization/event_names.csv), always -
+// no customName fork like DisplayName(WorldEvent)/DisplayName(CyclicGroup)
+// (events_storage.h): a LiveEvent is compiled-in only and never user-renamed (see
+// file header), so there's nothing to override and no WE_UNNAMED case either,
+// every g_LiveEvents entry has a compiled row.
+//--------------------------------------------------------------------------------
+const char* DisplayName(const LiveEvent& ev);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsPlayerNearLiveEvent
 //--------------------------------------------------------------------------------
 // True only when the player is on event.mapId AND within event.radius (full 3D
 // sphere) of (event.worldX, event.worldY, event.worldZ). Gates the report button
-// per networking-handoff.md #3/#4 - a LiveEvent's button should only be offered
-// when this returns true, so players can't report something they aren't actually
-// near. See events_live.cpp for the unit-conversion story.
+// in live_events_ui.cpp's RenderLiveEventButtons - a LiveEvent's button should
+// only be offered when this returns true, so players can't report something they
+// aren't actually near. See events_live.cpp for the unit-conversion story.
 //--------------------------------------------------------------------------------
 bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble);
 

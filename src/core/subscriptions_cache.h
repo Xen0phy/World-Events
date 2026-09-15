@@ -33,12 +33,16 @@
 //********************************************************************************
 // ResolvedSubscription
 //--------------------------------------------------------------------------------
-// key                 "Basic:<name>" / "Cyclic:<group>:<offset>" - same
+// key                 "Basic:<id>" / "Cyclic:<groupId>:<slotId>" - same
 //                      convention used throughout the three UI files
 // isBasic              true = Basic Event, false = Cyclic slot
-// basicName            valid when isBasic
-// cyclicGroupName      valid when !isBasic
-// cyclicSlotOffset     valid when !isBasic
+// basicId              valid when isBasic; identity (Toggle.../Is...Enabled
+//                      calls), not display
+// basicName            valid when isBasic; display only (e.g. bar segment
+//                      color hash, row label)
+// cyclicGroupId        valid when !isBasic; identity, not display
+// cyclicGroupName      valid when !isBasic; display only
+// cyclicSlotId         valid when !isBasic; identity, not display
 // label                display name, e.g. "Tequatl the Sunless" or
 //                      "Domain of Vabbi - Forged Assault"
 // chatCode             map-travel chat code
@@ -62,20 +66,24 @@
 //--------------------------------------------------------------------------------
 // isVarying/varyingTimes/period/duration/offset/repeat are copied out of
 // WorldEvent/CyclicGroup::Slot at resolve time, so GetSubscriptionActiveState
-// never needs to re-resolve into g_Events/g_CyclicGroups (which the options panel
-// can mutate at runtime - see the file header's safety-net note for the one gap
-// this doesn't fully close) or touch a string.
+// never re-resolves into g_Events/g_CyclicGroups or touches a string.
 //
-// doneToday is kept as a plain field here, because it can change without a
-// rebuild. Each of the three views applies the skip itself at consumption time.
+// doneToday is a plain field since it can change without a rebuild; each of the
+// three views applies the skip itself at consumption time.
+//
+// basicId/cyclicGroupId are the identity fields (Toggle.../Is...Enabled/
+// OpenEditSubscriptionsWindow calls); basicName/cyclicGroupName stay display-only
+// (bar segment color hash, row label).
 //--------------------------------------------------------------------------------
 struct ResolvedSubscription
 {
     std::string key;
     bool        isBasic = true;
+    std::string basicId;
     std::string basicName;
+    std::string cyclicGroupId;
     std::string cyclicGroupName;
-    int         cyclicSlotOffset = 0;
+    std::string cyclicSlotId;
 
     std::string label;
     std::string chatCode;

@@ -1,16 +1,19 @@
 //################################################################################
 // changelog_window.cpp   (see: changelog_window.h)
 //--------------------------------------------------------------------------------
+// GetVersionNotes      resolves one entry's Notes to Nexus's active language
+//                       (file-local)
 // DrawIndentedNotice   renders one entry's Notes text (file-local)
 //--------------------------------------------------------------------------------
-// Straight port of Split Wars' helper of the same name/contract (that addon's
-// addon.cpp), kept identical so notice text stays interchangeable between the two
-// addons.
+// DrawIndentedNotice is a straight port of Split Wars' helper of the same name/
+// contract (that addon's addon.cpp), kept identical so notice text stays
+// interchangeable between the two addons.
 //--------------------------------------------------------------------------------
 
 #include "changelog_window.h"
 
 #include "imgui.h"
+#include "localization.h"
 #include "settings.h"
 #include "version.h"
 #include "version_history.h"
@@ -25,6 +28,18 @@ static int s_selectedIndex = 0;
 
 //_ Tracks the closed->open edge across frames so s_selectedIndex resets to newest (0), and SetNextWindowFocus only fires once, on every fresh open - regardless of whether the previous close came from "Got it" or Escape.
 static bool s_wasOpenLastFrame = false;
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetVersionNotes
+//--------------------------------------------------------------------------------
+// Same lookup Tr() does (GetActiveLanguage() indexes a language-slots array),
+// just against VersionHistoryEntry's per-language Notes fields instead of
+// kLocalizationTable, since version history isn't a Tr()-registered identifier.
+//--------------------------------------------------------------------------------
+static const char* GetVersionNotes(const VersionHistoryEntry& entry)
+{
+    return entry.*(kVersionHistoryLanguageSlots[GetActiveLanguage()].Field);
+}
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawIndentedNotice
@@ -128,13 +143,13 @@ void RenderVersionHistoryWindow()
                ImGui::GetIO().DisplaySize.y * 0.5f),
         ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 
-    if (ImGui::Begin(kVersionHistoryWindowTitle, nullptr,
+    if (ImGui::Begin(kVersionHistoryWindowId, nullptr,
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_NoMove       |
         ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Spacing();
-        ImGui::TextWrapped("%s", kVersionHistoryWindowTitle);
+        ImGui::TextWrapped("%s", Tr("WE_CHANGELOG_TITLE"));
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
@@ -150,7 +165,7 @@ void RenderVersionHistoryWindow()
             {
                 bool isSelected = (i == s_selectedIndex);
                 std::string label = std::string("v") + kVersionHistory[i].Version;
-                if (i == 0) label += " (latest)";
+                if (i == 0) label += Tr("WE_CHANGELOG_LATEST_SUFFIX");
                 if (ImGui::Selectable(label.c_str(), isSelected))
                     s_selectedIndex = i;
                 if (isSelected) ImGui::SetItemDefaultFocus();
@@ -162,14 +177,14 @@ void RenderVersionHistoryWindow()
         ImGui::Separator();
         ImGui::Spacing();
 
-        DrawIndentedNotice(entry.Notes);
+        DrawIndentedNotice(GetVersionNotes(entry));
 
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
         float btnW = ImGui::GetContentRegionAvail().x;
-        if (ImGui::Button("Got it", ImVec2(btnW, 0)))
+        if (ImGui::Button(Tr("WE_CHANGELOG_GOT_IT"), ImVec2(btnW, 0)))
             ShowVersionHistoryWindow = false;
 
         ImGui::Spacing();

@@ -32,7 +32,7 @@ tag = "v2"
 new_sqlite_classes = ["ShardObject"]
 
 # Uncomment to move off the free plan later if usage ever needs it - a
-# toggle, not a rearchitecture (see networking-handoff.md).
+# toggle, not a rearchitecture.
 # workers_dev = true
 
 # Points at server-notify's Worker (see ../server-notify) - relayToNotify

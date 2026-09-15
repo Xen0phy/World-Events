@@ -34,10 +34,15 @@
 #include "events.h"
 #include "events_categories.h"
 #include "events_live.h" //. g_LiveEvents, for the Live Events tab
+#include "events_storage.h" //. DisplayName
 #include "events_tracking.h"
 #include "imgui.h"
+#include "localization.h"
 #include "settings.h" //. Gw2ApiKey, gates the live-event subscribe checkbox below
 #include "subscriptions.h"
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 
 #include <algorithm>
 #include <cctype>
@@ -51,8 +56,8 @@ bool ShowEditSubscriptionsWindow = false;
 //********************************************************************************
 // EditSubscriptionsTarget
 //--------------------------------------------------------------------------------
-// kind/basicName/cyclicKey/liveEventId   identity, four-way via
-//                                          SubscriptionKind (subscriptions.h)
+// kind/basicId/cyclicKey/liveEventId   identity, four-way via
+//                                        SubscriptionKind (subscriptions.h)
 //--------------------------------------------------------------------------------
 // The row a deep-linking open() call wants expanded on the next draw. Consumed
 // exactly once by RenderEditSubscriptionsWindow (see s_hasPendingTarget below),
@@ -61,13 +66,19 @@ bool ShowEditSubscriptionsWindow = false;
 struct EditSubscriptionsTarget
 {
     SubscriptionKind kind = SubscriptionKind::Basic;
-    std::string basicName;
+    std::string basicId;
     CyclicSubscriptionKey cyclicKey;
     std::string liveEventId;
 };
 
 static EditSubscriptionsTarget s_pendingTarget;
 static bool                    s_hasPendingTarget = false;
+
+//_ Live tab has no row to expand (see DrawLeanLiveEventRow) - scrolled-to id and its GetTickCount64() flash deadline instead.
+static std::string        s_liveHighlightEventId;
+static unsigned long long s_liveHighlightUntil = 0;
+
+static constexpr unsigned long long kLiveHighlightDurationMs = 1500;   //. deep-link scroll-to flash duration
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenEditSubscriptionsWindow
@@ -80,11 +91,11 @@ void OpenEditSubscriptionsWindow()
     s_hasPendingTarget = false; //. no row to land on - background right-click entry point
 }
 
-void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicName,
+void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicId,
     const CyclicSubscriptionKey& cyclicKey, const std::string& liveEventId)
 {
     ShowEditSubscriptionsWindow = true;
-    s_pendingTarget = EditSubscriptionsTarget{ kind, basicName, cyclicKey, liveEventId };
+    s_pendingTarget = EditSubscriptionsTarget{ kind, basicId, cyclicKey, liveEventId };
     s_hasPendingTarget = true;
 }
 
@@ -103,33 +114,33 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
 {
     WorldEvent& ev = g_Events[i];
 
-    int notifyLevel = GetBasicEventNotifyLevel(ev.name);
+    int notifyLevel = GetBasicEventNotifyLevel(ev.id);
     int newNotifyLevel = DrawNotifyLevelIcon("##edit_notify", notifyLevel);
     if (newNotifyLevel != notifyLevel)
-        SetBasicEventNotifyLevel(ev.name, newNotifyLevel);
+        SetBasicEventNotifyLevel(ev.id, newNotifyLevel);
     ImGui::SameLine();
 
     DrawSubscribeCheckbox("##edit_show_on_map", ev.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show on the map overlay\n(Subscriptions bar/window are unaffected)");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_ON_MAP"));
     ImGui::SameLine();
 
     if (forceOpen)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 
-    bool open = ImGui::TreeNode("##edit_event_node", "%s", ev.name.empty() ? "(unnamed)" : ev.name.c_str());
+    bool open = ImGui::TreeNode("##edit_event_node", "%s", DisplayName(ev));
 
     if (open)
     {
         //_ Re-reads notifyLevel/newNotifyLevel fresh - the front-of-row icon above may have just changed it this same frame.
-        int notifyLevel2 = GetBasicEventNotifyLevel(ev.name);
+        int notifyLevel2 = GetBasicEventNotifyLevel(ev.id);
         int newLevel = DrawNotifyLevelButtons("##edit_notify_buttons", notifyLevel2);
         if (newLevel != notifyLevel2)
-            SetBasicEventNotifyLevel(ev.name, newLevel);
+            SetBasicEventNotifyLevel(ev.id, newLevel);
 
-        bool doneToday = IsBasicEventMarkedDoneToday(ev.name);
-        if (ImGui::Checkbox("Done for today", &doneToday))
-            ToggleBasicEventDoneToday(ev.name);
+        bool doneToday = IsBasicEventMarkedDoneToday(ev.id);
+        if (ImGui::Checkbox(Tr("WE_EDIT_DONE_TODAY"), &doneToday))
+            ToggleBasicEventDoneToday(ev.id);
 
         ImGui::TreePop();
     }
@@ -140,12 +151,12 @@ static void DrawLeanBasicEventRow(int i, bool forceOpen)
 //--------------------------------------------------------------------------------
 // Same collapsed/expanded shape as DrawLeanBasicEventRow (notify icon in front,
 // visible collapsed; DrawNotifyLevelButtons jump grid in the expanded body),
-// keyed by (group name, slot offset) instead of a plain name.
+// keyed by (group id, slot id) instead of a plain name.
 //--------------------------------------------------------------------------------
 static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
 {
     CyclicGroup::Slot& slot = grp.slots[s];
-    CyclicSubscriptionKey key{ grp.name, slot.offset };
+    CyclicSubscriptionKey key{ grp.id, slot.id };
 
     int notifyLevel = GetCyclicSlotNotifyLevel(key);
     int newNotifyLevel = DrawNotifyLevelIcon("##edit_notify", notifyLevel);
@@ -155,13 +166,13 @@ static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
 
     DrawSubscribeCheckbox("##edit_show_slot_on_map", slot.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show/hide this occurrence on the map overlay");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_OCCURRENCE"));
     ImGui::SameLine();
 
     if (forceOpen)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always); //. see DrawLeanBasicEventRow's header comment for why _Always, not _Once
 
-    bool open = ImGui::TreeNode("##edit_slot_node", "%s", slot.name.empty() ? "(unnamed)" : slot.name.c_str());
+    bool open = ImGui::TreeNode("##edit_slot_node", "%s", DisplayName(slot, grp.id));
 
     if (open)
     {
@@ -172,7 +183,7 @@ static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
             SetCyclicSlotNotifyLevel(key, newLevel);
 
         bool doneToday = IsCyclicSlotMarkedDoneToday(key);
-        if (ImGui::Checkbox("Done for today", &doneToday))
+        if (ImGui::Checkbox(Tr("WE_EDIT_DONE_TODAY"), &doneToday))
             ToggleCyclicSlotDoneToday(key);
 
         ImGui::TreePop();
@@ -187,36 +198,36 @@ static void DrawLeanCyclicSlotRow(CyclicGroup& grp, int s, bool forceOpen)
 // collapsed lines. Expanded: the bulk "subscribe all slots" checkbox
 // (allSlotsSubscribed pattern, mirrors DrawCyclicGroupRow in
 // addon_options_helpers.cpp) above the nested per-slot list, each drawn via
-// DrawLeanCyclicSlotRow. hasForceSlot/forceSlotOffset identify which one slot (if
+// DrawLeanCyclicSlotRow. hasForceSlot/forceSlotId identify which one slot (if
 // any) should also force itself open once the group itself is opened - used when
 // a deep-link target is a specific occurrence, not just "this cycle."
 //--------------------------------------------------------------------------------
-static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot, int forceSlotOffset)
+static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot, const std::string& forceSlotId)
 {
     CyclicGroup& grp = g_CyclicGroups[i];
 
     DrawSubscribeCheckbox("##edit_show_group_on_map", grp.shown);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Show/hide this entire ring on the map overlay\n(no circle drawn at all while unchecked)");
+        ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_RING"));
     ImGui::SameLine();
 
     if (forceOpenGroup)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always); //. see DrawLeanBasicEventRow's header comment for why _Always, not _Once
 
-    bool open = ImGui::TreeNode("##edit_group_node", "%s", grp.name.empty() ? "(unnamed)" : grp.name.c_str());
+    bool open = ImGui::TreeNode("##edit_group_node", "%s", DisplayName(grp));
 
     if (open)
     {
         bool allSlotsSubscribed = !grp.slots.empty() &&
             std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
             {
-                return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.name, slot.offset });
+                return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.id });
             });
         if (DrawSubscribeCheckbox("##edit_subscribe_group", allSlotsSubscribed))
         {
             for (const auto& slot : grp.slots)
             {
-                CyclicSubscriptionKey key{ grp.name, slot.offset };
+                CyclicSubscriptionKey key{ grp.id, slot.id };
                 //_ Same post-click semantics as DrawCyclicGroupRow: unticking drops every slot to 0, ticking only raises 0 -> 1.
                 if (!allSlotsSubscribed)
                     SetCyclicSlotNotifyLevel(key, 0);
@@ -225,14 +236,14 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
             }
         }
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Subscribe/unsubscribe every occurrence in this cycle at once\n(checked only when all of them already are)");
+            ImGui::SetTooltip("%s", Tr("WE_TIP_SUBSCRIBE_CYCLE"));
         ImGui::SameLine();
-        ImGui::TextUnformatted("Subscribe all");
+        ImGui::TextUnformatted(Tr("WE_EDIT_SUBSCRIBE_ALL"));
 
         for (int s = 0; s < (int)grp.slots.size(); s++)
         {
             ImGui::PushID(s);
-            bool forceOpenSlot = hasForceSlot && grp.slots[s].offset == forceSlotOffset;
+            bool forceOpenSlot = hasForceSlot && grp.slots[s].id == forceSlotId;
             DrawLeanCyclicSlotRow(grp, s, forceOpenSlot);
             ImGui::PopID();
         }
@@ -243,19 +254,29 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawLeanLiveEventRow
 //--------------------------------------------------------------------------------
-// One table row per compiled-in LiveEvent - subscribe checkbox, name, "Only
-// named" gate, and the done-today toggle, one per column (see the "Event" header
-// row set up by the caller). No notify-level ladder - subscribing IS the toast
-// opt-in, one flat list (subscriptions.h) - and no category tree (g_LiveEvents
-// carries none), so unlike DrawLeanBasicEventRow/DrawLeanCyclicSlotRow there's
-// nothing to collapse. The subscribe checkbox is disabled while Gw2ApiKey
-// (settings.h) is empty - region-wide toast delivery needs GetLiveEventsRegion
-// (gw2_api.h), which needs that key now that Mumble no longer provides one. See
-// IsLiveEventNamedOnly (subscriptions.h) for what "Only named" gates.
+// One table row per compiled-in LiveEvent: subscribe checkbox, name, "Only named"
+// gate, and done-today toggle. No notify-level ladder or category tree -
+// subscribing IS the toast opt-in, one flat list (subscriptions.h), so unlike
+// DrawLeanBasicEventRow/DrawLeanCyclicSlotRow there's nothing to collapse. The
+// subscribe checkbox is disabled while Gw2ApiKey (settings.h) is empty -
+// GetLiveEventsRegion (gw2_api.h) needs it for region-wide toast delivery. See
+// IsLiveEventNamedOnly (subscriptions.h) for what "Only named" gates. isTarget is
+// true for exactly one row, on the frame a deep-link target lands on it - scrolls
+// to it and starts the s_liveHighlightEventId/Until flash, since there's no row
+// here to expand.
 //--------------------------------------------------------------------------------
-static void DrawLeanLiveEventRow(const LiveEvent& ev)
+static void DrawLeanLiveEventRow(const LiveEvent& ev, bool isTarget)
 {
     ImGui::TableNextRow();
+
+    if (isTarget)
+    {
+        ImGui::SetScrollHereY(0.5f);
+        s_liveHighlightEventId = ev.eventId;
+        s_liveHighlightUntil   = GetTickCount64() + kLiveHighlightDurationMs;
+    }
+    if (ev.eventId == s_liveHighlightEventId && GetTickCount64() < s_liveHighlightUntil)
+        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
 
     ImGui::TableSetColumnIndex(0);
     bool subscribed = IsLiveEventSubscribed(ev.eventId);
@@ -266,29 +287,27 @@ static void DrawLeanLiveEventRow(const LiveEvent& ev)
     }
     if (ImGui::IsItemHovered())
     {
-        ImGui::SetTooltip(Gw2ApiKey.empty()
-            ? "Requires a GW2 API key (options panel) - region-wide toast\ndelivery needs it to tell NA and EU apart."
-            : "Subscribe to region-wide toast notifications for this event,\nregardless of which map you're currently on.");
+        ImGui::SetTooltip("%s", Gw2ApiKey.empty()
+            ? Tr("WE_EDIT_LIVE_SUBSCRIBE_TIP_NO_KEY")
+            : Tr("WE_EDIT_LIVE_SUBSCRIBE_TIP"));
     }
 
     ImGui::TableSetColumnIndex(1);
-    ImGui::TextUnformatted(ev.name.empty() ? "(unnamed)" : ev.name.c_str());
+    ImGui::TextUnformatted(DisplayName(ev));
 
     ImGui::TableSetColumnIndex(2);
     bool namedOnly = IsLiveEventNamedOnly(ev.eventId);
     if (ImGui::Checkbox("##edit_live_named_only", &namedOnly))
         ToggleLiveEventNamedOnly(ev.eventId);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Only notify me when the reporter shared their name.\n"
-                           "An unnamed report can't be whispered or joined directly,\n"
-                           "so skip its toast rather than show one you can't act on.");
+        ImGui::SetTooltip("%s", Tr("WE_EDIT_LIVE_NAMED_ONLY_TIP"));
 
     ImGui::TableSetColumnIndex(3);
     bool doneToday = IsLiveEventMarkedDoneToday(ev.eventId);
     if (ImGui::Checkbox("##edit_live_done", &doneToday))
         ToggleLiveEventDoneToday(ev.eventId);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Done for today - mutes toasts for this event until the daily reset.");
+        ImGui::SetTooltip("%s", Tr("WE_EDIT_LIVE_DONE_TIP"));
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -315,7 +334,7 @@ void RenderEditSubscriptionsWindow()
     if (s_hasPendingTarget)
         ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
 
-    if (!ImGui::Begin(kEditSubscriptionsWindowTitle, &ShowEditSubscriptionsWindow))
+    if (!ImGui::Begin(TrId("WE_EDIT_SUBS_WINDOW_TITLE", kEditSubscriptionsWindowId).c_str(), &ShowEditSubscriptionsWindow))
     {
         //_ Collapsed, not closed - still balance Begin() with End().
         ImGui::End();
@@ -346,12 +365,12 @@ void RenderEditSubscriptionsWindow()
             basicCyclicTabFlags = ImGuiTabItemFlags_SetSelected;
     }
 
-    if (ImGui::BeginTabItem("Basic & Cyclic", nullptr, basicCyclicTabFlags))
+    if (ImGui::BeginTabItem(Tr("WE_EDIT_TAB_BASIC_CYCLIC"), nullptr, basicCyclicTabFlags))
     {
         //_ Transient UI state; filters both trees, same as addon_options.cpp's Table 3 search box.
         static char searchBuf[128] = "";
         ImGui::SetNextItemWidth(200.0f);
-        ImGui::InputText("Search##edit_subs_search", searchBuf, sizeof(searchBuf));
+        ImGui::InputText(TrId("WE_OPT_SEARCH_LABEL", "##edit_subs_search").c_str(), searchBuf, sizeof(searchBuf));
         std::string searchQueryLower = searchBuf;
         std::transform(searchQueryLower.begin(), searchQueryLower.end(), searchQueryLower.begin(),
             [](unsigned char c) { return (char)std::tolower(c); });
@@ -368,7 +387,7 @@ void RenderEditSubscriptionsWindow()
 
             //_ Column 0 - Basic Events, category-aware draw order (categorized members first, then leftovers).
             ImGui::TableSetColumnIndex(0);
-            ImGui::TextUnformatted("Basic Events");
+            ImGui::TextUnformatted(Tr("WE_OPT_BASIC_EVENTS"));
             ImGui::Separator();
 
             {
@@ -382,11 +401,11 @@ void RenderEditSubscriptionsWindow()
                     ImGui::PushID(c);
 
                     std::vector<int> memberIndices;
-                    for (const std::string& memberName : cat.members)
+                    for (const std::string& memberId : cat.members)
                         for (int mi = 0; mi < (int)g_Events.size(); mi++)
-                            if (g_Events[mi].name == memberName) { memberIndices.push_back(mi); break; }
+                            if (g_Events[mi].id == memberId) { memberIndices.push_back(mi); break; }
 
-                    bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
+                    bool categoryNameMatches = ContainsCaseInsensitive(DisplayName(cat, CategoryListKind::Basic), searchQueryLower);
                     bool categoryHasMatch = categoryNameMatches;
                     if (!categoryHasMatch)
                         for (int mi : memberIndices)
@@ -396,7 +415,7 @@ void RenderEditSubscriptionsWindow()
                     bool categoryHasTarget = false;
                     if (pendingTarget && pendingTarget->kind == SubscriptionKind::Basic)
                         for (int mi : memberIndices)
-                            if (g_Events[mi].name == pendingTarget->basicName)
+                            if (g_Events[mi].id == pendingTarget->basicId)
                                 categoryHasTarget = true;
 
                     //_ Same search-skip / unconditional-bookkeeping split as addon_options.cpp's Table 3.
@@ -410,7 +429,7 @@ void RenderEditSubscriptionsWindow()
                         else if (searchJustCleared)
                             ImGui::SetNextItemOpen(false, ImGuiCond_Always);
 
-                        catOpen = ImGui::CollapsingHeader(cat.name.empty() ? "(unnamed)" : cat.name.c_str());
+                        catOpen = ImGui::CollapsingHeader(DisplayName(cat, CategoryListKind::Basic));
                     }
 
                     for (int mi : memberIndices)
@@ -422,7 +441,7 @@ void RenderEditSubscriptionsWindow()
                         if (catOpen && memberMatches)
                         {
                             ImGui::PushID(mi);
-                            bool forceOpen = pendingTarget && pendingTarget->kind == SubscriptionKind::Basic && g_Events[mi].name == pendingTarget->basicName;
+                            bool forceOpen = pendingTarget && pendingTarget->kind == SubscriptionKind::Basic && g_Events[mi].id == pendingTarget->basicId;
                             DrawLeanBasicEventRow(mi, forceOpen);
                             ImGui::PopID();
                         }
@@ -437,7 +456,7 @@ void RenderEditSubscriptionsWindow()
                     if (!EventMatchesSearch(g_Events[i], searchQueryLower)) continue;
 
                     ImGui::PushID(i);
-                    bool forceOpen = pendingTarget && pendingTarget->kind == SubscriptionKind::Basic && g_Events[i].name == pendingTarget->basicName;
+                    bool forceOpen = pendingTarget && pendingTarget->kind == SubscriptionKind::Basic && g_Events[i].id == pendingTarget->basicId;
                     DrawLeanBasicEventRow(i, forceOpen);
                     ImGui::PopID();
                 }
@@ -447,7 +466,7 @@ void RenderEditSubscriptionsWindow()
 
             //_ Column 1 - Cyclic Events, same category-aware shape, nested one level deeper for slots.
             ImGui::TableSetColumnIndex(1);
-            ImGui::TextUnformatted("Cyclic Events");
+            ImGui::TextUnformatted(Tr("WE_OPT_CYCLIC_EVENTS"));
             ImGui::Separator();
 
             {
@@ -460,18 +479,18 @@ void RenderEditSubscriptionsWindow()
                     Category& cat = g_CyclicCategories[c];
                     ImGui::PushID(c);
 
-                    bool categoryNameMatches = ContainsCaseInsensitive(cat.name, searchQueryLower);
+                    bool categoryNameMatches = ContainsCaseInsensitive(DisplayName(cat, CategoryListKind::Cyclic), searchQueryLower);
                     bool categoryHasMatch = categoryNameMatches;
                     if (!categoryHasMatch)
-                        for (const std::string& memberName : cat.members)
+                        for (const std::string& memberId : cat.members)
                             for (const auto& grp : g_CyclicGroups)
-                                if (grp.name == memberName && GroupMatchesSearch(grp, searchQueryLower))
+                                if (grp.id == memberId && GroupMatchesSearch(grp, searchQueryLower))
                                     categoryHasMatch = true;
 
                     bool categoryHasTarget = false;
                     if (pendingTarget && pendingTarget->kind == SubscriptionKind::Cyclic)
-                        for (const std::string& memberName : cat.members)
-                            if (memberName == pendingTarget->cyclicKey.groupName)
+                        for (const std::string& memberId : cat.members)
+                            if (memberId == pendingTarget->cyclicKey.groupId)
                                 categoryHasTarget = true;
 
                     bool catOpen = false;
@@ -484,14 +503,14 @@ void RenderEditSubscriptionsWindow()
                         else if (searchJustCleared)
                             ImGui::SetNextItemOpen(false, ImGuiCond_Always);
 
-                        catOpen = ImGui::CollapsingHeader(cat.name.empty() ? "(unnamed)" : cat.name.c_str());
+                        catOpen = ImGui::CollapsingHeader(DisplayName(cat, CategoryListKind::Cyclic));
                     }
 
-                    for (const std::string& memberName : cat.members)
+                    for (const std::string& memberId : cat.members)
                     {
                         for (int i = 0; i < (int)g_CyclicGroups.size(); i++)
                         {
-                            if (g_CyclicGroups[i].name != memberName) continue;
+                            if (g_CyclicGroups[i].id != memberId) continue;
                             isGroupCategorized[i] = true;
 
                             bool memberMatches = categoryNameMatches || GroupMatchesSearch(g_CyclicGroups[i], searchQueryLower);
@@ -500,9 +519,9 @@ void RenderEditSubscriptionsWindow()
                             {
                                 ImGui::PushID(i);
                                 bool forceOpenGroup = pendingTarget && pendingTarget->kind == SubscriptionKind::Cyclic
-                                    && g_CyclicGroups[i].name == pendingTarget->cyclicKey.groupName;
+                                    && g_CyclicGroups[i].id == pendingTarget->cyclicKey.groupId;
                                 DrawLeanCyclicGroupRow(i, forceOpenGroup, forceOpenGroup,
-                                    pendingTarget ? pendingTarget->cyclicKey.slotOffset : 0);
+                                    pendingTarget ? pendingTarget->cyclicKey.slotId : std::string());
                                 ImGui::PopID();
                             }
                             break;
@@ -519,9 +538,9 @@ void RenderEditSubscriptionsWindow()
 
                     ImGui::PushID(i);
                     bool forceOpenGroup = pendingTarget && pendingTarget->kind == SubscriptionKind::Cyclic
-                        && g_CyclicGroups[i].name == pendingTarget->cyclicKey.groupName;
+                        && g_CyclicGroups[i].id == pendingTarget->cyclicKey.groupId;
                     DrawLeanCyclicGroupRow(i, forceOpenGroup, forceOpenGroup,
-                        pendingTarget ? pendingTarget->cyclicKey.slotOffset : 0);
+                        pendingTarget ? pendingTarget->cyclicKey.slotId : std::string());
                     ImGui::PopID();
                 }
 
@@ -534,32 +553,31 @@ void RenderEditSubscriptionsWindow()
         ImGui::EndTabItem();
     }
 
-    if (ImGui::BeginTabItem("Live Events", nullptr, liveTabFlags))
+    if (ImGui::BeginTabItem(Tr("WE_EDIT_TAB_LIVE"), nullptr, liveTabFlags))
     {
-        ImGui::Checkbox("Share my name in reports", &ShareNameInReports);
-        Tooltip("Off (default): reports are anonymous. On: your character name\n"
-                "goes out with every report you send, and anyone whose toast\n"
-                "notification it triggers can whisper you directly by clicking\n"
-                "it, instead of just pasting the waypoint.");
+        ImGui::Checkbox(Tr("WE_LIVE_SHARE_NAME_REPORTS"), &ShareNameInReports);
+        Tooltip(Tr("WE_LIVE_SHARE_NAME_REPORTS_TIP"));
         ImGui::Spacing();
 
         if (g_LiveEvents.empty())
         {
-            ImGui::TextDisabled("No live events compiled in.");
+            ImGui::TextDisabled("%s", Tr("WE_LIVE_NONE_COMPILED"));
         }
         else if (ImGui::BeginTable("##edit_live_events", 4,
             ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingFixedFit))
         {
             ImGui::TableSetupColumn("##edit_live_subscribe_col", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("Event", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Only named", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("Done today", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_EVENT"), ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_ONLY_NAMED"), ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_DONE_TODAY"), ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableHeadersRow();
 
             for (const LiveEvent& ev : g_LiveEvents)
             {
                 ImGui::PushID(ev.eventId.c_str());
-                DrawLeanLiveEventRow(ev);
+                bool isTarget = pendingTarget && pendingTarget->kind == SubscriptionKind::Live
+                    && ev.eventId == pendingTarget->liveEventId;
+                DrawLeanLiveEventRow(ev, isTarget);
                 ImGui::PopID();
             }
 

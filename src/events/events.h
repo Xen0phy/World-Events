@@ -16,17 +16,18 @@
 // events_basic.cpp/events_cyclic.cpp; maprender.cpp/cyclicrender.cpp are the
 // respective renderers.
 //
-// EVENTS_DATA_VERSION is a YYYYMMDD(HHmm) int, bumped whenever EITHER the on-disk
-// SHAPE changes in a way old files can't fall through defaults for (a field
-// removed/renamed - a new optional field with a j.value() default does NOT need a
-// bump), OR the COMPILED-IN CONTENT changes (a group/event/ slot added, removed,
-// or renamed, or a default category/forced membership changed - see
-// events_categories.h). It drives the merge behavior in
-// LoadEventsData/LoadCategoriesData (see MergeByKey's comment in
-// events_storage.cpp), and is shared by events/cyclicGroups/categories, since all
-// three live under one "data_version" key in events.json. int64_t, not int: the
-// HHmm-precision form (e.g. 202607051350) exceeds INT32_MAX and would silently
-// wrap.
+// EVENTS_DATA_VERSION is a YYYYMMDD(HHmm) int, bumped whenever a one-time
+// compiled-in-data correction is added: a default category/forced membership
+// change (events_categories.h), or a WorldEvent/Slot offset or duration fix (see
+// CategoryDefaultMember::offset/duration, SlotOverride below). It gates those
+// corrections in ApplyCategoryOffsetOverrides/ApplyCategoryDurationOverrides/
+// ApplySlotOverrides (events_storage.cpp) so each applies once, on the first load
+// past the version that introduced it, and never again overwrites a user's own
+// edit. New compiled-in events/groups/slots need no bump - MergeByKey/MergeGroups
+// (events_storage.cpp) always add whatever's missing from the loaded file,
+// unconditionally. Shared by events/cyclicGroups/categories, since all three live
+// under one "data_version" key in events.json. int64_t, not int: the HHmm-
+// precision form (e.g. 202607051350) exceeds INT32_MAX and would silently wrap.
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -45,7 +46,7 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 //********************************************************************************
 // WorldEvent
 //--------------------------------------------------------------------------------
-// name           display name
+// id             stable identity key; snake_case, hand-written
 // continentX/Y   map coords (continent 1 / Tyria)
 // isVarying      true = irregular schedule (see varyingTimes), false = periodic
 // duration       seconds the event stays active
@@ -60,18 +61,22 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 //                unset for all but the 13 classic Tyria world bosses
 // doneGroup      shared "done today" key (events_tracking.h); rows sharing
 //                a reward (e.g. Ley Line Anomaly) share one value
+// customName     user override; empty = display name comes from WE_NAME_BASIC_<id>
+//                (see DisplayName, events_storage.h)
 //--------------------------------------------------------------------------------
 // One "Basic Event": a single map dot with its own schedule, either periodic
 // (period/offset) or irregular (isVarying + varyingTimes).
 //
-// chatCode/shown/iconTexture/apiWorldBossId/doneGroup are appended in this exact
-// order, last-to-first by how rarely each is set: the list below is built with
-// positional aggregate init (events_basic.cpp), so each field's position
-// determines how many trailing values a compiled-in row must supply.
+// chatCode/shown/iconTexture/apiWorldBossId/doneGroup/customName are appended in
+// this exact order, last-to-first by how rarely each is set: the list below is
+// built with positional aggregate init (events_basic.cpp), so each field's
+// position determines how many trailing values a compiled-in row must supply.
+// customName defaults to "" and is never set by a compiled-in row, so it's never
+// spelled out positionally either.
 //--------------------------------------------------------------------------------
 struct WorldEvent
 {
-    std::string name;
+    std::string id;
     float       continentX;
     float       continentY;
     bool        isVarying;
@@ -87,6 +92,8 @@ struct WorldEvent
 
     std::string apiWorldBossId;
     std::string doneGroup;
+
+    std::string customName;
 };
 
 //_ Populated in events_basic.cpp, used by maprender.cpp.
@@ -118,7 +125,7 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 //********************************************************************************
 // CyclicGroup
 //--------------------------------------------------------------------------------
-// name              cycle name, e.g. "Domain of Vabbi"
+// id                stable identity key; snake_case, hand-written
 // continentX/Y      map coords (continent 1 / Tyria)
 // period            seconds per full cycle
 // colors            base palette; slots pick a shade by tier (see ColorTier)
@@ -129,18 +136,22 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 //                   Slot::shown to hide just one slot's arc instead
 // apiMapChestId     /v2/mapchests id, GROUP-level not per-slot; empty =
 //                   no API "done today" signal
+// customName        user override; empty = display name comes from
+//                   WE_NAME_GROUP_<id> (see DisplayName, events_storage.h)
 //--------------------------------------------------------------------------------
 // One per-map cyclic ring: a repeating `period`-second cycle containing one or
-// more Slots, each occupying a fixed offset/duration within it.
-//
-// apiMapChestId is checked once per group in subscriptions_window.cpp/
-// subscriptions_bar.cpp. Groups without an API-visible signal - LLA, invasions,
-// fractal incursions, convergences, and maps mapchests doesn't cover - simply
-// leave it empty.
+// more Slots, each occupying a fixed offset/duration within it. apiMapChestId is
+// checked once per group in subscriptions_window.cpp/ subscriptions_bar.cpp.
+// Groups without an API-visible signal - LLA, invasions, fractal incursions,
+// convergences, and maps mapchests doesn't cover - simply leave it empty.
+// customName is appended last for the same positional-aggregate-init reason as
+// WorldEvent's own customName (events_basic.cpp/events_cyclic.cpp): it defaults
+// to "" and is never set by a compiled-in row, so it's never spelled out
+// positionally either.
 //--------------------------------------------------------------------------------
 struct CyclicGroup
 {
-    std::string name;
+    std::string id;
     float continentX;
     float continentY;
     int   period;
@@ -149,7 +160,7 @@ struct CyclicGroup
     //********************************************************************************
     // Slot
     //--------------------------------------------------------------------------------
-    // name          slot/event name
+    // id            stable identity key; snake_case, unique within the group
     // offset        seconds from UTC midnight of the first occurrence;
     //               ignored when isVarying is true
     // duration      seconds
@@ -161,21 +172,25 @@ struct CyclicGroup
     //               divide evenly by this); ignored when isVarying is true
     // customColor   optional per-slot color override; takes precedence
     //               over tier
-    // isVarying     true = irregular schedule (see varyingTimes) instead of
-    //               offset+repeat; false (default) = offset+repeat as before
+    // isVarying     true = irregular schedule (see varyingTimes);
+    //               false (default) = offset+repeat
     // varyingTimes  isVarying only: sorted seconds-into-period list, one
     //               entry per occurrence (same anchor as offset)
+    // customName    user override; empty = display name comes from
+    //               WE_NAME_SLOT_<groupId>_<id> (see DisplayName, events_storage.h)
     //--------------------------------------------------------------------------------
     // One occurrence within a CyclicGroup's ring.
     //
-    // chatCode/shown/repeat/customColor/isVarying/varyingTimes are appended in this
-    // order for the same positional-aggregate-init reason as WorldEvent's tail fields
-    // (see events_basic.cpp/events_cyclic.cpp) - each field's position is how many
-    // trailing values a compiled-in row must supply, so later/rarer fields go last.
+    // chatCode/shown/repeat/customColor/isVarying/varyingTimes/customName are
+    // appended in this order for the same positional-aggregate-init reason as
+    // WorldEvent's tail fields (see events_basic.cpp/events_cyclic.cpp) - each
+    // field's position is how many trailing values a compiled-in row must supply, so
+    // later/rarer fields go last. customName defaults to "" and is never set by a
+    // compiled-in row, so it's never spelled out positionally either.
     //--------------------------------------------------------------------------------
     struct Slot
     {
-        std::string name;
+        std::string id;
         int         offset;
         int         duration;
         ColorTier   tier = ColorTier::Primary;
@@ -188,6 +203,8 @@ struct CyclicGroup
 
         bool        isVarying = false;
         std::vector<int> varyingTimes;
+
+        std::string customName;
     };
 
     std::vector<Slot> slots;
@@ -195,6 +212,8 @@ struct CyclicGroup
     std::optional<ImU32> idleColor;
     bool shown = true;
     std::string apiMapChestId;
+
+    std::string customName;
 
     ImU32 SlotColor(const Slot& slot) const
     {
@@ -221,7 +240,7 @@ extern std::vector<CyclicGroup> g_CyclicGroups;
 //********************************************************************************
 // SlotOverride
 //--------------------------------------------------------------------------------
-// groupName/slotName   must match CyclicGroup::name / Slot::name exactly
+// groupId/slotId       must match CyclicGroup::id / Slot::id exactly
 // offset/duration      one-time-pushed onto the matching Slot when set
 //--------------------------------------------------------------------------------
 // Same purpose and version gate as CategoryDefaultMember::offset/duration
@@ -235,8 +254,8 @@ extern std::vector<CyclicGroup> g_CyclicGroups;
 //--------------------------------------------------------------------------------
 struct SlotOverride
 {
-    std::string groupName;
-    std::string slotName;
+    std::string groupId;
+    std::string slotId;
     std::optional<int> offset;
     std::optional<int> duration;
 };

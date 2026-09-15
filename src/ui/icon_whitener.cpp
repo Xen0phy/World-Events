@@ -13,6 +13,7 @@
 #include "icon_whitener.h"
 #include "imgui.h"
 #include "imgui_internal.h" //. ImGuiItemFlags_Disabled
+#include "localization.h"
 #include "maprender.h"      //. GetEventIconFilenames, ScanEventIconFiles
 
 #include <algorithm>
@@ -241,7 +242,7 @@ static void DoConvert(const std::string& filename)
     }
 
     ScanEventIconFiles();
-    s_statusMessage = "Saved as: " + outFilename;
+    s_statusMessage = Tr("WE_ICONWHITE_SAVED_AS") + outFilename;
     s_statusIsError = false;
 }
 
@@ -253,12 +254,12 @@ static void DoConvert(const std::string& filename)
 
 void DrawIconWhitenerButton()
 {
-    if (ImGui::Button("Icon Whitener"))
+    if (ImGui::Button(Tr("WE_ICONWHITE_TITLE")))
     {
         s_open          = true;
         s_statusMessage = "";
         s_iconIndex     = 0;
-        ImGui::OpenPopup("Icon Whitener##popup");
+        ImGui::OpenPopup(TrId("WE_ICONWHITE_TITLE", "##popup").c_str());
     }
 }
 
@@ -268,21 +269,13 @@ void DrawIconWhitenerPopup()
     ImGui::SetNextWindowPos(ImVec2(display.x * 0.5f, display.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(480, 0), ImGuiCond_Appearing);
 
-    if (!ImGui::BeginPopupModal("Icon Whitener##popup", &s_open,
+    if (!ImGui::BeginPopupModal(TrId("WE_ICONWHITE_TITLE", "##popup").c_str(), &s_open,
             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
         return;
 
-    ImGui::TextWrapped(
-        "Map icons are tinted at draw time with a multiplicative color blend. "
-        "This only looks correct when the icon's RGB is neutral gray — a "
-        "colored image will tint unpredictably instead of cleanly turning "
-        "red / orange / gray.");
+    ImGui::TextWrapped("%s", Tr("WE_ICONWHITE_INTRO"));
     ImGui::Spacing();
-    ImGui::TextWrapped(
-        "Pick an icon from the textures/ folder and press Convert. "
-        "The image will be desaturated to luminance and normalized so the "
-        "brightest pixel becomes white. "
-        "The result is saved as <name>_white.png next to the original.");
+    ImGui::TextWrapped("%s", Tr("WE_ICONWHITE_INSTRUCTIONS"));
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -303,9 +296,9 @@ void DrawIconWhitenerPopup()
         labels.push_back(fn.c_str());
 
     ImGui::SetNextItemWidth(300.0f);
-    ImGui::Combo("Icon##whitener_pick", &s_iconIndex, labels.data(), (int)labels.size());
+    ImGui::Combo(TrId("WE_ICONWHITE_ICON_LABEL", "##whitener_pick").c_str(), &s_iconIndex, labels.data(), (int)labels.size());
     ImGui::SameLine();
-    if (ImGui::SmallButton("Refresh##whitener_rescan"))
+    if (ImGui::SmallButton(TrId("WE_ICONWHITE_REFRESH", "##whitener_rescan").c_str()))
     {
         ScanEventIconFiles();
         s_iconIndex     = 0;
@@ -321,7 +314,7 @@ void DrawIconWhitenerPopup()
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
     }
 
-    if (ImGui::Button("Convert & Save##whitener_go"))
+    if (ImGui::Button(TrId("WE_ICONWHITE_CONVERT", "##whitener_go").c_str()))
     {
         s_statusMessage = "";
         DoConvert(iconFiles[s_iconIndex - 1]);
@@ -334,7 +327,7 @@ void DrawIconWhitenerPopup()
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Close##whitener_close"))
+    if (ImGui::Button(TrId("WE_ICONWHITE_CLOSE", "##whitener_close").c_str()))
     {
         s_open = false;
         ImGui::CloseCurrentPopup();

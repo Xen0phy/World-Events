@@ -7,10 +7,9 @@
 // Hibernation API (ctx.acceptWebSocket) keeps idle connections unbilled on the
 // Workers Free plan, same as ShardObject in the gw2-world-events worker.
 // Unlike ShardObject, this DO holds no storage at all: late joiners just wait
-// for the next live report (see live-toast-handoff.md section 3).
+// for the next live report.
 //
-// Wire protocol (must match notification_client.cpp exactly - see
-// live-toast-handoff.md section 2):
+// Wire protocol (must match notification_client.cpp exactly):
 //   Connect:  GET /notify?region=EU -> WS upgrade (routing lives in index.ts)
 //   Server->client, broadcast, no filtering, no subscription state server-side:
 //     {"type":"report","event_id":"...","ts":...,"reporter_name":"...","map_id":...}

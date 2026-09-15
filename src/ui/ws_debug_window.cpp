@@ -5,6 +5,7 @@
 #include "ws_debug_window.h"
 
 #include "imgui.h"
+#include "localization.h"
 #include "ws_client.h"
 #include "ws_debug_log.h"
 
@@ -26,9 +27,9 @@ namespace
     {
         switch (state)
         {
-            case WsConnectionState::Connected:  return "Connected";
-            case WsConnectionState::Connecting: return "Connecting...";
-            default:                            return "Disconnected";
+            case WsConnectionState::Connected:  return Tr("WE_WSDEBUG_CONNECTED");
+            case WsConnectionState::Connecting: return Tr("WE_WSDEBUG_CONNECTING");
+            default:                            return Tr("WE_WSDEBUG_DISCONNECTED");
         }
     }
 
@@ -106,13 +107,14 @@ void RenderWsDebugWindow()
     if (!ShowWsDebugWindow) return;
 
     ImGui::SetNextWindowSize(ImVec2(720.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(kWsDebugWindowTitle, &ShowWsDebugWindow))
+    std::string windowLabel = std::string(Tr("WE_WSDEBUG_TITLE")) + kWsDebugWindowId;
+    if (!ImGui::Begin(windowLabel.c_str(), &ShowWsDebugWindow))
     {
         ImGui::End();
         return;
     }
 
-    ImGui::TextDisabled("Server:");
+    ImGui::TextDisabled("%s", Tr("WE_WSDEBUG_SERVER"));
     ImGui::SameLine();
     ImGui::Text("%s", ConnStateLabel(GetConnectionState()));
 
@@ -120,25 +122,31 @@ void RenderWsDebugWindow()
     ImGui::TextDisabled("|");
     ImGui::SameLine();
     //_ Durable copy is Nexus's own log ("WorldEvents-WS"), not a file - see ws_debug_log.h.
-    ImGui::TextDisabled("This window resets on reload - see Nexus's log (WorldEvents-WS) too.");
+    ImGui::TextDisabled("%s", Tr("WE_WSDEBUG_RESETS_ON_RELOAD"));
 
     ImGui::Spacing();
 
     static bool s_autoScroll = true;
-    ImGui::Checkbox("Auto-scroll", &s_autoScroll);
+    ImGui::Checkbox(Tr("WE_WSDEBUG_AUTOSCROLL"), &s_autoScroll);
 
     ImGui::SameLine();
-    if (ImGui::SmallButton("Clear"))
+    if (ImGui::SmallButton(Tr("WE_WSDEBUG_CLEAR")))
         ClearWsDebugLog();
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100.0f);
-    ImGui::Combo("##we_ws_dbg_filter", &s_dirFilter, "All\0Info\0TX\0RX\0Error\0");
+    std::string filterItems;
+    filterItems += Tr("WE_WSDEBUG_FILTER_ALL");   filterItems += '\0';
+    filterItems += Tr("WE_WSDEBUG_FILTER_INFO");  filterItems += '\0';
+    filterItems += "TX";                          filterItems += '\0';
+    filterItems += "RX";                          filterItems += '\0';
+    filterItems += Tr("WE_WSDEBUG_FILTER_ERROR"); filterItems += '\0';
+    ImGui::Combo("##we_ws_dbg_filter", &s_dirFilter, filterItems.c_str());
 
     static char s_search[128] = "";
     ImGui::SameLine();
     ImGui::SetNextItemWidth(200.0f);
-    ImGui::InputTextWithHint("##we_ws_dbg_search", "Search text...", s_search, sizeof(s_search));
+    ImGui::InputTextWithHint("##we_ws_dbg_search", Tr("WE_WSDEBUG_SEARCH_HINT"), s_search, sizeof(s_search));
 
     ImGui::Separator();
 
@@ -152,9 +160,9 @@ void RenderWsDebugWindow()
         if (ImGui::BeginTable("##we_ws_dbg_table", 3,
             ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit))
         {
-            ImGui::TableSetupColumn("T+",  ImGuiTableColumnFlags_WidthFixed, 70.0f);
-            ImGui::TableSetupColumn("Dir", ImGuiTableColumnFlags_WidthFixed, 36.0f);
-            ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn(Tr("WE_WSDEBUG_COL_ELAPSED"), ImGuiTableColumnFlags_WidthFixed, 70.0f);
+            ImGui::TableSetupColumn(Tr("WE_WSDEBUG_COL_DIR"),     ImGuiTableColumnFlags_WidthFixed, 36.0f);
+            ImGui::TableSetupColumn(Tr("WE_WSDEBUG_COL_MESSAGE"), ImGuiTableColumnFlags_WidthStretch);
 
             bool hasSearch = s_search[0] != '\0';
 

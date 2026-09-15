@@ -12,13 +12,13 @@
 // first request happened to land.
 //
 // /notify needs no auth - clients connect to it directly, same trust model
-// as the existing /ws endpoint (see live-toast-handoff.md section 7).
+// as the existing /ws endpoint in server/src/index.ts.
 // /relay is the one entry point that can trigger a region-wide broadcast, so
 // it's gated by RELAY_SECRET instead: a Service Binding call from the shard
 // worker skips Cloudflare's public routing for that leg, but this Worker
 // still has its own public *.workers.dev route by default, so the header
 // check is what actually keeps /relay from being a second, unthrottled
-// front door (see live-toast-handoff.md section 3).
+// front door.
 //--------------------------------------------------------------------------------
 
 import { RegionHub, type RelayedReport } from "./region-hub";

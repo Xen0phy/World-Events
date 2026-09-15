@@ -15,8 +15,10 @@
 #include "addon.h"
 #include "color_utils.h"
 #include "cyclicrender.h"
+#include "events_storage.h" //. DisplayName, for the group/slot tooltip text
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "localization.h"
 #include "map_shared.h"
 #include "maprender.h"
 #include "settings.h"
@@ -24,6 +26,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <ctime>
 #include <string>
 #include <vector>
@@ -595,7 +598,7 @@ void RenderCyclicGroups()
                 {mouse.x - 1.0f, mouse.y - 20.0f},
                 ImGuiCond_Always, {0.0f, 1.0f});
             ImGui::BeginTooltip();
-            ImGui::TextUnformatted(grp.name.c_str());
+            ImGui::TextUnformatted(DisplayName(grp));
             ImGui::Separator();
 
             //********************************************************************************
@@ -624,6 +627,8 @@ void RenderCyclicGroups()
                 //_ A hidden slot shouldn't leak into the tooltip just because its arc is suppressed.
                 if (!slot.shown)
                     continue;
+
+                std::string slotName = DisplayName(slot, grp.id);
 
                 std::vector<int> baseOffsets;
                 if (slot.isVarying)
@@ -667,13 +672,13 @@ void RenderCyclicGroups()
                     continue;
 
                 TooltipEntry candidate = foundActive
-                    ? TooltipEntry{ slot.name, true, activeSecsLeft }
-                    : TooltipEntry{ slot.name, false, bestSecsUntil };
+                    ? TooltipEntry{ slotName, true, activeSecsLeft }
+                    : TooltipEntry{ slotName, false, bestSecsUntil };
 
-                auto it = byName.find(slot.name);
+                auto it = byName.find(slotName);
                 if (it == byName.end())
                 {
-                    byName.emplace(slot.name, candidate);
+                    byName.emplace(slotName, candidate);
                 }
                 else
                 {
@@ -703,17 +708,19 @@ void RenderCyclicGroups()
                 //_ Same status swatches/threshold as the Basic Events map dots (maprender.cpp)
                 if (e.active)
                 {
-                    ImGui::TextColored(ToImVec4(BasicEventColorActive),
-                        "%s — Active (ends in %s)",
+                    char tipBuf[160];
+                    snprintf(tipBuf, sizeof(tipBuf), Tr("WE_TIP_MAP_ACTIVE_FMT"),
                         e.name.c_str(), FormatMinSec(e.secs).c_str());
+                    ImGui::TextColored(ToImVec4(BasicEventColorActive), "%s", tipBuf);
                 }
                 else
                 {
                     const float* col = e.secs < 900 ? BasicEventColorSoon
                                                       : BasicEventColorWaiting;
-                    ImGui::TextColored(ToImVec4(col),
-                        "%s — in %s",
+                    char tipBuf[160];
+                    snprintf(tipBuf, sizeof(tipBuf), Tr("WE_TIP_MAP_UPCOMING_FMT"),
                         e.name.c_str(), FormatCountdown(e.secs).c_str());
+                    ImGui::TextColored(ToImVec4(col), "%s", tipBuf);
                 }
             }
 

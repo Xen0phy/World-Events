@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-check_weekly_vault.py — validates weekly_vault.cpp's g_CyclicWeeklyObjectives
-table against the real CyclicGroup/Slot names in events_cyclic.cpp, run from
+check_weekly_vault.py - validates weekly_vault.cpp's g_CyclicWeeklyObjectives
+table against the real CyclicGroup/Slot ids in events_cyclic.cpp, run from
 the project root as a build step that happens BEFORE bump_rev (see
-CMakeLists.txt) — a typo here fails the build with the specific bad name,
+CMakeLists.txt) - a typo here fails the build with the specific bad id,
 instead of silently shipping a target that can never light up at runtime
 (see weekly_vault.h's own comment on this).
 
 Does NOT (and can't) validate titleKeywords against ArenaNet's live wording
-— nothing offline can confirm that. This only checks the OTHER half of the
+- nothing offline can confirm that. This only checks the OTHER half of the
 table: that every `targets` entry still resolves to a real (group, slot)
 pair, and that no mapping is missing keywords/targets entirely. Core Boss
-matching needs no check at all — see weekly_vault.h for why that half of
+matching needs no check at all - see weekly_vault.h for why that half of
 the old table was removed rather than validated.
 
 Exits 0 and prints a one-line summary if everything resolves. Exits 1 and
@@ -28,7 +28,7 @@ WEEKLY_VAULT = Path("src/integration/weekly_vault.cpp")
 
 
 def strip_comments(text):
-    # Line comments only — this codebase has no /* */ comments in either
+    # Line comments only - this codebase has no /* */ comments in either
     # table, and no string literal in either file ever contains "//".
     return "\n".join(re.sub(r"//.*$", "", line) for line in text.splitlines())
 
@@ -104,7 +104,7 @@ def first_string(s):
 
 
 def parse_cyclic_groups(text):
-    """Returns {group_name: set(slot_names)} from events_cyclic.cpp."""
+    """Returns {group_id: set(slot_ids)} from events_cyclic.cpp."""
     body = extract_braced(text, "g_CyclicGroups")
     groups = {}
     for i, block in enumerate(split_top_level(body)):
@@ -113,17 +113,20 @@ def parse_cyclic_groups(text):
             continue
         inner = unwrap_braces(block, f"g_CyclicGroups entry #{i + 1}")
         parts = split_top_level(inner)
-        if not parts:
-            continue
-        group_name = first_string(parts[0])
-        if group_name is None:
+        if len(parts) < 2:
             raise SystemExit(
                 f"[check_weekly_vault] ERROR: g_CyclicGroups entry #{i + 1} doesn't "
-                f"start with a quoted group name."
+                f"start with quoted id and name fields."
+            )
+        group_id = first_string(parts[0])   # parts[1] is CyclicGroup::name, behind id
+        if group_id is None:
+            raise SystemExit(
+                f"[check_weekly_vault] ERROR: g_CyclicGroups entry #{i + 1} doesn't "
+                f"start with quoted id and name fields."
             )
 
         # The slots vector is whichever braced field's elements ALL start
-        # with a quoted string — every other field on a CyclicGroup
+        # with a quoted string - every other field on a CyclicGroup
         # (coordinates, period, color constant, std::nullopt, bool,
         # apiMapChestId) is either bare or not a list-of-quoted-things.
         slots = None
@@ -134,16 +137,16 @@ def parse_cyclic_groups(text):
             slot_entries = [e for e in split_top_level(part[1:-1]) if e.strip()]
             if not slot_entries:
                 continue
-            names = [first_string(e) for e in slot_entries]
-            if all(n is not None for n in names):
-                slots = names
+            ids = [first_string(e) for e in slot_entries]   # Slot::id, ahead of name
+            if all(n is not None for n in ids):
+                slots = ids
                 break
-        groups[group_name] = set(slots or [])
+        groups[group_id] = set(slots or [])
     return groups
 
 
 def parse_weekly_mappings(text):
-    """Returns [(mapping_index, [keyword,...], [(group,slot), ...]), ...]."""
+    """Returns [(mapping_index, [keyword,...], [(group_id,slot_id), ...]), ...]."""
     body = extract_braced(text, "g_CyclicWeeklyObjectives")
     mappings = []
     for i, block in enumerate(split_top_level(body)):
@@ -155,7 +158,7 @@ def parse_weekly_mappings(text):
         if len(parts) != 2:
             raise SystemExit(
                 f"[check_weekly_vault] ERROR: g_CyclicWeeklyObjectives mapping #{i + 1} "
-                f"doesn't have exactly 2 top-level fields (titleKeywords, targets) — "
+                f"doesn't have exactly 2 top-level fields (titleKeywords, targets) - "
                 f"found {len(parts)}. Check for a stray or missing comma."
             )
         keywords_part, targets_part = parts
@@ -169,7 +172,7 @@ def main():
     if not EVENTS_CYCLIC.exists() or not WEEKLY_VAULT.exists():
         raise SystemExit(
             f"[check_weekly_vault] ERROR: expected {EVENTS_CYCLIC} and {WEEKLY_VAULT} "
-            f"— run this from the project root."
+            f"- run this from the project root."
         )
 
     groups = parse_cyclic_groups(strip_comments(EVENTS_CYCLIC.read_text(encoding="utf-8")))
@@ -182,29 +185,29 @@ def main():
         if not targets:
             problems.append(f"mapping #{mapping_idx}: targets is empty")
 
-        for group_name, slot_name in targets:
-            if group_name not in groups:
+        for group_id, slot_id in targets:
+            if group_id not in groups:
                 problems.append(
                     f"mapping #{mapping_idx} ({', '.join(keywords)!s}): "
-                    f"group {group_name!r} not found in events_cyclic.cpp"
+                    f"group id {group_id!r} not found in events_cyclic.cpp"
                 )
                 continue
-            if slot_name not in groups[group_name]:
+            if slot_id not in groups[group_id]:
                 problems.append(
                     f"mapping #{mapping_idx} ({', '.join(keywords)!s}): "
-                    f"slot {slot_name!r} not found in group {group_name!r} "
+                    f"slot id {slot_id!r} not found in group {group_id!r} "
                     f"(events_cyclic.cpp)"
                 )
 
     if problems:
-        print("[check_weekly_vault] FAILED — weekly_vault.cpp's "
+        print("[check_weekly_vault] FAILED - weekly_vault.cpp's "
               "g_CyclicWeeklyObjectives table has a problem:", file=sys.stderr)
         for p in problems:
             print(f"  - {p}", file=sys.stderr)
         raise SystemExit(1)
 
     total_targets = sum(len(t) for _, _, t in mappings)
-    print(f"[check_weekly_vault] OK — {len(mappings)} mapping(s), "
+    print(f"[check_weekly_vault] OK - {len(mappings)} mapping(s), "
           f"{total_targets} target(s), all resolve against events_cyclic.cpp")
 
 

@@ -29,15 +29,15 @@
 //********************************************************************************
 // CyclicWeeklyTarget
 //--------------------------------------------------------------------------------
-// groupName    CyclicGroup::name
-// slotName     CyclicGroup::Slot::name within that group
+// groupId    CyclicGroup::id
+// slotId     CyclicGroup::Slot::id within that group
 //--------------------------------------------------------------------------------
 // One Cyclic Group slot that can satisfy a Cyclic weekly objective.
 //--------------------------------------------------------------------------------
 struct CyclicWeeklyTarget
 {
-    std::string groupName;
-    std::string slotName;
+    std::string groupId;
+    std::string slotId;
 };
 
 //********************************************************************************
@@ -70,13 +70,16 @@ extern std::vector<CyclicWeeklyMapping> g_CyclicWeeklyObjectives;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventWeeklyTarget / IsCyclicSlotWeeklyTarget
 //--------------------------------------------------------------------------------
-// True if the given Basic Event (by name) / Cyclic Group slot (by group + slot
-// name) is a Core Boss or Cyclic objective, respectively, worth auto-tracking /
-// showing a "weekly" marker for right now. outComplete is only meaningful when
-// the function returns true: it reports whether that objective has already been
-// completed this week. Callers (subscriptions_bar.cpp / subscriptions_window.cpp)
-// decide what to do with a completed-but-still-manually-subscribed event - these
-// functions only report the raw weekly state.
+// True if the given Basic Event / Cyclic Group slot (identified by id, and for
+// Cyclic, group + slot id) is a Core Boss or Cyclic objective, respectively,
+// worth auto-tracking / showing a "weekly" marker for right now. outComplete is
+// only meaningful when true: whether that objective is already complete this
+// week. Callers (subscriptions_bar.cpp/subscriptions_window.cpp) decide what to
+// do with a completed-but-still-manually-subscribed event.
+//
+// IsBasicEventWeeklyTarget matches the live title against eventId's COMPILED-IN
+// DEFAULT name (GetDefaultEvent, events_storage.h) - ArenaNet's API text - never
+// the event's own current (possibly renamed/localized) name.
 //--------------------------------------------------------------------------------
-bool IsBasicEventWeeklyTarget(const std::string& eventName, bool& outComplete);
-bool IsCyclicSlotWeeklyTarget(const std::string& groupName, const std::string& slotName, bool& outComplete);
+bool IsBasicEventWeeklyTarget(const std::string& eventId, bool& outComplete);
+bool IsCyclicSlotWeeklyTarget(const std::string& groupId, const std::string& slotId, bool& outComplete);

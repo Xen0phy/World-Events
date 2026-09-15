@@ -14,7 +14,7 @@
 //     daily-completion checks.
 //   - GET /v2/account/wizardsvault/weekly - this week's live Wizard's Vault
 //     objectives, matched by display TITLE since ids aren't stable across
-//     ArenaNet's seasonal rotation (see GetWeeklyObjectiveState in gw2_api.h).
+//     ArenaNet's seasonal rotation (see GetLiveWeeklyObjectives in gw2_api.h).
 //     weekly_vault.cpp maps titles to WorldEvent/CyclicGroup::Slot entries;
 //     this file only exposes the raw API state.
 //
@@ -86,9 +86,8 @@ static long long CurrentUtcDay()
 // AsciiLower
 //--------------------------------------------------------------------------------
 // ASCII-only lowercase, used solely for matching Wizard's Vault objective titles
-// case-insensitively (see s_weeklyObjectiveComplete/ GetWeeklyObjectiveState
-// below). Every title observed so far is plain ASCII English, so no locale/UTF-8
-// handling is needed here.
+// case-insensitively (see s_weeklyObjectiveComplete below). Every title observed
+// so far is plain ASCII English, so no locale/UTF-8 handling is needed here.
 //--------------------------------------------------------------------------------
 static std::string AsciiLower(const std::string& s)
 {
@@ -434,22 +433,6 @@ bool IsMapChestClaimedToday(const std::string& mapChestApiId)
 
     std::lock_guard<std::mutex> lock(s_mutex);
     return s_claimedMapChests.count(mapChestApiId) != 0;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// GetWeeklyObjectiveState   (see: gw2_api.h)
-//--------------------------------------------------------------------------------
-WeeklyObjectiveState GetWeeklyObjectiveState(const std::string& title)
-{
-    if (title.empty()) return WeeklyObjectiveState::NotThisWeek;
-    if (s_cachedForDay.load() != CurrentUtcDay()) return WeeklyObjectiveState::NotThisWeek; //. same as above
-
-    std::string key = AsciiLower(title);
-    std::lock_guard<std::mutex> lock(s_mutex);
-    auto it = s_weeklyObjectiveComplete.find(key);
-    //_ Not this week's rotation, or the soft-fail third fetch hasn't landed - no match.
-    if (it == s_weeklyObjectiveComplete.end()) return WeeklyObjectiveState::NotThisWeek;
-    return it->second ? WeeklyObjectiveState::Complete : WeeklyObjectiveState::Incomplete;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

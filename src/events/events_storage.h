@@ -11,6 +11,7 @@
 #include "events.h"
 
 #include <string>
+#include <unordered_set>
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveEventsData / LoadEventsData
@@ -34,12 +35,46 @@ void ResetEventsToDefaults();
 // GetDefaultEvent / GetDefaultCyclicGroup / GetDefaultCyclicSlot
 //--------------------------------------------------------------------------------
 // Look up a single entry in the same compiled-in snapshot ResetEventsToDefaults
-// restores from, keyed by name the same way MergeByKey/MergeGroups match on load.
+// restores from, keyed by id the same way MergeByKey/MergeGroups match on load.
 // Returns nullptr if the snapshot hasn't been captured yet, or no compiled-in
-// entry has that name (a purely user-added event/group/slot, or one renamed away
-// from its default name) - the per-row "Reset" menu item in
-// addon_options_helpers.cpp uses that to disable itself.
+// entry has that id (a purely user-added event/group/slot) - the per-row "Reset"
+// menu item in addon_options_helpers.cpp uses that to disable itself.
 //--------------------------------------------------------------------------------
-const WorldEvent* GetDefaultEvent(const std::string& name);
-const CyclicGroup* GetDefaultCyclicGroup(const std::string& name);
-const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupName, const std::string& slotName);
+const WorldEvent* GetDefaultEvent(const std::string& id);
+const CyclicGroup* GetDefaultCyclicGroup(const std::string& id);
+const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const std::string& slotId);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DisplayName / DisplayNameEnglish
+//--------------------------------------------------------------------------------
+// ev.customName non-empty -> that, literally (user override, never translated).
+// Otherwise, a compiled-in row (GetDefaultEvent/GetDefaultCyclicGroup/
+// GetDefaultCyclicSlot) resolves to the WE_NAME_BASIC_<id>/WE_NAME_GROUP_<id>/
+// WE_NAME_SLOT_<groupId>_<id> identifier (event_names.csv) via Tr()/ TrEnglish().
+// Neither -> WE_UNNAMED, subscriptions_edit_window.cpp's existing fallback. The
+// Slot overload takes groupId separately since Slot::id is only unique within its
+// group. DisplayNameEnglish always resolves to English regardless of active
+// language, for code that must match ArenaNet's own API text or an old English-
+// only save (weekly_vault.cpp, the eventNameToId/groupNameToId migrations).
+//--------------------------------------------------------------------------------
+const char* DisplayName(const WorldEvent& ev);
+const char* DisplayNameEnglish(const WorldEvent& ev);
+
+const char* DisplayName(const CyclicGroup& grp);
+const char* DisplayNameEnglish(const CyclicGroup& grp);
+
+const char* DisplayName(const CyclicGroup::Slot& slot, const std::string& groupId);
+const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string& groupId);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SlugifyName / UniqueId
+//--------------------------------------------------------------------------------
+// Id-assignment helpers. A brand-new WorldEvent/CyclicGroup/CyclicGroup::Slot
+// or Category gets its id up front, right when the options panel's "+" button
+// creates it (see addon_options.cpp/addon_options_helpers.cpp) - the id is
+// never derived from the (still-unset) name. LoadEventsData also calls these
+// as a one-time backfill for any id left empty by a save from before that
+// assignment existed (see the .cpp).
+//--------------------------------------------------------------------------------
+std::string SlugifyName(const std::string& name);
+std::string UniqueId(const std::string& candidate, std::unordered_set<std::string>& used);

@@ -71,9 +71,50 @@ add_custom_command(
     VERBATIM
 )
 
+# Generates a file in src/generated/ by running a tools/*.py script against a
+# resources/localization/*.csv file, passing --csv/--generated so the script
+# knows where to read from and write to. All three also depend on
+# src/core/localization_table.h, since each generator reads WE_LANGUAGE_LIST
+# from it to know the CSV's required columns.
+#
+# SYMBOL_PREFIX (optional, generate_localization_table.py only) is forwarded
+# as --symbol-prefix: every kLocalizationTable/.../generated.h included
+# together in one TU (localization_table.h) needs a distinct table/count
+# symbol name, since the default kLocalizationTable/kLocalizationCount can
+# only be claimed once.
+function(add_generated_file OUTPUT CSV SCRIPT COMMENT_TEXT)
+    cmake_parse_arguments(ARG "" "SYMBOL_PREFIX" "" ${ARGN})
+    set(script_path ${CMAKE_SOURCE_DIR}/tools/${SCRIPT})
+    set(csv_path ${CMAKE_SOURCE_DIR}/resources/localization/${CSV})
+    set(output_path ${CMAKE_SOURCE_DIR}/src/generated/${OUTPUT})
+    set(extra_args "")
+    if(ARG_SYMBOL_PREFIX)
+        set(extra_args --symbol-prefix ${ARG_SYMBOL_PREFIX})
+    endif()
+    add_custom_command(
+        OUTPUT ${output_path}
+        COMMAND ${Python3_EXECUTABLE} ${script_path} --csv ${csv_path} --generated ${output_path} ${extra_args}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        DEPENDS ${script_path} ${csv_path} ${CMAKE_SOURCE_DIR}/src/core/localization_table.h
+        COMMENT ${COMMENT_TEXT}
+        VERBATIM
+    )
+endfunction()
+
+add_generated_file(localization_table_ui.generated.h ui_strings.csv generate_localization_table.py
+    "Generating localization_table_ui.generated.h from ui_strings.csv...")
+
+add_generated_file(version_history.generated.h version_history.csv generate_version_history.py
+    "Generating version_history.generated.h from version_history.csv...")
+
+add_generated_file(localization_table_event_names.generated.h event_names.csv generate_localization_table.py
+    "Generating localization_table_event_names.generated.h from event_names.csv..."
+    SYMBOL_PREFIX kEventNameLocalization)
+
 add_library(gw2-world-events SHARED
     src/addon/addon.cpp
     src/core/background_threads.cpp
+    src/core/localization.cpp
     src/core/notify_sound.cpp
     src/core/settings.cpp
     src/core/subscriptions.cpp
@@ -83,9 +124,13 @@ add_library(gw2-world-events SHARED
     src/events/events_categories.cpp
     src/events/events_cyclic.cpp
     src/events/events_live.cpp
+    src/events/events_migration.cpp
     src/events/events_storage.cpp
     src/events/events_tracking.cpp
     src/generated/bundled_icons.generated.cpp
+    src/generated/localization_table_event_names.generated.h
+    src/generated/localization_table_ui.generated.h
+    src/generated/version_history.generated.h
     src/integration/apikey_crypto.cpp
     src/integration/better_chat.cpp
     src/integration/gw2_api.cpp

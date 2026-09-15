@@ -70,40 +70,40 @@ static void RollOverIfNewUtcDay()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ResolveBasicDoneKey
 //--------------------------------------------------------------------------------
-// Maps a Basic Event's own name to the key its "done today" mark is actually
-// stored/looked-up under: g_Events[name].doneGroup if that event has one set,
-// else the name itself unchanged. See WorldEvent::doneGroup (events.h) and this
-// file's header comment for the Ley Line Anomaly case this exists for.
+// Maps a Basic Event's own id to the key its "done today" mark is actually
+// stored/looked-up under: g_Events[id].doneGroup if that event has one set, else
+// the id itself unchanged. See WorldEvent::doneGroup (events.h) and this file's
+// header comment for the Ley Line Anomaly case this exists for.
 //
 // Plain linear scan over g_Events - same cost class as the lookups
 // GetDefaultEvent (events_storage.cpp) already does for the options panel, and
 // this runs on the same rare "user right-clicked a row" path, not per-frame.
 //--------------------------------------------------------------------------------
-static std::string ResolveBasicDoneKey(const std::string& eventName)
+static std::string ResolveBasicDoneKey(const std::string& eventId)
 {
     for (const auto& ev : g_Events)
     {
-        if (ev.name != eventName) continue;
-        return ev.doneGroup.empty() ? eventName : ev.doneGroup;
+        if (ev.id != eventId) continue;
+        return ev.doneGroup.empty() ? eventId : ev.doneGroup;
     }
-    return eventName; //. stale/unknown name - unchanged
+    return eventId; //. stale/unknown id - unchanged
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday (see: events_tracking.h)
 //--------------------------------------------------------------------------------
-bool IsBasicEventMarkedDoneToday(const std::string& eventName)
+bool IsBasicEventMarkedDoneToday(const std::string& eventId)
 {
     RollOverIfNewUtcDay();
-    const std::string key = ResolveBasicDoneKey(eventName);
+    const std::string key = ResolveBasicDoneKey(eventId);
     return std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), key)
         != s_DoneTodayBasicEvents.end();
 }
 
-void ToggleBasicEventDoneToday(const std::string& eventName)
+void ToggleBasicEventDoneToday(const std::string& eventId)
 {
     RollOverIfNewUtcDay();
-    const std::string key = ResolveBasicDoneKey(eventName);
+    const std::string key = ResolveBasicDoneKey(eventId);
     auto it = std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), key);
     if (it != s_DoneTodayBasicEvents.end())
         s_DoneTodayBasicEvents.erase(it);
@@ -169,21 +169,21 @@ void ClearAllDoneMarkers()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SerializeCyclicKey / DeserializeCyclicKey
 //--------------------------------------------------------------------------------
-// Same (groupName, slotOffset) key shape as subscriptions.cpp.
+// Same (groupId, slotId) key shape as subscriptions.cpp.
 //--------------------------------------------------------------------------------
 static json SerializeCyclicKey(const CyclicSubscriptionKey& key)
 {
     json j;
-    j["groupName"]  = key.groupName;
-    j["slotOffset"] = key.slotOffset;
+    j["groupId"] = key.groupId;
+    j["slotId"]  = key.slotId;
     return j;
 }
 
 static CyclicSubscriptionKey DeserializeCyclicKey(const json& j)
 {
     CyclicSubscriptionKey key;
-    key.groupName  = j.value("groupName", std::string());
-    key.slotOffset = j.value("slotOffset", 0);
+    key.groupId = j.value("groupId", std::string());
+    key.slotId  = j.value("slotId", std::string());
     return key;
 }
 

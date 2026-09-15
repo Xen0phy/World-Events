@@ -1,0 +1,842 @@
+identifier,en,de,fr,es,cn,note
+#,"changelog_window.cpp - ""What's New"" popup shown after every build",,,,,
+WE_CHANGELOG_TITLE,World Events - What's New,World Events - Was ist neu,World Events - Nouveautés,World Events - Novedades,世界事件 - 更新内容,
+WE_CHANGELOG_LATEST_SUFFIX, (latest), (neueste), (dernière), (última),（最新）,
+WE_CHANGELOG_GOT_IT,Got it,Geht klar,Compris,Entendido,知道了,
+#,"reset_defaults.cpp - ""Default"" button + confirmation popup in the options panel.",,,,,
+WE_RESET_BUTTON,Default,Standard,Par défaut,Predeterminado,默认,
+WE_RESET_POPUP_TITLE,Reset to Defaults,Auf Standard zurücksetzen,Réinitialiser aux valeurs par défaut,Restablecer valores predeterminados,重置为默认值,
+WE_RESET_BODY,Deletes and rebuilds events.json from scratch.,Löscht events.json und erstellt sie mit Grundeinstellungen.,Supprime et reconstruit events.json depuis zéro.,Elimina y reconstruye events.json desde cero.,将删除并完全重建events.json文件。,
+WE_RESET_WARNING,This cannot be undone.,Dies kann nicht rückgängig gemacht werden.,Cette action est irréversible.,Esta acción no se puede deshacer.,此操作无法撤销。,
+WE_RESET_CONFIRM,Reset everything,Alles zurücksetzen,Tout réinitialiser,Restablecer todo,全部重置,
+WE_RESET_CANCEL,Cancel,Abbrechen,Annuler,Cancelar,取消,
+WE_TIP_RESET_WIPE,"Wipes every Basic Event, Cyclic Group, category, subscription,
+and done-today marker, restoring the compiled-in defaults.","Löscht alle normalen Events, zyklische Gruppen, Kategorien, Abos und
+Erledigt-Markierungen und stellt die Grundeinstellungen wieder her.","Supprime tous les Événements normaux, Groupes cycliques, catégories, abonnements
+et marqueurs ""fait aujourd'hui"", puis restaure les valeurs par défaut intégrées.","Elimina todos los Eventos normales, Grupos cíclicos, categorías, suscripciones
+y marcas de ""hecho hoy"", y restaura los valores predeterminados integrados.",将会清除所有基础事件、循环事件组、分类、订阅以及今日已完成标记，恢复内置默认配置。,
+#,subscriptions_window.cpp / subscriptions_notification.cpp - shared watchlist/toast tooltip.,,,,,
+WE_TIP_WEEKLY_VAULT,Counts toward this week's Wizard's Vault objectives.,Zählt zu den Gewölbe des Zauberers-Zielen dieser Woche.,Compte pour les objectifs du Coffre du Sorcier de cette semaine.,Cuenta para los objetivos de la Bóveda del Mago de esta semana.,计入本周巫师宝库的任务进度。,
+#,subscriptions_window.cpp / subscriptions_bar.cpp - status-suffix format strings.,,,,,
+WE_SUBS_STATUS_ACTIVE_FMT, -- Active (ends in %s), -- Aktiv (endet in %s), -- Actif (se termine dans %s), -- Activo (termina en %s), -- 进行中（%s后结束）,
+WE_SUBS_STATUS_IN_FMT, -- in %s, -- in %s, -- dans %s, -- en %s, -- %s后,
+WE_BAR_STATUS_ACTIVE_FMT,Active - ends in %s,Aktiv - endet in %s,Actif - se termine dans %s,Activo - termina en %s,进行中 - %s后结束,
+WE_BAR_STATUS_IN_FMT,in %s,in %s,dans %s,en %s,%s后,
+#,subscriptions_notification.cpp - toast popup title text.,,,,,
+WE_NOTIFY_NOW_ACTIVE,Now active!,Jetzt aktiv!,Actif maintenant !,¡Activo ahora!,现已开始！,
+WE_NOTIFY_STARTING_IN_FMT,Starting in %s,Beginnt in %s,Commence dans %s,Comienza en %s,%s后开始,
+WE_NOTIFY_REPORTED_ACTIVE,Reported active!,Als aktiv gemeldet!,Signalé actif !,¡Reportado como activo!,已上报为活跃！,
+WE_NOTIFY_REPORTED_BY_FMT,Reported by %s,Gemeldet von %s,Signalé par %s,Reportado por %s,由%s上报,
+#,subscriptions_window.cpp / subscriptions_bar.cpp / subscriptions_notification.cpp / addon_options_helpers.cpp - shared right-click menu entries.,,,,,
+WE_SUBS_MARK_DONE_TODAY,Mark done for today,Heute als erledigt markieren,Marquer comme fait aujourd'hui,Marcar como hecho hoy,标记为今日已完成,
+WE_SUBS_EDIT_SUBSCRIPTIONS,Edit Subscriptions,Abos bearbeiten,Modifier les abonnements,Editar suscripciones,编辑订阅,
+#,Title bar text for the addon's three player-facing windows.,,,,,
+WE_SUBS_WINDOW_TITLE,World Events - Subscriptions,World Events - Abos,World Events - Abonnements,World Events - Suscripciones,世界事件 - 订阅列表,
+WE_LIVE_REPORTS_WINDOW_TITLE,World Events - Live Reports,World Events - Live-Meldungen,World Events - Signalements en direct,World Events - Reportes en vivo,世界事件 - 实时上报,
+WE_EDIT_SUBS_WINDOW_TITLE,World Events - Edit Subscriptions,World Events - Abos bearbeiten,World Events - Modifier les abonnements,World Events - Editar suscripciones,世界事件 - 编辑订阅,
+#,subscriptions_window.cpp - watchlist empty states and row hints.,,,,,
+WE_SUBS_EMPTY_ACTIVE,Nothing upcoming - everything subscribed is currently active.,Nichts Bevorstehendes - alles Abonnierte ist derzeit aktiv.,Rien à venir - tout ce qui est abonné est actuellement actif.,Nada próximo: todo lo suscrito está activo en este momento.,没有即将到来的事件，所有已订阅事件正在进行中。,
+WE_SUBS_EMPTY_DONE,Nothing to show - everything subscribed is already done today.,Nichts anzuzeigen - alles Abonnierte ist heute bereits erledigt.,Rien à afficher - tout ce qui est abonné est déjà fait aujourd'hui.,Nada que mostrar: todo lo suscrito ya está hecho hoy.,无内容可显示，所有订阅事件今日均已完成。,
+WE_SUBS_EMPTY_NONE,"No subscribed events yet. Check the box next to an event's name in
+the options panel or Edit Subscriptions window to add it here.","Noch keine abonnierten Events. Aktiviere das Kästchen neben einem
+Event-Namen im Optionsfenster oder im Fenster ""Abos bearbeiten"",
+um es hier hinzuzufügen.","Aucun événement abonné pour l'instant. Cochez la case à côté du nom d'un
+événement dans le panneau d'options ou la fenêtre Modifier les abonnements pour l'ajouter ici.","Aún no hay eventos suscritos. Marca la casilla junto al nombre de un
+evento en el panel de opciones o en la ventana Editar suscripciones para añadirlo aquí.",尚未订阅任何事件。在设置面板或编辑订阅窗口勾选事件名称旁的复选框，即可添加至此。,
+WE_SUBS_HINT_CLICK,Click a row to copy its waypoint code.,"Klicke eine Zeile an, um deren Wegpunkt-Code zu kopieren.",Cliquez sur une ligne pour copier son code de point de passage.,Haz clic en una fila para copiar su código de punto de acceso.,点击条目复制传送点代码。,
+WE_SUBS_HINT_RIGHT_CLICK,Right-click a row to mark it done for today.,"Rechtsklick auf eine Zeile, um sie als heute erledigt zu markieren.",Clic droit sur une ligne pour la marquer comme faite aujourd'hui.,Haz clic derecho en una fila para marcarla como hecha hoy.,右键点击条目可将其标记为今日已完成。,
+#,subscriptions_edit_window.cpp - Basic & Cyclic tab (shares WE_OPT_SEARCH_LABEL/WE_OPT_BASIC_EVENTS/WE_OPT_CYCLIC_EVENTS with addon_options.cpp).,,,,,
+WE_EDIT_TAB_BASIC_CYCLIC,Basic & Cyclic,Normal & Zyklisch,Normal & Cyclique,Normal y cíclico,基础与循环,
+WE_EDIT_SUBSCRIBE_ALL,Subscribe all,Alle abonnieren,Tout abonner,Suscribir todo,全部订阅,
+WE_EDIT_DONE_TODAY,Done for today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
+#,subscriptions_edit_window.cpp - Live Events tab. WE_LIVE_* rows are shared with addon_options.cpp's Live Events (Experimental) section.,,,,,
+WE_EDIT_TAB_LIVE,Live Events,Live-Events,Événements en direct,Eventos en vivo,实时事件,
+WE_LIVE_SHARE_NAME_REPORTS,Share my name in reports,Meinen Namen in Meldungen teilen,Partager mon nom dans les signalements,Compartir mi nombre en los reportes,在上报中共享我的角色名,
+WE_LIVE_SHARE_NAME_REPORTS_TIP,"Off (default): reports are anonymous. On: your character name
+goes out with every report you send, and anyone whose toast
+notification it triggers can whisper you directly by clicking
+it, instead of just pasting the waypoint.","Aus (Standard): Meldungen sind anonym. An: Dein Charaktername
+wird bei jeder gesendeten Meldung mitgeschickt, und wer die
+dadurch ausgelöste Benachrichtigung erhält, kann dich durch
+Anklicken direkt anflüstern, statt nur den Wegpunkt einzufügen.","Désactivé (par défaut) : les signalements sont anonymes. Activé : votre nom de
+personnage est envoyé avec chaque signalement, et toute personne recevant
+la notification qu'il déclenche peut vous chuchoter directement en cliquant
+dessus, au lieu de simplement coller le point de passage.","Desactivado (predeterminado): los reportes son anónimos. Activado: el nombre de
+tu personaje se envía con cada reporte, y cualquiera que reciba la
+notificación que provoca puede susurrarte directamente al hacer clic
+en ella, en lugar de solo pegar el punto de acceso.","关闭（默认）：上报为匿名模式。开启：每次上报都会附带你的角色名；
+收到该上报弹窗通知的玩家点击通知可直接向你发送密语，而不只是粘贴传送点。",
+WE_LIVE_NONE_COMPILED,No live events compiled in yet.,Noch keine Live-Events kompiliert.,Aucun événement en direct compilé pour l'instant.,Aún no hay eventos en vivo integrados.,尚未内置任何实时事件。,
+WE_EDIT_LIVE_SUBSCRIBE_TIP_NO_KEY,"Requires a GW2 API key (options panel) - region-wide toast
+delivery needs it to tell NA and EU apart.","Erfordert einen GW2-API-Schlüssel (Optionsfenster) - die
+regionsweite Zustellung braucht ihn, um NA und EU zu unterscheiden.","Nécessite une clé API GW2 (panneau d'options) - la diffusion des notifications
+à l'échelle de la région en a besoin pour distinguer NA et EU.","Requiere una clave de API de GW2 (panel de opciones): la entrega de
+notificaciones a nivel de región la necesita para distinguir NA de EU.",需要GW2 API密钥（设置面板），全区弹窗通知依靠密钥区分美服与欧服。,
+WE_EDIT_LIVE_SUBSCRIBE_TIP,"Subscribe to region-wide toast notifications for this event,
+regardless of which map you're currently on.","Abonniere regionsweite Benachrichtigungen für dieses Event,
+unabhängig davon, auf welcher Karte du dich gerade befindest.","Abonnez-vous aux notifications à l'échelle de la région pour cet événement,
+quelle que soit la carte sur laquelle vous vous trouvez actuellement.","Suscríbete a las notificaciones a nivel de región para este evento,
+sin importar en qué mapa te encuentres en este momento.",订阅该事件的全区弹窗通知，不受当前所在地图限制。,
+WE_EDIT_LIVE_NAMED_ONLY_TIP,"Only notify me when the reporter shared their name.
+An unnamed report can't be whispered or joined directly,
+so skip its toast rather than show one you can't act on.","Nur benachrichtigen, wenn der Meldende seinen Namen geteilt hat.
+Eine anonyme Meldung kann nicht direkt angeflüstert oder
+verfolgt werden, daher entfällt ihre Benachrichtigung, statt
+eine zu zeigen, auf die du nicht reagieren kannst.","Ne me notifier que lorsque le rapporteur a partagé son nom.
+Un signalement anonyme ne peut pas être chuchoté ni rejoint directement,
+donc sa notification est ignorée plutôt que d'en afficher une sur laquelle vous ne pouvez pas agir.","Notificarme solo cuando quien reporta haya compartido su nombre.
+Un reporte anónimo no se puede susurrar ni seguir directamente,
+así que se omite su notificación en lugar de mostrar una sobre la que no puedes actuar.",仅当上报者共享角色名时才推送通知。匿名上报无法直接密语或跟进，因此不会弹出无法交互的通知。,
+WE_EDIT_LIVE_DONE_TIP,Done for today - mutes toasts for this event until the daily reset.,Heute erledigt - stummt Benachrichtigungen für dieses Event bis zum täglichen Reset.,Fait aujourd'hui - coupe les notifications pour cet événement jusqu'à la réinitialisation quotidienne.,Hecho hoy: silencia las notificaciones de este evento hasta el reinicio diario.,今日已完成：该事件弹窗通知将被静音，直至每日重置。,
+WE_EDIT_LIVE_COL_EVENT,Event,Event,Événement,Evento,事件,
+WE_EDIT_LIVE_COL_ONLY_NAMED,Only named,Nur benannt,Nommés uniquement,Solo nombrados,仅带上报者名称,
+WE_EDIT_LIVE_COL_DONE_TODAY,Done today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
+#,"addon_options.cpp - tooltips for the generic settings (Live Events tooltips live with events_live, once translated).",,,,,
+WE_TIP_DISABLE_COMPETITIVE,"Hides map events, cyclic rings, and all subscriptions
+views (window/bar/toast) while you're on a PvP or WvW
+map. Doesn't change what's subscribed, only what shows.","Blendet Karten-Events, Zyklische-Ringe und alle Abo-Ansichten
+(Fenster/Leiste/Toast) auf PvP- oder WvW-Karten aus.
+Ändert nichts an den Abos, nur was angezeigt wird.","Masque les événements sur la carte, les anneaux cycliques et toutes les vues
+d'abonnements (fenêtre/barre/notification) lorsque vous êtes sur une carte
+PvP ou McM. Ne change pas ce qui est abonné, seulement ce qui s'affiche.","Oculta los eventos del mapa, los anillos cíclicos y todas las vistas de
+suscripciones (ventana/barra/notificación) mientras estás en un mapa de
+PvP o McM. No cambia lo que está suscrito, solo lo que se muestra.","在PvP或世界之战(WvW)地图时隐藏地图事件、
+循环圆环与全部订阅界面（窗口/订阅栏/弹窗）。
+不会修改订阅设置，仅控制显示状态。",
+WE_TIP_NOTIFY_POPUPS,"Pops up a small toast in the lower-right corner for events
+you have notifications enabled for, whether or not the
+window or distribution line are open. Click a popup to paste
+its waypoint code, same as clicking a row/segment there.","Zeigt unten rechts eine kleine Benachrichtigung für Events,
+für welche Benachrichtigungen aktiviert sind - unabhängig davon,
+ob Fenster oder Leiste geöffnet sind. Klicke auf ein Popup oder eine
+Zeile um den Wegpunkt im Chat einzufügen.","Affiche une petite notification dans le coin inférieur droit pour les
+événements dont les notifications sont activées, que la fenêtre ou la barre
+soient ouvertes ou non. Cliquez sur une notification pour coller
+son code de point de passage, comme en cliquant sur une ligne/segment là-bas.","Muestra una pequeña notificación en la esquina inferior derecha para los
+eventos con notificaciones activadas, estén abiertas o no la ventana
+o la barra. Haz clic en una notificación para pegar
+su código de punto de acceso, igual que al hacer clic en una fila/segmento allí.","为已开启通知的事件在右下角弹出小型通知，无需打开窗口或订阅栏。
+点击弹窗即可粘贴传送点代码，效果等同于点击对应条目。",
+WE_TIP_WARN_BEFORE_START,"How long before a subscribed event/slot starts to
+fire the ""starting soon"" popup. 0 disables it.","Wie lange vor Start eines abonnierten Events/Slots die
+""Startet bald""-Meldung erscheint. 0 deaktiviert sie.","Combien de temps avant le début d'un événement/créneau abonné la
+notification ""démarre bientôt"" apparaît. 0 la désactive.","Cuánto tiempo antes de que empiece un evento/ranura suscrito aparece
+la notificación ""empieza pronto"". 0 la desactiva.",订阅事件/时段开始前多久弹出“即将开始”通知。填0则关闭该通知。,
+WE_TIP_POPUP_DURATION,"How long a popup stays fully visible before it fades out.
+Hovering a popup pauses its timer.","Wie lange eine Benachrichtigung voll sichtbar bleibt, bevor es ausblendet.
+Der Mauszeiger über einer Benachrichtigung pausiert dessen Timer.","Combien de temps une notification reste pleinement visible avant de s'estomper.
+Survoler une notification met son minuteur en pause.","Cuánto tiempo permanece una notificación totalmente visible antes de desvanecerse.
+Pasar el cursor sobre una notificación pausa su temporizador.",弹窗保持完全可见的时长，之后开始淡出。鼠标悬停弹窗会暂停倒计时。,
+WE_TIP_RESCAN_SOUNDS,"Re-scans ""<addon dir>/sounds"" for .wav files you've
+dropped in since the dropdown was last built.","Durchsucht ""<Addon-Ordner>/sounds"" erneut nach .wav-Dateien,
+die seit dem letzten Aufbau der Liste hinzugekommen sind.","Analyse à nouveau ""<dossier addon>/sounds"" à la recherche de fichiers .wav que
+vous avez ajoutés depuis la dernière construction de la liste déroulante.","Vuelve a analizar ""<carpeta del addon>/sounds"" en busca de archivos .wav
+que hayas añadido desde que se generó la lista desplegable por última vez.",重新扫描插件目录下sounds文件夹，读取下拉列表更新后新增的wav音频文件。,
+WE_TIP_TEST_SOUND,"Drop .wav files into ""<addon dir>/sounds"" and pick one
+here to preview it. Only .wav is supported. ""Test"" just
+plays it immediately - it also plays automatically alongside
+a real notification popup, but only for events/slots whose
+own notify level has sound enabled (see the speaker icon on
+each row below).","Lege .wav-Dateien in ""<Addon-Ordner>/sounds"" ab und wähle
+eine zum Vorhören aus. Nur .wav wird unterstützt. ""Testen""
+spielt ihn sofort ab - er spielt auch automatisch bei einer
+echten Benachrichtigung, aber nur für Events/Slots, deren eigene
+Benachrichtigungsstufe Ton aktiviert hat (siehe Lautsprecher-
+Symbol bei jeder Zeile unten).","Déposez des fichiers .wav dans ""<dossier addon>/sounds"" et choisissez-en un
+ici pour l'écouter. Seul .wav est pris en charge. ""Tester"" le joue
+simplement immédiatement - il joue aussi automatiquement en même temps
+qu'une vraie notification, mais uniquement pour les événements/créneaux dont
+le propre niveau de notification a le son activé (voir l'icône de haut-parleur
+sur chaque ligne ci-dessous).","Coloca archivos .wav en ""<carpeta del addon>/sounds"" y elige uno
+aquí para previsualizarlo. Solo se admite .wav. ""Probar"" simplemente
+lo reproduce de inmediato; también se reproduce automáticamente junto
+a una notificación real, pero solo para eventos/ranuras cuyo
+propio nivel de notificación tenga el sonido activado (consulta el icono de
+altavoz en cada fila de abajo).","将wav文件放入插件sounds文件夹，在此选择预览。仅支持wav格式。
+“测试”会立即播放；真实弹窗通知也会自动播放音频，
+但仅针对通知等级开启音效的事件/时段，参见下方每行的喇叭图标。",
+WE_TIP_HIDE_ACTIVE_ON_BAR,"Active segments are dropped from the bar entirely, only upcoming events
+remain. Independent from ""Hide active in window"" above.","Aktive Segmente werden vollständig von der Leiste entfernt, nur bevorstehende
+Events bleiben. Unabhängig von ""Aktive im Fenster ausblenden""
+oben.","Les segments actifs sont entièrement retirés de la barre, seuls les événements
+à venir restent. Indépendant de ""Masquer les actifs dans la fenêtre"" ci-dessus.","Los segmentos activos se eliminan por completo de la barra, solo quedan los
+eventos próximos. Independiente de ""Ocultar activos en la ventana"" de arriba.","正在进行的事件会完全从订阅栏移除，仅保留即将到来的事件，
+独立于上方“在窗口隐藏进行中事件”选项。",
+WE_TIP_POPOUT_HEIGHT,"How tall the pop-out is, in px.","Wie hoch das hervorstehende Segment ist, in px.","Hauteur du segment déployé, en px.","Altura del elemento desplegado, en px.",弹出悬浮区域高度（像素）,
+WE_TIP_POPOUT_DELAY,"How long the mouse has to sit still over a segment or dot
+before it pops out. 0 = instant.","Wie lange die Maus über einem Segment oder Punkt verweilen
+muss, bevor dieses ausklappt. 0 = sofort.","Combien de temps la souris doit rester immobile sur un segment ou un point
+avant qu'il ne se déploie. 0 = instantané.","Cuánto tiempo debe permanecer el ratón inmóvil sobre un segmento o punto
+antes de que se despliegue. 0 = instantáneo.",鼠标悬停在片段/圆点多久后弹出悬浮面板，0代表立即弹出。,
+WE_TIP_UNSAFE_LEFT,"Width from the LEFT screen edge, in px, treated as
+covered by your own GW2 UI. Segments in this zone
+drop lower to avoid covering it.","Breite ab dem LINKEN Bildschirmrand, in px, die als von
+deinem eigenen GW2-UI belegt gilt. Segmente in
+dieser Zone weichen nach unten aus.","Largeur depuis le bord GAUCHE de l'écran, en px, considérée comme
+couverte par votre propre interface GW2. Les segments dans cette
+zone descendent plus bas pour éviter de la recouvrir.","Ancho desde el borde IZQUIERDO de la pantalla, en px, considerado
+cubierto por tu propia interfaz de GW2. Los segmentos en esta
+zona bajan para evitar cubrirla.",屏幕左侧不安全区域宽度（像素），视作被游戏原生UI占用。落入该区域的界面元素会向下偏移避免遮挡。,
+WE_TIP_UNSAFE_RIGHT,"Width from the RIGHT screen edge, in px, treated as
+covered by your own GW2 UI.Segmentsin this zone
+drop lower to avoid covering it.","Breite ab dem RECHTEN Bildschirmrand, in px, die als von
+deinem eigenen GW2-UI belegt gilt. Segmente in
+dieser Zone weichen nach unten aus.","Largeur depuis le bord DROIT de l'écran, en px, considérée comme
+couverte par votre propre interface GW2. Les segments dans cette
+zone descendent plus bas pour éviter de la recouvrir.","Ancho desde el borde DERECHO de la pantalla, en px, considerado
+cubierto por tu propia interfaz de GW2. Los segmentos en esta
+zona bajan para evitar cubrirla.",屏幕右侧不安全区域宽度（像素），视作被游戏原生UI占用。落入该区域的界面元素会向下偏移避免遮挡。,
+WE_TIP_UNSAFE_HEIGHT,"How tall your corner UI is, in px. Segments inside
+either unsafe zone start their drop this far down,
+not from the line itself, so the popped-out block
+clears your UI.","Wie hoch dein UI an den Seiten ist, in px. Segmente in einer
+der beiden Zonen beeginne ab dieser Höhe auszuklappen,
+nicht ab der Linie selbst, damit der ausgeklappte Block
+dein UI nicht überdeckt.","Hauteur de votre interface dans les coins, en px. Les segments dans l'une
+ou l'autre zone à risque commencent leur descente à partir de cette hauteur,
+et non depuis la ligne elle-même, afin que le bloc déployé
+dégage votre interface.","Altura de tu interfaz en las esquinas, en px. Los segmentos dentro de
+cualquiera de las zonas de riesgo comienzan a descender desde esta altura,
+no desde la línea misma, para que el bloque desplegado
+no cubra tu interfaz.",边角UI的高度（像素）。处于不安全区的元素从该高度开始向下偏移，而非从订阅栏基线，保证悬浮面板不会遮挡游戏界面。,
+WE_TIP_UNLOCK_PASTE_DELAY,"Only change this if you're having paste issues.
+Controls the internal delay used to paste text into the
+chat box. Default: 20ms.","Nur ändern, wenn es beim Einfügen Probleme gibt.
+Steuert die interne Verzögerung beim Einfügen von Text
+ins Chatfeld. Standard: 20ms.","Ne modifiez ceci que si vous avez des problèmes de collage.
+Contrôle le délai interne utilisé pour coller du texte dans la
+zone de chat. Par défaut : 20 ms.","Cambia esto solo si tienes problemas al pegar.
+Controla el retraso interno usado para pegar texto en el
+cuadro de chat. Predeterminado: 20 ms.",仅在粘贴出现异常时修改。控制向聊天框粘贴文本的内部延迟，默认20毫秒。,
+WE_TIP_PASTE_TO,"Which chat channel a watchlist row/segment/toast click
+pastes into, regardless of whatever channel is currently
+selected in-game. Prepends that channel's slash command
+(e.g. ""/p "") before the name/waypoint. ""Current chat""
+pastes exactly as before, into whichever channel already
+has focus.
+
+When Better Chat's ""/self"" is enabled, it's available here too.","In welchen Chat-Kanal ein Klick auf eine Zeile, Segment oder
+Popup einfügt, unabhängig vom aktuell im Spiel gewählten
+Kanal. Stellt den Slash-Befehl des Kanals voran (z.B. ""/p "")
+vor Name/Wegpunkt. ""Aktueller Chat"" fügt wie gewohnt in den
+gerade fokussierten Kanal ein.
+Wenn Better Chats ""/self"" aktiviert ist, steht es auch hier""
+zur Verfügung.","Dans quel canal de chat un clic sur une ligne/segment/notification de la
+liste colle le texte, quel que soit le canal actuellement sélectionné en jeu.
+Ajoute la commande slash de ce canal (ex. ""/p "") avant le nom/point de
+passage. ""Chat actuel"" colle exactement comme avant, dans le canal ayant
+actuellement le focus.
+
+Lorsque le ""/self"" de Better Chat est activé, il est aussi disponible ici.","En qué canal de chat pega un clic en una fila/segmento/notificación de la
+lista, sin importar el canal seleccionado actualmente en el juego.
+Antepone el comando de barra de ese canal (p. ej. ""/p "") antes del
+nombre/punto de acceso. ""Chat actual"" pega exactamente como antes, en
+el canal que tenga el foco en ese momento.
+
+Cuando el ""/self"" de Better Chat está activado, también está disponible aquí.","点击订阅条目/片段/弹窗时，文本粘贴到哪个聊天频道，无视游戏当前选中频道。
+会自动前置对应频道斜杠指令，例如/p。“当前聊天”维持原有行为，
+粘贴至当前焦点频道。若Better Chat开启/self，该频道也会出现在此列表。",
+WE_TIP_GW2_API_KEY,"Needs the ""progression"" permission. When set, a subscribed
+Core Boss (Admiral Taidha Covington, Tequatl, etc.) is
+automatically left off the watchlist window and bar once
+your account has already killed it since the last daily
+reset. The same applies to any subscribed slot in Verdant
+Brink, Auric Basin, Tangled Depths, Dragon's Stand, Crystal
+Oasis, Elon Riverlands, The Desolation, or Domain of Vabbi,
+once that map's Hero's Choice Chest has already been
+claimed today (the whole ring hides together, not just the
+one slot). Nothing else is affected: the public API has no
+""already done today"" signal for any other event type in
+this addon (other map metas, invasions, LLA, convergences),
+so those are never hidden by this.","Benötigt die Berechtigung ""progression"". Wenn gesetzt, wird
+ein abonnierter Core Boss (Admiral Taidha Covington, Tequatl
+usw.) automatisch aus Abo-Fenster und -Leiste entfernt, sobald
+dein Account ihn seit dem letzten täglichen Reset schon
+besiegt hat. Gleiches gilt für jeden abonnierten Slot in
+Grasgrüne Schwelle, Güldener Talkessel, Verschlungene Tiefen,
+Widerstand des Drachen, Kristalloase, Elon-Flusslande, Das
+Ödland oder Domäne Vaabi, sobald die tägliche Belohnungstruhe
+dieser Karte heute schon errungen wurde (der ganze Zyklus wird
+als Gesamtes ausgeblendet, nicht nur der eine Slot). Sonst
+ändert sich nichts: Die öffentliche API hat für keinen anderen
+Event-Typ in diesem Addon (andere Karten-Metas, Invasionen,
+LLA, Konvergenzen) ein ""heute schon erledigt""-Signal, daher
+wird dort nie etwas dadurch ausgeblendet.","Nécessite la permission ""progression"". Une fois définie, un Boss du jeu de
+base abonné (Amiral Taidha Covington, Tequatl, etc.) est automatiquement
+retiré de la fenêtre et de la barre d'abonnements dès que votre compte l'a
+déjà vaincu depuis la dernière réinitialisation quotidienne. Il en va de même
+pour tout créneau abonné dans l'Orée d'émeraude, le Bassin aurique,
+les Profondeurs verdoyantes, le Repli du dragon, l'Oasis de cristal, les
+Rives de l'Elon, la Désolation ou le Domaine de Vabbi, dès que le
+Coffre du choix du héros de cette carte a déjà été récupéré aujourd'hui
+(l'anneau entier se masque ensemble, pas seulement ce créneau). Rien
+d'autre n'est affecté : l'API publique n'a aucun signal ""déjà fait aujourd'hui""
+pour tout autre type d'événement de cet addon (autres métas de carte,
+invasions, LLA, convergences), donc ceux-ci ne sont jamais masqués par ceci.","Requiere el permiso ""progression"". Una vez configurada, un Jefe del juego
+base suscrito (Almirante Taidha Covington, Tequatl, etc.) se elimina
+automáticamente de la ventana y la barra de suscripciones en cuanto tu
+cuenta ya lo haya derrotado desde el último reinicio diario. Lo mismo se
+aplica a cualquier ranura suscrita en Umbral Verdeante, Valle Áurico,
+Profundidades Enredadas, Defensa del Dragón, Oasis de Cristal,
+La Ribera del Elon, La Desolación o Dominio de Vabbi, en cuanto el
+Cofre de Elección del Héroe de ese mapa ya se haya reclamado hoy (todo
+el anillo se oculta en conjunto, no solo esa ranura). No se ve afectado nada
+más: la API pública no tiene una señal de ""ya hecho hoy"" para ningún otro
+tipo de evento de este addon (otras metas de mapa, invasiones, LLA,
+convergencias), por lo que estos nunca se ocultan por esto.","需要启用 “进度追踪” 权限。启用后，若账号在每日重置后已击杀所订阅的核心世界首领（上将泰达·科文顿、吞噬托），
+该首领便会自动从监控列表窗口和状态栏中隐藏。苍翠边界、赤金盆地、缠藤深渊、巨龙阵地、水晶绿洲、伊伦河湾、
+荒芜之地及瓦比领域中的任一订阅条目，只要当日已领取该地图的英雄抉择宝箱，整个事件圆环将一并隐藏，而非仅隐藏单个条目。
+其余内容不受影响：公开 API 无法提供其他事件类型（其他地图元事件、入侵、LLA、汇聚）的「今日已完成」状态，
+因此这些事件永远不会被本规则隐藏。","REVIEW: ""progression"" seems to be the same for all languages"
+WE_TIP_AUTO_MARK_API_DONE,"When on (default), any Basic Event/Cyclic group tagged
+(auto) in the lists below auto-hides once the GW2 API
+reports it done for the day. Turn this off to ignore
+that signal and rely only on marking events done for
+today yourself (right-click a row/segment/popup).","Wenn aktiv (Standard), blenden mit (auto) markierte normale
+Events/zyklische Gruppen unten automatisch aus, sobald die
+GW2-API sie als heute erledigt meldet. Deaktivieren, um
+dieses Signal zu ignorieren und Events nur manuell als erledigt
+zu markieren (Rechtsklick auf Zeile/Segment/Popup).","Lorsqu'activé (par défaut), tout Événement normal/Groupe cyclique marqué
+(auto) dans les listes ci-dessous se masque automatiquement dès que
+l'API GW2 le signale comme fait pour la journée. Désactivez pour ignorer
+ce signal et ne compter que sur le marquage manuel des événements comme
+faits aujourd'hui (clic droit sur une ligne/segment/notification).","Cuando está activado (predeterminado), cualquier Evento normal/Grupo
+cíclico marcado (auto) en las listas de abajo se oculta automáticamente
+en cuanto la API de GW2 lo indica como hecho por hoy. Desactívalo para
+ignorar esa señal y depender solo de marcar los eventos como hechos
+hoy manualmente (clic derecho en una fila/segmento/notificación).","开启（默认）时，列表内标记(auto)的基础事件、循环事件组，
+当GW2API反馈今日完成后会自动隐藏。关闭则忽略API状态，仅依靠手动右键标记今日已完成。",
+WE_TIP_AUTO_TRACK_VAULT,"When on (default), the subscriptions window, distribution
+line, and notification popups automatically surface any
+Basic Event/Cyclic slot that's an active, incomplete
+target of this week's Wizard's Vault rotation, even without
+a manual subscription, marked with a small red dot/border.
+Turn this off to see only what you've manually subscribed to
+in all three views.","Wenn aktiv (Standard), zeigen Abo-Fenster, Leiste und
+Benachrichtigungen automatisch jedes normale Event/zyklischen
+Slot, der ein aktives, unerledigtes Ziel der Gewölbe des
+Zauberers-Rotation dieser Woche ist, auch ohne manuelles Abo,
+markiert mit einem kleinen roten Punkt/Rahmen. Deaktivieren,
+um in allen drei Ansichten nur manuell Abonniertes zu sehen.","Lorsqu'activé (par défaut), la fenêtre d'abonnements, la barre de
+distribution et les notifications font automatiquement remonter tout
+Événement normal/créneau cyclique qui est une cible active et incomplète
+de la rotation du Coffre du Sorcier de cette semaine, même sans
+abonnement manuel, marqué d'un petit point/bordure rouge. Désactivez
+pour ne voir que ce à quoi vous êtes manuellement abonné dans les trois vues.","Cuando está activado (predeterminado), la ventana de suscripciones, la
+barra de distribución y las notificaciones muestran automáticamente
+cualquier Evento normal/ranura cíclica que sea un objetivo activo e
+incompleto de la rotación de la Bóveda del Mago de esta semana, incluso
+sin suscripción manual, marcado con un pequeño punto/borde rojo.
+Desactívalo para ver solo lo suscrito manualmente en las tres vistas.","开启（默认）时，订阅窗口、订阅栏、弹窗通知会自动高亮本周巫师宝库未完成目标对应的基础事件/循环时段，
+无需手动订阅，带有红色小点/边框。关闭后，三处界面将仅展示手动订阅的内容。",
+WE_TIP_UNLOCK_DONE_MARKERS,"Right-click any row in the watchlist window, segment on the
+distribution line, or notification popup to mark it done for
+today. It then hides from all three views, the same way an
+API-confirmed Core Boss kill or map chest claim does, until
+the next daily reset (00:00 UTC) - or until you clear it
+manually.","Rechtsklick auf eine Zeile im Abo-Fenster, ein Segment auf
+der Leiste oder ein Benachrichtigungs-Popup um es als für
+heute erledigt zu markieren. Es verschwindet dann aus allen
+drei Ansichten, genau wie bei einem API-bestätigten Core-
+Boss-Kill oder Kistenerhalt, bis zum nächsten täglichen
+Reset (00:00 UTC) - oder bis du es manuell zurücksetzt.","Clic droit sur n'importe quelle ligne de la fenêtre d'abonnements, segment
+sur la barre de distribution, ou notification, pour la marquer comme faite
+pour aujourd'hui. Elle disparaît alors des trois vues, de la même manière
+qu'une victoire sur un Boss du jeu de base confirmée par l'API ou une
+récupération de coffre de carte, jusqu'à la prochaine réinitialisation
+quotidienne (00h00 UTC) - ou jusqu'à ce que vous la réinitialisiez manuellement.","Haz clic derecho en cualquier fila de la ventana de suscripciones,
+segmento en la barra de distribución, o notificación, para marcarla como
+hecha hoy. Entonces desaparece de las tres vistas, igual que una muerte
+de un Jefe del juego base confirmada por la API o la recogida de un cofre
+de mapa, hasta el siguiente reinicio diario (00:00 UTC), o hasta que la
+restablezcas manualmente.","右键订阅窗口条目、订阅栏片段或通知弹窗，标记为今日已完成。该事件会在全部三处界面隐藏，
+效果等同API确认击杀首领/领取宝箱，持续至UTC0点每日重置，也可手动清除标记。",
+WE_TIP_FUTURE_WINDOW,"How far ahead an upcoming event starts fading into view.
+Measured in degrees of the ring.","Wie weit im Voraus ein bevorstehendes Event einzublenden
+beginnt. Gemessen in Grad des Rings.","Combien de temps à l'avance un événement à venir commence à apparaître.
+Mesuré en degrés de l'anneau.","Con cuánta antelación empieza a aparecer un evento próximo.
+Medido en grados del anillo.",距离事件还有多久开始淡入显示，以圆环角度为单位。,
+WE_TIP_PAST_WINDOW,"How long a finished event lingers before fading out.
+Measured in degrees of the ring.","Wie lange ein beendetes Event sichtbar bleibt, bevor es
+ausblendet. Gemessen in Grad des Rings.","Combien de temps un événement terminé persiste avant de s'estomper.
+Mesuré en degrés de l'anneau.","Cuánto tiempo permanece un evento terminado antes de desvanecerse.
+Medido en grados del anillo.",事件结束后保留可见的时长，以圆环角度为单位。,
+WE_TIP_FADE_PAST_EVENTS,"Fades the past window from full opacity at the hand
+down to transparent at its far edge. Turn off to keep
+it solid across the whole past window.","Blendet das Vergangenheitsfenster von voller Deckkraft am
+Zeiger bis transparent am äußeren Rand aus. Deaktivieren, um
+es über das gesamte Fenster hinweg deckend zu halten.","Estompe la fenêtre passée d'une opacité complète au niveau de l'aiguille
+jusqu'à transparente à son bord le plus éloigné. Désactivez pour la garder
+opaque sur toute la fenêtre passée.","Desvanece la ventana de pasado desde opacidad total en la manecilla
+hasta transparente en su borde más lejano. Desactívalo para mantenerla
+sólida en toda la ventana de pasado.",已结束事件区域从指针位置完全不透明向远端逐步透明；关闭此项，已结束区域将全部保持不透明。,
+WE_TIP_HAND_COLOR,"Color of the fixed ""now"" hand at the top of every ring.
+Also tints the hand texture below, if enabled.","Farbe des fixen ""Jetzt""-Zeigers oben an jedem Ring.
+Färbt bei Aktivierung auch das Zeiger-Textur unten ein.","Couleur de l'aiguille fixe ""maintenant"" en haut de chaque anneau.
+Teinte aussi la texture de l'aiguille ci-dessous, si activée.","Color de la manecilla fija de ""ahora"" en la parte superior de cada anillo.
+También tiñe la textura de la manecilla de abajo, si está activada.",每个圆环顶端代表“当前时刻”指针的颜色。开启指针纹理后，纹理也会使用该色调。,
+WE_TIP_HAND_USE_TEXTURE,"Draws a texture in place of the plain hand tick. Like the
+Basic Event icons, the source texture's RGB should be a
+neutral gray with the shape in the alpha channel.","Zeichnet eine Textur anstelle des schlichten Zeiger-Strichs.
+Wie bei den Symbolen für normale Events sollte das RGB der
+Textur neutrales Grau sein, mit der Form im Alphakanal.","Dessine une texture à la place du simple trait de l'aiguille. Comme pour
+les icônes d'Événement normal, le RVB de la texture source doit être
+un gris neutre, avec la forme dans le canal alpha.","Dibuja una textura en lugar del trazo simple de la manecilla. Al igual
+que con los iconos de Evento normal, el RGB de la textura de origen
+debe ser gris neutro, con la forma en el canal alfa.",使用纹理替代纯色指针标记。和基础事件图标要求一致，纹理RGB通道应为中性灰色，图形轮廓存放于Alpha通道。,
+WE_TIP_HAND_TEXTURE_WIDTH,"Length isn't separately adjustable - the testure always
+spans exactly from the ring's inner edge to its outer
+edge, stretching automatically with Radius/Thickness.","Die Länge ist nicht separat einstellbar - die Textur reicht
+immer exakt vom inneren bis zum äußeren Rand des Rings und
+skaliert automatisch mit Radius/Dicke mit.","La longueur n'est pas réglable séparément - la texture s'étend toujours
+exactement du bord intérieur de l'anneau à son bord extérieur, en
+s'ajustant automatiquement avec Rayon/Épaisseur.","La longitud no es ajustable por separado: la textura siempre se extiende
+exactamente desde el borde interior del anillo hasta su borde exterior,
+ajustándose automáticamente con Radio/Grosor.",指针长度不可单独调整，纹理会铺满圆环内圈到外圈，跟随圆环半径、厚度自动缩放。,
+WE_TIP_RING_EDGE_TEXTURE,"Wraps a texture around the ring's edge(s) in place of a
+plain line. The texture should be wider than it is tall - it
+is stretched around exactly the portion of the circle
+shown by the Future/Past window above, and rescales with
+Radius/Thickness. Drop a .png/.jpg into this addon's
+""textures"" folder to make it available below.","Legt eine Textur um die Ringkante(n) statt einer schlichten
+Linie. Die Textur sollte breiter als hoch sein - es wird exakt
+über den durch das Zukunfts-/Vergangenheitsfenster oben
+festgelegten Kreisabschnitt gespannt und skaliert mit Radius/
+Dicke. Eine .png/.jpg in den ""textures""-Ordner dieses Addons
+legen, um sie unten verfügbar zu machen.","Enroule une texture autour du/des bord(s) de l'anneau à la place d'une
+simple ligne. La texture doit être plus large que haute - elle est étirée
+exactement sur la portion du cercle indiquée par la fenêtre Futur/Passé
+ci-dessus, et se redimensionne avec Rayon/Épaisseur. Déposez un
+.png/.jpg dans le dossier ""textures"" de cet addon pour le rendre disponible
+ci-dessous.","Envuelve una textura alrededor del/de los borde(s) del anillo en lugar
+de una línea simple. La textura debe ser más ancha que alta: se estira
+exactamente sobre la porción del círculo mostrada por la ventana
+Futuro/Pasado de arriba, y se reescala con Radio/Grosor. Coloca un
+.png/.jpg en la carpeta ""textures"" de este addon para que esté disponible
+abajo.","使用纹理包裹圆环边缘，替代纯色线条。纹理宽大于高；纹理仅覆盖由未来/过去窗口划定的圆弧部分，
+并跟随圆环参数缩放。将png/jpg放入插件textures文件夹即可在此选择。",
+WE_TIP_RING_TEXTURE_THICKNESS,"On-screen thickness of the texture band, centered on the
+edge it's drawn on. This is independent of the source
+texture file's own pixel height - the texture is always
+stretched to fill this value, so swapping in a
+shorter/taller source PNG has no effect on its own;
+drag this down to make the band thinner.","Sichtbare Dicke des Texturbands, zentriert auf der Kante, auf
+der es liegt. Unabhängig von der Pixelhöhe der Quelldatei - die
+Textur wird immer auf diesen Wert gestreckt, ein kürzeres/
+höheres PNG allein ändert also nichts; für ein schmaleres Band
+den Wert verringern.","Épaisseur à l'écran de la bande de texture, centrée sur le bord sur lequel
+elle est dessinée. Indépendant de la hauteur en pixels du fichier de
+texture source - la texture est toujours étirée pour remplir cette valeur,
+donc remplacer par un PNG source plus court/plus haut n'a aucun effet
+en soi ; diminuez cette valeur pour affiner la bande.","Grosor en pantalla de la banda de textura, centrada en el borde sobre
+el que se dibuja. Independiente de la altura en píxeles del archivo de
+textura de origen: la textura siempre se estira para llenar este valor,
+así que sustituir por un PNG de origen más corto/alto no tiene efecto
+por sí solo; reduce este valor para hacer la banda más fina.","纹理带的屏幕厚度，以圆环边缘居中对齐。与原始图片像素高度无关，
+纹理会拉伸到此设定厚度，更换原图尺寸不会改变显示效果；调小数值让纹理带变细。",
+WE_TIP_RING_TEXTURE_OFFSET,"Nudges both copies radially outward from the ring's own
+fill - the outer copy moves further out, the inner copy
+further in - so they stay mirror-symmetric.
+Negative values pull both back in toward the ring instead.","Verschiebt beide Kopien radial vom eigentlichen Ring weg.
+Die äußere Kopie weiter nach außen, die innere weiter
+nach innen, sodass sie spiegelsymmetrisch bleiben.
+Negative Werte ziehen beide zurück zum Ring hin.","Décale les deux copies radialement vers l'extérieur par rapport au
+remplissage propre de l'anneau - la copie extérieure s'éloigne davantage,
+la copie intérieure se rapproche davantage - pour rester symétriques en miroir.
+Des valeurs négatives ramènent les deux vers l'anneau à la place.","Desplaza ambas copias radialmente hacia afuera respecto al relleno
+propio del anillo: la copia exterior se aleja más, la copia interior se
+acerca más, de modo que permanezcan simétricas en espejo.
+Los valores negativos acercan ambas copias hacia el anillo en su lugar.",径向偏移内外两侧纹理，外侧向外、内侧向内，保持镜像对称。负值会把两侧纹理向圆环中心收拢。,
+WE_TIP_FILL_TEXTURE,"Lays a texture over the ring's own plain-color fill (the
+track and slot arcs) to break it up with some texture or
+grain.","Legt eine Textur über die einfarbige Füllung des Rings (Bahn-
+und Slot-Bögen), um sie mit etwas Textur oder Körnung
+aufzulockern.","Superpose une texture au remplissage uni de l'anneau (les arcs de piste
+et de créneau) pour le briser avec un peu de texture ou de grain.","Superpone una textura sobre el relleno de color liso del anillo (los arcos
+de pista y ranura) para romperlo con algo de textura o grano.",为圆环纯色填充区域（轨道、时段圆弧）叠加填充纹理，增加颗粒质感。,
+#,maprender.cpp / cyclicrender.cpp - shared map-hover status format strings for Basic/Cyclic events.,,,,,
+WE_TIP_MAP_ACTIVE_FMT,%s - Active (ends in %s),%s - Aktiv (endet in %s),%s - Actif (se termine dans %s),%s - Activo (termina en %s),%s — 进行中（%s后结束）,
+WE_TIP_MAP_UPCOMING_FMT,%s - in %s,%s - in %s,%s - dans %s,%s - en %s,%s — %s后开始,
+#,ws_debug_window.cpp - WS connection log viewer. TX/RX log-direction tags stay as-is as a fixed protocol vocabulary.,,,,,
+WE_WSDEBUG_TITLE,World Events - WS Debug Log,World Events - WS Debug Log,World Events - Journal de débogage WS,World Events - Registro de depuración WS,世界事件‑WebSocket调试日志,
+WE_WSDEBUG_CONNECTED,Connected,Verbunden,Connecté,Conectado,已连接,
+WE_WSDEBUG_CONNECTING,Connecting...,Verbinde...,Connexion...,Conectando...,正在连接…,
+WE_WSDEBUG_DISCONNECTED,Disconnected,Getrennt,Déconnecté,Desconectado,已断开,
+WE_WSDEBUG_SERVER,Server:,Server:,Serveur :,Servidor:,服务器：,
+WE_WSDEBUG_RESETS_ON_RELOAD,This window resets on reload - see Nexus's log (WorldEvents-WS) too.,Dieses Fenster wird beim Neuladen zurückgesetzt – siehe auch Nexus' Log (WorldEvents-WS).,Cette fenêtre se réinitialise au rechargement - voir aussi le journal de Nexus (WorldEvents-WS).,Esta ventana se restablece al recargar; consulta también el registro de Nexus (WorldEvents-WS).,重载插件时窗口日志将清空，也可查看Nexus日志频道WorldEvents‑WS。,
+WE_WSDEBUG_AUTOSCROLL,Auto-scroll,Auto scrollen,Défilement auto,Desplazamiento automático,自动滚动,
+WE_WSDEBUG_CLEAR,Clear,Leeren,Effacer,Borrar,清空,
+WE_WSDEBUG_FILTER_ALL,All,Alle,Tout,Todo,全部,
+WE_WSDEBUG_FILTER_INFO,Info,Info,Info,Info,信息,
+WE_WSDEBUG_FILTER_ERROR,Error,Fehler,Erreur,Error,错误,
+WE_WSDEBUG_SEARCH_HINT,Search text...,Durchsuche Text...,Rechercher du texte...,Buscar texto...,搜索文本…,
+WE_WSDEBUG_COL_ELAPSED,T+,T+,T+,T+,T+,
+WE_WSDEBUG_COL_DIR,Dir,Dir,Dir,Dir,方向,
+WE_WSDEBUG_COL_MESSAGE,Message,Nachricht,Message,Mensaje,消息,
+#,addon_options_helpers.cpp / subscriptions_edit_window.cpp - fallback label for an empty user-entered name.,,,,,
+WE_UNNAMED,(unnamed),(unbenannt),(sans nom),(sin nombre),（未命名）,
+#,addon_options_helpers.cpp - duplicate-name warning tag next to a Cyclic Group slot's name.,,,,,
+WE_DUPLICATE_TAG,[duplicate],[Duplikat],[doublon],[duplicado],[重复],
+#,"addon_options_helpers.cpp - DrawNameAndContextMenu's shared right-click menu",,,,,
+WE_ROW_NOTIFY_SUB_TOAST_SOUND,Set to: Subscribed + Toast + Sound,Setzen auf: Abonniert + Benachrichtigung + Ton,Définir sur : Abonné + Notification + Son,Establecer en: Suscrito + Notificación + Sonido,设置为：已订阅+弹窗+音效,
+WE_ROW_NOTIFY_SUB_TOAST,Set to: Subscribed + Toast,Setzen auf: Abonniert + Benachrichtigung,Définir sur : Abonné + Notification,Establecer en: Suscrito + Notificación,设置为：已订阅+弹窗通知,
+WE_ROW_NOTIFY_SUB_ONLY,"Set to: Subscribed only",Setzen auf: Nur abonniert,Définir sur : Abonné uniquement,Establecer en: Solo suscrito,设置为：仅订阅,
+WE_ROW_NOTIFY_UNSUBSCRIBED,Set to: Unsubscribed,Setzen auf: Nicht abonniert,Définir sur : Non abonné,Establecer en: No suscrito,设置为：取消订阅,
+WE_ROW_EDIT_NAME,Edit name,Namen bearbeiten,Modifier le nom,Editar nombre,编辑名称,
+WE_ROW_RESET,Reset,Zurücksetzen,Réinitialiser,Restablecer,重置,
+WE_ROW_DELETE,Delete,Löschen,Supprimer,Eliminar,删除,
+WE_ROW_SAVE,Save,Speichern,Enregistrer,Guardar,保存,
+WE_ROW_NAME_REQUIRED_TIP,Enter a name before saving,Vor dem Speichern einen Namen eingeben,Saisissez un nom avant d'enregistrer,Introduce un nombre antes de guardar,保存前请输入名称,
+WE_TIP_CANCEL_NEW,Discard this new entry,Diesen neuen Eintrag verwerfen,Abandonner cette nouvelle entrée,Descartar esta nueva entrada,放弃这个新条目,
+WE_TIP_FINISH_NAMING,Finish naming the current new entry first,Zuerst den aktuellen neuen Eintrag benennen,Terminez d'abord de nommer la nouvelle entrée en cours,Termina de nombrar la nueva entrada actual primero,请先为当前的新条目命名,
+#,"addon_options_helpers.cpp - per-event/per-slot Icon combo and chat-code input label",,,,,
+WE_ICON_LABEL,Icon,Symbol,Icône,Icono,图标,
+WE_TEXT_TO_COPY_LABEL,Text to copy,Zu kopierender Text,Texte à copier,Texto para copiar,待复制文本,
+WE_ICON_DOT,Dot,Punkt,Point,Punto,圆点,addon_options_helpers.cpp - icon-combo entry that keeps the plain circle marker instead of a texture.
+WE_ICON_MIXED,(mixed),(gemischt),(mixte),(mixto),（混合）,addon_options_helpers.cpp - DrawBulkIconPicker's status entry when selected targets don't share one icon.
+WE_ICON_REFRESH,Refresh,Aktualisieren,Actualiser,Actualizar,刷新,addon_options_helpers.cpp - rescans textures/ for the per-event/per-slot Icon combo.
+#,addon_options_helpers.cpp - Cyclic Slot color tier picker.,,,,,
+WE_TIER_LABEL,Tier,Stufe,Niveau,Nivel,等级,
+WE_TIER_PRIMARY,Primary,Primär,Primaire,Primario,主要,
+WE_TIER_SECONDARY,Secondary,Sekundär,Secondaire,Secundario,次要,
+WE_TIER_TERTIARY,Tertiary,Tertiär,Tertiaire,Terciario,第三级,
+#,addon_options_helpers.cpp - tooltips for the shared Basic Event / Cyclic Group row-drawing helpers.,,,,,
+WE_TIP_NOTIFY_ICON_LVL0,Click to Subscribe,Klicken zum Abonnieren,Cliquer pour s'abonner,Haz clic para suscribirte,点击进行订阅,
+WE_TIP_NOTIFY_ICON_LVL1,"Subscribed - click to also show a toast notification
+(right-click the name for more options)","Abonniert - klicken, um zusätzlich eine Benachrichtigung anzuzeigen
+(Rechtsklick auf den Namen für weitere Optionen)","Abonné - cliquez pour afficher aussi une notification
+(clic droit sur le nom pour plus d'options)","Suscrito: haz clic para mostrar también una notificación
+(clic derecho en el nombre para más opciones)",已订阅，点击开启弹窗通知；右键名称查看更多选项,
+WE_TIP_NOTIFY_ICON_LVL2,"Subscribed + toast notification - click to also play a sound
+(right-click the name for more options)","Abonniert + Benachrichtigung - klicken, um zusätzlich einen Ton abzuspielen
+(Rechtsklick auf den Namen für weitere Optionen)","Abonné + notification - cliquez pour aussi jouer un son
+(clic droit sur le nom pour plus d'options)","Suscrito + notificación: haz clic para reproducir también un sonido
+(clic derecho en el nombre para más opciones)",已订阅+弹窗通知，点击开启音效；右键名称查看更多选项,
+WE_TIP_NOTIFY_ICON_LVL3,"Subscribed + toast + sound - click to unsubscribe
+(right-click the name for more options)","Abonniert + Benachrichtigung + Ton - klicken zum Deabonnieren
+(Rechtsklick auf den Namen für weitere Optionen)","Abonné + notification + son - cliquez pour vous désabonner
+(clic droit sur le nom pour plus d'options)","Suscrito + notificación + sonido: haz clic para cancelar la suscripción
+(clic derecho en el nombre para más opciones)",已订阅+弹窗+音效，点击取消订阅；右键名称查看更多选项,
+WE_TIP_NOTIFY_BTN_LVL0,Unsubscribed,Nicht abonniert,Non abonné,No suscrito,未订阅,
+WE_TIP_NOTIFY_BTN_LVL1,Subscribed - silent,Abonniert - stumm,Abonné - silencieux,Suscrito: silencioso,已订阅‑静默模式,
+WE_TIP_NOTIFY_BTN_LVL2,Subscribed + toast notification,Abonniert + Benachrichtigung,Abonné + notification,Suscrito + notificación,已订阅+弹窗通知,
+WE_TIP_NOTIFY_BTN_LVL3,Subscribed + toast + sound,Abonniert + Benachrichtigung + Ton,Abonné + notification + son,Suscrito + notificación + sonido,已订阅+弹窗+音效,
+WE_TIP_DRAG_STOP,Click to stop dragging on the map.,"Klicken, um das Ziehen auf der Karte zu beenden.",Cliquez pour arrêter de déplacer sur la carte.,Haz clic para dejar de arrastrar en el mapa.,点击结束地图上的拖拽。,
+WE_TIP_DRAG_START,"Click, then left-click-drag this marker on the map to reposition it.","Klicken, dann diese Markierung auf der Karte per Linksklick-Ziehen neu positionieren.","Cliquez, puis clic gauche-glisser ce marqueur sur la carte pour le repositionner.",Haz clic y luego arrastra este marcador en el mapa (clic izquierdo) para reposicionarlo.,点击，随后左键拖拽标记以调整位置。,
+WE_TIP_AUTO_TRACKED,"Automatically tracked via the GW2 API.
+Drops off the Subscriptions bar/window on its own
+once claimed today (no need to check it off by hand).","Wird automatisch über die GW2-API erfasst. Verschwindet
+von selbst aus Abo-Leiste/-Fenster, sobald es heute
+abgeschlossen wurde (kein manuelles Abhaken nötig).","Suivi automatiquement via l'API GW2.
+Disparaît de lui-même de la barre/fenêtre d'abonnements une fois
+récupéré aujourd'hui (pas besoin de le cocher manuellement).","Se rastrea automáticamente mediante la API de GW2.
+Desaparece por sí solo de la barra/ventana de suscripciones una vez
+reclamado hoy (no hace falta marcarlo a mano).",由GW2‑API自动追踪。今日完成后自动从订阅栏、订阅窗口消失，无需手动标记。,
+WE_TIP_SHOW_ON_MAP,Show on the map overlay (Subscriptions bar/window are unaffected),Auf dem Karten-Overlay anzeigen (Abo-Leiste/-Fenster sind davon nicht betroffen),Afficher sur la superposition de la carte (la barre/fenêtre d'abonnements n'est pas affectée),Mostrar en la superposición del mapa (la barra/ventana de suscripciones no se ve afectada),在地图上显示标记（不影响订阅栏、订阅窗口）,
+WE_TIP_SUBSCRIBE_CYCLE,"Subscribe/unsubscribe every occurrence in this cycle at once
+(checked only when all of them already are)","Alle Abschnitte dieses Zyklus auf einmal abonnieren/deabonnieren
+(nur angehakt, wenn bereits alle abonniert sind)","Abonner/désabonner toutes les occurrences de ce cycle en une fois
+(coché uniquement lorsqu'elles le sont déjà toutes)","Suscribir/cancelar la suscripción a todas las ocurrencias de este ciclo a la vez
+(marcado solo cuando ya lo están todas)",一键订阅/取消该循环全部时段；勾选状态仅在全部已订阅时生效。,
+WE_TIP_SHOW_RING,"Show/hide this entire ring on the map overlay
+(no circle drawn at all while unchecked)","Den gesamten Ring auf dem Karten-Overlay ein-/ausblenden
+(bei Deaktivierung wird gar kein Kreis gezeichnet)","Afficher/masquer tout cet anneau sur la superposition de la carte
+(aucun cercle n'est dessiné du tout lorsque décoché)","Mostrar/ocultar todo este anillo en la superposición del mapa
+(no se dibuja ningún círculo mientras esté desmarcado)",在地图叠加层显示/隐藏整套圆环；关闭则完全不绘制圆环。,
+WE_TIP_SHOW_OCCURRENCE,Show/hide this occurrence on the map overlay,Diesen Abschnitt auf dem Karten-Overlay ein-/ausblenden,Afficher/masquer cette occurrence sur la superposition de la carte,Mostrar/ocultar esta ocurrencia en la superposición del mapa,在地图叠加层显示/隐藏该事件时段。,
+WE_TIP_REPETITION,"How many times the event repeats within the period. Must
+divide the period evenly - add a second entry instead if it doesn't.
+Example: an event every hour in a 2h period repeats twice.","Wie oft sich das Event innerhalb der Periode wiederholt.
+Muss die Periode ganzzahlig teilen - andernfalls stattdessen einen
+zweiten Eintrag anlegen. Beispiel: ein stündliches Event in einer
+2-Stunden-Periode wiederholt sich zweimal.","Combien de fois l'événement se répète dans la période. Doit diviser
+la période de façon exacte - ajoutez plutôt une deuxième entrée si ce n'est pas le cas.
+Exemple : un événement toutes les heures dans une période de 2h se répète deux fois.","Cuántas veces se repite el evento dentro del periodo. Debe dividir
+el periodo de forma exacta; si no, añade una segunda entrada en su lugar.
+Ejemplo: un evento cada hora en un periodo de 2h se repite dos veces.","事件在周期内重复多少次。数值必须可以整除周期；无法整除时请新建条目。
+例：2小时周期内每小时触发一次，则重复次数填2。",
+#,addon_options_helpers.cpp - widget labels on the Basic Event / Cyclic Group / Cyclic Slot editing rows,,,,,
+WE_PERIOD_LABEL,Period,Periode,Période,Periodo,周期,
+WE_LOCATION_LABEL,Position,Position,Emplacement,Ubicación,位置,
+WE_DURATION_MIN_LABEL,Duration (min),Dauer (Min.),Durée (min),Duración (min),持续时间（分钟）,
+WE_VARYING_CHECKBOX,Varying,Variabel,Variable,Variable,可变时间,
+WE_TIMES_UTC_LABEL,Times (UTC),Zeiten (UTC),Heures (UTC),Horas (UTC),时间（UTC）,
+WE_OFFSET_MIN_LABEL,Offset (min),Versatz (Min.),Décalage (min),Desfase (min),偏移（分钟）,
+WE_OFFSET_LABEL,Offset,Versatz,Décalage,Desfase,偏移,
+WE_COLOR_LABEL,Color,Farbe,Couleur,Color,颜色,
+WE_CUSTOM_COLOR_LABEL,Custom Color,Eigene Farbe,Couleur personnalisée,Color personalizado,自定义颜色,
+WE_GROUP_EVENTS_LABEL,Events,Events,Événements,Eventos,事件列表,
+WE_REPETITION_LABEL,Repetition,Wiederholung,Répétition,Repetición,重复次数,
+WE_TIMES_MIN_INTO_PERIOD_LABEL,Times (min into period),Zeiten (Minuten im Zyklus),Heures (min dans la période),Horas (min dentro del periodo),时间（周期内分钟）,
+WE_MINUTES_UNIT_LABEL,min,Min.,min,min,分钟,
+#,addon_options.cpp - the Nexus options panel. Only the generic settings.,,,,,
+WE_OPT_RELEASE,Release,Version,Version,Versión,版本,
+WE_OPT_DISABLE_COMPETITIVE,Disable overlay in PvP/WvW,Overlay in PvP/WvW deaktivieren,Désactiver la superposition en PvP/McM,Desactivar la superposición en PvP/McM,PvP/世界之战(WvW)下关闭叠加界面,
+WE_OPT_WINDOW,Window,Fenster,Fenêtre,Ventana,窗口,
+WE_OPT_TOAST,Toast,Benachrichtigung,Notification,Notificación,通知弹窗,
+WE_OPT_BAR,Bar,Leiste,Barre,Barra,订阅栏,
+WE_OPT_OVERLAY_SETTINGS,Overlay Settings,Overlay-Einstellungen,Paramètres de superposition,Ajustes de superposición,叠加层设置,
+WE_OPT_SHOW_SUBS_WINDOW,Show subscriptions window,Abo-Fenster anzeigen,Afficher la fenêtre d'abonnements,Mostrar ventana de suscripciones,显示订阅窗口,
+WE_OPT_HIDE_ACTIVE_IN_WINDOW,Hide active in window,Aktive Events im Fenster ausblenden,Masquer les actifs dans la fenêtre,Ocultar activos en la ventana,在窗口隐藏进行中事件,
+WE_OPT_ACTIVE,Active,Aktiv,Actif,Activo,进行中,
+WE_OPT_SOON,Soon,Bald,Bientôt,Pronto,即将到来,
+WE_OPT_ENABLE_NOTIFY_POPUPS,Enable notification popups,Benachrichtigungs-Popups aktivieren,Activer les notifications popup,Activar notificaciones emergentes,启用通知弹窗,
+WE_OPT_WARN_BEFORE_START,Warn before start (min),Warnung vor Start (Min.),Avertir avant le début (min),Avisar antes del inicio (min),开始前提醒（分钟）,
+WE_OPT_NOTIFY_ON_START,Notify on start,Start Benachrichtigung,Notifier au démarrage,Notificar al empezar,事件开始时通知,
+WE_OPT_POPUP_DURATION,Popup duration (sec),Popup-Dauer (Sek.),Durée de la notification (s),Duración de la notificación (s),弹窗持续时长（秒）,
+WE_OPT_SOUND_NONE,(none),(keiner),(aucun),(ninguno),（无）,
+WE_OPT_SOUND,Sound,Ton,Son,Sonido,音效,
+WE_OPT_RESCAN,Rescan,Neu einlesen,Rescanner,Volver a analizar,重新扫描,
+WE_OPT_TEST,Test,Testen,Tester,Probar,测试,
+WE_OPT_SHOW_SUBS_BAR,Show subscriptions bar,Abo-Leiste anzeigen,Afficher la barre d'abonnements,Mostrar barra de suscripciones,显示订阅栏,
+WE_OPT_HIDE_ACTIVE_ON_BAR,Hide active on bar,Aktive auf Leiste ausblenden,Masquer les actifs sur la barre,Ocultar activos en la barra,订阅栏隐藏进行中事件,
+WE_OPT_MINIMAL_MODE,Minimal Mode,Minimalmodus,Mode minimal,Modo mínimo,极简模式,
+WE_OPT_BOTTOM_LINE,Bottom Line,Untere Linie,Ligne inférieure,Línea inferior,底部基线,
+WE_OPT_DOT_COLOR,Dot Color,Punktfarbe,Couleur du point,Color del punto,圆点颜色,
+WE_OPT_POPOUT_HEIGHT,Pop-out height (px),Ausklapphöhe (px),Hauteur déployée (px),Altura desplegada (px),悬浮弹出高度（像素）,
+WE_OPT_POPOUT_DELAY,Pop-out delay (ms),Ausklappverzögerung (ms),Délai de déploiement (ms),Retraso de despliegue (ms),悬浮弹出延迟（毫秒）,
+WE_OPT_UNSAFE_ZONE,Unsafe zone,Unsichere Zone,Zone à risque,Zona de riesgo,不安全区域,
+WE_OPT_LEFT,Left,Links,Gauche,Izquierda,左侧,
+WE_OPT_RIGHT,Right,Rechts,Droite,Derecha,右侧,
+WE_OPT_HEIGHT,Height,Höhe,Hauteur,Altura,高度,
+WE_OPT_EVENTS_SETTINGS_HEADER,Events Settings (Basic|Cyclic),Event-Einstellungen (Normal|Zyklisch),Paramètres des événements (Normal|Cyclique),Ajustes de eventos (Normal|Cíclico),事件设置（基础|循环）,
+#,addon_options.cpp - Event Lists (Basic|Cyclic) section; some rows shared with subscriptions_edit_window.cpp.,,,,,
+WE_OPT_EVENT_LISTS_HEADER,Event Lists (Basic|Cyclic),Event-Listen (Normal|Zyklisch),Listes d'événements (Normal|Cyclique),Listas de eventos (Normal|Cíclico),事件列表（基础|循环）,
+WE_OPT_SEARCH_LABEL,Search,Suche,Rechercher,Buscar,搜索,
+WE_OPT_RIGHT_CLICK_HINT,(right-click an entry below for more options),(Rechtsklick auf einen Eintrag unten für weitere Optionen),(clic droit sur une entrée ci-dessous pour plus d'options),(clic derecho en una entrada de abajo para más opciones),（右键下方条目获取更多选项）,
+WE_OPT_BASIC_EVENTS,Basic Events,Normale Events,Événements normaux,Eventos normales,基础事件,
+WE_OPT_CATEGORIES,Categories,Kategorien,Catégories,Categorías,分类,
+WE_OPT_SET_ALL_ICONS,Set all icons,Alle Symbole festlegen,Définir toutes les icônes,Establecer todos los iconos,设置所有图标,
+WE_OPT_CYCLIC_EVENTS,Cyclic Events,Zyklische Events,Événements cycliques,Eventos cíclicos,循环事件,
+WE_OPT_CHAT_SETTINGS,Chat settings:,Chat-Einstellungen:,Paramètres du chat :,Ajustes de chat:,聊天设置：,
+WE_OPT_PASTE_DELAY,Paste Delay,Einfügeverzögerung,Délai de collage,Retraso de pegado,粘贴延迟,
+WE_OPT_PASTE_TO,Paste to,Einfügen in,Coller dans,Pegar en,粘贴至,
+WE_OPT_BETTER_CHAT_NOT_LOADED,Better Chat not loaded (optional),Better Chat nicht geladen (optional),Better Chat non chargé (facultatif),Better Chat no cargado (opcional),未加载Better Chat（可选组件）,
+WE_OPT_BETTER_CHAT_SELF_DISABLED,"Better Chat loaded, /self disabled","Better Chat geladen, /self deaktiviert","Better Chat chargé, /self désactivé","Better Chat cargado, /self desactivado",已加载Better Chat，/self未启用,
+WE_OPT_BETTER_CHAT_SELF_ENABLED,"Better Chat loaded, /self enabled","Better Chat geladen, /self aktiviert","Better Chat chargé, /self activé","Better Chat cargado, /self activado",已加载Better Chat，/self已启用,
+WE_OPT_GROW_MARKERS_ZOOM,Grow markers when zooming in,Markierungen beim Hineinzoomen vergrößern,Agrandir les marqueurs en zoomant,Agrandar marcadores al acercar el zoom,放大地图时标记随之放大,
+WE_OPT_START_GROWING_AT,Start growing at,Beginn Vergrößerung bei,Commence à grandir à,Empieza a agrandarse en,开始放大的缩放等级,
+WE_OPT_MAX_SIZE_AT_ZOOM,Max size at 100% zoom,Maximalgröße bei 100% Zoom,Taille max. à 100% de zoom,Tamaño máx. al 100% de zoom,100%缩放时的最大标记尺寸,
+WE_OPT_GW2_API_KEY,GW2 API key,GW2-API-Schlüssel,Clé API GW2,Clave de API de GW2,GW2 API密钥,
+WE_OPT_API_KEY_DELAY_NOTE,Can take up to 5min to take effect.,"Kann bis zu 5 Min. dauern, bis Änderungen sichtbar sind.",Peut prendre jusqu'à 5 min pour prendre effet.,Puede tardar hasta 5 min en surtir efecto.,生效最多需要等待5分钟。,
+WE_OPT_API_NO_KEY,No key set,Kein API-Schlüssel gesetzt,Aucune clé définie,No hay clave configurada,未设置密钥,
+WE_OPT_API_CHECKING,Checking...,Wird geprüft...,Vérification...,Comprobando...,正在校验…,
+WE_OPT_API_CONNECTED,Connected,Verbunden,Connecté,Conectado,连接成功,
+WE_OPT_API_INVALID_KEY,Invalid key / missing permission,Ungültiger Schlüssel / fehlende Berechtigung,Clé invalide / permission manquante,Clave no válida / falta permiso,密钥无效 / 缺少权限,
+WE_OPT_API_NETWORK_ERROR,"Network error, retrying","Netzwerkfehler, erneuter Versuch","Erreur réseau, nouvelle tentative","Error de red, reintentando",网络错误，正在重试,
+WE_OPT_AUTO_MARK_API_DONE,Automatically mark API-confirmed events done,API-bestätigte Events automatisch als erledigt markieren,Marquer automatiquement les événements confirmés par l'API comme faits,Marcar automáticamente como hechos los eventos confirmados por la API,API确认事件自动标记为已完成,
+WE_OPT_AUTO_TRACK_VAULT,Auto-track weekly Wizard's Vault targets,Wöchentliche Gewölbe des Zauberers-Ziele automatisch verfolgen,Suivre automatiquement les cibles hebdomadaires du Coffre du Sorcier,Rastrear automáticamente los objetivos semanales de la Bóveda del Mago,自动追踪每周巫师宝库目标,
+WE_OPT_WEEKLY_COLOR,Weekly Color,Wochenfarbe,Couleur hebdomadaire,Color semanal,宝库目标高亮颜色,
+WE_OPT_CLEAR_DONE_MARKERS,Clear events manually marked done,Manuell als erledigt markierte Events zurücksetzen,Réinitialiser les événements marqués faits manuellement,Restablecer eventos marcados como hechos manualmente,清除手动标记的已完成事件,
+WE_OPT_ONLY_SHOW_STARTING_IN,Only show events starting in,"Zeige nur Events innerhalb der nächsten",N'afficher que les événements commençant dans,Mostrar solo eventos que empiecen en,仅显示多久之后开始的事件,
+WE_OPT_WAITING,Waiting,Pause,En attente,Esperando,等待中,
+WE_OPT_DOT_RADIUS,Dot radius,Punktradius,Rayon du point,Radio del punto,圆点半径,
+WE_OPT_ICON_SIZE,Icon size,Symbolgröße,Taille de l'icône,Tamaño del icono,图标尺寸,
+WE_OPT_SHOW_CYCLIC_ON_MAP,Show cyclic events on map,Zyklische Events auf der Karte anzeigen,Afficher les événements cycliques sur la carte,Mostrar eventos cíclicos en el mapa,地图显示循环事件,
+WE_OPT_RING_APPEARANCE,Ring appearance,Ring-Erscheinungsbild,Apparence de l'anneau,Apariencia del anillo,圆环外观设置,
+WE_OPT_RADIUS,Radius,Radius,Rayon,Radio,半径,
+WE_OPT_THICKNESS,Thickness,Dicke,Épaisseur,Grosor,厚度,
+WE_OPT_ENTRY_EXIT_WINDOW,Entry / exit window,Ein-/Austrittsfenster,Fenêtre d'entrée/sortie,Ventana de entrada/salida,进入/淡出窗口,
+WE_OPT_FUTURE_WINDOW,Future window,Zukunftsfenster,Fenêtre future,Ventana futura,未来窗口,
+WE_OPT_PAST_WINDOW,Past window,Vergangenheitsfenster,Fenêtre passée,Ventana pasada,过去窗口,
+WE_OPT_FADE_PAST_EVENTS,Fade past events,Vergangenes langsam ausblenden,Estomper les événements passés,Desvanecer eventos pasados,淡出已结束事件,
+WE_OPT_HAND,Hand,Zeiger,Aiguille,Manecilla,指针,
+WE_OPT_COLOR,Color,Farbe,Couleur,Color,颜色,
+WE_OPT_USE_TEXTURE,Use texture,Textur verwenden,Utiliser une texture,Usar textura,使用纹理,
+WE_OPT_NONE,None,Keine,Aucune,Ninguna,无,
+WE_OPT_WIDTH,Width,Breite,Largeur,Ancho,宽度,
+WE_OPT_RING_EDGE_TEXTURE,Ring edge texture,Ringkanten-Textur,Texture de bord d'anneau,Textura de borde del anillo,圆环边缘纹理,
+WE_OPT_TEXTURE,Texture,Textur,Texture,Textura,纹理,
+WE_OPT_OFFSET,Offset,Versatz,Décalage,Desfase,偏移量,
+WE_OPT_FILL_TEXTURE,Fill texture,Füll-Textur,Texture de remplissage,Textura de relleno,填充纹理,
+WE_OPT_OPACITY,Opacity,Deckkraft,Opacité,Opacidad,不透明度,
+#,addon_options.cpp - Live Events (Experimental) section,,,,,
+WE_OPT_LIVE_EVENTS_HEADER,Live Events (Experimental only EU/NA),Live-Events (Experimentell nur EU/NA),"Événements en direct (expérimental, EU/NA uniquement)","Eventos en vivo (experimental, solo EU/NA)",实时事件（实验功能，仅欧服/美服）,
+WE_OPT_LIVE_HOW_IT_WORKS_HEADING,How it works,So funktioniert's,Comment ça marche,Cómo funciona,工作原理,
+WE_OPT_LIVE_HOW_IT_WORKS_BODY,"GW2 doesn't expose a schedule for these events, so instead of predicting them, players report ""it's up right now"". Get within range of a compiled-in event - or turn on map markers below to see where they are - and a button appears in the upper-right corner (draggable to wherever you want it); click it to report the event as active, or right-click to just see recent reports without reporting yourself. Every report is broadcast in real time to everyone else on your exact map instance.","GW2 stellt für diese Events keinen Zeitplan bereit, daher melden Spieler statt einer Vorhersage ""gerade jetzt aktiv"". Komm in Reichweite eines kompilierten Events - oder aktiviere unten die Kartenmarkierungen, um zu sehen, wo sie liegen - und ein Button erscheint oben rechts (per Ziehen frei platzierbar); klick ihn, um das Event als aktiv zu melden, oder per Rechtsklick, um nur die letzten Meldungen zu sehen, ohne selbst zu melden. Jede Meldung wird in Echtzeit an alle anderen auf deiner genauen Karteninstanz übertragen.","GW2 n'expose pas de calendrier pour ces événements, donc au lieu de les prédire, les joueurs signalent qu'""ils sont actifs en ce moment"". Approchez-vous d'un événement intégré - ou activez les marqueurs de carte ci-dessous pour voir où ils se trouvent - et un bouton apparaît dans le coin supérieur droit (déplaçable où vous le souhaitez) ; cliquez dessus pour signaler l'événement comme actif, ou clic droit pour simplement voir les signalements récents sans en faire un vous-même. Chaque signalement est diffusé en temps réel à tous les autres joueurs de votre instance de carte exacte.","GW2 no expone un horario para estos eventos, así que en lugar de predecirlos, los jugadores reportan que ""está activo ahora mismo"". Acércate a un evento integrado, o activa los marcadores de mapa de abajo para ver dónde están, y aparecerá un botón en la esquina superior derecha (arrastrable a donde quieras); haz clic para reportar el evento como activo, o clic derecho para ver solo los reportes recientes sin reportar tú mismo. Cada reporte se transmite en tiempo real a todos los demás en tu instancia de mapa exacta.",GW2并未提供该类事件时间表，因此不做时间预测，由玩家上报“事件现已刷新”。抵达内置事件附近，或者开启下方地图标记查看位置后，右上角会出现可拖拽按钮；点击按钮上报事件正在运行，右键仅查看近期上报而不上报。全部上报将实时广播至该地图副本内所有玩家。,
+WE_OPT_LIVE_WHAT_DATA_HEADING,What data this uses,Welche Daten genutzt werden,Quelles données sont utilisées,Qué datos se utilizan,会上传哪些数据,
+WE_OPT_LIVE_WHAT_DATA_BODY,"A report is an event id, a server-stamped timestamp, and - only if ""Share my name in reports"" below is ticked - your character name; it's blank by default. No account name or exact position is ever sent either way. Your map instance is identified by a hash of the map ID and the server address, never the raw address itself, so nobody can see who reported what unless you've opted into sharing your name. History is capped at the last 10 reports per event, and an instance with no viewers and no reports for 12 hours wipes its own data. Nothing is sent - no connection is even made - unless ""Use Live-Events"" below is ticked; no GW2 API key is needed for that, since reporting and receiving reports within your own map instance never involves NA/EU region at all. A key only matters for the separate ""region-wide toast"" opt-in per event in the Edit Subscriptions window's Live Events tab - see that checkbox's tooltip.","Eine Meldung besteht aus einer Event-ID, einem serverseitigen Zeitstempel und - nur wenn unten ""Meinen Namen in Meldungen teilen"" aktiviert ist - deinem Charakternamen; standardmäßig ist er leer. Weder Account-Name noch genaue Position werden jemals übertragen. Deine Karteninstanz wird über einen Hash aus Karten-ID und Serveradresse identifiziert, nie über die Adresse selbst, sodass niemand sehen kann, wer was gemeldet hat, außer du hast dich fürs Teilen deines Namens entschieden. Der Verlauf ist auf die letzten 10 Meldungen pro Event begrenzt, und eine Instanz ohne Zuschauer und ohne Meldungen für 12 Stunden löscht ihre eigenen Daten. Es wird nichts gesendet - es wird nicht einmal eine Verbindung aufgebaut - solange unten nicht ""Live-Events abonnieren"" aktiviert ist; dafür ist kein GW2-API-Schlüssel nötig, da Melden und Empfangen innerhalb deiner eigenen Karteninstanz nie die Region NA/EU betrifft. Ein Schlüssel ist nur für das separate ""regionsweite Benachrichtigung""-Opt-in pro Event im Live-Events-Tab des Fensters ""Abos bearbeiten"" relevant - siehe den Tooltip dieser Checkbox.","Un signalement contient un identifiant d'événement, un horodatage estampillé par le serveur, et - uniquement si ""Partager mon nom dans les signalements"" ci-dessous est coché - votre nom de personnage ; il est vide par défaut. Ni le nom du compte ni la position exacte ne sont jamais envoyés. Votre instance de carte est identifiée par un hachage de l'ID de carte et de l'adresse du serveur, jamais l'adresse brute elle-même, donc personne ne peut voir qui a signalé quoi à moins que vous n'ayez choisi de partager votre nom. L'historique est limité aux 10 derniers signalements par événement, et une instance sans spectateurs et sans signalement pendant 12 heures efface ses propres données. Rien n'est envoyé - aucune connexion n'est même établie - à moins que ""Utiliser les Événements en direct"" ci-dessous ne soit coché ; aucune clé API GW2 n'est nécessaire pour cela, car signaler et recevoir des signalements au sein de votre propre instance de carte n'implique jamais la région NA/EU. Une clé n'est utile que pour l'option distincte ""notification à l'échelle de la région"" par événement, dans l'onglet Événements en direct de la fenêtre Modifier les abonnements - voir l'infobulle de cette case à cocher.","Un reporte consiste en un id de evento, una marca de tiempo sellada por el servidor y, solo si ""Compartir mi nombre en los reportes"" de abajo está marcado, tu nombre de personaje; está vacío de forma predeterminada. Nunca se envía el nombre de cuenta ni la posición exacta. Tu instancia de mapa se identifica mediante un hash del ID de mapa y la dirección del servidor, nunca la dirección en sí, por lo que nadie puede ver quién reportó qué a menos que hayas optado por compartir tu nombre. El historial se limita a los últimos 10 reportes por evento, y una instancia sin espectadores ni reportes durante 12 horas borra sus propios datos. No se envía nada, ni siquiera se establece una conexión, a menos que ""Usar Eventos en vivo"" de abajo esté marcado; no se necesita ninguna clave de API de GW2 para eso, ya que reportar y recibir reportes dentro de tu propia instancia de mapa nunca involucra la región NA/EU. Una clave solo importa para la opción separada de ""notificación a nivel de región"" por evento, en la pestaña Eventos en vivo de la ventana Editar suscripciones; consulta la información sobre esa casilla.",上报内容包含事件ID、服务器时间戳；仅当开启“在上报中共享我的角色名”才附带角色名，默认匿名。不会发送账号名、精确坐标。地图副本由地图ID与服务器地址的哈希值识别，不会传输原始地址；除非主动开启共享名字，其他人无法获知上报人。每个事件最多保存最近10条上报记录；副本12小时无查看、无上报会清空数据。未开启“启用实时事件”则不会建立连接、不会传输任何数据；副本内上报接收无需GW2API密钥。API密钥仅用于编辑订阅窗口‑实时事件标签页内独立的全区弹窗订阅选项，请查看对应复选框提示。,
+WE_OPT_LIVE_WHERE_HEADING,What this could become,Was das werden könnte,Ce que cela pourrait devenir,En qué podría convertirse esto,未来规划,
+WE_OPT_LIVE_WHERE_BODY,"The roster below is small, compiled-in, and all-or-nothing for now - there's no picking individual events. As the reporting pipeline proves reliable, this could grow into a larger roster, per-event opt-in, and toast notifications like the ones Basic/Cyclic subscriptions already get - eventually graduating out of Experimental. This is a project that relies on trust: the more players trust it, the more precise the reports get, and the more players might join in turn. Feedback of any kind, and wishes for events worth adding, are welcome - message Xenophy.2716 in-game or find me on the Raidcore Discord.","Die Liste unten ist klein, fest kompiliert und derzeit nur als Ganzes an- oder abschaltbar - einzelne Events lassen sich nicht auswählen. Sobald sich die Melde-Pipeline als zuverlässig erweist, könnte daraus eine größere Liste mit Opt-in pro Event und Benachrichtigungen wie bei Normal-/Zyklischen Abos werden - und irgendwann aus dem Experimentell-Status herauswachsen. Dieses Projekt lebt von Vertrauen: Je mehr Spieler es nutzen, desto genauer werden die Meldungen, und desto mehr Spieler steigen im Gegenzug ein. Feedback jeder Art sowie Wünsche für hinzuzufügende Events sind willkommen - schreib Xenophy.2716 im Spiel an oder finde mich auf dem Raidcore-Discord.","La liste ci-dessous est petite, intégrée et actuellement tout-ou-rien - il n'est pas possible de choisir des événements individuels. Si le système de signalement se révèle fiable, cela pourrait évoluer vers une liste plus grande, un choix par événement, et des notifications comme celles déjà proposées pour les abonnements Normal/Cyclique - sortant éventuellement du statut expérimental. Ce projet repose sur la confiance : plus les joueurs lui font confiance, plus les signalements deviennent précis, et plus de joueurs pourraient à leur tour rejoindre. Tous les retours, ainsi que les souhaits d'événements à ajouter, sont les bienvenus - contactez Xenophy.2716 en jeu ou trouvez-moi sur le Discord Raidcore.","La lista de abajo es pequeña, está integrada y por ahora es todo o nada; no se pueden elegir eventos individuales. A medida que el proceso de reportes demuestre ser fiable, esto podría convertirse en una lista más grande, con opción por evento y notificaciones como las que ya tienen las suscripciones Normal/Cíclicas, saliendo eventualmente del estado experimental. Este es un proyecto que depende de la confianza: cuantos más jugadores confíen en él, más precisos serán los reportes, y más jugadores podrían unirse a su vez. Cualquier comentario, así como sugerencias de eventos que valga la pena añadir, son bienvenidos: escribe a Xenophy.2716 en el juego o búscame en el Discord de Raidcore.",当前内置事件列表有限，只能整体开关，无法单独选取事件。若上报链路稳定，后续将扩充事件列表，支持单事件开关，并提供与基础/循环事件相同的弹窗通知，最终脱离实验状态。本功能依赖玩家信任，越多玩家使用，上报准确度越高。欢迎反馈问题、提交新增事件需求；游戏内私信Xenophy.2716，或前往Raidcore Discord联系。,
+WE_OPT_LIVE_SUBSCRIBE_CHECKBOX,Use Live-Events,Live-Events nutzen,Utiliser les Événements en direct,Usar Eventos en vivo,启用实时事件,
+WE_OPT_LIVE_SUBSCRIBE_TIP,"Follows each live event while on their map: shows a button
+in the upper-right corner naming any of them while you're
+within range, on any map that has one. Click it to report the
+event as active to everyone else on your map instance and see
+recent reports; right-click to just see recent reports without
+reporting. No GW2 API key needed - that's only required for the
+separate region-wide toast opt-in (Edit Subscriptions window).
+Unticked, this feature does nothing at all - no connection to
+the relay server is ever made.","Folgt jedem Live-Event auf deren Karte: zeigt oben rechts
+einen Button mit dem Namen des jeweiligen Events, sobald du
+in Reichweite bist, auf jeder Karte, die eins hat. Klicken
+meldet das Event als aktiv an alle anderen auf deiner
+Karteninstanz und zeigt die letzten Meldungen; Rechtsklick zeigt
+nur die letzten Meldungen, ohne selbst zu melden. Kein
+GW2-API-Schlüssel nötig - der wird nur für das separate
+regionsweite Benachrichtigungs-Opt-in gebraucht (Fenster ""Abos
+bearbeiten""). Deaktiviert macht dieses Feature gar nichts - es
+wird nie eine Verbindung zum Relay-Server aufgebaut.","Suit chaque événement en direct sur sa carte : affiche un bouton
+dans le coin supérieur droit nommant l'un d'eux dès que vous êtes
+à portée, sur toute carte qui en possède un. Cliquez dessus pour signaler
+l'événement comme actif à tous les autres sur votre instance de carte et
+voir les signalements récents ; clic droit pour simplement voir les
+signalements récents sans signaler. Aucune clé API GW2 n'est nécessaire -
+elle n'est requise que pour l'option distincte de notification à l'échelle de
+la région (fenêtre Modifier les abonnements).
+Décoché, cette fonctionnalité ne fait rien du tout - aucune connexion au
+serveur relais n'est jamais établie.","Sigue cada evento en vivo en su mapa: muestra un botón
+en la esquina superior derecha con el nombre del evento en cuanto estás
+dentro de alcance, en cualquier mapa que tenga uno. Haz clic para reportar
+el evento como activo a todos los demás en tu instancia de mapa y ver
+los reportes recientes; clic derecho para ver solo los reportes recientes
+sin reportar. No se necesita clave de API de GW2: solo es necesaria
+para la opción separada de notificación a nivel de región (ventana Editar
+suscripciones).
+Desmarcado, esta función no hace absolutamente nada: nunca se
+establece conexión con el servidor de retransmisión.","在对应地图追踪实时事件；抵达事件范围后右上角出现带事件名称的按钮。
+点击向本副本玩家上报事件已激活并查看历史上报；右键仅查看上报，不上报。
+不需要GW2API密钥；密钥仅用于编辑订阅窗口里独立的全区弹窗订阅。关闭该选项，
+功能完全不运行，不会连接中转服务器。",
+WE_OPT_LIVE_DEBUG_WS_BUTTON,Debug WS Traffic...,WS-Traffic debuggen...,Déboguer le trafic WS...,Depurar tráfico WS...,WebSocket流量调试…,
+WE_OPT_LIVE_DEBUG_WS_TIP,"Opens a window showing every message sent/received on the live-
+events WebSocket connection (Cloudflare Durable Object), from the
+moment the addon loaded. Also mirrored into Nexus's own log
+under the ""WorldEvents-WS"" channel for a record that survives
+a crash.","Öffnet ein Fenster mit jeder gesendeten/empfangenen Nachricht der
+Live-Events-WebSocket-Verbindung (Cloudflare Durable Object), ab
+dem Moment, in dem das Addon geladen wurde. Wird außerdem in
+Nexus' eigenes Log unter dem Kanal ""WorldEvents-WS"" gespiegelt,
+für einen Verlauf, der einen Absturz übersteht.","Ouvre une fenêtre affichant chaque message envoyé/reçu sur la connexion
+WebSocket des événements en direct (Cloudflare Durable Object), depuis le
+moment où l'addon s'est chargé. Également reflété dans le propre journal
+de Nexus sous le canal ""WorldEvents-WS"" pour conserver une trace qui
+survit à un plantage.","Abre una ventana que muestra cada mensaje enviado/recibido en la conexión
+WebSocket de eventos en vivo (Cloudflare Durable Object), desde el
+momento en que se cargó el addon. También se refleja en el propio
+registro de Nexus bajo el canal ""WorldEvents-WS"" para tener un historial
+que sobreviva a un fallo.","打开窗口展示插件加载以来实时事件WebSocket（Cloudflare持久对象）
+全部收发消息。日志同时同步至Nexus日志频道WorldEvents‑WS，程序崩溃后仍保留记录。",
+WE_OPT_LIVE_NO_API_KEY_WARNING,"No GW2 API key set - reporting and recent-reports still work fine on your own map instance.
+A key only adds region-wide toasts for events you opt into below in Edit Subscriptions.","Kein GW2-API-Schlüssel gesetzt - Melden und die letzten Meldungen funktionieren trotzdem auf
+deiner eigenen Karteninstanz. Ein Schlüssel fügt nur regionsweite Benachrichtigungen für Events
+hinzu, die du unten im Fenster ""Abos bearbeiten"" abonnierst.","Aucune clé API GW2 définie - le signalement et les signalements récents fonctionnent quand même
+sur votre propre instance de carte. Une clé n'ajoute que des notifications à l'échelle de la région
+pour les événements auxquels vous vous abonnez ci-dessous dans Modifier les abonnements.","No hay clave de API de GW2 configurada: reportar y ver reportes recientes funciona igualmente
+en tu propia instancia de mapa. Una clave solo añade notificaciones a nivel de región
+para los eventos a los que te suscribas abajo en Editar suscripciones.",未设置GW2API密钥：副本内上报与查看上报仍可正常工作。密钥仅为编辑订阅窗口中开启全区弹窗通知所用。,
+WE_OPT_LIVE_REGION_UNKNOWN_WARNING,"Key set, but region not resolved yet - make sure it has the ""account"" permission and give
+the next poll a moment.","Schlüssel gesetzt, aber Region noch nicht ermittelt - stelle sicher, dass er die
+""account""-Berechtigung hat, und gib der nächsten Abfrage einen Moment.","Clé définie, mais région non encore déterminée - assurez-vous qu'elle a la permission
+""account"" et laissez un instant à la prochaine vérification.","Clave configurada, pero la región aún no se ha determinado: asegúrate de que tenga el permiso
+""account"" y dale un momento a la siguiente consulta.",密钥已填写，但尚未解析出服务器地区；请确认密钥拥有account权限，等待下一次轮询。,
+WE_LIVE_REPORT_COLOR,Live report,Live-Meldung,Signalement en direct,Reporte en vivo,实时上报通知颜色,
+WE_LIVE_REPORT_COLOR_TIP,"Accent color for a subscribed Live Event's ""reported
+active"" toast, separate from the Active color above so
+a player report reads differently from a scheduled one.","Akzentfarbe für die ""gerade aktiv gemeldet""-Benachrichtigung
+eines abonnierten Live-Events, getrennt von der Farbe ""Aktiv""
+oben, damit eine Spielermeldung sich von einer geplanten
+unterscheidet.","Couleur d'accent pour la notification ""signalé actif"" d'un Événement en
+direct abonné, distincte de la couleur Actif ci-dessus afin qu'un
+signalement de joueur se distingue d'un événement planifié.","Color de acento para la notificación de ""reportado como activo"" de un
+Evento en vivo suscrito, distinto del color Activo de arriba para que
+un reporte de jugador se distinga de uno programado.",订阅的实时事件收到玩家上报后的弹窗强调色，独立于普通“进行中”颜色，区分玩家上报事件与计划事件。,
+WE_OPT_LIVE_MOVE_BUTTON,Move button,Button verschieben,Déplacer le bouton,Mover botón,调整上报按钮位置,
+WE_OPT_LIVE_MOVE_BUTTON_TIP,"Shows the report button at its current position - even when
+you're not subscribed or not near an event - so you can drag
+it wherever you'd like. Untick when you're done positioning it;
+the position is remembered.","Zeigt den Melde-Button an seiner aktuellen Position - auch wenn
+du nicht abonniert hast oder nicht in Eventnähe bist - damit du
+ihn frei verschieben kannst. Deaktiviere die Option, wenn du
+fertig bist; die Position wird gespeichert.","Affiche le bouton de signalement à sa position actuelle - même si vous
+n'êtes pas abonné ou pas près d'un événement - afin que vous puissiez le
+faire glisser où vous le souhaitez. Décochez une fois le positionnement
+terminé ; la position est mémorisée.","Muestra el botón de reporte en su posición actual, incluso si no estás
+suscrito o no estás cerca de un evento, para que puedas arrastrarlo a
+donde quieras. Desmárcalo cuando termines de posicionarlo; la posición
+se recuerda.",强制显示上报按钮（无需订阅、无需靠近事件），方便拖拽摆放位置。摆放完成取消勾选，位置自动保存。,
+WE_OPT_LIVE_SHOW_REPORTS_WINDOW,Show live event reports window,Live-Event-Meldefenster anzeigen,Afficher la fenêtre des signalements en direct,Mostrar ventana de reportes en vivo,显示实时事件上报窗口,
+WE_OPT_LIVE_SHOW_REPORTS_WINDOW_TIP,"Keeps the reports window (server status, every live event on
+your current map instance) open regardless of proximity to any
+event. Left unticked here, the window still opens on its own
+whenever you click a report button, and stays open across
+restarts if you leave this ticked.","Hält das Meldefenster (Serverstatus, jedes Live-Event auf deiner
+aktuellen Karteninstanz) unabhängig von der Nähe zu einem Event
+geöffnet. Bleibt diese Option deaktiviert, öffnet sich das Fenster
+trotzdem von selbst, sobald du einen Melde-Button klickst, und
+bleibt über Neustarts hinweg geöffnet, wenn diese Option aktiv ist.","Garde la fenêtre des signalements (statut du serveur, chaque événement en
+direct sur votre instance de carte actuelle) ouverte quelle que soit la
+proximité d'un événement. Laissée décochée ici, la fenêtre s'ouvre quand
+même d'elle-même dès que vous cliquez sur un bouton de signalement, et
+reste ouverte après redémarrage si vous laissez ceci coché.","Mantiene la ventana de reportes (estado del servidor, cada evento en
+vivo en tu instancia de mapa actual) abierta sin importar la proximidad
+a ningún evento. Si se deja desmarcada aquí, la ventana igualmente se
+abre por sí sola en cuanto haces clic en un botón de reporte, y
+permanece abierta tras reiniciar si dejas esto marcado.","保持上报窗口常开，展示服务器状态与当前副本全部实时事件，不受事件距离限制。
+关闭勾选时，点击上报按钮仍会临时打开窗口；勾选则重启插件后依旧保持窗口开启。",
+WE_OPT_LIVE_LOCK_WINDOW,Lock window,Fenster sperren,Verrouiller la fenêtre,Bloquear ventana,锁定窗口,
+WE_OPT_LIVE_LOCK_WINDOW_TIP,"Drops the title bar, background, and resize/move handles,
+leaving just the report text pinned in place - a low-profile
+always-on HUD instead of an interactive window. Position it
+by dragging the title bar before ticking this.","Entfernt Titelleiste, Hintergrund und Griffe zum Verschieben/
+Skalieren, sodass nur der Meldetext fest an Ort und Stelle bleibt
+- ein unauffälliges Dauer-HUD statt eines interaktiven Fensters.
+Positioniere es per Ziehen an der Titelleiste, bevor du dies
+aktivierst.","Supprime la barre de titre, l'arrière-plan et les poignées de
+redimensionnement/déplacement, ne laissant que le texte du signalement
+fixé en place - un HUD discret et toujours actif au lieu d'une fenêtre
+interactive. Positionnez-la en faisant glisser la barre de titre avant
+d'activer ceci.","Elimina la barra de título, el fondo y los tiradores de redimensionar/
+mover, dejando solo el texto del reporte fijado en su sitio: un HUD
+discreto siempre activo en lugar de una ventana interactiva. Posiciónala
+arrastrando la barra de título antes de activar esto.","移除标题栏、背景、缩放拖动控件，仅保留上报文字固定显示；转为极简常驻HUD，
+不再是可交互窗口。开启前请先拖动标题栏摆好位置。",
+WE_OPT_LIVE_SHOW_MAP_DOTS,Show live event locations on map,Live-Event-Standorte auf der Karte anzeigen,Afficher les emplacements des événements en direct sur la carte,Mostrar ubicaciones de eventos en vivo en el mapa,地图上显示实时事件点位,
+WE_OPT_LIVE_SHOW_MAP_DOTS_TIP,"Draws a ring at each live event's location while the
+full-screen map is open - just a rough visual hint of
+where to watch. Purely decorative; works whether or not
+you're subscribed above.","Zeichnet bei geöffneter Vollbildkarte einen Ring an jedem
+Live-Event-Standort - nur ein grober visueller Hinweis, wo
+man hinschauen sollte. Rein dekorativ; funktioniert unabhängig
+davon, ob du oben abonniert hast.","Dessine un anneau à l'emplacement de chaque événement en direct lorsque
+la carte plein écran est ouverte - juste un indice visuel approximatif de
+l'endroit où regarder. Purement décoratif ; fonctionne que vous soyez
+abonné ci-dessus ou non.","Dibuja un anillo en la ubicación de cada evento en vivo mientras el mapa
+a pantalla completa está abierto: solo una pista visual aproximada de
+dónde mirar. Puramente decorativo; funciona estés o no suscrito arriba.",打开全屏大地图时，在实时事件地点绘制圆环标记，仅作位置提示。纯视觉装饰，无论是否订阅都生效。,
+WE_OPT_LIVE_ROSTER_NOTE,"Compiled-in, player-reportable events with no fixed schedule.","Fest kompilierte, von Spielern meldbare Events ohne festen Zeitplan.","Événements intégrés, signalables par les joueurs, sans horaire fixe.","Eventos integrados, reportables por jugadores, sin horario fijo.",内置无固定时间表、依靠玩家上报的事件。,
+#,live_events_ui.cpp - report button (upper-right corner overlay) and its tooltips/reports window.,,,,,
+WE_LIVE_DRAG_BUTTON,Drag to move,Ziehen zum Verschieben,Glisser pour déplacer,Arrastrar para mover,拖拽移动,
+WE_LIVE_DRAG_TOOLTIP,"Drag to reposition the live-event report button.
+Untick ""Move button"" in options when done.","Ziehen, um den Live-Event-Melde-Button neu zu positionieren.
+Deaktiviere ""Button verschieben"" in den Optionen, wenn fertig.","Glissez pour repositionner le bouton de signalement d'événement en direct.
+Décochez ""Déplacer le bouton"" dans les options une fois terminé.","Arrastra para reposicionar el botón de reporte de eventos en vivo.
+Desmarca ""Mover botón"" en las opciones cuando termines.",拖拽调整实时事件上报按钮位置；完成后关闭设置里的“调整上报按钮位置”。,
+WE_LIVE_COOLDOWN_TOOLTIP_FMT,"Reported recently - %llu s before you can report ""%s"" again.
+Right-click: just show recent reports.","Kürzlich gemeldet - noch %llu s, bevor du ""%s"" erneut melden kannst.
+Rechtsklick: nur die letzten Meldungen anzeigen.","Signalé récemment - encore %llu s avant de pouvoir signaler ""%s"" à nouveau.
+Clic droit : afficher uniquement les signalements récents.","Reportado recientemente: %llu s antes de poder reportar ""%s"" de nuevo.
+Clic derecho: mostrar solo los reportes recientes.",刚刚上报过，还需%llu秒才可再次上报“%s”。右键：仅查看近期上报。,
+WE_LIVE_REPORT_TOOLTIP_FMT,"Click: report ""%s"" as active and show recent reports.
+Right-click: just show recent reports, without reporting.","Klicken: ""%s"" als aktiv melden und die letzten Meldungen anzeigen.
+Rechtsklick: nur die letzten Meldungen anzeigen, ohne zu melden.","Cliquer : signaler ""%s"" comme actif et afficher les signalements récents.
+Clic droit : afficher uniquement les signalements récents, sans signaler.","Clic: reportar ""%s"" como activo y mostrar los reportes recientes.
+Clic derecho: mostrar solo los reportes recientes, sin reportar.",点击：上报“%s”正在运行并查看近期上报；右键：仅查看近期上报，不提交上报。,
+WE_LIVE_SHARD_LABEL_FMT,Shard: %s,Shard: %s,Shard : %s,Shard: %s,副本分片：%s,
+WE_LIVE_REGION_LABEL_FMT,Region: %s,Region: %s,Région : %s,Región: %s,服务器地区：%s,
+WE_LIVE_ONLINE_COUNT_FMT,(%d online in %s),(%d online in %s),(%d en ligne sur %s),(%d en línea en %s),（%d人在线，位于%s）,
+WE_LIVE_NOT_IN_GAME,Not in game.,Nicht im Spiel.,Pas en jeu.,No estás en el juego.,未进入游戏,
+WE_LIVE_EMPTY_SUFFIX,(empty),(leer),(vide),(vacío),（空）,
+WE_LIVE_AGO_FMT,%s ago,vor %s,il y a %s,hace %s,%s前,
+WE_LIVE_NO_EVENTS_ON_MAP,No live events on this map.,Keine Live-Events auf dieser Karte.,Aucun événement en direct sur cette carte.,No hay eventos en vivo en este mapa.,该地图没有实时事件。,
+#,icon_whitener.cpp - Icon Whitener tool (options panel button + its popup).,,,,,
+WE_ICONWHITE_TITLE,Icon Whitener,Symbol-Aufheller,Blanchisseur d'icônes,Blanqueador de iconos,图标白化工具,
+WE_ICONWHITE_INTRO,Map icons are tinted at draw time with a multiplicative color blend. This only looks correct when the icon's RGB is neutral gray - a colored image will tint unpredictably instead of cleanly turning red / orange / gray.,"Kartensymbole werden beim Zeichnen mit einer multiplikativen Farbmischung eingefärbt. Das sieht nur korrekt aus, wenn das RGB des Symbols neutral grau ist - ein farbiges Bild färbt sich unvorhersehbar ein, statt sauber rot, orange oder grau zu werden.",Les icônes de carte sont teintées au moment du dessin par un mélange de couleurs multiplicatif. Cela ne rend correctement que lorsque le RVB de l'icône est gris neutre - une image colorée se teintera de façon imprévisible au lieu de devenir proprement rouge / orange / gris.,Los iconos del mapa se tiñen al dibujarse mediante una mezcla de color multiplicativa. Esto solo se ve correcto cuando el RGB del icono es gris neutro; una imagen en color se teñirá de forma impredecible en lugar de volverse limpiamente roja / naranja / gris.,"地图图标渲染使用乘法混色；仅当图标RGB为中性灰时着色效果才正常。
+彩色原图会产生不可预期的偏色，无法干净渲染为红/橙/灰色。",
+WE_ICONWHITE_INSTRUCTIONS,Pick an icon from the textures/ folder and press Convert. The image will be desaturated to luminance and normalized so the brightest pixel becomes white. The result is saved as <name>_white.png next to the original.,"Wähle ein Symbol aus dem textures/-Ordner und drücke Konvertieren. Das Bild wird auf Helligkeit entsättigt und so normalisiert, dass der hellste Pixel weiß wird. Das Ergebnis wird als <Name>_white.png neben dem Original gespeichert.",Choisissez une icône dans le dossier textures/ et appuyez sur Convertir. L'image sera désaturée en luminance et normalisée pour que le pixel le plus clair devienne blanc. Le résultat est enregistré sous <nom>_white.png à côté de l'original.,Elige un icono de la carpeta textures/ y pulsa Convertir. La imagen se desaturará a luminancia y se normalizará para que el píxel más brillante se vuelva blanco. El resultado se guarda como <nombre>_white.png junto al original.,"从textures文件夹选择图标并点击转换。图片将被去色仅保留亮度信息，
+做归一化处理使最亮像素变为纯白；输出文件另存为<文件名>_white.png保存在原图旁。",
+WE_ICONWHITE_ICON_LABEL,Icon,Symbol,Icône,Icono,图标,
+WE_ICONWHITE_REFRESH,Refresh,Aktualisieren,Actualiser,Actualizar,刷新,
+WE_ICONWHITE_CONVERT,Convert & Save,Konvertieren & Speichern,Convertir et enregistrer,Convertir y guardar,转换并保存,
+WE_ICONWHITE_CLOSE,Close,Schließen,Fermer,Cerrar,关闭,
+WE_ICONWHITE_SAVED_AS,Saved as: ,Gespeichert als: ,Enregistré sous : ,Guardado como: ,已保存为：,

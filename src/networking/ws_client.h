@@ -18,10 +18,11 @@
 // Server is the timestamp authority: the client sends event_id/reporter_name/
 // region, never a timestamp; the server stamps ts at receipt and echoes the whole
 // thing back to everyone connected, including the sender - sidesteps client
-// clock-skew entirely. reporter_name/region (live-toast-handoff.md sections 1/2)
-// ride this same per-shard message; a report still only ever reaches this shard's
-// own viewers - notification_client.h's separate connection handles region-wide
-// toast delivery, fed by the relay in that same doc's section 3/8.
+// clock-skew entirely. reporter_name (empty unless ShareNameInReports is on,
+// settings_table.h) and region ride this same per-shard message; a report still
+// only ever reaches this shard's own viewers - notification_client.h's separate
+// connection handles region-wide toast delivery, fed by the notify worker in
+// server-notify/.
 //
 // AddonUnload MUST call ShutdownWsClient() in addition to the existing
 // WaitForBackgroundThreads(2000) - a polled wait alone isn't a strong enough
@@ -48,7 +49,7 @@
 //                  events
 // timestampUnix    server-stamped seconds since epoch (UTC) - see file header
 // reporterName     empty if sharing was off, or for a pre-upgrade broadcast
-//                  (live-toast-handoff.md section 1; see HandleIncomingMessage)
+//                  (see HandleIncomingMessage)
 // region           "NA"/"EU" as sent by the reporter, empty for the same reason
 //                  as reporterName
 //--------------------------------------------------------------------------------
@@ -113,11 +114,11 @@ void UpdateShard(const ShardIdentity& shard);
 // "region":<GetLiveEventsRegion() as wire string>} on the current connection -
 // region is derived internally at send time (GetLiveEventsRegion, gw2_api.h, is
 // cheap enough to call on-demand), never a parameter. Pass reporterName ==
-// GetMumbleCharacterName() when ShareNameInReports is on, "" when it's off (live-
-// toast-handoff.md section 1) - this function doesn't read that setting, so the
-// report-button call site stays the one place that decision is made. No-op if not
-// currently connected - see file header limitation note. Safe to call from any
-// thread, including the render thread from a button's on-click.
+// GetMumbleCharacterName() when ShareNameInReports (settings_table.h) is on, ""
+// when it's off - this function doesn't read that setting, so the report-button
+// call site stays the one place that decision is made. No-op if not currently
+// connected - see file header limitation note. Safe to call from any thread,
+// including the render thread from a button's on-click.
 //--------------------------------------------------------------------------------
 void SendReport(const std::string& eventId, const std::string& reporterName);
 

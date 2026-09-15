@@ -20,13 +20,13 @@
 // entry that no longer resolves against events_cyclic.cpp, but can't verify
 // titleKeywords against ArenaNet's live wording.
 //
-// groupName/slotName in targets must match an existing CyclicGroup::name +
-// Slot::name (events_cyclic.cpp) exactly, using the addon's internal names, not
-// the in-game displayed name. Point at the slot(s) that actually complete the
+// groupId/slotId in targets must match an existing CyclicGroup::id + Slot::id
+// (events_cyclic.cpp) exactly. Point at the slot(s) that actually complete the
 // meta, not the whole group.
 //--------------------------------------------------------------------------------
 
 #include "events.h"
+#include "events_storage.h"
 #include "gw2_api.h"
 #include "weekly_vault.h"
 
@@ -36,32 +36,32 @@
 std::vector<CyclicWeeklyMapping> g_CyclicWeeklyObjectives =
 {
     { {"Cantha", "Maguuma Jungle"}, {
-        { "Seitung Province",   "Aetherblade Assault" },
-        { "New Kaineng City",   "Kaineng Blackout" },
-        { "The Echovald Wilds", "Gang War" },
-        { "Dragon's End", "Battle for the Jade Sea" },
+        { "seitung_province",   "aetherblade_assault" },
+        { "new_kaineng_city",   "kaineng_blackout" },
+        { "the_echovald_wilds", "gang_war" },
+        { "dragons_end", "battle_for_the_jade_sea" },
     }},
     { {"Castora", "Orr"}, {
-        { "Shipwreck Strand", "Hammerhart Rumble" },
-        { "Starlit Weald",    "Secrets of the Weald" },
+        { "shipwreck_strand", "hammerhart_rumble" },
+        { "starlit_weald",    "secrets_of_the_weald" },
     }},
     { {"Heart of Maguuma", "Ascalon"}, {
-        { "Auric Basin",     "Octovine" },
-        { "Tangled Depths",  "Chak Gerent" },
-        { "Dragon's Stand",  "Mordremoth Start" },
+        { "auric_basin",     "octovine" },
+        { "tangled_depths",  "chak_gerent" },
+        { "dragons_stand",   "mordremoth_start" },
     }},
     { {"Horn of Maguuma", "Shiverpeak Mountains"}, {
-        { "Skywatch Archipelago", "Unlocking the Wizard's Tower" }, //. different CyclicGroup, same name
-        { "Amnytas",         "Defense of Amnytas" },
+        { "skywatch_archipelago", "unlocking_the_wizards_tower" }, //. different CyclicGroup, same slot title
+        { "amnytas",              "defense_of_amnytas" },
     }},
     { {"Janthir", "Orr"}, {
-        { "Janthir Syntri", "Of Mists and Monsters" },
-        { "Bava Nisos",     "A Titanic Voyage" },
+        { "janthir_syntri", "of_mists_and_monsters" },
+        { "bava_nisos",     "a_titanic_voyage" },
     }},
     { {"Crystal Desert", "Kryta"}, {
-        { "Elon Riverlands", "The Path to Ascension" },
-        { "The Desolation",  "Maws of Torment" },
-        { "Domain of Vabbi", "Forged with Fire" },
+        { "elon_riverlands", "the_path_to_ascension" },
+        { "the_desolation",  "maws_of_torment" },
+        { "domain_of_vabbi", "forged_with_fire" },
     }},
 };
 
@@ -87,16 +87,23 @@ static std::string AsciiLower(const std::string& s)
 // IsBasicEventWeeklyTarget   (pairs with: IsCyclicSlotWeeklyTarget)
 //--------------------------------------------------------------------------------
 // See weekly_vault.h for the full contract. Searches GetLiveWeeklyObjectives()
-// (gw2_api.h) for a live title containing the event's own name.
+// (gw2_api.h) for a live title containing the event's COMPILED-IN DEFAULT name -
+// DisplayNameEnglish(*defaultEv) (events_storage.h), never the resolved event's
+// own (possibly renamed/localized) name, since ArenaNet's API text never changes
+// with it.
 //--------------------------------------------------------------------------------
-bool IsBasicEventWeeklyTarget(const std::string& eventName, bool& outComplete)
+bool IsBasicEventWeeklyTarget(const std::string& eventId, bool& outComplete)
 {
     //_ Only Core Bosses (non-empty apiWorldBossId) are ever in the Vault rotation.
     auto evIt = std::find_if(g_Events.begin(), g_Events.end(),
-        [&](const WorldEvent& e) { return e.name == eventName; });
+        [&](const WorldEvent& e) { return e.id == eventId; });
     if (evIt == g_Events.end() || evIt->apiWorldBossId.empty()) return false;
 
-    std::string needle = AsciiLower(eventName);
+    //_ Every Core Boss is compiled-in; a missing default means eventId isn't actually one, so bail.
+    const WorldEvent* defaultEv = GetDefaultEvent(eventId);
+    if (!defaultEv) return false;
+
+    std::string needle = AsciiLower(DisplayNameEnglish(*defaultEv));
     for (const auto& live : GetLiveWeeklyObjectives())
     {
         if (live.titleLower.find(needle) == std::string::npos) continue; //. not this one - keep looking
@@ -114,12 +121,12 @@ bool IsBasicEventWeeklyTarget(const std::string& eventName, bool& outComplete)
 // a mapping listing this slot, then GetLiveWeeklyObjectives() for a live title
 // matching ALL of that mapping's titleKeywords.
 //--------------------------------------------------------------------------------
-bool IsCyclicSlotWeeklyTarget(const std::string& groupName, const std::string& slotName, bool& outComplete)
+bool IsCyclicSlotWeeklyTarget(const std::string& groupId, const std::string& slotId, bool& outComplete)
 {
     for (const auto& mapping : g_CyclicWeeklyObjectives)
     {
         bool isTarget = std::any_of(mapping.targets.begin(), mapping.targets.end(),
-            [&](const CyclicWeeklyTarget& t) { return t.groupName == groupName && t.slotName == slotName; });
+            [&](const CyclicWeeklyTarget& t) { return t.groupId == groupId && t.slotId == slotId; });
         if (!isTarget) continue; //. not this mapping's slot
 
         for (const auto& live : GetLiveWeeklyObjectives())

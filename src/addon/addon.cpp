@@ -15,11 +15,13 @@
 #include "cyclicrender.h"
 #include "events.h"
 #include "events_categories.h"
+#include "events_migration.h"
 #include "events_storage.h"
 #include "events_tracking.h"
 #include "gw2_api.h"
 #include "imgui.h"
 #include "live_events_ui.h"
+#include "localization.h"
 #include "maprender.h"
 #include "notification_client.h"
 #include "settings.h"
@@ -52,7 +54,7 @@ float g_AvgSubsNotifyDataMs   = 0.0f, g_AvgSubsNotifyDrawMs   = 0.0f;
 //--------------------------------------------------------------------------------
 // Writes every on-disk JSON file this addon owns, in the one safe order: events
 // first, then categories/subscriptions/tracking, since those three reference
-// g_Events/g_CyclicGroups by name and need events.json's keys already reflecting
+// g_Events/g_CyclicGroups by id and need events.json's keys already reflecting
 // the final merged state.
 //
 // Called from both AddonLoad (persisting merged defaults+disk state on first
@@ -119,6 +121,9 @@ void AddonLoad(AddonAPI_t* aAPI)
     MumbleLink = (Mumble::Data*)    APIDefs->DataLink_Get(DL_MUMBLE_LINK);
     NexusLink  = (NexusLinkData_t*) APIDefs->DataLink_Get(DL_NEXUS_LINK);
 
+    //_ Registers every kLocalizationTable/kEventNameLocalizationTable row with Nexus - before anything below can render text via Tr().
+    Localization_Load();
+
     g_AddonDir = APIDefs->Paths_GetAddonDirectory("WorldEvents");
 
     //_ Resets the WS debug ring buffer; must precede InitWsClient so nothing it logs is dropped (see ws_debug_log.h).
@@ -132,13 +137,16 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
 
+    //_ Must run before CheckForVersionHistoryOnLoad bumps LastKnownVersion - see events_migration.h.
+    MigrateLegacyEventsFile(g_AddonDir);
+
     //_ Shows the "What's New" notice at most once per version - see changelog_window.h. Runs after LoadSettings (needs the persisted LastKnownVersion) and before anything renders.
     CheckForVersionHistoryOnLoad(g_AddonDir);
 
-    //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by name, saved back below.
+    //_ g_Events/g_CyclicGroups already hold compiled-in defaults; this merges in disk state by id, saved back below.
     LoadEventsData(g_AddonDir);
 
-    //_ Compiled-in category defaults merged with events.json by name; reads data_version, so load order doesn't matter.
+    //_ Compiled-in category defaults merged with events.json by id; must run after LoadEventsData - a member id references g_Events/g_CyclicGroups.
     LoadCategoriesData(g_AddonDir);
 
     //_ No compiled-in defaults to merge (see subscriptions.h); read-order doesn't matter, only save order does.
@@ -159,16 +167,16 @@ void AddonLoad(AddonAPI_t* aAPI)
     APIDefs->GUI_Register(RT_Render, RenderVersionHistoryWindow);
 
     //_ Grants Esc-to-close to the Edit Subscriptions window.
-    APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowTitle, &ShowEditSubscriptionsWindow);
+    APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowId, &ShowEditSubscriptionsWindow);
 
     //_ Same, for the live-event recent-reports window (live_events_ui.h).
-    APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow);
+    APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowId, &ShowLiveEventReportsWindow);
 
     //_ Same, for the WS debug log window (ws_debug_window.h).
-    APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowTitle, &ShowWsDebugWindow);
+    APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowId, &ShowWsDebugWindow);
 
     //_ Same, for the "What's New" version-history window (changelog_window.h).
-    APIDefs->GUI_RegisterCloseOnEscape(kVersionHistoryWindowTitle, &ShowVersionHistoryWindow);
+    APIDefs->GUI_RegisterCloseOnEscape(kVersionHistoryWindowId, &ShowVersionHistoryWindow);
 
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Loaded.");
 }
@@ -190,10 +198,10 @@ void AddonUnload()
     APIDefs->GUI_Deregister(RenderVersionHistoryWindow);
 
     //_ Matches the GUI_RegisterCloseOnEscape calls in AddonLoad
-    APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowTitle);
-    APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
-    APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowTitle);
-    APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowTitle);
+    APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowId);
+    APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowId);
+    APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowId);
+    APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowId);
 
     //_ Bounded wait so a still-running thread can't resume in unloaded memory; 2s is generous headroom, not a timeout budget.
     WaitForBackgroundThreads(2000);

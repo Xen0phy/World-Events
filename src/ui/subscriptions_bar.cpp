@@ -29,11 +29,13 @@
 #include "events.h"
 #include "events_tracking.h"
 #include "imgui.h"
+#include "localization.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
 #include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
+#include "time_format.h"
 
 #include <algorithm>
 #include <cfloat>
@@ -71,7 +73,7 @@ static ImU32 BasicEventColorFor(const std::string& name)
 //********************************************************************************
 // LineSegment
 //--------------------------------------------------------------------------------
-// key           stable identity, e.g. "Basic:Name" or "Cyclic:Group:Offset"
+// key           stable identity, e.g. "Basic:Name" or "Cyclic:Group:SlotId"
 // name          display name for tooltip
 // chatCode      waypoint chat code pasted on click
 // startX/endX   local pixel-space span, clamped to [0, W]
@@ -84,7 +86,7 @@ static ImU32 BasicEventColorFor(const std::string& name)
 //               lane 0, shown only via dot marker + hover
 // isWeekly      active-and-incomplete weekly Wizard's Vault target this
 //               week (weekly_vault.h) - draws an extra small red marker
-// isBasic/basicName/cyclicKey
+// isBasic/basicId/cyclicKey
 //               identity for the right-click "Mark done for today" menu
 //               (see click hit-testing near the end of this file); mirrors
 //               the same trio in subscriptions_window.cpp's Row
@@ -106,22 +108,30 @@ struct LineSegment
     bool        isWeekly = false;
 
     bool        isBasic = true;
-    std::string basicName;
+    std::string basicId;
     CyclicSubscriptionKey cyclicKey;
 };
+
+//_ 15-minute "soon" threshold, matching subscriptions_window.cpp/BasicEventColorSoon's map check (maprender.cpp).
+static constexpr int kSoonThresholdSecs = 900;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SegmentStatusLine
 //--------------------------------------------------------------------------------
-// Builds the second label line: "Active - ends in Xm YYs" or "in Xm YYs".
+// Builds the second label line: "Active - ends in Xm YYs" or "in Xm YYs"/"in Xh
+// YYm". Active and imminent (<15min) countdowns stay in Xm Ys form; anything
+// further out switches to the hour-aware FormatCountdown once it reaches 3600s,
+// matching subscriptions_window.cpp's own tiering.
 //--------------------------------------------------------------------------------
 static std::string SegmentStatusLine(const LineSegment& seg)
 {
     char buf[48];
     if (seg.active)
-        snprintf(buf, sizeof(buf), "Active - ends in %dm %02ds", seg.statusSecs / 60, seg.statusSecs % 60);
+        snprintf(buf, sizeof(buf), Tr("WE_BAR_STATUS_ACTIVE_FMT"), FormatMinSec(seg.statusSecs).c_str());
+    else if (seg.statusSecs < kSoonThresholdSecs)
+        snprintf(buf, sizeof(buf), Tr("WE_BAR_STATUS_IN_FMT"), FormatMinSec(seg.statusSecs).c_str());
     else
-        snprintf(buf, sizeof(buf), "in %dm %02ds", seg.statusSecs / 60, seg.statusSecs % 60);
+        snprintf(buf, sizeof(buf), Tr("WE_BAR_STATUS_IN_FMT"), FormatCountdown(seg.statusSecs).c_str());
     return std::string(buf);
 }
 
@@ -310,11 +320,11 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
             //_ resolved is already filtered to subscribed/auto-tracked items, so this linear scan over g_CyclicGroups stays small.
             color = IM_COL32(255, 255, 255, 255);
             auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-                [&](const CyclicGroup& g) { return g.name == sub.cyclicGroupName; });
+                [&](const CyclicGroup& g) { return g.id == sub.cyclicGroupId; });
             if (grpIt != g_CyclicGroups.end())
             {
                 auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
-                    [&](const CyclicGroup::Slot& s) { return s.offset == sub.cyclicSlotOffset; });
+                    [&](const CyclicGroup::Slot& s) { return s.id == sub.cyclicSlotId; });
                 if (slotIt != grpIt->slots.end())
                     color = grpIt->SlotColor(*slotIt);
             }
@@ -327,8 +337,8 @@ static std::vector<LineSegment> CollectVisibleSegments(time_t now, float stripWi
         };
         seg.isWeekly  = sub.isWeeklyTarget;
         seg.isBasic   = sub.isBasic;
-        seg.basicName = sub.basicName;
-        seg.cyclicKey = CyclicSubscriptionKey{ sub.cyclicGroupName, sub.cyclicSlotOffset };
+        seg.basicId   = sub.basicId;
+        seg.cyclicKey = CyclicSubscriptionKey{ sub.cyclicGroupId, sub.cyclicSlotId };
         segs.push_back(seg);
     }
 
@@ -1341,7 +1351,7 @@ void RenderSubscriptionsBar()
         }
         if (ImGui::BeginPopup("##we_subbar_bg_edit_popup"))
         {
-            if (ImGui::Selectable("Edit Subscriptions"))
+            if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
                 OpenEditSubscriptionsWindow();
             ImGui::EndPopup();
         }
@@ -1427,16 +1437,15 @@ void RenderSubscriptionsBar()
         }
         if (ImGui::BeginPopup(("##we_subbar_done_popup_" + s.key).c_str()))
         {
-            if (ImGui::Selectable("Mark done for today"))
+            if (ImGui::Selectable(Tr("WE_SUBS_MARK_DONE_TODAY")))
             {
-                if (s.isBasic) ToggleBasicEventDoneToday(s.basicName);
+                if (s.isBasic) ToggleBasicEventDoneToday(s.basicId);
                 else           ToggleCyclicSlotDoneToday(s.cyclicKey);
             }
             ImGui::Separator();
-            if (ImGui::Selectable("Edit Subscriptions"))
-                OpenEditSubscriptionsWindow(s.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, s.basicName, s.cyclicKey);
+            if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
+                OpenEditSubscriptionsWindow(s.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, s.basicId, s.cyclicKey);
             ImGui::EndPopup();
         }
     }
-
 }

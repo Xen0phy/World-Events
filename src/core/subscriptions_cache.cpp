@@ -3,18 +3,20 @@
 //--------------------------------------------------------------------------------
 // WHEN A REBUILD ACTUALLY HAPPENS (see RefreshSubscriptionsCache): the subscribed
 // set changed (subscribe/unsubscribe/rename), a fresh GW2 API poll landed, the
-// UTC day rolled over, a done-today marker was toggled, the weekly reset rolled
-// over (Monday 07:30 UTC), or a periodic safety-net interval elapsed. The safety
-// net bounds staleness for the one gap with no dedicated invalidation hook:
-// editing an already-subscribed event's own schedule in the options panel while
-// it's live - a rare edit-while-watching case where a bounded few seconds of
-// staleness is an accepted tradeoff over adding a hook to every field editor in
-// addon_options.cpp.
+// UTC day rolled over, a done-today marker was toggled, the active language
+// changed, the weekly reset rolled over (Monday 07:30 UTC), or a periodic safety-
+// net interval elapsed. The safety net bounds staleness for the one gap with no
+// dedicated invalidation hook: editing an already-subscribed event's own schedule
+// in the options panel while it's live - a rare edit-while-watching case where a
+// bounded few seconds of staleness is an accepted tradeoff over adding a hook to
+// every field editor in addon_options.cpp.
 //--------------------------------------------------------------------------------
 
 #include "events.h"
+#include "events_storage.h"   //. DisplayName
 #include "events_tracking.h"
 #include "gw2_api.h"
+#include "localization.h"   //. GetActiveLanguage, for the rebuild-trigger check below
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
@@ -44,7 +46,7 @@ namespace
     };
 }
 
-static std::unordered_map<std::string, WeeklyTargetInfo> s_weeklyCache;   //. key: "Basic:<name>" / "Cyclic:<group>:<offset>"
+static std::unordered_map<std::string, WeeklyTargetInfo> s_weeklyCache;   //. key: "Basic:<id>" / "Cyclic:<groupId>:<slotId>"
 static std::vector<ResolvedSubscription>                 s_resolved;
 
 //_ Recorded after each rebuild; compared against current values in
@@ -55,6 +57,7 @@ static uint64_t s_lastAppliedFetchGeneration = 0;
 static uint64_t s_lastSubscriptionGeneration = 0;
 static uint64_t s_lastDoneMarkerGeneration   = 0;
 static long long s_lastUtcDay = -1;
+static size_t   s_lastActiveLanguage = 0;
 
 //_ Bounds staleness for the one invalidation gap this cache has no
 // dedicated hook for - see the file header's safety-net note.
@@ -104,8 +107,7 @@ static time_t GetCurrentWeeklyResetEpoch(time_t now)
 // (IsBasicEventWeeklyTarget/IsCyclicSlotWeeklyTarget) which Basic Events/ Cyclic
 // slots are live weekly targets. Basic: every Core Boss is checked, the whole
 // candidate set. Cyclic: only slots referenced by g_CyclicWeeklyObjectives are
-// walked, resolving each target's slot NAME to the stable slot OFFSET against
-// g_CyclicGroups. Only called from a full rebuild, never per-frame.
+// walked, resolving each target's id straight into g_CyclicGroups.
 //--------------------------------------------------------------------------------
 static void RebuildWeeklyCache()
 {
@@ -116,10 +118,10 @@ static void RebuildWeeklyCache()
         if (ev.apiWorldBossId.empty()) continue;   //. not a Core Boss
 
         WeeklyTargetInfo info;
-        if (!IsBasicEventWeeklyTarget(ev.name, info.complete)) continue;
+        if (!IsBasicEventWeeklyTarget(ev.id, info.complete)) continue;
 
-        info.mappingTitle = ev.name;   //. no separate mapping object
-        s_weeklyCache["Basic:" + ev.name] = info;
+        info.mappingTitle = DisplayName(ev);   //. no separate mapping object
+        s_weeklyCache["Basic:" + ev.id] = info;
     }
 
     for (const auto& mapping : g_CyclicWeeklyObjectives)
@@ -127,21 +129,18 @@ static void RebuildWeeklyCache()
         for (const auto& target : mapping.targets)
         {
             WeeklyTargetInfo info;
-            if (!IsCyclicSlotWeeklyTarget(target.groupName, target.slotName, info.complete)) continue;
+            if (!IsCyclicSlotWeeklyTarget(target.groupId, target.slotId, info.complete)) continue;
 
             auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-                [&](const CyclicGroup& g) { return g.name == target.groupName; });
-            if (grpIt == g_CyclicGroups.end()) continue;   //. group renamed or deleted
+                [&](const CyclicGroup& g) { return g.id == target.groupId; });
+            if (grpIt == g_CyclicGroups.end()) continue;   //. group deleted
 
             auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
-                [&](const CyclicGroup::Slot& s) { return s.name == target.slotName; });
-            if (slotIt == grpIt->slots.end()) continue;   //. slot renamed or deleted
+                [&](const CyclicGroup::Slot& s) { return s.id == target.slotId; });
+            if (slotIt == grpIt->slots.end()) continue;   //. slot deleted
 
-            char offsetBuf[16];
-            snprintf(offsetBuf, sizeof(offsetBuf), "%d", slotIt->offset);
-
-            info.mappingTitle = target.groupName + " - " + target.slotName;   //. internal-only label
-            s_weeklyCache["Cyclic:" + grpIt->name + ":" + offsetBuf] = info;
+            info.mappingTitle = std::string(DisplayName(*grpIt)) + " - " + DisplayName(*slotIt, grpIt->id);   //. internal-only label
+            s_weeklyCache["Cyclic:" + grpIt->id + ":" + slotIt->id] = info;
         }
     }
 }
@@ -158,10 +157,11 @@ static void RebuildWeeklyCache()
 static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubscribed)
 {
     ResolvedSubscription r;
-    r.key                = "Basic:" + ev.name;
+    r.key                = "Basic:" + ev.id;
     r.isBasic            = true;
-    r.basicName          = ev.name;
-    r.label              = ev.name;
+    r.basicId            = ev.id;
+    r.basicName          = DisplayName(ev);
+    r.label              = DisplayName(ev);
     r.chatCode           = ev.chatCode;
     r.manuallySubscribed = manuallySubscribed;
 
@@ -169,7 +169,7 @@ static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubs
         r.isWeeklyTarget = !it->second.complete;
 
     bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !ev.apiWorldBossId.empty() && IsWorldBossCompletedToday(ev.apiWorldBossId);
-    bool manualDone = IsBasicEventMarkedDoneToday(ev.name);
+    bool manualDone = IsBasicEventMarkedDoneToday(ev.id);
     r.doneToday = apiDone || manualDone;
 
     r.isVarying    = ev.isVarying;
@@ -184,15 +184,13 @@ static ResolvedSubscription ResolveBasic(const WorldEvent& ev, bool manuallySubs
 
 static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGroup::Slot& slot, bool manuallySubscribed)
 {
-    char offsetBuf[16];
-    snprintf(offsetBuf, sizeof(offsetBuf), "%d", slot.offset);
-
     ResolvedSubscription r;
-    r.key                = "Cyclic:" + grp.name + ":" + offsetBuf;
+    r.key                = "Cyclic:" + grp.id + ":" + slot.id;
     r.isBasic            = false;
-    r.cyclicGroupName    = grp.name;
-    r.cyclicSlotOffset   = slot.offset;
-    r.label              = grp.name + " - " + slot.name;
+    r.cyclicGroupId      = grp.id;
+    r.cyclicGroupName    = DisplayName(grp);
+    r.cyclicSlotId       = slot.id;
+    r.label              = std::string(DisplayName(grp)) + " - " + DisplayName(slot, grp.id);
     r.chatCode           = slot.chatCode;
     r.manuallySubscribed = manuallySubscribed;
 
@@ -200,7 +198,7 @@ static ResolvedSubscription ResolveCyclic(const CyclicGroup& grp, const CyclicGr
         r.isWeeklyTarget = !it->second.complete;
 
     bool apiDone    = Gw2ApiAutoMarkDoneEnabled && !grp.apiMapChestId.empty() && IsMapChestClaimedToday(grp.apiMapChestId);
-    bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.name, slot.offset });
+    bool manualDone = IsCyclicSlotMarkedDoneToday({ grp.id, slot.id });
     r.doneToday = apiDone || manualDone;
 
     r.isVarying    = slot.isVarying;
@@ -226,10 +224,10 @@ static void RebuildResolvedSubscriptions()
     s_resolved.clear();
 
     //_ Manually subscribed Basic Events.
-    for (const auto& evName : g_SubscribedBasicEvents)
+    for (const auto& evId : g_SubscribedBasicEvents)
     {
         auto it = std::find_if(g_Events.begin(), g_Events.end(),
-            [&](const WorldEvent& ev) { return ev.name == evName; });
+            [&](const WorldEvent& ev) { return ev.id == evId; });
         if (it == g_Events.end()) continue;   //. deleted since subscribing
 
         s_resolved.push_back(ResolveBasic(*it, true));
@@ -239,11 +237,11 @@ static void RebuildResolvedSubscriptions()
     for (const auto& subKey : g_SubscribedCyclicSlots)
     {
         auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-            [&](const CyclicGroup& grp) { return grp.name == subKey.groupName; });
+            [&](const CyclicGroup& grp) { return grp.id == subKey.groupId; });
         if (grpIt == g_CyclicGroups.end()) continue;   //. group deleted since subscribing
 
         auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
-            [&](const CyclicGroup::Slot& s) { return s.offset == subKey.slotOffset; });
+            [&](const CyclicGroup::Slot& s) { return s.id == subKey.slotId; });
         if (slotIt == grpIt->slots.end()) continue;   //. slot deleted since subscribing
 
         s_resolved.push_back(ResolveCyclic(*grpIt, *slotIt, true));
@@ -268,27 +266,27 @@ static void RebuildResolvedSubscriptions()
 
             if (cacheKey.rfind("Basic:", 0) == 0)
             {
-                std::string name = cacheKey.substr(6);
+                std::string id = cacheKey.substr(6);
                 auto evIt = std::find_if(g_Events.begin(), g_Events.end(),
-                    [&](const WorldEvent& e) { return e.name == name; });
-                if (evIt == g_Events.end()) continue;   //. event renamed or deleted
+                    [&](const WorldEvent& e) { return e.id == id; });
+                if (evIt == g_Events.end()) continue;   //. event removed
 
                 s_resolved.push_back(ResolveBasic(*evIt, false));
             }
             else
             {
-                //_ "Cyclic:<group>:<offset>" - split on the LAST ':' since
-                // a group name could itself contain one.
+                //_ "Cyclic:<groupId>:<slotId>" - split on the LAST ':' since
+                // a group id could itself contain one.
                 size_t lastColon = cacheKey.rfind(':');
-                std::string groupName = cacheKey.substr(7, lastColon - 7);   //. 7 == strlen("Cyclic:")
-                int offset = atoi(cacheKey.c_str() + lastColon + 1);
+                std::string groupId = cacheKey.substr(7, lastColon - 7);   //. 7 == strlen("Cyclic:")
+                std::string slotId  = cacheKey.substr(lastColon + 1);
 
                 auto grpIt = std::find_if(g_CyclicGroups.begin(), g_CyclicGroups.end(),
-                    [&](const CyclicGroup& g) { return g.name == groupName; });
-                if (grpIt == g_CyclicGroups.end()) continue;   //. group renamed or deleted
+                    [&](const CyclicGroup& g) { return g.id == groupId; });
+                if (grpIt == g_CyclicGroups.end()) continue;   //. group removed
 
                 auto slotIt = std::find_if(grpIt->slots.begin(), grpIt->slots.end(),
-                    [&](const CyclicGroup::Slot& s) { return s.offset == offset; });
+                    [&](const CyclicGroup::Slot& s) { return s.id == slotId; });
                 if (slotIt == grpIt->slots.end()) continue;   //. slot renamed or deleted
 
                 s_resolved.push_back(ResolveCyclic(*grpIt, *slotIt, false));
@@ -307,6 +305,7 @@ void RefreshSubscriptionsCache(time_t now)
     uint64_t  subGen     = GetSubscriptionListGeneration();
     uint64_t  doneGen    = GetDoneMarkersGeneration();
     uint64_t  fetchGen   = GetGw2ApiFetchGeneration();
+    size_t    activeLang = GetActiveLanguage();
 
     bool needRebuild =
         !s_cacheEverBuilt ||
@@ -315,6 +314,7 @@ void RefreshSubscriptionsCache(time_t now)
         utcDay     != s_lastUtcDay                 ||
         doneGen    != s_lastDoneMarkerGeneration   ||
         fetchGen   != s_lastAppliedFetchGeneration ||
+        activeLang != s_lastActiveLanguage         ||
         (now - s_lastRebuildWallClock) >= (time_t)kSafetyNetRebuildSeconds;
 
     if (!needRebuild) return;
@@ -324,7 +324,8 @@ void RefreshSubscriptionsCache(time_t now)
         subGen     == s_lastSubscriptionGeneration &&
         utcDay     == s_lastUtcDay                 &&
         doneGen    == s_lastDoneMarkerGeneration   &&
-        fetchGen   == s_lastAppliedFetchGeneration;
+        fetchGen   == s_lastAppliedFetchGeneration &&
+        activeLang == s_lastActiveLanguage;
 
     bool weeklyAllComplete = !s_weeklyCache.empty() &&
         std::all_of(s_weeklyCache.begin(), s_weeklyCache.end(),
@@ -341,6 +342,7 @@ void RefreshSubscriptionsCache(time_t now)
     s_lastUtcDay                 = utcDay;
     s_lastDoneMarkerGeneration   = doneGen;
     s_lastAppliedFetchGeneration = fetchGen;
+    s_lastActiveLanguage         = activeLang;
     s_lastRebuildWallClock       = now;
     s_cacheEverBuilt = true;
 }

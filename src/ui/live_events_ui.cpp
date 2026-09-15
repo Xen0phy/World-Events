@@ -13,6 +13,7 @@
 #include "gw2_api.h" //. GetLiveEventsRegion, for the UpdateNotificationState call below
 #include "imgui.h"
 #include "live_events_ui.h"
+#include "localization.h"
 #include "notification_client.h" //. UpdateNotificationState, GetRegionViewerCount
 #include "settings.h"
 #include "shard_id.h"
@@ -23,6 +24,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include <cstdio>
 #include <ctime>
 #include <optional>
 #include <string>
@@ -71,7 +73,7 @@ static void RenderLiveEventButtonMovePreview()
         ImGuiWindowFlags_NoFocusOnAppearing |
         ImGuiWindowFlags_NoNav);
 
-    ImGui::Button("Drag to move##we_live_btn_move_preview", ImVec2(kButtonWidth, kButtonHeight));
+    ImGui::Button(TrId("WE_LIVE_DRAG_BUTTON", "##we_live_btn_move_preview").c_str(), ImVec2(kButtonWidth, kButtonHeight));
 
     static bool   s_dragging = false;
     static ImVec2 s_dragStartMouse;
@@ -102,8 +104,7 @@ static void RenderLiveEventButtonMovePreview()
 
     if (ImGui::IsItemHovered())
     {
-        ImGui::SetTooltip("Drag to reposition the live-event report button.\n"
-                           "Untick \"Move button\" in options when done.");
+        ImGui::SetTooltip("%s", Tr("WE_LIVE_DRAG_TOOLTIP"));
     }
 
     ImGui::End();
@@ -115,11 +116,10 @@ static void RenderLiveEventButtonMovePreview()
 // See header. MumbleLink/NexusLink are null-checked here too - addon.cpp's
 // AddonRender already gates on both, but this file doesn't assume that ordering
 // holds forever. UpdateShard runs regardless of LiveEventsSubscribed, throttled
-// to ~1x/sec (the render-tick hook networking-handoff.md section 9 #5 calls for),
-// so unticking it disconnects an open shard within ~1s. Only issued with a real
-// shard when liveEventsReady (== LiveEventsSubscribed, no API key needed) AND
-// MapHasLiveEvents (events_live.h) agree; a default ShardIdentity is sent
-// otherwise, a no-op if already disconnected. UpdateNotificationState
+// to ~1x/sec here, so unticking it disconnects an open shard within ~1s. Only
+// issued with a real shard when liveEventsReady (== LiveEventsSubscribed, no API
+// key needed) AND MapHasLiveEvents (events_live.h) agree; a default ShardIdentity
+// is sent otherwise, a no-op if already disconnected. UpdateNotificationState
 // (notification_client.h) rides the same tick, self-gated on GetLiveEventsRegion
 // (gw2_api.h) - an empty key only drops the toast relay.
 //--------------------------------------------------------------------------------
@@ -187,7 +187,7 @@ void RenderLiveEventButtons()
         unsigned long long sinceLastMs = (it != s_lastReportPressMs.end()) ? (nowTick - it->second) : kReportCooldownMs;
         bool onCooldown = sinceLastMs < kReportCooldownMs;
 
-        std::string label = ev->name + "##we_live_report_" + ev->eventId;
+        std::string label = std::string(DisplayName(*ev)) + "##we_live_report_" + ev->eventId;
         if (onCooldown) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
         bool clicked = ImGui::Button(label.c_str(), ImVec2(kButtonWidth, kButtonHeight));
         if (onCooldown) ImGui::PopStyleVar();
@@ -210,13 +210,11 @@ void RenderLiveEventButtons()
             if (onCooldown)
             {
                 unsigned long long remainingSec = (kReportCooldownMs - sinceLastMs + 999) / 1000;
-                ImGui::SetTooltip("Reported recently - %llu s before you can report \"%s\" again.\n"
-                                   "Right-click: just show recent reports.", remainingSec, ev->name.c_str());
+                ImGui::SetTooltip(Tr("WE_LIVE_COOLDOWN_TOOLTIP_FMT"), remainingSec, DisplayName(*ev));
             }
             else
             {
-                ImGui::SetTooltip("Click: report \"%s\" as active and show recent reports.\n"
-                                   "Right-click: just show recent reports, without reporting.", ev->name.c_str());
+                ImGui::SetTooltip(Tr("WE_LIVE_REPORT_TOOLTIP_FMT"), DisplayName(*ev));
             }
         }
 
@@ -245,9 +243,9 @@ static const char* ConnectionStateLabel(WsConnectionState state)
 {
     switch (state)
     {
-        case WsConnectionState::Connected:  return "Connected";
-        case WsConnectionState::Connecting: return "Connecting...";
-        default:                            return "Disconnected";
+        case WsConnectionState::Connected:  return Tr("WE_WSDEBUG_CONNECTED");
+        case WsConnectionState::Connecting: return Tr("WE_WSDEBUG_CONNECTING");
+        default:                            return Tr("WE_WSDEBUG_DISCONNECTED");
     }
 }
 
@@ -271,12 +269,12 @@ void RenderLiveEventReportsWindow()
     static bool s_escapeCloseRegistered = true;
     if (LiveEventReportsWindowLocked && s_escapeCloseRegistered)
     {
-        APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowTitle);
+        APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowId);
         s_escapeCloseRegistered = false;
     }
     else if (!LiveEventReportsWindowLocked && !s_escapeCloseRegistered)
     {
-        APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow);
+        APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowId, &ShowLiveEventReportsWindow);
         s_escapeCloseRegistered = true;
     }
 
@@ -294,27 +292,27 @@ void RenderLiveEventReportsWindow()
     }
 
     ImGui::SetNextWindowSize(ImVec2(320.0f, 220.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(kLiveEventReportsWindowTitle, &ShowLiveEventReportsWindow, flags))
+    if (!ImGui::Begin(TrId("WE_LIVE_REPORTS_WINDOW_TITLE", kLiveEventReportsWindowId).c_str(), &ShowLiveEventReportsWindow, flags))
     {
         ImGui::End();
         return;
     }
 
-    ImGui::TextDisabled("Shard: %s", ConnectionStateLabel(GetConnectionState()));
+    ImGui::TextDisabled(Tr("WE_LIVE_SHARD_LABEL_FMT"), ConnectionStateLabel(GetConnectionState()));
 
-    ImGui::TextDisabled("Region: %s", ConnectionStateLabel(GetNotificationConnectionState()));
+    ImGui::TextDisabled(Tr("WE_LIVE_REGION_LABEL_FMT"), ConnectionStateLabel(GetNotificationConnectionState()));
     std::optional<int> regionViewers = GetRegionViewerCount();
     if (regionViewers)
     {
         ImGui::SameLine();
-        ImGui::TextDisabled("(%d online in %s)", *regionViewers,
+        ImGui::TextDisabled(Tr("WE_LIVE_ONLINE_COUNT_FMT"), *regionViewers,
             LiveEventsRegionToWireString(GetLiveEventsRegion()).c_str());
     }
 
     if (!MumbleLink)
     {
         ImGui::Spacing();
-        ImGui::TextDisabled("Not in game.");
+        ImGui::TextDisabled("%s", Tr("WE_LIVE_NOT_IN_GAME"));
         ImGui::End();
         return;
     }
@@ -329,21 +327,23 @@ void RenderLiveEventReportsWindow()
         if (ev.mapId != mapId) continue;
         any = true;
 
-        std::string idLine = ev.name;
+        std::string idLine = DisplayName(ev);
         if (octet)
             idLine += "." + std::to_string(*octet);
 
         std::vector<EventReport> reports = GetRecentReports(ev.eventId);
         if (reports.empty())
         {
-            ImGui::TextUnformatted((idLine + " (empty)").c_str());
+            ImGui::TextUnformatted((idLine + " " + Tr("WE_LIVE_EMPTY_SUFFIX")).c_str());
             continue;
         }
 
         //_ Signed/clamped the same way subscriptions_notification.cpp treats its own tick-based elapsed time - a server-stamped ts should never be in the future, but a client clock can't be trusted not to disagree slightly.
         long long elapsedSigned = (long long)now - reports.front().timestampUnix; //. newest first, see GetRecentReports
         int elapsed = elapsedSigned > 0 ? (int)elapsedSigned : 0;
-        std::string treeLabel = idLine + " (" + FormatMinSec(elapsed) + " ago)";
+        char agoBuf[32];
+        snprintf(agoBuf, sizeof(agoBuf), Tr("WE_LIVE_AGO_FMT"), FormatMinSec(elapsed).c_str());
+        std::string treeLabel = idLine + " (" + agoBuf + ")";
 
         if (reports.size() == 1)
         {
@@ -359,7 +359,7 @@ void RenderLiveEventReportsWindow()
             {
                 long long es = (long long)now - reports[i].timestampUnix;
                 int e = es > 0 ? (int)es : 0;
-                ImGui::BulletText("%s ago", FormatMinSec(e).c_str());
+                ImGui::BulletText(Tr("WE_LIVE_AGO_FMT"), FormatMinSec(e).c_str());
             }
             ImGui::TreePop();
         }
@@ -368,7 +368,7 @@ void RenderLiveEventReportsWindow()
     if (!any)
     {
         ImGui::Spacing();
-        ImGui::TextDisabled("No live events on this map.");
+        ImGui::TextDisabled("%s", Tr("WE_LIVE_NO_EVENTS_ON_MAP"));
     }
 
     ImGui::End();
