@@ -22,6 +22,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <unordered_set>
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ImGuiScopedDisabled ctor / dtor
@@ -1213,7 +1214,14 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         {
             s_pendingSlotEditKey = i * 100000 + (int)grp.slots.size(); //. index this slot will land at, below
             s_newSlotEditKey     = s_pendingSlotEditKey;
+
+            //_ Slot ids only need to be unique within this group (events_storage.cpp).
+            std::unordered_set<std::string> usedSlotIds;
+            for (const auto& s : grp.slots) usedSlotIds.insert(s.id);
+
             CyclicGroup::Slot newSlot{};
+            //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
+            newSlot.id       = UniqueId(SlugifyName("slot"), usedSlotIds);
             newSlot.customName = ""; //. starts unnamed - forces the inline editor open on next draw (see s_pendingSlotEditKey above)
             newSlot.offset   = 0;
             newSlot.duration = 600; //. 10 min, a reasonable default

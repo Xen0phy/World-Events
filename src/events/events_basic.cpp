@@ -21,6 +21,7 @@ std::vector<WorldEvent> g_Events =
     //_ Instanced
     {"outer_nayos",                   24046.0f, 22754.0f, false, m10, "[&BB8OAAA=]",  true, "Convergence.png", {}, MIN(180),       m90},
     {"mount_balrior",                 43095.0f, 22672.0f, false, m10, "[&BK4OAAA=]",  true, "Convergence.png", {}, MIN(180),         0},
+    {"nexus_of_eternity",             40095.0f, 20672.0f, false, m10, "[&BK4OAAA=]",  true, "Convergence.png", {}, MIN(180),  MIN(150)},
 
     //_ Core bosses; id reuses that boss's apiWorldBossId (trailing string per row).
     {"admiral_taidha_covington",      48872.0f, 33548.0f, false, m15, "[&BKgBAAA=]",  true, "WorldBoss.png",   {}, MIN(180),         0, "admiral_taidha_covington"},

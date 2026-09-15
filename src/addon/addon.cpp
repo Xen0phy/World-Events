@@ -15,6 +15,7 @@
 #include "cyclicrender.h"
 #include "events.h"
 #include "events_categories.h"
+#include "events_migration.h"
 #include "events_storage.h"
 #include "events_tracking.h"
 #include "gw2_api.h"
@@ -97,28 +98,6 @@ bool ResetAllDataToDefaults()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// WipeLegacyEventsFile
-//--------------------------------------------------------------------------------
-// Pre-1.8.0.0 events.json is the old name-keyed format (WorldEvent/CyclicGroup/
-// Category, no id/customName). name/xy/chatCode were all independently user-
-// editable in the old UI, so none of them can recover identity reliably -
-// deleted instead of merged, letting LoadEventsData/LoadCategoriesData/
-// LoadSubscriptionsData below rebuild fresh compiled defaults, the same path a
-// first install already takes.
-//
-// Must run in AddonLoad before CheckForVersionHistoryOnLoad: that call stamps
-// LastKnownVersion to this build's own version before LoadEventsData ever runs,
-// so checking after it would always see the new version and never wipe.
-//--------------------------------------------------------------------------------
-static void WipeLegacyEventsFile(const std::string& addonDir)
-{
-    if (LastKnownVersion >= 1080000) return;
-
-    std::error_code ec;
-    std::filesystem::remove(addonDir + "\\events.json", ec);
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonLoad
 //--------------------------------------------------------------------------------
 // Nexus calls this once, synchronously, before the addon does anything else.
@@ -158,8 +137,8 @@ void AddonLoad(AddonAPI_t* aAPI)
 
     LoadSettings(g_AddonDir); //. missing file - keeps compiled defaults
 
-    //_ Must run before CheckForVersionHistoryOnLoad bumps LastKnownVersion - see WipeLegacyEventsFile's header comment.
-    WipeLegacyEventsFile(g_AddonDir);
+    //_ Must run before CheckForVersionHistoryOnLoad bumps LastKnownVersion - see events_migration.h.
+    MigrateLegacyEventsFile(g_AddonDir);
 
     //_ Shows the "What's New" notice at most once per version - see changelog_window.h. Runs after LoadSettings (needs the persisted LastKnownVersion) and before anything renders.
     CheckForVersionHistoryOnLoad(g_AddonDir);

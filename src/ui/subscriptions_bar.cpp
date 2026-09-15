@@ -112,18 +112,26 @@ struct LineSegment
     CyclicSubscriptionKey cyclicKey;
 };
 
+//_ 15-minute "soon" threshold, matching subscriptions_window.cpp/BasicEventColorSoon's map check (maprender.cpp).
+static constexpr int kSoonThresholdSecs = 900;
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SegmentStatusLine
 //--------------------------------------------------------------------------------
-// Builds the second label line: "Active - ends in Xm YYs" or "in Xm YYs".
+// Builds the second label line: "Active - ends in Xm YYs" or "in Xm YYs"/"in Xh
+// YYm". Active and imminent (<15min) countdowns stay in Xm Ys form; anything
+// further out switches to the hour-aware FormatCountdown once it reaches 3600s,
+// matching subscriptions_window.cpp's own tiering.
 //--------------------------------------------------------------------------------
 static std::string SegmentStatusLine(const LineSegment& seg)
 {
     char buf[48];
     if (seg.active)
         snprintf(buf, sizeof(buf), Tr("WE_BAR_STATUS_ACTIVE_FMT"), FormatMinSec(seg.statusSecs).c_str());
-    else
+    else if (seg.statusSecs < kSoonThresholdSecs)
         snprintf(buf, sizeof(buf), Tr("WE_BAR_STATUS_IN_FMT"), FormatMinSec(seg.statusSecs).c_str());
+    else
+        snprintf(buf, sizeof(buf), Tr("WE_BAR_STATUS_IN_FMT"), FormatCountdown(seg.statusSecs).c_str());
     return std::string(buf);
 }
 
@@ -1440,5 +1448,4 @@ void RenderSubscriptionsBar()
             ImGui::EndPopup();
         }
     }
-
 }

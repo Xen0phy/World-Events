@@ -820,7 +820,12 @@ void AddonOptions()
 
             if (pendingAdd)
             {
+                std::unordered_set<std::string> usedIds;
+                for (const auto& ev : g_Events) usedIds.insert(ev.id);
+
                 WorldEvent newEvent{};
+                //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
+                newEvent.id         = UniqueId(SlugifyName("event"), usedIds);
                 newEvent.customName = ""; //. starts unnamed - forces the inline editor open on next draw (RequestBasicEventNameEdit below)
                 newEvent.continentX = 49332.0f;
                 newEvent.continentY = 31457.0f;
@@ -973,7 +978,12 @@ void AddonOptions()
 
             if (pendingAddGroup)
             {
+                std::unordered_set<std::string> usedIds;
+                for (const auto& g : g_CyclicGroups) usedIds.insert(g.id);
+
                 CyclicGroup newGroup{};
+                //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
+                newGroup.id         = UniqueId(SlugifyName("group"), usedIds);
                 newGroup.customName = ""; //. starts unnamed - forces the inline editor open on next draw (RequestCyclicGroupNameEdit below)
                 newGroup.continentX = 49332.0f;
                 newGroup.continentY = 31457.0f;

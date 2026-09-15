@@ -6,5 +6,5 @@
 
 constexpr int Maj = 1;   //. major version
 constexpr int Min = 7;   //. minor version
-constexpr int Bld = 5;   //. build number
-constexpr int Rev = 4;   //. revision number
+constexpr int Bld = 6;   //. build number
+constexpr int Rev = 3;   //. revision number

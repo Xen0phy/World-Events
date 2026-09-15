@@ -35,10 +35,10 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "eye_of_the_north",
         57563.0f, 21831.0f, m120, COL_IBS,
         {
-            {"twisted_marionette", 0, m20, ColorTier::Primary,   "[&BAkMAAA=]" },
+            {"twisted_marionette",    0,   m20, ColorTier::Primary,   "[&BAkMAAA=]" },
             {"battle_for_lions_arch", m30, m15, ColorTier::Secondary, "[&BAkMAAA=]" },
-            {"dragonstorm", m60, m20, ColorTier::Secondary, "[&BAkMAAA=]" },
-            {"tower_of_nightmares", m90, m15, ColorTier::Secondary, "[&BAkMAAA=]" },
+            {"dragonstorm",           m60, m20, ColorTier::Secondary, "[&BAkMAAA=]" },
+            {"tower_of_nightmares",   m90, m15, ColorTier::Secondary, "[&BAkMAAA=]" },
         }
     },
 
@@ -46,12 +46,12 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "festival_of_the_four_winds",
         56040.0f, 39398.0f, m120, COL_FEST,
         {
-            {"skiff_race", 0, m10, ColorTier::Primary, "[&BBwHAAA=]"},
-            {"water_balloons", m15, m10, ColorTier::Primary, "[&BBwHAAA=]"},
-            {"treasure_hunt", m30, m30, ColorTier::Primary, "[&BBwHAAA=]"},
-            {"skimmer_race", m75, m10, ColorTier::Primary, "[&BBwHAAA=]"},
-            {"fishing", m90, m10, ColorTier::Primary, "[&BBwHAAA=]"},
-            {"dolyak_race", m105, m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"skiff_race",     0,    m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"water_balloons", m15,  m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"treasure_hunt",  m30,  m30, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"skimmer_slalom",   m75,  m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"fishing",        m90,  m10, ColorTier::Primary, "[&BBwHAAA=]"},
+            {"dolyak_race",    m105, m10, ColorTier::Primary, "[&BBwHAAA=]"},
         }, std::nullopt, false
     },
 
@@ -60,53 +60,53 @@ std::vector<CyclicGroup> g_CyclicGroups =
         37129.0f, 32802.0f, m60, COL_LWS2,
         {
             //_ Main Cycle
-            {"crash_site", 0,    m40,  ColorTier::Tertiary, "[&BIAHAAA=]" },
-            {"sandstorm", m40,    m20,   ColorTier::Primary, "[&BIAHAAA=]" },
+            {"crash_site", 0,   m40, ColorTier::Tertiary, "[&BIAHAAA=]" },
+            {"sandstorm",  m40, m20, ColorTier::Primary,  "[&BIAHAAA=]" },
     
             //_ Crash Site Group A: fires at 0/15/30 within the 40-min window.
-            {"tendril_a", 0,     m5, ColorTier::Secondary, "[&BIAHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
-            {"race", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
-            {"moa", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
-            {"crash_victims", 0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
-            {"shaman", 0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
-            {"tendril_b", 0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
-            {"skritt_supplies", 0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
-            {"escort_rustbucket", 0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"tendril_a",         0, m5, ColorTier::Secondary, "[&BIAHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"race",              0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"moa",               0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"crash_victims",     0, m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"shaman",            0, m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"tendril_b",         0, m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"skritt_supplies",   0, m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
+            {"escort_rustbucket", 0, m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.67f)}, true, {0, m15, m30} },
     
             //_ Crash Site detail - Group B: fires at 5/20/35.
-            {"frog", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
-            {"queen", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
-            {"serene", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
-            {"south_mine", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
-            {"inquest_leader", 0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
-            {"light_golem", 0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
-            {"vine_bridge", 0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
-            {"collect_beetles", 0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"frog",            0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"queen",           0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"serene",          0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"south_mine",      0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"inquest_leader",  0, m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"light_golem",     0, m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"vine_bridge",     0, m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
+            {"collect_beetles", 0, m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.73f)}, true, {m5, m20, m35} },
     
             //_ Crash Site Group C: fires at 10/25 only (40 is Sandstorm).
-            {"basket", 0,     m5, ColorTier::Secondary, "[&BIAHAAA=]", false, 1,                               {}, true,     {m10, m25} },
-            {"town", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1,                               {}, true,     {m10, m25} },
-            {"north_mine", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1,                               {}, true,     {m10, m25} },
-            {"ley_line_hub", 0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1,                               {}, true,     {m10, m25} },
-            {"inquest_suit", 0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1,                               {}, true,     {m10, m25} },
+            {"basket",       0, m5, ColorTier::Secondary, "[&BIAHAAA=]", false, 1, {}, true, {m10, m25} },
+            {"town",         0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {}, true, {m10, m25} },
+            {"north_mine",   0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {}, true, {m10, m25} },
+            {"ley_line_hub", 0, m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {}, true, {m10, m25} },
+            {"inquest_suit", 0, m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {}, true, {m10, m25} },
     
             //_ Sandstorm detail - shared between the m40 and m50 subphase.
-            {"mite_farm", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
-            {"haze", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
-            {"north_mine_block", 0,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
-            {"stop_skritt_1", 0,     m5, ColorTier::Secondary, "[&BIcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
-            {"protect_eway", 0,     m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
-            {"giant", 0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
-            {"stop_skritt_2", 0,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"mite_farm",        0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"haze",             0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"north_mine_block", 0, m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"stop_skritt_1",    0, m5, ColorTier::Secondary, "[&BIcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"protect_eway",     0, m5, ColorTier::Secondary, "[&BJcHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"giant",            0, m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
+            {"stop_skritt_2",    0, m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.87f)}, true, {m40, MIN(50)} },
     
             //_ Sandstorm detail - single-occurrence, no isVarying needed.
-            {"devourer_queen", m45,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
-            {"rare_creature", m45,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
-            {"small_dust", m50,     m5, ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
-            {"skritt_queen", m50,     m5, ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
-            {"chickenado", m50,     m5, ColorTier::Secondary, "[&BIgHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
-            {"big_dust", m55, MIN(2), ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
-            {"giant_beetle", MIN(57), MIN(3), ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"devourer_queen", m45,             m5,             ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"rare_creature",  m45,             m5,             ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"small_dust",     m50,             m5,             ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"skritt_queen",   m50,             m5,             ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"chickenado",     m50,             m5,             ColorTier::Secondary, "[&BIgHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"big_dust",       m55,             MIN(2), ColorTier::Secondary, "[&BHoHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
+            {"giant_beetle",   MIN(57), MIN(3), ColorTier::Secondary, "[&BIYHAAA=]", false, 1, {ShadeU32(COL_LWS2.base, 0.93f)} },
         }
     },
     
@@ -114,9 +114,9 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "verdant_brink",
         34944.0f, 31850.0f, m120, COL_HOT,
         {
-            { "night_bosses", m10, m20, ColorTier::Primary,   "[&BAgIAAA=]" },
-            { "securing_day", m30, m75, ColorTier::Tertiary,  "[&BAgIAAA=]" },
-            { "night_enemy", m105, m25, ColorTier::Secondary, "[&BAgIAAA=]" },
+            { "night_bosses", m10,  m20, ColorTier::Primary,   "[&BAgIAAA=]" },
+            { "securing_day", m30,  m75, ColorTier::Tertiary,  "[&BAgIAAA=]" },
+            { "night_enemy",  m105, m25, ColorTier::Secondary, "[&BAgIAAA=]" },
         },
         std::nullopt, true, "verdant_brink_heros_choice_chest"
     },
@@ -124,24 +124,24 @@ std::vector<CyclicGroup> g_CyclicGroups =
         34486.0f, 33919.0f, m120, COL_HOT,
         {
             { "challenges", m45, m15, ColorTier::Secondary, "[&BGwIAAA=]" },
-            { "octovine", m60, m20, ColorTier::Primary,   "[&BAIIAAA=]" },
-            { "pylons", m90, m75, ColorTier::Tertiary,  "[&BN0HAAA=]" },
+            { "octovine",   m60, m20, ColorTier::Primary,   "[&BAIIAAA=]" },
+            { "pylons",     m90, m75, ColorTier::Tertiary,  "[&BN0HAAA=]" },
         },
         std::nullopt, true, "auric_basin_heros_choice_chest"
     },
     { "tangled_depths",
         37372.0f, 35317.0f, m120, COL_HOT,
         {
-            { "prep", m25, m5,  ColorTier::Secondary, "[&BPUHAAA=]" },
+            { "prep",        m25, m5,  ColorTier::Secondary, "[&BPUHAAA=]" },
             { "chak_gerent", m30, m20, ColorTier::Primary,   "[&BPUHAAA=]" },
-            { "outposts", m50, m95, ColorTier::Tertiary,  "[&BAwIAAA=]" },
+            { "outposts",    m50, m95, ColorTier::Tertiary,  "[&BAwIAAA=]" },
         },
         std::nullopt, true, "tangled_depths_heros_choice_chest"
     },
     { "dragons_stand",
         35722.0f, 37328.0f, m120, COL_HOT,
         {
-            { "mordremoth_start", m90, m30, ColorTier::Primary,   "[&BIgIAAA=]" },
+            { "mordremoth_start",    m90, m30, ColorTier::Primary,   "[&BIgIAAA=]" },
             { "mordremoth_progress", 0,   m90, ColorTier::Secondary, "[&BIgIAAA=]" },
         },
         std::nullopt, true, "dragons_stand_heros_choice_chest"
@@ -152,8 +152,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
         45564.0f, 27004.0f, m120, COL_LWS3,
         {
             {"norans_homestead", m30,  m30, ColorTier::Primary,   "[&BK8JAAA=]" },
-            {"saidras_haven", m60,  m45, ColorTier::Secondary, "[&BK0JAAA=]" },
-            {"new_loamhurst", m105, m45, ColorTier::Tertiary,  "[&BLQJAAA=]" },
+            {"saidras_haven",    m60,  m45, ColorTier::Secondary, "[&BK0JAAA=]" },
+            {"new_loamhurst",    m105, m45, ColorTier::Tertiary,  "[&BLQJAAA=]" },
         }
     },
 
@@ -162,7 +162,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
         58692.0f, 43752.0f, m120, COL_POF,
         {
             { "casino_rounds", m5, m15, ColorTier::Secondary, "[&BLsKAAA=]" },
-            { "choya_pinata", m20,m10, ColorTier::Primary,   "[&BLsKAAA=]" },
+            { "choya_pinata",  m20,m10, ColorTier::Primary,   "[&BLsKAAA=]" },
         },
         std::nullopt, true, "crystal_oasis_heros_choice_chest"
     },
@@ -175,15 +175,15 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "elon_riverlands",
         60715.0f, 45646.0f, m120, COL_POF,
         {
-            { "the_path_to_ascension", m90, m25, ColorTier::Secondary, "[&BFMKAAA=]" },
-            { "doppelganger", m115, m20, ColorTier::Primary,   "[&BFMKAAA=]" },
+            { "the_path_to_ascension", m90,  m25, ColorTier::Secondary, "[&BFMKAAA=]" },
+            { "doppelganger",          m115, m20, ColorTier::Primary,   "[&BFMKAAA=]" },
         },
         std::nullopt, true, "elon_riverlands_heros_choice_chest"
     },
     { "the_desolation",
         59943.0f, 50257.0f, m120, COL_POF,
         {
-            { "junundu_rising", m30, m20, ColorTier::Primary,   "[&BMEKAAA=]", true, 2 },
+            { "junundu_rising",  m30, m20, ColorTier::Primary,   "[&BMEKAAA=]", true, 2 },
             { "maws_of_torment", m60, m20, ColorTier::Secondary, "[&BKMKAAA=]" },
         },
         std::nullopt, true, "the_desolation_heros_choice_chest"
@@ -191,8 +191,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "domain_of_vabbi",
         66332.0f, 53596.0f, m120, COL_POF,
         {
-            { "forged_with_fire", 0, m30, ColorTier::Primary,   "[&BO0KAAA=]", true, 2 },
-            { "serpents_ire", m30, m30, ColorTier::Secondary, "[&BHQKAAA=]" },
+            { "forged_with_fire", 0,   m30, ColorTier::Primary,   "[&BO0KAAA=]", true, 2 },
+            { "serpents_ire",     m30, m30, ColorTier::Secondary, "[&BHQKAAA=]" },
         },
         std::nullopt, true, "domain_of_vabbi_heros_choice_chest"
     },
@@ -207,14 +207,14 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "jahai_bluffs",
         65135.0f, 57421.0f, m120, COL_LWS4,
         {
-            { "escorts", m60,m15, ColorTier::Secondary, "[&BIMLAAA=]" },
+            { "escorts",                 m60,m15, ColorTier::Secondary, "[&BIMLAAA=]" },
             { "death_branded_shatterer", m75,m15, ColorTier::Primary,   "[&BJMLAAA=]" },
         }
     },
     { "thunderhead_peaks",
         57950.0f, 37800.0f, m120, COL_LWS4,
         {
-            { "the_oil_floes", m45, m15, ColorTier::Primary, "[&BKYLAAA=]" },
+            { "the_oil_floes",     m45, m15, ColorTier::Primary, "[&BKYLAAA=]" },
             { "thunderhead_keep", m105, m20, ColorTier::Primary, "[&BLsLAAA=]" },
         }
     },
@@ -223,19 +223,19 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "grothmar_valley",
         60957.0f, 19174.0f, m120, COL_IBS,
         {
-            { "effigy", m10,     m15, ColorTier::Primary,   "[&BA4MAAA=]" },
+            { "effigy",          m10,             m15, ColorTier::Primary,   "[&BA4MAAA=]" },
             { "doomlore_shrine", MIN(38), MIN(22), ColorTier::Secondary, "[&BA4MAAA=]" },
-            { "ooze_pits", m65,     m20, ColorTier::Secondary, "[&BPgLAAA=]" },
-            { "metal_concert", m100,     m15, ColorTier::Secondary, "[&BPgLAAA=]" },
+            { "ooze_pits",       m65,             m20, ColorTier::Secondary, "[&BPgLAAA=]" },
+            { "metal_concert",   m100,            m15, ColorTier::Secondary, "[&BPgLAAA=]" },
         }
     },
     { "bjora_marches",
         57267.0f, 18383.0f, m120, COL_IBS,
         {
-            { "storms_of_winter", 0,  m5, ColorTier::Primary,   "[&BCcMAAA=]" },
-            { "icebrood_champions", m5, m15, ColorTier::Secondary, "[&BCcMAAA=]" },
-            { "drakkar", m65, m35, ColorTier::Primary,   "[&BDkMAAA=]" },
-            { "defend_joras_keep", m105, m15, ColorTier::Secondary, "[&BCcMAAA=]" },
+            { "storms_of_winter",   0,    m5,  ColorTier::Primary,   "[&BCcMAAA=]" },
+            { "icebrood_champions", m5,   m15, ColorTier::Secondary, "[&BCcMAAA=]" },
+            { "drakkar",            m65,  m35, ColorTier::Primary,   "[&BDkMAAA=]" },
+            { "defend_joras_keep",  m105, m15, ColorTier::Secondary, "[&BCcMAAA=]" },
         }
     },
 
@@ -255,15 +255,15 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "the_echovald_wilds",
         31118.0f, 102764.0f, m120, COL_EOD,
         {
-            { "gang_war", m30, m35, ColorTier::Primary,   "[&BMwMAAA=]" },
+            { "gang_war",         m30,  m35, ColorTier::Primary,   "[&BMwMAAA=]" },
             { "kaineng_blackout", m100, m20, ColorTier::Secondary, "[&BBkNAAA=]" },
         }
     },
     { "dragons_end",
         34101.0f, 103128.0f, m120, COL_EOD,
         {
-            { "jade_maw", 0,  MIN(8), ColorTier::Secondary, "[&BKIMAAA=]", true, 1, {}, true, {m5, m45} },
-            { "battle_for_the_jade_sea", m60,     m60, ColorTier::Primary,   "[&BKIMAAA=]" },
+            { "jade_maw",                0,       MIN(8), ColorTier::Secondary, "[&BKIMAAA=]", true, 1, {}, true, {m5, m45} },
+            { "battle_for_the_jade_sea", m60,     m60,            ColorTier::Primary,   "[&BKIMAAA=]" },
         }
     },
 
@@ -277,8 +277,8 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "wizards_tower",
         24444.0f, 22384.0f, m120, COL_SOTO,
         {
-            { "target_practice", m60, m55, ColorTier::Primary,   "[&BB8OAAA=]" },
-            { "fly_by_night", m100, m40, ColorTier::Secondary, "[&BB8OAAA=]" },
+            { "target_practice", m60,  m55, ColorTier::Primary,   "[&BB8OAAA=]" },
+            { "fly_by_night",    m100, m40, ColorTier::Secondary, "[&BB8OAAA=]" },
         }
     },
     { "amnytas",
@@ -319,6 +319,12 @@ std::vector<CyclicGroup> g_CyclicGroups =
         4566.0f, 61793.0f, m120, COL_VOE,
         {
             { "shackles_of_the_ancients", m70, m25, ColorTier::Primary, "[&BPwPAAA=]" },
+        }
+    },
+    { "leyspring_hollows",
+        4000.0f, 60000.0f, m120, COL_VOE,
+        {
+            { "the_depths_of_cruelty", 0, m25, ColorTier::Primary, "" },
         }
     },
 };
@@ -370,6 +376,7 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
         {"shipwreck_strand"},
         {"starlit_weald"},
         {"eternitys_garden"},
+        {"leyspring_hollows"},
     }},
     {"festivals", {
         {"festival_of_the_four_winds"},

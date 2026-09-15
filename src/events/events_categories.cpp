@@ -167,14 +167,14 @@ static Category CategoryDefaultToCategory(const CategoryDefault& def)
 //--------------------------------------------------------------------------------
 // Same idea as MergeByKey in events_storage.cpp, keyed by category id - but a
 // Category's only content beyond identity is its member list, so "JSON wins" is
-// the whole merge for a matched id, not just a starting point. Every loaded
-// entry already has an id (see DeserializeCategory above).
+// the whole merge for a matched id, not just a starting point. Every loaded entry
+// already has an id (see DeserializeCategory above).
 //
-// Id in both: keep the JSON category as-is. Id only in defaults: always added -
-// a compiled-in default can only be hidden or overridden, never truly deleted,
-// so a missing id here means the default is new since the file was last saved,
-// not user-removed (same reasoning as MergeByKey, events_storage.cpp). Id only
-// in JSON: always kept.
+// Id in both: keep the JSON category as-is. Id only in defaults: always added - a
+// compiled-in default can only be hidden or overridden, never truly deleted, so a
+// missing id here means the default is new since the file was last saved, not
+// user-removed (same reasoning as MergeByKey, events_storage.cpp). Id only in
+// JSON: always kept.
 //--------------------------------------------------------------------------------
 static std::vector<Category> MergeCategoryDefaults(const std::vector<CategoryDefault>& defaults, const std::vector<Category>& loaded)
 {

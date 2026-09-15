@@ -124,6 +124,7 @@ add_library(gw2-world-events SHARED
     src/events/events_categories.cpp
     src/events/events_cyclic.cpp
     src/events/events_live.cpp
+    src/events/events_migration.cpp
     src/events/events_storage.cpp
     src/events/events_tracking.cpp
     src/generated/bundled_icons.generated.cpp
