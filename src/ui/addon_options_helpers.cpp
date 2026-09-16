@@ -507,15 +507,14 @@ void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const
 // DrawNameAndContextMenu
 //--------------------------------------------------------------------------------
 // toggleDone, notifyLevel/setNotifyLevel, and resetToDefault add optional right-
-// click entries, left null/-1 where not applicable (e.g. categories pass none of
-// them). resetToDefault, when non-null, adds "Reset" between Edit name and
-// Delete; resetAvailable greys it out for entries with no compiled-in default
-// (see GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot in
-// events_storage.h) instead of hiding the entry. editBuffers is the caller's own
-// edit-in-progress map, keyed by editKey (separate from removeIndex since slots
-// share one map across groups - see DrawCyclicGroupRow). Delete and Cancel both
-// erase the editBuffers entry and set pendingRemoveIndex = removeIndex; Cancel
-// (isNew only) additionally returns cancelled = true.
+// click entries, left null/-1 where unused (categories pass none). resetToDefault
+// adds Reset, greyed via resetAvailable for entries with no compiled-in default
+// (see GetDefault* in events_storage.h). editBuffers keys by editKey, not
+// removeIndex - slots share one map across groups (DrawCyclicGroupRow).
+// Delete/Cancel erase the editBuffers entry and set pendingRemoveIndex =
+// removeIndex; Cancel (isNew only) also returns cancelled = true. An already-
+// saved row's Delete instead swaps the menu for an inline confirm/cancel choice
+// (confirmingDelete below).
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
     const char*                 treeNodeId,
@@ -551,42 +550,97 @@ NameRowResult DrawNameAndContextMenu(
 
     if (ImGui::BeginPopupContextItem("##name_context_menu"))
     {
-        if (toggleDone)
+        //_ Per-row "are we on the confirm step" flag, stored in ImGui's own state
+        //  storage so it survives across the frames the
+        //  popup stays open. Reset to false the instant this popup (re)appears, so a
+        //  leftover confirm step from a previous visit never carries over to the
+        //  next right-click on this row.
+        ImGuiID confirmDeleteId = ImGui::GetID("##confirm_delete_inline");
+        if (ImGui::IsWindowAppearing())
+            ImGui::GetStateStorage()->SetBool(confirmDeleteId, false);
+        bool confirmingDelete = ImGui::GetStateStorage()->GetBool(confirmDeleteId, false);
+
+        if (confirmingDelete)
         {
-            if (ImGui::MenuItem(Tr("WE_SUBS_MARK_DONE_TODAY")))
-                toggleDone();
+            //_ Step two of Delete: swaps out the rest of the menu for an inline
+            //  choice right where "Delete" was just clicked, instead of a separate
+            //  modal window elsewhere on screen. Both of these default-close the
+            //  popup on click same as MenuItem (see Selectable() in
+            //  imgui_widgets.cpp), which is exactly what's wanted here - Confirm
+            //  commits the removal below first, Cancel just lets the close happen.
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 16.0f);
+            ImGui::TextWrapped(Tr("WE_DELETE_CONFIRM_BODY_FMT"), label.c_str());
+            ImGui::TextWrapped("%s", Tr("WE_DELETE_CONFIRM_HINT"));
+            ImGui::PopTextWrapPos();
             ImGui::Separator();
+            if (ImGui::Selectable(Tr("WE_DELETE_CONFIRM_BUTTON")))
+            {
+                pendingRemoveIndex = removeIndex;
+                editBuffers.erase(editKey); //. matches the isNew branch below - Delete always clears any in-progress edit
+                ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::Selectable(Tr("WE_DELETE_CANCEL_BUTTON")))
+                ImGui::CloseCurrentPopup();
         }
-        if (setNotifyLevel && notifyLevel >= 0)
+        else
         {
-            //_ Jump menu, not just a shortcut past the forward-only cycle; current stage shows a checkmark.
-            if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_TOAST_SOUND"), nullptr, notifyLevel == 3))
-                setNotifyLevel(3);
-            if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_TOAST"), nullptr, notifyLevel == 2))
-                setNotifyLevel(2);
-            if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_ONLY"), nullptr, notifyLevel == 1))
-                setNotifyLevel(1);
-            if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_UNSUBSCRIBED"), nullptr, notifyLevel == 0))
-                setNotifyLevel(0);
+            if (toggleDone)
+            {
+                if (ImGui::MenuItem(Tr("WE_SUBS_MARK_DONE_TODAY")))
+                    toggleDone();
+                ImGui::Separator();
+            }
+            if (setNotifyLevel && notifyLevel >= 0)
+            {
+                //_ Jump menu, not just a shortcut past the forward-only cycle; current stage shows a checkmark.
+                if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_TOAST_SOUND"), nullptr, notifyLevel == 3))
+                    setNotifyLevel(3);
+                if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_TOAST"), nullptr, notifyLevel == 2))
+                    setNotifyLevel(2);
+                if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_ONLY"), nullptr, notifyLevel == 1))
+                    setNotifyLevel(1);
+                if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_UNSUBSCRIBED"), nullptr, notifyLevel == 0))
+                    setNotifyLevel(0);
+                ImGui::Separator();
+            }
+            if (ImGui::MenuItem(Tr("WE_ROW_EDIT_NAME")))
+                editBuffers[editKey] = currentName; //. seeded when edit starts
             ImGui::Separator();
+            if (resetToDefault)
+            {
+                if (ImGui::MenuItem(Tr("WE_ROW_RESET"), nullptr, false, resetAvailable))
+                    resetToDefault();
+                ImGui::Separator();
+            }
+            //_ A not-yet-saved row has nothing to lose - delete it immediately, the
+            //  same as the inline "x" Cancel button, no confirmation needed, via a
+            //  normal MenuItem (closes the popup like every other entry above). An
+            //  already-saved row instead needs the confirm step above, so it uses a
+            //  Selectable with DontClosePopups instead - MenuItem, and a plain
+            //  Selectable, both auto-close the popup on click when it's a popup
+            //  window (see Selectable() in imgui_widgets.cpp), which would throw
+            //  away confirmDeleteId's new "true" the instant it was set, before
+            //  confirmingDelete ever got a chance to show on the next frame.
+            if (isNew)
+            {
+                if (ImGui::MenuItem(Tr("WE_ROW_DELETE")))
+                {
+                    pendingRemoveIndex = removeIndex;
+                    editBuffers.erase(editKey);
+                }
+            }
+            else
+            {
+                if (ImGui::Selectable(Tr("WE_ROW_DELETE"), false, ImGuiSelectableFlags_DontClosePopups))
+                    ImGui::GetStateStorage()->SetBool(confirmDeleteId, true);
+            }
         }
-        if (ImGui::MenuItem(Tr("WE_ROW_EDIT_NAME")))
-            editBuffers[editKey] = currentName; //. seeded when edit starts
-        ImGui::Separator();
-        if (resetToDefault)
-        {
-            if (ImGui::MenuItem(Tr("WE_ROW_RESET"), nullptr, false, resetAvailable))
-                resetToDefault();
-            ImGui::Separator();
-        }
-        if (ImGui::MenuItem(Tr("WE_ROW_DELETE")))
-            pendingRemoveIndex = removeIndex;
         ImGui::EndPopup();
     }
 
     auto it = editBuffers.find(editKey);
     if (it == editBuffers.end())
-        return { open, currentName };
+        return { open, currentName, isNew }; //. missing buffer: either branch above erased it (isNew delete, or a confirmed delete on any row) - cancelled only means anything to a caller checking isNew
 
     ImGui::SameLine();
     char buf[128];

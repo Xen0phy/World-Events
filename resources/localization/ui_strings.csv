@@ -15,6 +15,14 @@ and done-today marker, restoring the compiled-in defaults.","Löscht alle normal
 Erledigt-Markierungen und stellt die Grundeinstellungen wieder her.","Supprime tous les Événements normaux, Groupes cycliques, catégories, abonnements
 et marqueurs ""fait aujourd'hui"", puis restaure les valeurs par défaut intégrées.","Elimina todos los Eventos normales, Grupos cíclicos, categorías, suscripciones
 y marcas de ""hecho hoy"", y restaura los valores predeterminados integrados.",将会清除所有基础事件、循环事件组、分类、订阅以及今日已完成标记，恢复内置默认配置。,
+WE_RESTORE_BUTTON,Rebuild Missing,Fehlende wiederherstellen,Restaurer les manquants,Restaurar faltantes,恢复缺失项,
+WE_TIP_RESTORE,"Adds back any built-in Basic Event, Cyclic Group, Cyclic Slot, or category
+that's missing - your own customizations, added entries, and subscriptions are left untouched.","Fügt fehlende integrierte normale Events, zyklische Gruppen, zyklische Slots
+oder Kategorien wieder hinzu - eigene Anpassungen, hinzugefügte Einträge und Abos bleiben unverändert.","Rajoute tout Événement normal, Groupe cyclique, Emplacement cyclique ou catégorie
+intégré manquant - vos personnalisations, entrées ajoutées et abonnements restent inchangés.","Vuelve a añadir cualquier Evento normal, Grupo cíclico, Espacio cíclico o categoría
+integrado que falte - tus personalizaciones, entradas añadidas y suscripciones no se modifican.",找回缺失的内置基础事件、循环事件组、循环时段或分类；你自己的自定义内容、新增条目和订阅设置均不受影响。,
+WE_RESTORE_RESULT_ADDED_FMT,Added back %d missing entries.,%d fehlende Einträge wieder hinzugefügt.,%d entrées manquantes rajoutées.,Se añadieron %d entradas faltantes.,已找回 %d 项缺失内容。,
+WE_RESTORE_RESULT_NONE,Nothing was missing.,Nichts hat gefehlt.,Rien ne manquait.,No faltaba nada.,没有缺失内容。,
 #,subscriptions_window.cpp / subscriptions_notification.cpp - shared watchlist/toast tooltip.,,,,,
 WE_TIP_WEEKLY_VAULT,Counts toward this week's Wizard's Vault objectives.,Zählt zu den Gewölbe des Zauberers-Zielen dieser Woche.,Compte pour les objectifs du Coffre du Sorcier de cette semaine.,Cuenta para los objetivos de la Bóveda del Mago de esta semana.,计入本周巫师宝库的任务进度。,
 #,subscriptions_window.cpp / subscriptions_bar.cpp - status-suffix format strings.,,,,,
@@ -477,19 +485,27 @@ WE_WSDEBUG_COL_MESSAGE,Message,Nachricht,Message,Mensaje,消息,
 WE_UNNAMED,(unnamed),(unbenannt),(sans nom),(sin nombre),（未命名）,
 #,addon_options_helpers.cpp - duplicate-name warning tag next to a Cyclic Group slot's name.,,,,,
 WE_DUPLICATE_TAG,[duplicate],[Duplikat],[doublon],[duplicado],[重复],
-#,"addon_options_helpers.cpp - DrawNameAndContextMenu's shared right-click menu",,,,,
+#,addon_options_helpers.cpp - DrawNameAndContextMenu's shared right-click menu,,,,,
 WE_ROW_NOTIFY_SUB_TOAST_SOUND,Set to: Subscribed + Toast + Sound,Setzen auf: Abonniert + Benachrichtigung + Ton,Définir sur : Abonné + Notification + Son,Establecer en: Suscrito + Notificación + Sonido,设置为：已订阅+弹窗+音效,
 WE_ROW_NOTIFY_SUB_TOAST,Set to: Subscribed + Toast,Setzen auf: Abonniert + Benachrichtigung,Définir sur : Abonné + Notification,Establecer en: Suscrito + Notificación,设置为：已订阅+弹窗通知,
-WE_ROW_NOTIFY_SUB_ONLY,"Set to: Subscribed only",Setzen auf: Nur abonniert,Définir sur : Abonné uniquement,Establecer en: Solo suscrito,设置为：仅订阅,
+WE_ROW_NOTIFY_SUB_ONLY,Set to: Subscribed only,Setzen auf: Nur abonniert,Définir sur : Abonné uniquement,Establecer en: Solo suscrito,设置为：仅订阅,
 WE_ROW_NOTIFY_UNSUBSCRIBED,Set to: Unsubscribed,Setzen auf: Nicht abonniert,Définir sur : Non abonné,Establecer en: No suscrito,设置为：取消订阅,
 WE_ROW_EDIT_NAME,Edit name,Namen bearbeiten,Modifier le nom,Editar nombre,编辑名称,
 WE_ROW_RESET,Reset,Zurücksetzen,Réinitialiser,Restablecer,重置,
 WE_ROW_DELETE,Delete,Löschen,Supprimer,Eliminar,删除,
+WE_DELETE_CONFIRM_BODY_FMT,"Delete ""%s""?",„%s“ löschen?,Supprimer « %s » ?,"¿Eliminar ""%s""?",删除“%s”？,
+WE_DELETE_CONFIRM_HINT,"If this was one of the built-in defaults, you can bring it back later with
+Rebuild Missing - anything you added yourself can't be recovered.","Wenn dies einer der integrierten Standardeinträge war, kannst du ihn später mit
+„Fehlende wiederherstellen“ zurückholen - selbst hinzugefügte Einträge lassen sich nicht wiederherstellen.","S'il s'agissait d'un élément par défaut intégré, vous pourrez le récupérer plus
+tard avec « Restaurer les manquants » - tout ce que vous avez ajouté vous-même ne peut pas être récupéré.","Si era uno de los valores predeterminados integrados, podrás recuperarlo más
+tarde con ""Restaurar faltantes"" - lo que hayas añadido tú mismo no se puede recuperar.",如果这是内置的默认项，之后可以通过“恢复缺失项”找回；但你自己添加的内容一旦删除将无法恢复。,
+WE_DELETE_CONFIRM_BUTTON,Delete,Löschen,Supprimer,Eliminar,删除,
+WE_DELETE_CANCEL_BUTTON,Cancel,Abbrechen,Annuler,Cancelar,取消,
 WE_ROW_SAVE,Save,Speichern,Enregistrer,Guardar,保存,
 WE_ROW_NAME_REQUIRED_TIP,Enter a name before saving,Vor dem Speichern einen Namen eingeben,Saisissez un nom avant d'enregistrer,Introduce un nombre antes de guardar,保存前请输入名称,
 WE_TIP_CANCEL_NEW,Discard this new entry,Diesen neuen Eintrag verwerfen,Abandonner cette nouvelle entrée,Descartar esta nueva entrada,放弃这个新条目,
 WE_TIP_FINISH_NAMING,Finish naming the current new entry first,Zuerst den aktuellen neuen Eintrag benennen,Terminez d'abord de nommer la nouvelle entrée en cours,Termina de nombrar la nueva entrada actual primero,请先为当前的新条目命名,
-#,"addon_options_helpers.cpp - per-event/per-slot Icon combo and chat-code input label",,,,,
+#,addon_options_helpers.cpp - per-event/per-slot Icon combo and chat-code input label,,,,,
 WE_ICON_LABEL,Icon,Symbol,Icône,Icono,图标,
 WE_TEXT_TO_COPY_LABEL,Text to copy,Zu kopierender Text,Texte à copier,Texto para copiar,待复制文本,
 WE_ICON_DOT,Dot,Punkt,Point,Punto,圆点,addon_options_helpers.cpp - icon-combo entry that keeps the plain circle marker instead of a texture.
@@ -628,7 +644,7 @@ WE_OPT_AUTO_MARK_API_DONE,Automatically mark API-confirmed events done,API-best�
 WE_OPT_AUTO_TRACK_VAULT,Auto-track weekly Wizard's Vault targets,Wöchentliche Gewölbe des Zauberers-Ziele automatisch verfolgen,Suivre automatiquement les cibles hebdomadaires du Coffre du Sorcier,Rastrear automáticamente los objetivos semanales de la Bóveda del Mago,自动追踪每周巫师宝库目标,
 WE_OPT_WEEKLY_COLOR,Weekly Color,Wochenfarbe,Couleur hebdomadaire,Color semanal,宝库目标高亮颜色,
 WE_OPT_CLEAR_DONE_MARKERS,Clear events manually marked done,Manuell als erledigt markierte Events zurücksetzen,Réinitialiser les événements marqués faits manuellement,Restablecer eventos marcados como hechos manualmente,清除手动标记的已完成事件,
-WE_OPT_ONLY_SHOW_STARTING_IN,Only show events starting in,"Zeige nur Events innerhalb der nächsten",N'afficher que les événements commençant dans,Mostrar solo eventos que empiecen en,仅显示多久之后开始的事件,
+WE_OPT_ONLY_SHOW_STARTING_IN,Only show events starting in,Zeige nur Events innerhalb der nächsten,N'afficher que les événements commençant dans,Mostrar solo eventos que empiecen en,仅显示多久之后开始的事件,
 WE_OPT_WAITING,Waiting,Pause,En attente,Esperando,等待中,
 WE_OPT_DOT_RADIUS,Dot radius,Punktradius,Rayon du point,Radio del punto,圆点半径,
 WE_OPT_ICON_SIZE,Icon size,Symbolgröße,Taille de l'icône,Tamaño del icono,图标尺寸,

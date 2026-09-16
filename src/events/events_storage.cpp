@@ -7,8 +7,8 @@
 // On load, compiled-in defaults are merged with disk contents by key, not
 // replaced outright - see MergeByKey/MergeGroups for the rule. Merge keys are
 // WorldEvent::id/CyclicGroup::id/Slot::id, not name (see EventKey/GroupKey/
-// SlotKey) - name is display-only. Every entry on disk already has an id: a
-// pre-id-migration file is deleted before it ever reaches here (see
+// SlotKey) - name is display-only. Every entry on disk already has an id: a pre-
+// id-migration file is deleted before it ever reaches here (see
 // WipeLegacyEventsFile, addon.cpp), and the options panel's "+" button assigns
 // one up front for anything created since (see addon_options.cpp). The id
 // backfill below only fires for a save written by a build that predates that
@@ -83,8 +83,8 @@ static bool IsAbandonedEntry(const std::string& customName, bool hasDefault)
 // events_storage.h) - LoadEventsData's id backfill only matters for a save
 // written before that assignment existed. iconTexture/chatCode/customName are
 // omitted when empty, shown is omitted when true (the default) - all four fall
-// through via j.value() on load. isVarying selects varyingTimes vs
-// period/offset (see WorldEvent in events.h).
+// through via j.value() on load. isVarying selects varyingTimes vs period/offset
+// (see WorldEvent in events.h).
 //--------------------------------------------------------------------------------
 static json SerializeEvent(const WorldEvent& ev)
 {
@@ -222,11 +222,12 @@ static ImVec4 DeserializeColorArray(const json& j, const ImVec4& fallback)
 //--------------------------------------------------------------------------------
 // (De)serializes one CyclicGroup::Slot. id is the merge/identity key, unique
 // within the group (see SlotKey), assigned up front when the slot is created -
-// same as SerializeEvent/DeserializeEvent above. customColor is presence-checked (j.contains), not defaulted, so "unset"
-// round-trips exactly; chatCode/customName omitted when empty, shown when true
-// (the default), same convention as WorldEvent above. isVarying/varyingTimes
-// follow WorldEvent's own convention: isVarying always written, varyingTimes only
-// written/read when isVarying is true.
+// same as SerializeEvent/DeserializeEvent above. customColor is presence-checked
+// (j.contains), not defaulted, so "unset" round-trips exactly;
+// chatCode/customName omitted when empty, shown when true (the default), same
+// convention as WorldEvent above. isVarying/varyingTimes follow WorldEvent's own
+// convention: isVarying always written, varyingTimes only written/read when
+// isVarying is true.
 //--------------------------------------------------------------------------------
 static json SerializeSlot(const CyclicGroup::Slot& slot)
 {
@@ -286,9 +287,9 @@ static CyclicGroup::Slot DeserializeSlot(const json& j)
 // SerializeSlot/DeserializeSlot - abandoned (unnamed, non-default) slots are
 // dropped on serialize, same as SaveEventsData (IsAbandonedEntry above). id is
 // the merge/identity key (see GroupKey), assigned up front when the group is
-// created - same as SerializeEvent/DeserializeEvent above. idleColor is
-// presence-checked like Slot::customColor above; shown/customName are omitted
-// when true/empty (their defaults), same convention as WorldEvent above.
+// created - same as SerializeEvent/DeserializeEvent above. idleColor is presence-
+// checked like Slot::customColor above; shown/customName are omitted when
+// true/empty (their defaults), same convention as WorldEvent above.
 //--------------------------------------------------------------------------------
 static json SerializeGroup(const CyclicGroup& grp)
 {
@@ -566,9 +567,9 @@ std::string UniqueId(const std::string& candidate, std::unordered_set<std::strin
 // untouched, only what gets written. LoadEventsData merges disk contents into
 // them (see MergeByKey/MergeGroups, id backfill block below), then restamps
 // apiWorldBossId/doneGroup/apiMapChestId from the compiled-in defaults by id,
-// since those cross-reference fields are never read from or written to the
-// file. A missing file isn't an error - g_Events/g_CyclicGroups are simply left
-// at their compiled-in defaults.
+// since those cross-reference fields are never read from or written to the file.
+// A missing file isn't an error - g_Events/g_CyclicGroups are simply left at
+// their compiled-in defaults.
 //--------------------------------------------------------------------------------
 bool SaveEventsData(const std::string& addonDir)
 {
@@ -638,11 +639,10 @@ bool LoadEventsData(const std::string& addonDir)
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // (id backfill)
         //--------------------------------------------------------------------------------
-        // The options panel's "+" button assigns an id up front (see
-        // addon_options.cpp), so a loaded id is only ever empty for a save written by a
-        // build predating that fix - see SerializeEvent/SerializeSlot/SerializeGroup and
-        // SlugifyName/UniqueId (events_storage.h). Everything else on disk already
-        // carries a real id.
+        // The options panel's "+" button assigns an id up front (see addon_options.cpp),
+        // so a loaded id is only ever empty for a save written by a build predating that
+        // fix - see SerializeEvent/SerializeSlot/SerializeGroup and SlugifyName/UniqueId
+        // (events_storage.h). Everything else on disk already carries a real id.
         //--------------------------------------------------------------------------------
         std::unordered_set<std::string> usedEventIds;
         for (const auto& d : g_Events) usedEventIds.insert(d.id);
@@ -722,6 +722,36 @@ void ResetEventsToDefaults()
 
     g_Events       = s_compiledDefaultEvents;
     g_CyclicGroups = s_compiledDefaultGroups;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RestoreMissingDefaults   (see: events_storage.h)
+//--------------------------------------------------------------------------------
+// MergeByKey/MergeGroups run here exactly as they do in LoadEventsData, just
+// against the current live g_Events/g_CyclicGroups instead of a freshly-loaded
+// JSON snapshot - "defaults" is still s_compiledDefaultEvents/
+// s_compiledDefaultGroups, never the live lists themselves, so a default that's
+// been renamed or otherwise edited is correctly seen as "present" (it matches by
+// id) and is left as the player has it, not reverted.
+//--------------------------------------------------------------------------------
+int RestoreMissingDefaults()
+{
+    if (!s_compiledDefaultsCaptured) return 0;
+
+    size_t beforeEvents = g_Events.size();
+    size_t beforeGroups = g_CyclicGroups.size();
+    size_t beforeSlots  = 0;
+    for (const auto& grp : g_CyclicGroups) beforeSlots += grp.slots.size();
+
+    g_Events       = MergeByKey(s_compiledDefaultEvents, g_Events, EventKey);
+    g_CyclicGroups = MergeGroups(s_compiledDefaultGroups, g_CyclicGroups);
+
+    size_t afterSlots = 0;
+    for (const auto& grp : g_CyclicGroups) afterSlots += grp.slots.size();
+
+    return (int)(g_Events.size() - beforeEvents)
+         + (int)(g_CyclicGroups.size() - beforeGroups)
+         + (int)(afterSlots - beforeSlots);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -32,6 +32,22 @@ bool LoadEventsData(const std::string& addonDir);
 void ResetEventsToDefaults();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RestoreMissingDefaults
+//--------------------------------------------------------------------------------
+// Non-destructive counterpart to ResetEventsToDefaults: re-adds any compiled-in
+// Basic Event, Cyclic Group, or Cyclic Slot currently missing from g_Events/
+// g_CyclicGroups - the exact same "a missing default is always resurrected" rule
+// LoadEventsData already applies via MergeByKey/MergeGroups on every startup -
+// without discarding or altering anything already present. An unmodified default,
+// a renamed/edited default, and a player-added entry all pass through completely
+// untouched; only a genuinely missing default gets appended back (at the end of
+// its list, not its original position). No-op (returns 0) if LoadEventsData never
+// ran. Returns the number of entries added back, for the options panel to report
+// to the player - see DrawRestoreMissingButton, reset_defaults.cpp.
+//--------------------------------------------------------------------------------
+int RestoreMissingDefaults();
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetDefaultEvent / GetDefaultCyclicGroup / GetDefaultCyclicSlot
 //--------------------------------------------------------------------------------
 // Look up a single entry in the same compiled-in snapshot ResetEventsToDefaults
@@ -69,12 +85,12 @@ const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string&
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SlugifyName / UniqueId
 //--------------------------------------------------------------------------------
-// Id-assignment helpers. A brand-new WorldEvent/CyclicGroup/CyclicGroup::Slot
-// or Category gets its id up front, right when the options panel's "+" button
-// creates it (see addon_options.cpp/addon_options_helpers.cpp) - the id is
-// never derived from the (still-unset) name. LoadEventsData also calls these
-// as a one-time backfill for any id left empty by a save from before that
-// assignment existed (see the .cpp).
+// Id-assignment helpers. A brand-new WorldEvent/CyclicGroup/CyclicGroup::Slot or
+// Category gets its id up front, right when the options panel's "+" button
+// creates it (see addon_options.cpp/addon_options_helpers.cpp) - the id is never
+// derived from the (still-unset) name. LoadEventsData also calls these as a one-
+// time backfill for any id left empty by a save from before that assignment
+// existed (see the .cpp).
 //--------------------------------------------------------------------------------
 std::string SlugifyName(const std::string& name);
 std::string UniqueId(const std::string& candidate, std::unordered_set<std::string>& used);

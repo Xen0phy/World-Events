@@ -677,6 +677,9 @@ void AddonOptions()
         DrawResetToDefaultsPopup(); //. no-op unless the confirm popup is open
 
         ImGui::SameLine();
+        DrawRestoreMissingButton();
+
+        ImGui::SameLine();
         ImGui::TextDisabled("%s", Tr("WE_OPT_RIGHT_CLICK_HINT"));
 
         //_ Table 3 - Basic Events tree (col 0), Cyclic Events tree (col 1); split out so search can filter both.

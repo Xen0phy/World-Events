@@ -58,6 +58,9 @@ def cpp_escape(text: str) -> str:
             out.append('\\"')
         elif ch == "\n":
             out.append("\\n")
+        elif ch == "?":
+            # - avoids -Wtrigraphs
+            out.append("\\?")
         else:
             out.append(ch)
     return "".join(out)

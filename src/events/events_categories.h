@@ -122,3 +122,18 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 //--------------------------------------------------------------------------------
 bool SaveCategoriesData(const std::string& addonDir);
 bool LoadCategoriesData(const std::string& addonDir);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RestoreMissingCategories
+//--------------------------------------------------------------------------------
+// Non-destructive: re-adds any compiled-in Category (Basic or Cyclic) currently
+// missing from g_BasicCategories/g_CyclicCategories, with its original compiled-
+// in membership, while leaving every other category - including one the player
+// has since edited, and any category the player created themselves - completely
+// untouched. Same "a missing default id is always added back" rule
+// LoadCategoriesData already applies via MergeCategoryDefaults on every startup,
+// just run here against the current live lists instead of a freshly-loaded JSON
+// one. Returns the number of categories added back, for the options panel to
+// report to the player - see DrawRestoreMissingButton, reset_defaults.cpp.
+//--------------------------------------------------------------------------------
+int RestoreMissingCategories();

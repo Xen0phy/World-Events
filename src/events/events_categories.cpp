@@ -317,3 +317,17 @@ bool LoadCategoriesData(const std::string& addonDir)
     }
     catch (...) { return false; }
 }
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RestoreMissingCategories   (see: events_categories.h)
+//--------------------------------------------------------------------------------
+int RestoreMissingCategories()
+{
+    size_t beforeBasic  = g_BasicCategories.size();
+    size_t beforeCyclic = g_CyclicCategories.size();
+
+    g_BasicCategories  = MergeCategoryDefaults(g_DefaultBasicCategories,  g_BasicCategories);
+    g_CyclicCategories = MergeCategoryDefaults(g_DefaultCyclicCategories, g_CyclicCategories);
+
+    return (int)(g_BasicCategories.size() - beforeBasic) + (int)(g_CyclicCategories.size() - beforeCyclic);
+}

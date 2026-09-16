@@ -13,7 +13,7 @@
 
 #include "events.h"
 #include "events_categories.h"
-#include <optional> //. std::nullopt
+#include <optional> // IWYU pragma: keep //. std::nullopt
 
 //_ Coords, most of which were taken directly from Sognus's World Bosses data.
 std::vector<WorldEvent> g_Events =

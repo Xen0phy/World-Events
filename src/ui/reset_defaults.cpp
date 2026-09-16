@@ -5,6 +5,8 @@
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
+#include "events_categories.h"
+#include "events_storage.h"
 #include "imgui.h"
 #include "localization.h"
 #include "reset_defaults.h"
@@ -65,4 +67,27 @@ void DrawResetToDefaultsPopup()
     }
 
     ImGui::EndPopup();
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawRestoreMissingButton   (see: reset_defaults.h)
+//--------------------------------------------------------------------------------
+static int s_lastRestoreCount = -1; //. -1 = not clicked yet this session, hides the result text
+
+void DrawRestoreMissingButton()
+{
+    if (ImGui::Button(Tr("WE_RESTORE_BUTTON")))
+        s_lastRestoreCount = RestoreMissingDefaults() + RestoreMissingCategories();
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", Tr("WE_TIP_RESTORE"));
+
+    if (s_lastRestoreCount >= 0)
+    {
+        ImGui::SameLine();
+        if (s_lastRestoreCount == 0)
+            ImGui::TextDisabled("%s", Tr("WE_RESTORE_RESULT_NONE"));
+        else
+            ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), Tr("WE_RESTORE_RESULT_ADDED_FMT"), s_lastRestoreCount);
+    }
 }
