@@ -550,11 +550,7 @@ NameRowResult DrawNameAndContextMenu(
 
     if (ImGui::BeginPopupContextItem("##name_context_menu"))
     {
-        //_ Per-row "are we on the confirm step" flag, stored in ImGui's own state
-        //  storage so it survives across the frames the
-        //  popup stays open. Reset to false the instant this popup (re)appears, so a
-        //  leftover confirm step from a previous visit never carries over to the
-        //  next right-click on this row.
+        //_ Confirm-step flag lives in ImGui's state storage (survives while the popup stays open); reset whenever it reappears so a stale confirm doesn't carry over
         ImGuiID confirmDeleteId = ImGui::GetID("##confirm_delete_inline");
         if (ImGui::IsWindowAppearing())
             ImGui::GetStateStorage()->SetBool(confirmDeleteId, false);
@@ -562,12 +558,7 @@ NameRowResult DrawNameAndContextMenu(
 
         if (confirmingDelete)
         {
-            //_ Step two of Delete: swaps out the rest of the menu for an inline
-            //  choice right where "Delete" was just clicked, instead of a separate
-            //  modal window elsewhere on screen. Both of these default-close the
-            //  popup on click same as MenuItem (see Selectable() in
-            //  imgui_widgets.cpp), which is exactly what's wanted here - Confirm
-            //  commits the removal below first, Cancel just lets the close happen.
+            //_ Both Selectables default-close the popup on click same as MenuItem (imgui_widgets.cpp); Confirm commits the removal below first, Cancel just lets the close happen
             ImGui::PushTextWrapPos(ImGui::GetFontSize() * 16.0f);
             ImGui::TextWrapped(Tr("WE_DELETE_CONFIRM_BODY_FMT"), label.c_str());
             ImGui::TextWrapped("%s", Tr("WE_DELETE_CONFIRM_HINT"));
@@ -612,15 +603,6 @@ NameRowResult DrawNameAndContextMenu(
                     resetToDefault();
                 ImGui::Separator();
             }
-            //_ A not-yet-saved row has nothing to lose - delete it immediately, the
-            //  same as the inline "x" Cancel button, no confirmation needed, via a
-            //  normal MenuItem (closes the popup like every other entry above). An
-            //  already-saved row instead needs the confirm step above, so it uses a
-            //  Selectable with DontClosePopups instead - MenuItem, and a plain
-            //  Selectable, both auto-close the popup on click when it's a popup
-            //  window (see Selectable() in imgui_widgets.cpp), which would throw
-            //  away confirmDeleteId's new "true" the instant it was set, before
-            //  confirmingDelete ever got a chance to show on the next frame.
             if (isNew)
             {
                 if (ImGui::MenuItem(Tr("WE_ROW_DELETE")))
@@ -631,6 +613,7 @@ NameRowResult DrawNameAndContextMenu(
             }
             else
             {
+                //_ DontClosePopups here - a plain Selectable/MenuItem click auto-closes the popup and would lose confirmDeleteId's new "true" before confirmingDelete can show it next frame
                 if (ImGui::Selectable(Tr("WE_ROW_DELETE"), false, ImGuiSelectableFlags_DontClosePopups))
                     ImGui::GetStateStorage()->SetBool(confirmDeleteId, true);
             }
@@ -640,8 +623,8 @@ NameRowResult DrawNameAndContextMenu(
 
     auto it = editBuffers.find(editKey);
     if (it == editBuffers.end())
-        return { open, currentName, isNew }; //. missing buffer: either branch above erased it (isNew delete, or a confirmed delete on any row) - cancelled only means anything to a caller checking isNew
-
+        //_ missing buffer: either branch above erased it (isNew delete, or a confirmed delete on any row) - cancelled only means anything to a caller checking isNew
+        return { open, currentName, isNew };
     ImGui::SameLine();
     char buf[128];
     strncpy(buf, it->second.c_str(), sizeof(buf) - 1);

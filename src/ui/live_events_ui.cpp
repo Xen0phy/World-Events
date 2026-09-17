@@ -265,19 +265,6 @@ static const char* ConnectionStateLabel(WsConnectionState state)
 //--------------------------------------------------------------------------------
 void RenderLiveEventReportsWindow()
 {
-    //_ Mirrors AddonLoad's unconditional initial registration - corrects itself below on this function's first call if the loaded setting says otherwise.
-    static bool s_escapeCloseRegistered = true;
-    if (LiveEventReportsWindowLocked && s_escapeCloseRegistered)
-    {
-        APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowId);
-        s_escapeCloseRegistered = false;
-    }
-    else if (!LiveEventReportsWindowLocked && !s_escapeCloseRegistered)
-    {
-        APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowId, &ShowLiveEventReportsWindow);
-        s_escapeCloseRegistered = true;
-    }
-
     if (!ShowLiveEventReportsWindow) return;
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_None;
@@ -292,7 +279,17 @@ void RenderLiveEventReportsWindow()
     }
 
     ImGui::SetNextWindowSize(ImVec2(320.0f, 220.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(TrId("WE_LIVE_REPORTS_WINDOW_TITLE", kLiveEventReportsWindowId).c_str(), &ShowLiveEventReportsWindow, flags))
+    std::string windowTitle = TrId("WE_LIVE_REPORTS_WINDOW_TITLE", kLiveEventReportsWindowId);
+
+    bool isOpen = ImGui::Begin(windowTitle.c_str(), &ShowLiveEventReportsWindow, flags);
+
+    //_ Deregistered instead while locked - NoInputs already makes the window click-through, so Escape shouldn't touch it either.
+    if (LiveEventReportsWindowLocked)
+        Localization_DeregisterCloseOnEscape(&ShowLiveEventReportsWindow);
+    else
+        Localization_SyncCloseOnEscape(&ShowLiveEventReportsWindow, windowTitle);
+
+    if (!isOpen)
     {
         ImGui::End();
         return;

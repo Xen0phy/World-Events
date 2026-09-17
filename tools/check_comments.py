@@ -98,6 +98,17 @@ COMMENT_LINE_RE = re.compile(r'^(?P<indent>[ \t]*)//(?P<rest>.*)$')
 # check_inline_comment_runs below).
 INLINE_MARKER_RE = re.compile(r'^(?P<indent>[ \t]*)//_(?:[ \t]|$)')
 
+# A continuation line for a wrapped '//_' comment, e.g. the second and
+# later lines of:
+#     //_ Nexus's escape-to-close matches the live ImGuiWindow::Name,
+#     //  which only Localization_SyncCloseOnEscape can keep aligned...
+# Here the wrapped lines don't repeat the '_' marker -- they pad with
+# plain spaces ("//  ") to keep the text visually aligned under the
+# first line's "//_ ". Two or more spaces after '//' (with no '_')
+# distinguishes this from an ordinary single-space "// text" comment
+# line, which isn't part of a wrapped inline-marker run.
+INLINE_CONTINUATION_RE = re.compile(r'^(?P<indent>[ \t]*)//(?P<pad>[ \t]{2,})(?=\S)')
+
 # A '//' line whose content is *only* whitespace and separator/marker
 # characters -- catches a run that would otherwise match DASH_LINE_RE or
 # MARKER_LINE_RE if not for a stray space or tab splitting it up. Lines
@@ -264,36 +275,60 @@ def scan_global(lines):
 
 
 def check_inline_comment_runs(lines):
-    """Advisory: a run of 2+ consecutive '//_' inline-comment lines.
+    """Advisory: a '//_' inline comment that spans more than one line.
 
     The codebase's '//_' marker is meant for a single-line comment (e.g.
-    "//_ this is some proper comment"). If someone wrote a bigger comment
-    across multiple lines, each prefixed with '//_', that's a run like:
+    "//_ this is some proper comment"). Someone can turn that into a
+    multi-line comment two ways, and both are flagged the same way:
+
+    1. Repeating the marker on every line:
 
         //_ sometext
         //_ moretext
         //_ evenmore
 
-    Each such run is flagged once, at its first line, so it can be
-    reviewed and (usually) rewritten as a proper block comment instead.
+    2. Wrapping onto continuation lines that pad with plain spaces
+       instead of repeating '_', to keep the text visually aligned
+       under the first line's "//_ ":
+
+        //_ sometext
+        //  moretext, aligned under the text above
+        //  evenmore
+
+    Either way it's the same underlying issue -- a marker meant for one
+    line covering several -- so a run mixing both forms is flagged too.
+    Each run is flagged once, at its first line, so it can be reviewed
+    and (usually) rewritten as a proper block comment instead.
     """
     issues = []
     i = 0
     n = len(lines)
 
     while i < n:
-        if INLINE_MARKER_RE.match(lines[i]):
+        im = INLINE_MARKER_RE.match(lines[i])
+        if im:
             start = i
-            while i < n and INLINE_MARKER_RE.match(lines[i]):
-                i += 1
+            indent = im.group('indent')
+            i += 1
+            while i < n:
+                nxt_marker = INLINE_MARKER_RE.match(lines[i])
+                nxt_cont = INLINE_CONTINUATION_RE.match(lines[i])
+                if nxt_marker and nxt_marker.group('indent') == indent:
+                    i += 1
+                    continue
+                if nxt_cont and nxt_cont.group('indent') == indent:
+                    i += 1
+                    continue
+                break
             run_len = i - start
             if run_len > 1:
                 issues.append(Issue(
                     start + 1, 'inline-comment-multiline',
-                    f"{run_len} consecutive '//_' lines (lines {start + 1}-{i}) -- "
+                    f"{run_len}-line '//_' comment (lines {start + 1}-{i}) -- "
                     f"'//_' is meant for a single-line comment; this looks like a "
-                    f"multi-line comment split across several '//_' lines and "
-                    f"should be reviewed / rewritten as a proper block comment",
+                    f"multi-line comment split across several '//_' lines or "
+                    f"wrapped onto aligned continuation lines, and should be "
+                    f"reviewed / rewritten as a proper block comment",
                     context=lines[start].strip(),
                 ))
         else:

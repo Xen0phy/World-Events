@@ -334,7 +334,11 @@ void RenderEditSubscriptionsWindow()
     if (s_hasPendingTarget)
         ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
 
-    if (!ImGui::Begin(TrId("WE_EDIT_SUBS_WINDOW_TITLE", kEditSubscriptionsWindowId).c_str(), &ShowEditSubscriptionsWindow))
+    std::string windowTitle = TrId("WE_EDIT_SUBS_WINDOW_TITLE", kEditSubscriptionsWindowId);
+    bool isOpen = ImGui::Begin(windowTitle.c_str(), &ShowEditSubscriptionsWindow);
+    Localization_SyncCloseOnEscape(&ShowEditSubscriptionsWindow, windowTitle);
+
+    if (!isOpen)
     {
         //_ Collapsed, not closed - still balance Begin() with End().
         ImGui::End();

@@ -16,10 +16,17 @@
 #include "addon.h"
 #include "localization_table.h"
 
+#include "imgui.h"          // IWYU pragma: keep //.
+#include "imgui_internal.h" //. ImGuiWindow::Name/NameBufLen, ImStrdupcpy - see Localization_SyncCloseOnEscape
+
 #include <cstring>
+#include <unordered_map>
 
 //_ Not shown to the user, never listed in kLocalizationTable.
 static constexpr const char* kLanguageProbeIdentifier = "WE_LANGUAGE_PROBE";
+
+//_ Full window-Name string last registered with Nexus, keyed by aIsVisible - see Localization_SyncCloseOnEscape (localization.h)
+static std::unordered_map<bool*, std::string> s_closeOnEscapeLabels;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RegisterTable
@@ -95,4 +102,64 @@ const char* TrEnglish(const char* aIdentifier)
 std::string TrId(const char* aIdentifier, const char* aIdSuffix)
 {
     return std::string(Tr(aIdentifier)) + aIdSuffix;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Localization_SyncCloseOnEscape
+//--------------------------------------------------------------------------------
+// ImGuiWindow::Name only refreshes on its own while the Ctrl+Tab switcher list is
+// open (imgui.cpp Begin()); otherwise it stays frozen to whichever string the
+// window's first-ever Begin() call used, even though the title bar always shows
+// the fresh argument. Force-updates it the same way that Ctrl+Tab path does, then
+// no-ops if aFullLabel already matches what's registered for aIsVisible -
+// otherwise deregisters the stale string before registering the new one, so
+// Nexus's registry never holds two entries for the same bool*.
+//--------------------------------------------------------------------------------
+void Localization_SyncCloseOnEscape(bool* aIsVisible, const std::string& aFullLabel)
+{
+    if (!APIDefs) return;
+
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window && strcmp(window->Name, aFullLabel.c_str()) != 0)
+    {
+        size_t bufLen = (size_t)window->NameBufLen;
+        window->Name = ImStrdupcpy(window->Name, &bufLen, aFullLabel.c_str());
+        window->NameBufLen = (int)bufLen;
+    }
+
+    auto it = s_closeOnEscapeLabels.find(aIsVisible);
+    if (it != s_closeOnEscapeLabels.end())
+    {
+        if (it->second == aFullLabel) return; //. already in sync
+        APIDefs->GUI_DeregisterCloseOnEscape(it->second.c_str());
+    }
+
+    APIDefs->GUI_RegisterCloseOnEscape(aFullLabel.c_str(), aIsVisible);
+    s_closeOnEscapeLabels[aIsVisible] = aFullLabel;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Localization_DeregisterCloseOnEscape   (see: localization.h)
+//--------------------------------------------------------------------------------
+void Localization_DeregisterCloseOnEscape(bool* aIsVisible)
+{
+    if (!APIDefs) return;
+
+    auto it = s_closeOnEscapeLabels.find(aIsVisible);
+    if (it == s_closeOnEscapeLabels.end()) return;
+
+    APIDefs->GUI_DeregisterCloseOnEscape(it->second.c_str());
+    s_closeOnEscapeLabels.erase(it);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Localization_DeregisterAllCloseOnEscape   (see: localization.h)
+//--------------------------------------------------------------------------------
+void Localization_DeregisterAllCloseOnEscape()
+{
+    if (!APIDefs) return;
+
+    for (auto& [visPtr, label] : s_closeOnEscapeLabels)
+        APIDefs->GUI_DeregisterCloseOnEscape(label.c_str());
+    s_closeOnEscapeLabels.clear();
 }

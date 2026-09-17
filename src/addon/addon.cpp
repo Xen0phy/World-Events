@@ -106,6 +106,10 @@ bool ResetAllDataToDefaults()
 // story), then SaveAllData to persist that merged state, then the render
 // callbacks are registered last so nothing can render before setup has actually
 // finished.
+//
+// Edit Subscriptions, live-events, and WS debug windows have translated titles,
+// so each self-registers via Localization_SyncCloseOnEscape per frame instead
+// (see localization.h).
 //--------------------------------------------------------------------------------
 void AddonLoad(AddonAPI_t* aAPI)
 {
@@ -166,16 +170,7 @@ void AddonLoad(AddonAPI_t* aAPI)
     //_ Also registered separately, same reason: the notice should be visible at character select, not just once a character is loaded onto a map - see changelog_window.h.
     APIDefs->GUI_Register(RT_Render, RenderVersionHistoryWindow);
 
-    //_ Grants Esc-to-close to the Edit Subscriptions window.
-    APIDefs->GUI_RegisterCloseOnEscape(kEditSubscriptionsWindowId, &ShowEditSubscriptionsWindow);
-
-    //_ Same, for the live-event recent-reports window (live_events_ui.h).
-    APIDefs->GUI_RegisterCloseOnEscape(kLiveEventReportsWindowId, &ShowLiveEventReportsWindow);
-
-    //_ Same, for the WS debug log window (ws_debug_window.h).
-    APIDefs->GUI_RegisterCloseOnEscape(kWsDebugWindowId, &ShowWsDebugWindow);
-
-    //_ Same, for the "What's New" version-history window (changelog_window.h).
+    //_ Version-history window's title isn't translated (see RenderVersionHistoryWindow), so the plain suffix registration below needs no syncing.
     APIDefs->GUI_RegisterCloseOnEscape(kVersionHistoryWindowId, &ShowVersionHistoryWindow);
 
     APIDefs->Log(LOGL_INFO, "WorldEvents", "Loaded.");
@@ -197,11 +192,11 @@ void AddonUnload()
     APIDefs->GUI_Deregister(RenderWsDebugWindow);
     APIDefs->GUI_Deregister(RenderVersionHistoryWindow);
 
-    //_ Matches the GUI_RegisterCloseOnEscape calls in AddonLoad
-    APIDefs->GUI_DeregisterCloseOnEscape(kEditSubscriptionsWindowId);
-    APIDefs->GUI_DeregisterCloseOnEscape(kLiveEventReportsWindowId);
-    APIDefs->GUI_DeregisterCloseOnEscape(kWsDebugWindowId);
+    //_ Matches the GUI_RegisterCloseOnEscape call in AddonLoad.
     APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowId);
+
+    //_ Matches every Localization_SyncCloseOnEscape call made during this load
+    Localization_DeregisterAllCloseOnEscape();
 
     //_ Bounded wait so a still-running thread can't resume in unloaded memory; 2s is generous headroom, not a timeout budget.
     WaitForBackgroundThreads(2000);

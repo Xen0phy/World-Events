@@ -85,3 +85,36 @@ const char* TrEnglish(const char* aIdentifier);
 // call time, not a static string - pass .c_str() to ImGui.
 //--------------------------------------------------------------------------------
 std::string TrId(const char* aIdentifier, const char* aIdSuffix);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Localization_SyncCloseOnEscape
+//--------------------------------------------------------------------------------
+// Nexus's GUI_RegisterCloseOnEscape does a raw strcmp of the whole window Name
+// string against what was registered, not an ID-hash match - so a window with a
+// TrId()/Tr()-translated title needs both ImGuiWindow::Name and Nexus's
+// registration forced into agreement every frame. Call immediately after
+// ImGui::Begin() (regardless of its return value - the window still exists when
+// collapsed), passing the exact string just passed to Begin(). Only touches
+// ImGui/Nexus state when aFullLabel differs from what's already in sync (first
+// render, or after a runtime language switch), so it's cheap to call
+// unconditionally every frame.
+//--------------------------------------------------------------------------------
+void Localization_SyncCloseOnEscape(bool* aIsVisible, const std::string& aFullLabel);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Localization_DeregisterCloseOnEscape
+//--------------------------------------------------------------------------------
+// Deregisters whatever string is currently registered (via
+// Localization_SyncCloseOnEscape) for aIsVisible, if any. Use this for a window
+// that needs escape-to-close turned off conditionally at runtime (e.g. while
+// pinned/locked) - the next Localization_SyncCloseOnEscape call re-registers it.
+//--------------------------------------------------------------------------------
+void Localization_DeregisterCloseOnEscape(bool* aIsVisible);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Localization_DeregisterAllCloseOnEscape
+//--------------------------------------------------------------------------------
+// Deregisters every window last registered via Localization_SyncCloseOnEscape.
+// Call from AddonUnload so no stale registration survives a hot-reload.
+//--------------------------------------------------------------------------------
+void Localization_DeregisterAllCloseOnEscape();

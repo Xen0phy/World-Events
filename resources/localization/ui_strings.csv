@@ -463,8 +463,8 @@ aufzulockern.","Superpose une texture au remplissage uni de l'anneau (les arcs d
 et de créneau) pour le briser avec un peu de texture ou de grain.","Superpone una textura sobre el relleno de color liso del anillo (los arcos
 de pista y ranura) para romperlo con algo de textura o grano.",为圆环纯色填充区域（轨道、时段圆弧）叠加填充纹理，增加颗粒质感。,
 #,maprender.cpp / cyclicrender.cpp - shared map-hover status format strings for Basic/Cyclic events.,,,,,
-WE_TIP_MAP_ACTIVE_FMT,%s - Active (ends in %s),%s - Aktiv (endet in %s),%s - Actif (se termine dans %s),%s - Activo (termina en %s),%s — 进行中（%s后结束）,
-WE_TIP_MAP_UPCOMING_FMT,%s - in %s,%s - in %s,%s - dans %s,%s - en %s,%s — %s后开始,
+WE_TIP_MAP_ACTIVE_FMT,%s - Active (ends in %s),%s - Aktiv (endet in %s),%s - Actif (se termine dans %s),%s - Activo (termina en %s),%s - 进行中（%s后结束）,
+WE_TIP_MAP_UPCOMING_FMT,%s - in %s,%s - in %s,%s - dans %s,%s - en %s,%s - %s后开始,
 #,ws_debug_window.cpp - WS connection log viewer. TX/RX log-direction tags stay as-is as a fixed protocol vocabulary.,,,,,
 WE_WSDEBUG_TITLE,World Events - WS Debug Log,World Events - WS Debug Log,World Events - Journal de débogage WS,World Events - Registro de depuración WS,世界事件‑WebSocket调试日志,
 WE_WSDEBUG_CONNECTED,Connected,Verbunden,Connecté,Conectado,已连接,

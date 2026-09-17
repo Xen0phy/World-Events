@@ -108,7 +108,12 @@ void RenderWsDebugWindow()
 
     ImGui::SetNextWindowSize(ImVec2(720.0f, 420.0f), ImGuiCond_FirstUseEver);
     std::string windowLabel = std::string(Tr("WE_WSDEBUG_TITLE")) + kWsDebugWindowId;
-    if (!ImGui::Begin(windowLabel.c_str(), &ShowWsDebugWindow))
+
+    bool isOpen = ImGui::Begin(windowLabel.c_str(), &ShowWsDebugWindow);
+
+    Localization_SyncCloseOnEscape(&ShowWsDebugWindow, windowLabel);
+
+    if (!isOpen)
     {
         ImGui::End();
         return;
