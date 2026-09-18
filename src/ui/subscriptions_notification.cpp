@@ -406,6 +406,8 @@ static void DrawAndExpirePopups()
     float popupWidth = NotificationPopupWidth;
     ImVec2 anchor = ScreenFractionToPixels(NotificationAnchorX, NotificationAnchorY);
     float stackDir = NotificationStackUpward ? -1.0f : 1.0f; //. -1 = older toasts move up, +1 = older toasts move down
+    //_ Matches whatever the user has set for Nexus's own popups (Nexus theme editor), instead of a value only this addon would know about.
+    float rounding = ImGui::GetStyle().PopupRounding;
 
     //_ Newest is the LAST element in s_popups; stack away from the anchor so a fresh popup doesn't jump past already-open ones.
     for (int i = (int)s_popups.size() - 1; i >= 0; i--)
@@ -511,9 +513,9 @@ static void DrawAndExpirePopups()
         ImU32 accentCol = FadeU32(p.color, alpha);
         ImU32 textCol   = ThemeColorU32(ImGuiCol_Text, alpha);
 
-        dl->AddRectFilled(rectMin, rectMax, bgCol, 6.0f);
+        dl->AddRectFilled(rectMin, rectMax, bgCol, rounding);
         //_ Left-edge accent tinted per popup's status color, same as the window/bar use for the same states.
-        dl->AddRectFilled(rectMin, ImVec2(rectMin.x + kAccentWidth, rectMax.y), accentCol, 6.0f);
+        dl->AddRectFilled(rectMin, ImVec2(rectMin.x + kAccentWidth, rectMax.y), accentCol, rounding);
 
         if (p.isWeekly)
         {
@@ -523,7 +525,7 @@ static void DrawAndExpirePopups()
             dl->AddRect(
                 ImVec2(rectMin.x + kWeeklyBorderThickness * 0.5f, rectMin.y + kWeeklyBorderThickness * 0.5f),
                 ImVec2(rectMax.x - kWeeklyBorderThickness * 0.5f, rectMax.y - kWeeklyBorderThickness * 0.5f),
-                weeklyBorderCol, 6.0f, 0, kWeeklyBorderThickness);
+                weeklyBorderCol, rounding, 0, kWeeklyBorderThickness);
         }
 
         ImVec2 namePos(x + kAccentWidth + 10.0f, y + 8.0f);
