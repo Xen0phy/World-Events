@@ -37,6 +37,7 @@
 #include "imgui.h"
 #include "live_events_ui.h"
 #include "localization.h"
+#include "maprender.h" //. ScreenFractionToPixels/PixelsToScreenFraction, for the toast position row
 #include "notify_sound.h"
 #include "reset_defaults.h"
 #include "settings.h"
@@ -174,6 +175,37 @@ void AddonOptions()
                     if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
                 }
                 Tooltip(Tr("WE_TIP_POPUP_DURATION"));
+
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(60);
+                if (ImGui::InputFloat(Tr("WE_OPT_TOAST_WIDTH"), &NotificationPopupWidth, 0, 0, "%.0f"))
+                {
+                    if (NotificationPopupWidth < 100.0f) NotificationPopupWidth = 100.0f;
+                    if (NotificationPopupWidth > 800.0f) NotificationPopupWidth = 800.0f;
+                }
+                Tooltip(Tr("WE_TIP_TOAST_WIDTH"));
+
+                //_ Shown/edited as pixels, stored as a screen fraction - same convention as DrawFixToScreenRow (addon_options_helpers.cpp).
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                {
+                    ImVec2 anchorPx = ScreenFractionToPixels(NotificationAnchorX, NotificationAnchorY);
+                    float anchorPos[2] = { anchorPx.x, anchorPx.y };
+                    ImGui::SetNextItemWidth(100.0f);
+                    if (ImGui::InputFloat2(Tr("WE_OPT_TOAST_POS"), anchorPos, "%.0f"))
+                    {
+                        ImVec2 frac = PixelsToScreenFraction({ anchorPos[0], anchorPos[1] });
+                        NotificationAnchorX = frac.x;
+                        NotificationAnchorY = frac.y;
+                    }
+                }
+                Tooltip(Tr("WE_TIP_TOAST_POS"));
+
+                ImGui::Dummy(dummySquare);
+                ImGui::SameLine();
+                ImGui::Checkbox(Tr("WE_OPT_TOAST_STACK_UP"), &NotificationStackUpward);
+                Tooltip(Tr("WE_TIP_TOAST_STACK_UP"));
 
                 //_ Single .wav file, picked from "<addon dir>/sounds"; which events play it is each row's notify level.
                 {

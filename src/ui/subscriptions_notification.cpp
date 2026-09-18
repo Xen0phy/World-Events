@@ -24,11 +24,11 @@
 // report is a one-shot fact, not a recomputed-every-frame state - and instead go
 // through CollectLiveEventPopups (see its own comment).
 //
-// Popups stack in the lower-right corner, newest closest to the corner, auto-
-// dismissing after NotificationDisplaySeconds (plus a short fade). Click pastes
-// the same "<name>: <chatCode>" text as a row in the watchlist window / a segment
-// on the distribution bar - except a Live Event popup whose reporter shared their
-// name, which whispers them instead (see DrawAndExpirePopups).
+// Popups stack away from NotificationAnchorX/Y (settings_table.h), newest closest
+// to the anchor, auto-dismissing after NotificationDisplaySeconds (plus a short
+// fade). Click pastes the same "<name>: <chatCode>" text as a row in the
+// watchlist window / a segment on the distribution bar - except a Live Event
+// popup whose reporter shared their name, which whispers them instead.
 //--------------------------------------------------------------------------------
 
 //_ SubsNotifyDataTimer/SubsNotifyDrawTimer are declared here, see their comment in addon.h
@@ -38,6 +38,7 @@
 #include "events_tracking.h"
 #include "imgui.h"
 #include "localization.h"
+#include "maprender.h" //. ScreenFractionToPixels, for NotificationAnchorX/Y
 #include "notification_client.h" //. DrainLiveEventNotifications
 #include "notify_sound.h"
 #include "settings.h"
@@ -59,12 +60,9 @@
 #include <unordered_map>
 #include <vector>
 
-//_ Popup stack layout, screen-space pixels.
-static constexpr float kPopupWidth   = 300.0f;
+//_ Popup stack layout, screen-space pixels. Width/anchor/direction are user-adjustable - see NotificationPopupWidth/NotificationAnchorX/Y/NotificationStackUpward (settings_table.h).
 static constexpr float kPopupHeight  = 56.0f;
 static constexpr float kPopupGapY    = 8.0f;   //. vertical gap between stacked popups
-static constexpr float kMarginX      = 20.0f;  //. from the right screen edge
-static constexpr float kMarginY      = 20.0f;  //. from the bottom screen edge
 static constexpr float kAccentWidth  = 4.0f;   //. colored left-edge stripe width
 
 //_ Popups older than NotificationDisplaySeconds fade out over this many ms before being removed instead of just vanishing.
@@ -381,9 +379,9 @@ static void CollectLiveEventPopups()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawAndExpirePopups
 //--------------------------------------------------------------------------------
-// Draws every entry in s_popups stacked in the lower-right corner (newest closest
-// to the corner), ages/fades them out, handles hover-pause and click-to-paste-
-// and-dismiss, and removes anything that has finished fading.
+// Draws every entry in s_popups stacked away from NotificationAnchorX/Y (newest
+// sitting exactly at the anchor), ages/fades them out, handles hover-pause and
+// click-to-paste-and-dismiss, and removes anything that has finished fading.
 //
 // Uses the background draw list (same choice as RenderCyclicGroups in
 // cyclicrender.cpp), so regular ImGui content - the right-click "Mark done"
@@ -397,8 +395,6 @@ static void DrawAndExpirePopups()
     if (s_popups.empty()) return;
 
     ImGuiIO& io = ImGui::GetIO();
-    float screenW = io.DisplaySize.x;
-    float screenH = io.DisplaySize.y;
 
     unsigned long long nowMs = GetTickCount64();
     unsigned long long displayMs = (unsigned long long)std::max(0, NotificationDisplaySeconds) * 1000ull;
@@ -407,20 +403,24 @@ static void DrawAndExpirePopups()
 
     std::vector<int> toRemove;
 
-    //_ Newest is the LAST element in s_popups; stack closest to the corner so a fresh popup doesn't jump above already-open ones.
+    float popupWidth = NotificationPopupWidth;
+    ImVec2 anchor = ScreenFractionToPixels(NotificationAnchorX, NotificationAnchorY);
+    float stackDir = NotificationStackUpward ? -1.0f : 1.0f; //. -1 = older toasts move up, +1 = older toasts move down
+
+    //_ Newest is the LAST element in s_popups; stack away from the anchor so a fresh popup doesn't jump past already-open ones.
     for (int i = (int)s_popups.size() - 1; i >= 0; i--)
     {
         Popup& p = s_popups[i];
         int slotFromBottom = (int)s_popups.size() - 1 - i;
 
-        float x = screenW - kMarginX - kPopupWidth;
-        float y = screenH - kMarginY - kPopupHeight - (float)slotFromBottom * (kPopupHeight + kPopupGapY);
+        float x = anchor.x;
+        float y = anchor.y + stackDir * (float)slotFromBottom * (kPopupHeight + kPopupGapY);
 
         //_ Same invisible-window hit-test subscriptions_bar.cpp uses - keyed by p.key, not loop index, see header above.
         std::string winId = "##we_notif_" + p.key;
 
         ImGui::SetNextWindowPos(ImVec2(x, y));
-        ImGui::SetNextWindowSize(ImVec2(kPopupWidth, kPopupHeight));
+        ImGui::SetNextWindowSize(ImVec2(popupWidth, kPopupHeight));
         ImGui::SetNextWindowBgAlpha(0.0f);
         ImGui::Begin(winId.c_str(), nullptr,
             ImGuiWindowFlags_NoTitleBar         |
@@ -432,7 +432,7 @@ static void DrawAndExpirePopups()
             ImGuiWindowFlags_NoFocusOnAppearing |
             //_ FIXME: NoNav added to hopefully prevent a rare ImGui bug from happening. Remove when vendored ImGui version has been updated. (Imgui.cpp:7225)
             ImGuiWindowFlags_NoNav);
-        ImGui::InvisibleButton("##we_notif_hit", ImVec2(kPopupWidth, kPopupHeight));
+        ImGui::InvisibleButton("##we_notif_hit", ImVec2(popupWidth, kPopupHeight));
         bool hovered      = ImGui::IsItemHovered();
         bool clicked      = ImGui::IsItemClicked(ImGuiMouseButton_Left);
         bool rightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
@@ -505,7 +505,7 @@ static void DrawAndExpirePopups()
             alpha = 1.0f - (float)(elapsed - displayMs) / (float)kFadeOutMs;
 
         ImVec2 rectMin(x, y);
-        ImVec2 rectMax(x + kPopupWidth, y + kPopupHeight);
+        ImVec2 rectMax(x + popupWidth, y + kPopupHeight);
 
         ImU32 bgCol     = ThemeColorU32(ImGuiCol_WindowBg, alpha);
         ImU32 accentCol = FadeU32(p.color, alpha);

@@ -136,6 +136,29 @@ static std::string SegmentStatusLine(const LineSegment& seg)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SegmentLabelLines
+//--------------------------------------------------------------------------------
+// Normally splits into name (outLine1) and SegmentStatusLine (outLine2); once
+// singleLine is set - the pop-out (kMaxDropPx/SubscriptionsBarMaxDropPx,
+// RenderSubscriptionsBar) is too short to fit both - joins them into outLine1
+// instead and leaves outLine2 empty, which callers treat as "nothing to draw on a
+// second line".
+//--------------------------------------------------------------------------------
+static void SegmentLabelLines(const LineSegment& seg, bool singleLine, std::string& outLine1, std::string& outLine2)
+{
+    if (singleLine)
+    {
+        outLine1 = seg.name + " - " + SegmentStatusLine(seg);
+        outLine2.clear();
+    }
+    else
+    {
+        outLine1 = seg.name;
+        outLine2 = SegmentStatusLine(seg);
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AssignLanes
 //--------------------------------------------------------------------------------
 // Greedy interval-graph coloring: walks segments left-to-right (already sorted by
@@ -811,6 +834,8 @@ void RenderSubscriptionsBar()
         : (kLineThick * 0.5f);
     //_ floored so pill radius math stays positive
     const float kMaxDropPx = (float)std::max(8, SubscriptionsBarMaxDropPx);
+    //_ Too short for both label lines - see SegmentLabelLines.
+    const bool kSingleLineLabel = kMaxDropPx < ImGui::GetTextLineHeight() * 2.0f;
     constexpr float kGapPx        = 3.0f;  //. notch between adjacent segments
     constexpr float kStackGapPx   = 4.0f;  //. gap between dropped blocks
     constexpr float kDotRadius    = 2.5f;  //. px
@@ -930,6 +955,13 @@ void RenderSubscriptionsBar()
         if (std::find(hoveredIndices.begin(), hoveredIndices.end(), i) == hoveredIndices.end())
             hoveredIndices.push_back(i);
     }
+    //_ Fold in any segment whose own right-click menu (the "done_popup" opened below) is still open - the menu itself usually sits outside the block's hit-test window, so without this the block would lose hover, ease back to 0, and drop out of hoveredIndices entirely (skipping its BeginPopup call) the instant the mouse left the block to reach the menu, closing it before it could be clicked.
+    for (int i = 0; i < (int)segs.size(); i++)
+    {
+        if (!ImGui::IsPopupOpen(("##we_subbar_done_popup_" + segs[i].key).c_str())) continue;
+        if (std::find(hoveredIndices.begin(), hoveredIndices.end(), i) == hoveredIndices.end())
+            hoveredIndices.push_back(i);
+    }
     //_ Stacking order: soonest-starting (or active) segment on top. Stable sort (key as final tiebreak) so exact statusSecs ties don't reorder frame to frame, which would also destabilize PackStackRows' own tiebreak.
     std::stable_sort(hoveredIndices.begin(), hoveredIndices.end(), [&](int a, int b)
     {
@@ -1018,9 +1050,11 @@ void RenderSubscriptionsBar()
         if (bx1 <= bx0) bx1 = bx0 + 1.0f;
 
         //_ Minimum drop width derived from this segment's own label text + plate padding.
-        ImVec2 nameSize   = ImGui::CalcTextSize(seg.name.c_str());
-        ImVec2 statusSize = ImGui::CalcTextSize(SegmentStatusLine(seg).c_str());
-        float minWidth = std::max(nameSize.x, statusSize.x) + kLabelPadX * 2.0f;
+        std::string line1, line2;
+        SegmentLabelLines(seg, kSingleLineLabel, line1, line2);
+        ImVec2 line1Size = ImGui::CalcTextSize(line1.c_str());
+        ImVec2 line2Size = line2.empty() ? ImVec2(0.0f, 0.0f) : ImGui::CalcTextSize(line2.c_str());
+        float minWidth = std::max(line1Size.x, line2Size.x) + kLabelPadX * 2.0f;
 
         float dropX0, dropX1;
         EdgeSafeDropBounds(bx0, bx1, screenW, minWidth, dropX0, dropX1);
@@ -1261,10 +1295,10 @@ void RenderSubscriptionsBar()
             //_ Label + status, vertically centered inside the block/pill's own slice of the stack, fading in with depth.
             if (depth > 0.35f)
             {
-                std::string line1 = seg.name;
-                std::string line2 = SegmentStatusLine(seg);
+                std::string line1, line2;
+                SegmentLabelLines(seg, kSingleLineLabel, line1, line2);
                 ImVec2 size1 = ImGui::CalcTextSize(line1.c_str());
-                ImVec2 size2 = ImGui::CalcTextSize(line2.c_str());
+                ImVec2 size2 = line2.empty() ? ImVec2(0.0f, 0.0f) : ImGui::CalcTextSize(line2.c_str());
 
                 //_ blockNear is whichever edge sits at the pop-out origin (topY or pillY); blockFar is the opposite edge.
                 float blockNear   = (depth < kPinchEnd || !shouldDetach) ? topY : pillY;
@@ -1280,7 +1314,8 @@ void RenderSubscriptionsBar()
                 //_ No separate backing plate: the block/pill fill drawn above is already Nexus's own WindowBg (see fillColor above), so a second plate here would just be redundant.
 
                 dl->AddText(ImVec2(cx - size1.x * 0.5f, labelY), textCol, line1.c_str());
-                dl->AddText(ImVec2(cx - size2.x * 0.5f, labelY + size1.y), textCol, line2.c_str());
+                if (!line2.empty())
+                    dl->AddText(ImVec2(cx - size2.x * 0.5f, labelY + size1.y), textCol, line2.c_str());
             }
         }
     }

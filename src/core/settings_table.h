@@ -498,6 +498,40 @@ SETTING(Notifications, NotificationDisplaySeconds, int, 10)
 SETTING(Notifications, NotificationSoundFile, std::string, std::string())
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// NotificationPopupWidth
+//--------------------------------------------------------------------------------
+// Toast width, screen-space pixels (kPopupWidth's replacement in
+// subscriptions_notification.cpp). Height isn't a setting - the name/message two-
+// line layout fixes it, so a taller box would just add empty space.
+//--------------------------------------------------------------------------------
+SETTING(Notifications, NotificationPopupWidth, float, 300.0f)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// NotificationAnchorX / NotificationAnchorY
+//--------------------------------------------------------------------------------
+// Newest toast's top-left corner, normalized [0,1] fraction of the game window -
+// same fixed-to-screen convention as WorldEvent::screenX/Y (events.h), so the
+// spot survives a resolution/window-size change (ScreenFractionToPixels /
+// PixelsToScreenFraction, maprender.h). Options panel shows/edits these as pixel
+// coordinates, not the raw fraction. Defaults reproduce the previous hardcoded
+// bottom-right corner (20px margin, 300x56 toast) at a 1920x1080 reference
+// resolution.
+//--------------------------------------------------------------------------------
+SETTING(Notifications, NotificationAnchorX, float, 0.833333f)
+SETTING(Notifications, NotificationAnchorY, float, 0.929630f)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// NotificationStackUpward
+//--------------------------------------------------------------------------------
+// Direction older toasts stack away from the newest one, which always sits at
+// NotificationAnchorX/Y. True: older toasts move up the screen (Y decreases) -
+// the previous, non-adjustable behavior, natural with an anchor near the bottom.
+// False: older toasts move down (Y increases), natural with an anchor near the
+// top.
+//--------------------------------------------------------------------------------
+SETTING(Notifications, NotificationStackUpward, bool, true)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // [LiveEvents]
 //--------------------------------------------------------------------------------
 

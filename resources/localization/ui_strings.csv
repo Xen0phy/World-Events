@@ -135,6 +135,9 @@ Hovering a popup pauses its timer.","Wie lange eine Benachrichtigung voll sichtb
 Der Mauszeiger über einer Benachrichtigung pausiert dessen Timer.","Combien de temps une notification reste pleinement visible avant de s'estomper.
 Survoler une notification met son minuteur en pause.","Cuánto tiempo permanece una notificación totalmente visible antes de desvanecerse.
 Pasar el cursor sobre una notificación pausa su temporizador.",弹窗保持完全可见的时长，之后开始淡出。鼠标悬停弹窗会暂停倒计时。,
+WE_TIP_TOAST_WIDTH,"Width of each toast popup, in pixels. Height is fixed to fit the name/message text.",Breite jedes Popups in Pixeln. Die Höhe ist fest und richtet sich nach dem Name-/Nachrichtentext.,"Largeur de chaque notification popup, en pixels. La hauteur est fixe et s'adapte au texte du nom/message.","Ancho de cada notificación emergente, en píxeles. La altura es fija y se ajusta al texto de nombre/mensaje.",每个通知弹窗的宽度（像素）。高度固定，由名称/消息文本决定。,
+WE_TIP_TOAST_POS,"Screen position of the newest toast's top-left corner, in pixels. Stays put across resolution/window-size changes.","Bildschirmposition der oberen linken Ecke des neuesten Popups, in Pixeln. Bleibt bei Auflösungs- oder Fenstergrößenänderungen an derselben Stelle.","Position à l'écran du coin supérieur gauche de la notification la plus récente, en pixels. Reste en place lors d'un changement de résolution ou de taille de fenêtre.","Posición en pantalla de la esquina superior izquierda de la notificación más reciente, en píxeles. Se mantiene fija ante cambios de resolución o tamaño de ventana.",最新弹窗左上角在屏幕上的位置（像素）。分辨率或窗口大小变化时位置保持不变。,
+WE_TIP_TOAST_STACK_UP,Direction older toasts stack away from the position above: upward (toward the top of the screen) or downward (toward the bottom).,"Richtung, in die ältere Popups von der obigen Position weg gestapelt werden: nach oben (Richtung Bildschirmoberkante) oder nach unten (Richtung Bildschirmunterkante).",Direction dans laquelle les notifications plus anciennes s'empilent à partir de la position ci-dessus : vers le haut (haut de l'écran) ou vers le bas (bas de l'écran).,Dirección en la que se apilan las notificaciones más antiguas a partir de la posición anterior: hacia arriba (parte superior de la pantalla) o hacia abajo (parte inferior).,较旧弹窗相对于上方位置的堆叠方向：向上（朝屏幕顶部）或向下（朝屏幕底部）。,
 WE_TIP_RESCAN_SOUNDS,"Re-scans ""<addon dir>/sounds"" for .wav files you've
 dropped in since the dropdown was last built.","Durchsucht ""<Addon-Ordner>/sounds"" erneut nach .wav-Dateien,
 die seit dem letzten Aufbau der Liste hinzugekommen sind.","Analyse à nouveau ""<dossier addon>/sounds"" à la recherche de fichiers .wav que
@@ -603,6 +606,9 @@ WE_OPT_ENABLE_NOTIFY_POPUPS,Enable notification popups,Benachrichtigungs-Popups 
 WE_OPT_WARN_BEFORE_START,Warn before start (min),Warnung vor Start (Min.),Avertir avant le début (min),Avisar antes del inicio (min),开始前提醒（分钟）,
 WE_OPT_NOTIFY_ON_START,Notify on start,Start Benachrichtigung,Notifier au démarrage,Notificar al empezar,事件开始时通知,
 WE_OPT_POPUP_DURATION,Popup duration (sec),Popup-Dauer (Sek.),Durée de la notification (s),Duración de la notificación (s),弹窗持续时长（秒）,
+WE_OPT_TOAST_WIDTH,Toast width (px),Popup-Breite (px),Largeur de la notification (px),Ancho de la notificación (px),弹窗宽度（像素）,
+WE_OPT_TOAST_POS,Toast position (px),Popup-Position (px),Position de la notification (px),Posición de la notificación (px),弹窗位置（像素）,
+WE_OPT_TOAST_STACK_UP,Stack upward,Nach oben stapeln,Empiler vers le haut,Apilar hacia arriba,向上堆叠,
 WE_OPT_SOUND_NONE,(none),(keiner),(aucun),(ninguno),（无）,
 WE_OPT_SOUND,Sound,Ton,Son,Sonido,音效,
 WE_OPT_RESCAN,Rescan,Neu einlesen,Rescanner,Volver a analizar,重新扫描,
