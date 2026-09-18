@@ -529,9 +529,9 @@ void RenderMapEvents()
         bool active = IsEventActive(ev, now);
         int  secs   = GetSecondsUntilEventStart(ev, now);
  
-        //_ Upcoming events show only within the window; secs<0 and the edited marker exempt.
-        if (!isBeingEdited && BasicEventTimeFilterEnabled && !active && secs >= 0 &&
-            secs > BasicEventTimeFilterMinutes * 60)
+        //_ Window filter: secs<0, the edited marker, and fixedToScreen (HUD) are exempt.
+        if (!isBeingEdited && !ev.fixedToScreen && BasicEventTimeFilterEnabled && !active &&
+            secs >= 0 && secs > BasicEventTimeFilterMinutes * 60)
             continue;
  
         //_ Plain user RGBA floats (settings_table.h); alpha comes from the swatch.
