@@ -312,8 +312,6 @@ void RenderCyclicGroups()
     time_t      now = time(nullptr);
 
     const float zoomMult  = GetEventZoomSizeMultiplier();
-    const float RADIUS    = CyclicRadius    * zoomMult;
-    const float THICKNESS = CyclicThickness * zoomMult;
     constexpr ImU32 COL_TRACK = IM_COL32(100, 100, 100, 120);
     const ImU32 COL_HAND = ColorU32(CyclicHandColor); //. user-adjustable, settings_table.h
 
@@ -351,6 +349,11 @@ void RenderCyclicGroups()
         CyclicGroup& grp = g_CyclicGroups[i];
         bool isBeingEdited = (g_EditMode.target == EditTarget::CyclicGroup && g_EditMode.index == i);
 
+        //_ HUD element, not a map object - map zoom shouldn't scale it when fixedToScreen.
+        const float groupZoomMult = grp.fixedToScreen ? 1.0f : zoomMult;
+        const float RADIUS        = CyclicRadius    * groupZoomMult;
+        const float THICKNESS     = CyclicThickness * groupZoomMult;
+
         //_ THIS group's own period - a fixed value would misdraw others.
         const float SECS_PER_DEG = (float)grp.period / 360.0f;
 
@@ -371,10 +374,12 @@ void RenderCyclicGroups()
         const float ARC_FROM = CyclicMaxFutureDeg;
         const float ARC_TO   = HAND_DEG - CyclicMaxPastDeg;
 
-        ImVec2 pos = ContinentToScreen(grp.continentX, grp.continentY);
+        ImVec2 pos = grp.fixedToScreen
+            ? ScreenFractionToPixels(grp.screenX, grp.screenY)
+            : ContinentToScreen(grp.continentX, grp.continentY);
 
-        //_ Off-screen culling, skipped for the group currently being dragged.
-        if (!isBeingEdited)
+        //_ Culling skipped while dragging (can exceed the margin) or fixedToScreen (nothing to cull against).
+        if (!isBeingEdited && !grp.fixedToScreen)
         {
             if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
             if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
@@ -511,7 +516,7 @@ void RenderCyclicGroups()
         if (drawHandImg)
         {
             //_ Axis-aligned quad (fixed HAND_DEG); length spans the ring.
-            float halfW  = (CyclicHandImageWidth * 0.5f) * zoomMult;
+            float halfW  = (CyclicHandImageWidth * 0.5f) * groupZoomMult;
             float length = THICKNESS;
 
             ImVec2 base = ArcPoint(pos, RADIUS - THICKNESS * 0.5f,          HAND_DEG);
@@ -536,8 +541,8 @@ void RenderCyclicGroups()
         //_ Decorative band, drawn last on top; future/past split like colTrack.
         if (drawRingImg)
         {
-            float halfH = (CyclicRingImageThickness * 0.5f) * zoomMult;
-            float offset = CyclicRingImageOffset * zoomMult;
+            float halfH = (CyclicRingImageThickness * 0.5f) * groupZoomMult;
+            float offset = CyclicRingImageOffset * groupZoomMult;
             ImTextureID tex = (ImTextureID)ringImg->Resource;
 
             float futureSpan = ArcSpanDeg(ARC_FROM, HAND_DEG);
@@ -587,8 +592,14 @@ void RenderCyclicGroups()
 
         //_ Left-drag via a small anchor window; only "Stop" ends it.
         if (isBeingEdited)
-            DrawDragAnchor("##we_drag_anchor_cyclic", i, pos, hoverR,
-                &grp.continentX, &grp.continentY);
+        {
+            if (grp.fixedToScreen)
+                DrawDragAnchorScreen("##we_drag_anchor_cyclic_screen", i, pos, hoverR,
+                    &grp.screenX, &grp.screenY);
+            else
+                DrawDragAnchor("##we_drag_anchor_cyclic", i, pos, hoverR,
+                    &grp.continentX, &grp.continentY);
+        }
 
         //_ Tooltip on hover, suppressed while dragging this ring.
         if (hovered && !isBeingEdited)

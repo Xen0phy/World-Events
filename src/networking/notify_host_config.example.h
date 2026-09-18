@@ -6,18 +6,18 @@
 // kNotifyHostXorLen   byte length of kNotifyHostXor
 //--------------------------------------------------------------------------------
 // Template for notify_host_config.h, which notification_client.cpp actually
-// includes. notify_host_config.h itself is gitignored -- never commit it. See
+// includes. notify_host_config.h itself is gitignored - never commit it. See
 // host_config.example.h for the sibling per-shard relay's template - this is the
 // same story, one level up, for the region-wide notify worker that fans toast
 // notifications out to every shard (see server-notify/ for that worker).
 //
-// Don't hand-edit the byte array below -- regenerate it instead, from the repo
+// Don't hand-edit the byte array below - regenerate it instead, from the repo
 // root:
 //
 //     python3 tools/generate_host_config.py "your-worker-notify.your-subdomain.workers.dev" Notify > src/networking/notify_host_config.h
 //
 // XOR-obfuscated with the same fixed key host_config.example.h uses (see
-// kNotifyHostXorKey in notification_client.cpp), NOT encrypted -- same reasoning
+// kNotifyHostXorKey in notification_client.cpp), NOT encrypted - same reasoning
 // as host_config.example.h: keeps the host out of a strings/hex-editor pass over
 // the DLL, not a secret.
 //

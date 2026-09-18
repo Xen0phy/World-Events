@@ -107,6 +107,14 @@ static json SerializeEvent(const WorldEvent& ev)
     if (!ev.customName.empty())
         j["customName"] = ev.customName;
 
+    //_ screenX/Y are meaningless (and left at their default) while unset, so skip them too.
+    if (ev.fixedToScreen)
+    {
+        j["fixedToScreen"] = true;
+        j["screenX"]       = ev.screenX;
+        j["screenY"]       = ev.screenY;
+    }
+
     if (ev.isVarying)
         j["varyingTimes"] = ev.varyingTimes;
     else
@@ -129,6 +137,10 @@ static WorldEvent DeserializeEvent(const json& j)
     ev.chatCode    = j.value("chatCode", std::string());
     ev.shown       = j.value("shown", true);
     ev.customName  = j.value("customName", std::string());
+
+    ev.fixedToScreen = j.value("fixedToScreen", false);
+    ev.screenX        = j.value("screenX", 0.5f);
+    ev.screenY        = j.value("screenY", 0.5f);
 
     if (ev.isVarying)
         ev.varyingTimes = j.value("varyingTimes", std::vector<int>{});
@@ -309,6 +321,13 @@ static json SerializeGroup(const CyclicGroup& grp)
     if (!grp.customName.empty())
         j["customName"] = grp.customName;
 
+    if (grp.fixedToScreen)
+    {
+        j["fixedToScreen"] = true;
+        j["screenX"]       = grp.screenX;
+        j["screenY"]       = grp.screenY;
+    }
+
     json slots = json::array();
     for (const auto& slot : grp.slots)
         if (!IsAbandonedEntry(slot.customName, GetDefaultCyclicSlot(grp.id, slot.id) != nullptr))
@@ -332,6 +351,10 @@ static CyclicGroup DeserializeGroup(const json& j)
 
     grp.shown      = j.value("shown", true);
     grp.customName = j.value("customName", std::string());
+
+    grp.fixedToScreen = j.value("fixedToScreen", false);
+    grp.screenX        = j.value("screenX", 0.5f);
+    grp.screenY        = j.value("screenY", 0.5f);
 
     if (j.contains("slots") && j["slots"].is_array())
         for (const auto& sj : j["slots"])

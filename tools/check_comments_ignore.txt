@@ -1,5 +1,5 @@
 # Accepted bare-block-no-crossref findings for check_comments.py.
-# One exact block NAME per line -- matched globally, only against the
+# One exact block NAME per line - matched globally, only against the
 # bare-block-no-crossref check. See the "Accepted false positives"
 # section of check_comments.py's own docstring for details.
 

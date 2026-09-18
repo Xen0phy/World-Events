@@ -2,9 +2,9 @@
 """
 rewrap_comments.py
 
-Finds "boxed" comment blocks in .h/.cpp files under <root>/src -- i.e. runs
+Finds "boxed" comment blocks in .h/.cpp files under <root>/src - i.e. runs
 of "//" comment lines bounded by one or more "//----...----" separator
-lines -- and rewraps the *plain prose* inside them to fill the box's full
+lines - and rewraps the *plain prose* inside them to fill the box's full
 width, while leaving structured content untouched:
 
   - aligned reference tables / short-name-then-description lists
@@ -40,7 +40,7 @@ file found there. If one or more FILE arguments are given, only those
 specific files are processed instead (any extension is accepted in this
 mode, and --root is ignored for file selection).
 
-Every box that needed rewrapping -- applied or skipped -- is recorded to
+Every box that needed rewrapping - applied or skipped - is recorded to
 <root>/logs/rewrap_comments.log (created if needed; --log FILE writes
 elsewhere instead), the same logs/ convention check_comments.py uses, so
 a run's skipped boxes are still on record even when nothing gets written.
@@ -116,8 +116,8 @@ def render_segment(indent, raw_lines, wrap_width):
 
 def find_chunks(lines):
     """Split a list of source lines into chunks:
-      ('line', text)                         -- passthrough, non-box content
-      ('box', box_start, original, rewrapped) -- a well-formed box, with its
+      ('line', text)                         - passthrough, non-box content
+      ('box', box_start, original, rewrapped) - a well-formed box, with its
                                                   original lines and its
                                                   rewrapped replacement lines
     box_start is the 0-based index of the box's first line, used for
@@ -234,16 +234,16 @@ def review_box(path, box_start, original, rewrapped):
 def process_file(path, auto=False):
     """Process one file.
 
-    auto=True  -- automatic mode: apply every detected change and write
+    auto=True  - automatic mode: apply every detected change and write
                   the file, with no prompts.
-    auto=False -- review mode: show a diff for each box that actually
+    auto=False - review mode: show a diff for each box that actually
                   changes and let the user accept/skip it with a
                   keypress; only write the file if something was
                   applied.
 
     Returns (changes, log_entries). log_entries has one
     (box_start_line_1_based, status) pair for every box that needed
-    rewrapping, status being 'applied' or 'skipped' -- skipped boxes are
+    rewrapping, status being 'applied' or 'skipped' - skipped boxes are
     included too, so the log is a full record of what still needs a
     second look even when nothing in the file was written.
     """
@@ -306,7 +306,7 @@ def main():
                               "(default is to review each box interactively)")
     parser.add_argument('--log', metavar='FILE',
                          help='write the box log to FILE, in addition to stdout '
-                              '(default: <root>/logs/rewrap_comments.log -- shared by '
+                              '(default: <root>/logs/rewrap_comments.log - shared by '
                               'any tool that adopts the same convention)')
     parser.add_argument('files', nargs='*', metavar='FILE',
                          help='one or more specific files to process, instead of '

@@ -26,8 +26,8 @@ WE_RESTORE_RESULT_NONE,Nothing was missing.,Nichts hat gefehlt.,Rien ne manquait
 #,subscriptions_window.cpp / subscriptions_notification.cpp - shared watchlist/toast tooltip.,,,,,
 WE_TIP_WEEKLY_VAULT,Counts toward this week's Wizard's Vault objectives.,Zählt zu den Gewölbe des Zauberers-Zielen dieser Woche.,Compte pour les objectifs du Coffre du Sorcier de cette semaine.,Cuenta para los objetivos de la Bóveda del Mago de esta semana.,计入本周巫师宝库的任务进度。,
 #,subscriptions_window.cpp / subscriptions_bar.cpp - status-suffix format strings.,,,,,
-WE_SUBS_STATUS_ACTIVE_FMT, -- Active (ends in %s), -- Aktiv (endet in %s), -- Actif (se termine dans %s), -- Activo (termina en %s), -- 进行中（%s后结束）,
-WE_SUBS_STATUS_IN_FMT, -- in %s, -- in %s, -- dans %s, -- en %s, -- %s后,
+WE_SUBS_STATUS_ACTIVE_FMT, - Active (ends in %s), - Aktiv (endet in %s), - Actif (se termine dans %s), - Activo (termina en %s), - 进行中（%s后结束）,
+WE_SUBS_STATUS_IN_FMT, - in %s, - in %s, - dans %s, - en %s, - %s后,
 WE_BAR_STATUS_ACTIVE_FMT,Active - ends in %s,Aktiv - endet in %s,Actif - se termine dans %s,Activo - termina en %s,进行中 - %s后结束,
 WE_BAR_STATUS_IN_FMT,in %s,in %s,dans %s,en %s,%s后,
 #,subscriptions_notification.cpp - toast popup title text.,,,,,
@@ -539,6 +539,7 @@ WE_TIP_NOTIFY_BTN_LVL2,Subscribed + toast notification,Abonniert + Benachrichtig
 WE_TIP_NOTIFY_BTN_LVL3,Subscribed + toast + sound,Abonniert + Benachrichtigung + Ton,Abonné + notification + son,Suscrito + notificación + sonido,已订阅+弹窗+音效,
 WE_TIP_DRAG_STOP,Click to stop dragging on the map.,"Klicken, um das Ziehen auf der Karte zu beenden.",Cliquez pour arrêter de déplacer sur la carte.,Haz clic para dejar de arrastrar en el mapa.,点击结束地图上的拖拽。,
 WE_TIP_DRAG_START,"Click, then left-click-drag this marker on the map to reposition it.","Klicken, dann diese Markierung auf der Karte per Linksklick-Ziehen neu positionieren.","Cliquez, puis clic gauche-glisser ce marqueur sur la carte pour le repositionner.",Haz clic y luego arrastra este marcador en el mapa (clic izquierdo) para reposicionarlo.,点击，随后左键拖拽标记以调整位置。,
+WE_TIP_FIX_TO_SCREEN,"Pin this to a fixed spot on your screen instead of the map, e.g. for a HUD-style timer that stays put regardless of where you are.","Fixiere an einer festen Stelle auf dem Bildschirm statt auf der Karte, z. B. für einen HUD-Timer, der unabhängig vom Standort an Ort und Stelle bleibt.","Épingler ceci à un endroit fixe de l'écran plutôt que sur la carte, par exemple pour un minuteur façon HUD qui reste en place quel que soit votre emplacement.","Fijar esto en un punto fijo de la pantalla en lugar del mapa, por ejemplo para un temporizador tipo HUD que permanece en su sitio sin importar dónde te encuentres.",将其固定在屏幕上的某个位置而非地图上，例如让计时器像HUD一样始终停留在原处，无论你身处何地。,
 WE_TIP_AUTO_TRACKED,"Automatically tracked via the GW2 API.
 Drops off the Subscriptions bar/window on its own
 once claimed today (no need to check it off by hand).","Wird automatisch über die GW2-API erfasst. Verschwindet
@@ -574,6 +575,8 @@ Ejemplo: un evento cada hora en un periodo de 2h se repite dos veces.","事件�
 #,addon_options_helpers.cpp - widget labels on the Basic Event / Cyclic Group / Cyclic Slot editing rows,,,,,
 WE_PERIOD_LABEL,Period,Periode,Période,Periodo,周期,
 WE_LOCATION_LABEL,Position,Position,Emplacement,Ubicación,位置,
+WE_FIX_TO_SCREEN_LABEL,Fix to screen,Auf Bildschirm fixieren,Fixer à l'écran,Fijar a la pantalla,固定到屏幕,
+WE_SCREEN_POS_LABEL,Screen Position,Bildschirmposition,Position à l'écran,Posición en pantalla,屏幕位置,
 WE_DURATION_MIN_LABEL,Duration (min),Dauer (Min.),Durée (min),Duración (min),持续时间（分钟）,
 WE_VARYING_CHECKBOX,Varying,Variabel,Variable,Variable,可变时间,
 WE_TIMES_UTC_LABEL,Times (UTC),Zeiten (UTC),Heures (UTC),Horas (UTC),时间（UTC）,

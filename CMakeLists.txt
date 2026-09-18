@@ -18,12 +18,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Third-party dependencies, fetched at configure time instead of being
 # vendored under include/. See cmake/*.cmake for pinned versions/commits.
-# Each build tree (build/mingw, build/msvc) gets its own _deps/ -- do NOT
+# Each build tree (build/mingw, build/msvc) gets its own _deps/ - do NOT
 # point FETCHCONTENT_BASE_DIR at a shared location across them. FetchContent's
 # "already populated" bookkeeping is per-build-tree, so the second backend to
 # configure re-runs its clone step regardless, and that step's scratch
 # project is configured with -G${CMAKE_GENERATOR} (mingw's default Makefiles
-# vs msvc's Ninja) -- a shared dir means it collides with the other backend's
+# vs msvc's Ninja) - a shared dir means it collides with the other backend's
 # leftover cache there. nlohmann/json's own CMakeLists.txt also gets
 # add_subdirectory()'d in (for the mumble/nexus/imgui compiler too), which
 # would hit the same kind of conflict from mingw-g++ vs clang-cl once past
@@ -192,7 +192,7 @@ if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     # clang-cl / lld-link (MSVC ABI) path.
     # /EHsc: clang-cl disables C++ exceptions by default like cl.exe does.
     # /GR-:  matches -fno-rtti (RTTI stays off).
-    # /MT:   static multithreaded CRT -- the MSVC-world analogue of the
+    # /MT:   static multithreaded CRT - the MSVC-world analogue of the
     #        mingw -static-libgcc/-static-libstdc++/-static trio, so the
     #        addon DLL doesn't depend on the user having the right VC++
     #        redistributable installed.
@@ -209,12 +209,12 @@ if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     )
     # imgui's .cpp files used to be compiled straight into gw2-world-events
     # and inherited these flags for free. Now that imgui is its own fetched
-    # static-lib target, it needs them applied explicitly too -- /MT in
+    # static-lib target, it needs them applied explicitly too - /MT in
     # particular, since linking a /MD-built static lib into a /MT target is
     # a CRT mismatch clang-cl/lld-link will reject at link time.
     target_compile_options(imgui PRIVATE /O1 /GR- /EHsc /MT)
 else()
-    # mingw-w64 (GNU ABI) path -- unchanged from before.
+    # mingw-w64 (GNU ABI) path - unchanged from before.
     target_compile_options(gw2-world-events PRIVATE
         -Os
         -ffunction-sections
@@ -229,7 +229,7 @@ else()
         -Wl,--gc-sections
         -Wl,--exclude-libs,ALL
     )
-    # See the MSVC branch above -- imgui is now a separate fetched target
+    # See the MSVC branch above - imgui is now a separate fetched target
     # and no longer inherits these automatically.
     target_compile_options(imgui PRIVATE -Os -ffunction-sections -fdata-sections -fno-rtti)
 endif()

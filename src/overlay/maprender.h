@@ -49,6 +49,19 @@ ImVec2 ContinentToScreen(float cx, float cy);
 ImVec2 ScreenToContinent(ImVec2 screenPos);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ScreenFractionToPixels / PixelsToScreenFraction
+//--------------------------------------------------------------------------------
+// Converts between a normalized [0,1] fraction of the game window (how
+// WorldEvent::screenX/Y and CyclicGroup::screenX/Y are stored - see fixedToScreen
+// in events.h) and an actual screen pixel position. Normalized so a "fixed to
+// screen" marker/ring stays in the same relative spot across resolution/window-
+// size changes; the options panel converts to/from pixels only for display, since
+// that's what a player actually wants to line up precisely.
+//--------------------------------------------------------------------------------
+ImVec2 ScreenFractionToPixels(float fx, float fy);
+ImVec2 PixelsToScreenFraction(ImVec2 pixelPos);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // EditTarget
 //--------------------------------------------------------------------------------
 // Which kind of marker, if any, is currently armed for drag-to-reposition - see

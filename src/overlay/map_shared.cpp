@@ -64,3 +64,46 @@ void DrawDragAnchor(const char* idPrefix, int index, ImVec2 center, float hoverR
 
     ImGui::End();
 }
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawDragAnchorScreen   (see: map_shared.h)
+//--------------------------------------------------------------------------------
+void DrawDragAnchorScreen(const char* idPrefix, int index, ImVec2 center, float hoverRadius,
+    float* outScreenX, float* outScreenY)
+{
+    char anchorId[48];
+    snprintf(anchorId, sizeof(anchorId), "%s_%d", idPrefix, index);
+
+    ImGui::SetNextWindowPos({center.x - hoverRadius, center.y - hoverRadius});
+    ImGui::SetNextWindowSize({hoverRadius * 2.0f, hoverRadius * 2.0f});
+    ImGui::SetNextWindowBgAlpha(0.0f);
+    ImGui::Begin(anchorId, nullptr,
+        ImGuiWindowFlags_NoTitleBar      |
+        ImGuiWindowFlags_NoResize        |
+        ImGuiWindowFlags_NoMove          |
+        ImGuiWindowFlags_NoScrollbar     |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoBackground    |
+        ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+    ImGui::InvisibleButton("##we_drag_hit", {hoverRadius * 2.0f, hoverRadius * 2.0f});
+
+    if (ImGui::IsItemActivated())
+        g_EditMode.isDragging = true;
+
+    if (g_EditMode.isDragging && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+    {
+        //_ Same WantCaptureMouse rationale as DrawDragAnchor above.
+        ImGui::GetIO().WantCaptureMouse = true;
+
+        ImVec2 mouse = ImGui::GetMousePos();
+        ImVec2 newFraction = PixelsToScreenFraction(mouse);
+        *outScreenX = newFraction.x;
+        *outScreenY = newFraction.y;
+    }
+
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        g_EditMode.isDragging = false;
+
+    ImGui::End();
+}

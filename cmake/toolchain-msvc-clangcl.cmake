@@ -4,7 +4,7 @@
 # Cross-compiles this project from Linux to a true MSVC-ABI Windows binary using
 # clang-cl (Clang's cl.exe-compatible driver) + lld-link, against an MSVC +
 # Windows SDK sysroot obtained with `xwin` (https://github.com/Jake-Shadle/xwin).
-# There is no real "cross-compiling MSVC" -- cl.exe itself doesn't run on Linux --
+# There is no real "cross-compiling MSVC" - cl.exe itself doesn't run on Linux --
 # so this is the standard substitute: same ABI, same calling convention, same
 # .lib/.pdb-shaped toolchain, driven by Clang instead of cl.exe.
 #

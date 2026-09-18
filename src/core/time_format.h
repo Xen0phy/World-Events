@@ -7,7 +7,7 @@
 // Small formatting helpers for the countdown text shared by maprender.cpp,
 // cyclicrender.cpp, and subscriptions_window.cpp, so the minute/second (and
 // hour/minute) split exists in exactly one place. Callers still own their own
-// surrounding wording ("Active (ends in ...)", " -- in ...", etc.); only the
+// surrounding wording ("Active (ends in ...)", " - in ...", etc.); only the
 // numeric formatting itself is shared.
 //--------------------------------------------------------------------------------
 

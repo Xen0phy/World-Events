@@ -181,6 +181,15 @@ int DrawNotifyLevelButtons(const char* idSuffix, int level);
 void DrawDragButton(EditTarget target, int index, const char* idSuffix);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawFixToScreenRow
+//--------------------------------------------------------------------------------
+// Checkbox + (while checked) a Location-style pixel-position row for a marker/
+// ring's fixedToScreen/screenX/screenY (events.h). `idSuffix` must be unique per
+// caller/row - same convention as DrawDragButton above.
+//--------------------------------------------------------------------------------
+void DrawFixToScreenRow(const char* idSuffix, bool* fixedToScreen, float* screenX, float* screenY);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // BuildChatChannelOptions
 //--------------------------------------------------------------------------------
 // Fills labels/prefixes with the "Paste to" combo's entries, in matching index

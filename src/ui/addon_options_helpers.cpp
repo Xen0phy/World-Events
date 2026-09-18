@@ -471,6 +471,41 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawFixToScreenRow
+//--------------------------------------------------------------------------------
+// Lets a marker/ring be pinned to a fixed spot on the player's own screen instead
+// of a spot on the map (fixedToScreen/screenX/screenY, events.h) - drawn right
+// after the existing continent-space Location row, same visual weight (100px-wide
+// InputFloat2). screenX/Y are stored as a normalized [0,1] fraction of the game
+// window so the pinned spot survives a resolution/window- size change (see
+// ScreenFractionToPixels/PixelsToScreenFraction, maprender.h), but shown/edited
+// here as PIXEL coordinates - that's what a player actually wants when lining
+// something up precisely on their own screen, not a 0..1 fraction. Converted back
+// to the stored fraction on every edit.
+//--------------------------------------------------------------------------------
+void DrawFixToScreenRow(const char* idSuffix, bool* fixedToScreen, float* screenX, float* screenY)
+{
+    ImGui::Checkbox(TrId("WE_FIX_TO_SCREEN_LABEL", idSuffix).c_str(), fixedToScreen);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", Tr("WE_TIP_FIX_TO_SCREEN"));
+
+    if (*fixedToScreen)
+    {
+        ImVec2 px = ScreenFractionToPixels(*screenX, *screenY);
+        float pixelPos[2] = { px.x, px.y };
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(100.0f);
+        if (ImGui::InputFloat2(TrId("WE_SCREEN_POS_LABEL", idSuffix).c_str(), pixelPos, "%.0f"))
+        {
+            ImVec2 frac = PixelsToScreenFraction({ pixelPos[0], pixelPos[1] });
+            *screenX = frac.x;
+            *screenY = frac.y;
+        }
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // BuildChatChannelOptions
 //--------------------------------------------------------------------------------
 // Index 0 is the empty prefix (ChatChannelPrefix's "current chat" default); the
@@ -801,6 +836,12 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
             DrawDragButton(EditTarget::BasicEvent, i, idSuffix);
         }
 
+        {
+            char idSuffix[16];
+            snprintf(idSuffix, sizeof(idSuffix), "##be%d", i);
+            DrawFixToScreenRow(idSuffix, &ev.fixedToScreen, &ev.screenX, &ev.screenY);
+        }
+
         ImGui::SetNextItemWidth(50.0f);
         int durationMinutes = ev.duration / 60;
         if (ImGui::InputInt(Tr("WE_DURATION_MIN_LABEL"), &durationMinutes,0,0))
@@ -1004,6 +1045,12 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             char idSuffix[16];
             snprintf(idSuffix, sizeof(idSuffix), "cg%d", i);
             DrawDragButton(EditTarget::CyclicGroup, i, idSuffix);
+        }
+
+        {
+            char idSuffix[16];
+            snprintf(idSuffix, sizeof(idSuffix), "##cg%d", i);
+            DrawFixToScreenRow(idSuffix, &grp.fixedToScreen, &grp.screenX, &grp.screenY);
         }
 
         ImGui::SetNextItemWidth(50.0f);

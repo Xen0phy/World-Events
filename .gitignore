@@ -14,13 +14,14 @@ Raidcore.html
 *.tar
 *.md
 !README.md
+*.patch
 
-# Real relay hosts -- see src/networking/host_config.example.h and
+# Real relay hosts - see src/networking/host_config.example.h and
 # src/networking/notify_host_config.example.h for the committed templates
 # these are copied from. Never commit the real ones.
 src/networking/host_config.h
 src/networking/notify_host_config.h
 
-# Regenerated from resources/textures/*.png on every build -- see
+# Regenerated from resources/textures/*.png on every build - see
 # tools/generate_bundled_icons.py / src/core/bundled_icons.h.
 src/generated/

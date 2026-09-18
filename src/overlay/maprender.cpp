@@ -410,6 +410,26 @@ ImVec2 ScreenToContinent(ImVec2 screenPos)
     };
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ScreenFractionToPixels / PixelsToScreenFraction   (see: maprender.h)
+//--------------------------------------------------------------------------------
+// Trivial - unlike ContinentToScreen/ScreenToContinent there's no compass/zoom
+// math involved, just NexusLink->Width/Height. Kept as named helpers.
+// RenderMapEvents, RenderCyclicGroups, DrawDragAnchorScreen, the options panel's
+// pixel-display fields - agrees on the same convention.
+//--------------------------------------------------------------------------------
+ImVec2 ScreenFractionToPixels(float fx, float fy)
+{
+    return { fx * NexusLink->Width, fy * NexusLink->Height };
+}
+
+ImVec2 PixelsToScreenFraction(ImVec2 pixelPos)
+{
+    float w = NexusLink->Width  > 0 ? (float)NexusLink->Width  : 1.0f;
+    float h = NexusLink->Height > 0 ? (float)NexusLink->Height : 1.0f;
+    return { pixelPos.x / w, pixelPos.y / h };
+}
+
 //_ Shared edit-mode state - see the comment on EditModeState in maprender.h.
 EditModeState g_EditMode;
 
@@ -491,10 +511,12 @@ void RenderMapEvents()
         WorldEvent& ev = g_Events[i];
         bool isBeingEdited = (g_EditMode.target == EditTarget::BasicEvent && g_EditMode.index == i);
  
-        ImVec2 pos = ContinentToScreen(ev.continentX, ev.continentY);
+        ImVec2 pos = ev.fixedToScreen
+            ? ScreenFractionToPixels(ev.screenX, ev.screenY)
+            : ContinentToScreen(ev.continentX, ev.continentY);
  
-        //_ Off-screen culling, skipped while dragging - a fast drag can exceed this margin.
-        if (!isBeingEdited)
+        //_ Culling skipped while dragging (drag can exceed the margin) or fixedToScreen (nothing to cull against).
+        if (!isBeingEdited && !ev.fixedToScreen)
         {
             if (pos.x < -100 || pos.x > NexusLink->Width  + 100) continue;
             if (pos.y < -100 || pos.y > NexusLink->Height + 100) continue;
@@ -519,12 +541,15 @@ void RenderMapEvents()
  
         Texture_t* icon = ev.iconTexture.empty() ? nullptr : GetOrRequestEventIcon(ev.iconTexture);
  
+        //_ HUD element, not a map object - map zoom shouldn't scale it when fixedToScreen.
+        float eventZoomMult = ev.fixedToScreen ? 1.0f : zoomMult;
+ 
         //_ Tracks the drawn size (icon vs dot differ) so hover matches what's on screen.
         float hoverHalfExtent;
  
         if (icon && icon->Resource)
         {
-            float halfW = BasicEventIconSize * zoomMult;
+            float halfW = BasicEventIconSize * eventZoomMult;
             float halfH = halfW * ((float)icon->Height / (float)icon->Width);
             dl->AddImage((ImTextureID)icon->Resource,
                 ImVec2(pos.x - halfW, pos.y - halfH),
@@ -535,7 +560,7 @@ void RenderMapEvents()
         }
         else
         {
-            float radius = BasicEventDotRadius * zoomMult;
+            float radius = BasicEventDotRadius * eventZoomMult;
             dl->AddCircleFilled(pos, radius, colFill);
             dl->AddCircle(pos, radius, COL_RING, 0, RING_THICK);
             hoverHalfExtent = radius;
@@ -549,10 +574,16 @@ void RenderMapEvents()
             {pos.x - hoverHalfExtent, pos.y - hoverHalfExtent},
             {pos.x + hoverHalfExtent, pos.y + hoverHalfExtent});
  
-        //_ Drag-capture architecture: see DrawDragAnchor (map_shared.h) and header above.
+        //_ Drag-capture architecture (map_shared.h); routed to Continent/Screen by fixedToScreen.
         if (isBeingEdited)
-            DrawDragAnchor("##we_drag_anchor", i, pos, hoverHalfExtent,
-                &ev.continentX, &ev.continentY);
+        {
+            if (ev.fixedToScreen)
+                DrawDragAnchorScreen("##we_drag_anchor_screen", i, pos, hoverHalfExtent,
+                    &ev.screenX, &ev.screenY);
+            else
+                DrawDragAnchor("##we_drag_anchor", i, pos, hoverHalfExtent,
+                    &ev.continentX, &ev.continentY);
+        }
  
         //_ Suppressed while dragging - the cursor sits on top of the marker.
         if (hovered && !isBeingEdited)

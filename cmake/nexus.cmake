@@ -5,7 +5,7 @@ include(FetchContent)
 # the v6.1 tag: that rewrite introduced the _t-suffixed API this project's
 # addon.h/addon.cpp/maprender.h/better_chat.cpp are written against
 # (AddonAPI_t, NexusLinkData_t, Texture_t, GUI_Register, DataLink_Get,
-# Paths_GetAddonDirectory, etc.) -- v6.1 predates it and won't compile
+# Paths_GetAddonDirectory, etc.) - v6.1 predates it and won't compile
 # against this codebase. No tag has been cut since; re-check upstream
 # periodically and re-pin to a tag once one exists past this commit.
 FetchContent_Declare(

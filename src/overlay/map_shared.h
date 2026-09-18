@@ -40,3 +40,16 @@ void DrawEditPulseRing(ImDrawList* dl, ImVec2 center, float hoverRadius);
 //--------------------------------------------------------------------------------
 void DrawDragAnchor(const char* idPrefix, int index, ImVec2 center, float hoverRadius,
     float* outContinentX, float* outContinentY);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawDragAnchorScreen
+//--------------------------------------------------------------------------------
+// Same drag-to-reposition gesture as DrawDragAnchor, for a marker/ring with
+// fixedToScreen set (events.h): writes a normalized [0,1] screen fraction via
+// PixelsToScreenFraction instead of a continent coordinate via ScreenToContinent,
+// and otherwise behaves identically. `idPrefix` still must be unique per
+// caller/mode so ImGui doesn't confuse this anchor window with the continent-
+// space one at the same index (e.g. append "_screen").
+//--------------------------------------------------------------------------------
+void DrawDragAnchorScreen(const char* idPrefix, int index, ImVec2 center, float hoverRadius,
+    float* outScreenX, float* outScreenY);

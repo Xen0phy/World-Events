@@ -8,7 +8,7 @@ box-detection approach as rewrap_comments.py.
 
 Two independent passes:
 
-  MECHANICAL (auto-fixable) -- applied to the file, reviewed like
+  MECHANICAL (auto-fixable) - applied to the file, reviewed like
   rewrap_comments.py (one diff per file, Enter to apply / Esc to skip),
   or applied unconditionally with --auto:
     - a tier marker char reused as an internal/closing separator instead
@@ -18,7 +18,7 @@ Two independent passes:
     - em/en dashes and curly quotes/ellipsis inside comment text,
       normalized to plain ASCII
 
-  ADVISORY (logged only -- these need judgment, not a rewrite):
+  ADVISORY (logged only - these need judgment, not a rewrite):
     - banned phrases (process narration / hedge-filler) from the style guide
     - Doxygen/Javadoc tags
     - unresolvable non-ASCII characters
@@ -31,7 +31,7 @@ Two independent passes:
       meant for a single line; a multi-line run needs review)
 
 The advisory log is always printed, with or without --auto, and always saved
-to <root>/logs/check_comments.log (created if needed) -- that's the file
+to <root>/logs/check_comments.log (created if needed) - that's the file
 meant to go to an AI pass. --log FILE writes it somewhere else instead.
 
 Usage:
@@ -57,7 +57,7 @@ By default ROOT is the parent directory of wherever this script lives
 
 Accepted false positives (advisory only):
     Some bare-block-no-crossref findings get reviewed once and accepted as
-    correct as-is -- e.g. a block whose NAME is genuinely self-explanatory,
+    correct as-is - e.g. a block whose NAME is genuinely self-explanatory,
     with nothing else to point a "(see: ...)" at. Rather than mark that in
     the source (which just raises "why does this comment say that?" for a
     reader who doesn't know this script exists), accepted NAMEs go in an
@@ -65,11 +65,11 @@ Accepted false positives (advisory only):
     wherever --ignore-file points.
 
     Format: one exact block NAME per line (whatever text follows the tier
-    marker's separator on the NAME row -- "SETTING", "Fnv1a64", etc).
-    Blank lines and lines starting with '#' are ignored -- put the
+    marker's separator on the NAME row - "SETTING", "Fnv1a64", etc).
+    Blank lines and lines starting with '#' are ignored - put the
     reasoning for each entry (or group of entries) in a comment above it.
     Matching is global (not scoped to a file or line), and only ever
-    applies to the bare-block-no-crossref check -- so it stays valid
+    applies to the bare-block-no-crossref check - so it stays valid
     across edits that move the block around, at the cost of also
     suppressing that same check anywhere else the identical NAME text
     shows up as a bare block. Fine for a distinctive name; worth a second
@@ -102,7 +102,7 @@ INLINE_MARKER_RE = re.compile(r'^(?P<indent>[ \t]*)//_(?:[ \t]|$)')
 # later lines of:
 #     //_ Nexus's escape-to-close matches the live ImGuiWindow::Name,
 #     //  which only Localization_SyncCloseOnEscape can keep aligned...
-# Here the wrapped lines don't repeat the '_' marker -- they pad with
+# Here the wrapped lines don't repeat the '_' marker - they pad with
 # plain spaces ("//  ") to keep the text visually aligned under the
 # first line's "//_ ". Two or more spaces after '//' (with no '_')
 # distinguishes this from an ordinary single-space "// text" comment
@@ -110,10 +110,10 @@ INLINE_MARKER_RE = re.compile(r'^(?P<indent>[ \t]*)//_(?:[ \t]|$)')
 INLINE_CONTINUATION_RE = re.compile(r'^(?P<indent>[ \t]*)//(?P<pad>[ \t]{2,})(?=\S)')
 
 # A '//' line whose content is *only* whitespace and separator/marker
-# characters -- catches a run that would otherwise match DASH_LINE_RE or
+# characters - catches a run that would otherwise match DASH_LINE_RE or
 # MARKER_LINE_RE if not for a stray space or tab splitting it up. Lines
 # like this fail both of the strict patterns above, which means they're
-# structurally invisible to find_blocks() -- not even flagged as a
+# structurally invisible to find_blocks() - not even flagged as a
 # malformed block, since as far as the parser's concerned no block was
 # ever opened there.
 NEAR_MISS_SEPARATOR_RE = re.compile(r'^[ \t]*//(?P<body>[ \t#*~-]+)$')
@@ -125,7 +125,7 @@ TIER_INFO = {
 }
 
 # Banned phrases from COMMENT_STYLE.md's "Banned content" section.
-# The guide's own examples are "e.g." (non-exhaustive) -- this list is
+# The guide's own examples are "e.g." (non-exhaustive) - this list is
 # deliberately (sorry) broader than the short list shown to humans.
 PROCESS_NARRATION_PHRASES = [
     "deliberately", "for now", "not decided yet", "user decided",
@@ -167,7 +167,7 @@ ASCII_FIX_MAP = {
 # ---------------------------------------------------------------------------
 
 class Issue:
-    """One advisory finding -- logged, never auto-applied."""
+    """One advisory finding - logged, never auto-applied."""
     def __init__(self, line_no, check_id, message, context='', name_text=None):
         self.line_no = line_no      # 1-based
         self.check_id = check_id
@@ -205,7 +205,7 @@ def is_structured(norm):
 
 
 def scan_global(lines):
-    """Banned phrases, Doxygen tags, unresolved non-ASCII -- across every
+    """Banned phrases, Doxygen tags, unresolved non-ASCII - across every
     '//' comment line in the file, independent of block structure, plus
     the fixed text for the ASCII-normalizable characters."""
     issues = []
@@ -222,14 +222,14 @@ def scan_global(lines):
             if pat.search(content):
                 issues.append(Issue(
                     line_no, f'banned-phrase:{category}',
-                    f'"{phrase}" -- rephrase as a plain fact, or cut it',
+                    f'"{phrase}" - rephrase as a plain fact, or cut it',
                     context=raw.strip(),
                 ))
 
         for dm in DOXYGEN_TAG_RE.finditer(content):
             issues.append(Issue(
                 line_no, 'doxygen-tag',
-                f'"{dm.group(0)}" -- this style uses no doc-gen tags',
+                f'"{dm.group(0)}" - this style uses no doc-gen tags',
                 context=raw.strip(),
             ))
 
@@ -241,7 +241,7 @@ def scan_global(lines):
                     issues.append(Issue(
                         line_no, 'malformed-separator',
                         f"looks like a {body[0]!r} separator/marker line, but "
-                        f"whitespace is breaking up the run -- invisible to "
+                        f"whitespace is breaking up the run - invisible to "
                         f"block parsing as-is, not just misformatted",
                         context=raw.strip(),
                     ))
@@ -257,7 +257,7 @@ def scan_global(lines):
             swaps = ', '.join(f'{bad!r} -> {good!r}' for bad, good in replaced)
             issues.append(Issue(
                 line_no, 'ascii-normalized',
-                f'{swaps} -- normalized to ASCII',
+                f'{swaps} - normalized to ASCII',
                 context=raw.strip(),
             ))
 
@@ -266,7 +266,7 @@ def scan_global(lines):
             if ord(ch) > 127:
                 issues.append(Issue(
                     line_no, 'non-ascii-unresolved',
-                    f'non-ASCII character {ch!r} has no safe auto-fix -- reword by hand',
+                    f'non-ASCII character {ch!r} has no safe auto-fix - reword by hand',
                     context=raw.strip(),
                 ))
                 break
@@ -295,8 +295,8 @@ def check_inline_comment_runs(lines):
         //  moretext, aligned under the text above
         //  evenmore
 
-    Either way it's the same underlying issue -- a marker meant for one
-    line covering several -- so a run mixing both forms is flagged too.
+    Either way it's the same underlying issue - a marker meant for one
+    line covering several - so a run mixing both forms is flagged too.
     Each run is flagged once, at its first line, so it can be reviewed
     and (usually) rewritten as a proper block comment instead.
     """
@@ -324,7 +324,7 @@ def check_inline_comment_runs(lines):
             if run_len > 1:
                 issues.append(Issue(
                     start + 1, 'inline-comment-multiline',
-                    f"{run_len}-line '//_' comment (lines {start + 1}-{i}) -- "
+                    f"{run_len}-line '//_' comment (lines {start + 1}-{i}) - "
                     f"'//_' is meant for a single-line comment; this looks like a "
                     f"multi-line comment split across several '//_' lines or "
                     f"wrapped onto aligned continuation lines, and should be "
@@ -356,7 +356,7 @@ def find_blocks(lines):
     proper close, logged as advisory rather than silently dropped.
     """
     blocks = []
-    malformed = []  # (name_line_idx, name_text) -- looked like a block, never closed
+    malformed = []  # (name_line_idx, name_text) - looked like a block, never closed
     i = 0
     n = len(lines)
 
@@ -383,7 +383,7 @@ def find_blocks(lines):
 
         # Segments are collected the same way rewrap_comments.py collects
         # them: the *first* separator only marks where content starts (it
-        # closes nothing, since nothing precedes it) -- every separator
+        # closes nothing, since nothing precedes it) - every separator
         # after that closes the segment accumulated since the previous one.
         #
         # A same-tier marker line hit while a segment is still open (i.e.
@@ -417,7 +417,7 @@ def find_blocks(lines):
                     # Either this block already closed cleanly and what
                     # follows belongs to something else, or a *different*
                     # tier's marker showed up mid-segment (genuinely
-                    # malformed) -- either way, don't consume this line.
+                    # malformed) - either way, don't consume this line.
                     break
                 # Same-tier marker misused as our closing separator.
                 segments.append(current)
@@ -492,7 +492,7 @@ def check_blocks(lines, blocks, malformed):
         issues.append(Issue(
             name_line_idx + 1, 'malformed-block',
             f"{name_text!r}: opened but never reached a proper closing "
-            f"separator -- not checked further",
+            f"separator - not checked further",
         ))
 
     for b in blocks:
@@ -506,7 +506,7 @@ def check_blocks(lines, blocks, malformed):
                 issues.append(Issue(
                     idx + 1, 'marker-as-separator',
                     f"{tier['label']} marker '{b['marker_char']}' reused on an "
-                    f"internal/closing separator -- fixed to a hyphen line",
+                    f"internal/closing separator - fixed to a hyphen line",
                 ))
 
         # -- mechanical: separator width mismatch -----------------------
@@ -516,7 +516,7 @@ def check_blocks(lines, blocks, malformed):
                 mech_fixes.append((idx, new_line))
                 issues.append(Issue(
                     idx + 1, 'separator-width',
-                    f"separator is {width} chars, block opens at {b['marker_len']} -- width fixed",
+                    f"separator is {width} chars, block opens at {b['marker_len']} - width fixed",
                 ))
 
         # -- advisory: tier 3 shouldn't have a listing segment ----------
@@ -524,7 +524,7 @@ def check_blocks(lines, blocks, malformed):
             issues.append(Issue(
                 b['name_line_idx'] + 1, 'tier3-has-listing',
                 f"{b['name_text']!r}: Tier 3 has no LISTING section, but this "
-                f"block has {len(b['segments'])} segments -- check the split",
+                f"block has {len(b['segments'])} segments - check the split",
             ))
 
         listing_seg, desc_seg = classify_segments(b)
@@ -534,7 +534,7 @@ def check_blocks(lines, blocks, malformed):
             issues.append(Issue(
                 b['name_line_idx'] + 1, 'description-cap',
                 f"{b['name_text']!r}: DESCRIPTION is {len(desc_seg)} lines, "
-                f"{tier['label']} cap is {tier['desc_cap']} -- compress, "
+                f"{tier['label']} cap is {tier['desc_cap']} - compress, "
                 f"move detail down a tier, or split across .h/.cpp",
             ))
 
@@ -570,16 +570,16 @@ def check_blocks(lines, blocks, malformed):
                 issues.append(Issue(
                     b['name_line_idx'] + 1, 'bare-block-no-crossref',
                     f"{b['name_text']!r}: empty block body with no "
-                    f"'(see: file)' reference -- intentional, or missing content?",
+                    f"'(see: file)' reference - intentional, or missing content?",
                     name_text=b['name_text'],
                 ))
 
     # -- advisory: cap-dodging (adjacent same-tier blocks, same construct) --
-    # Adjacency alone is normal -- most functions/structs sit right next to
+    # Adjacency alone is normal - most functions/structs sit right next to
     # each other with no blank line. Only the same identifier repeated is a
     # signal this might be one construct split to double its cap. (This can
     # still false-positive on overloads that share a bare function name --
-    # the guide's NAME format doesn't include parameters -- so it's worth a
+    # the guide's NAME format doesn't include parameters - so it's worth a
     # glance, not an automatic rewrite.)
     for prev, nxt in zip(blocks, blocks[1:]):
         if (nxt['block_start'] == prev['end']
@@ -650,7 +650,7 @@ def review_file(path, original, fixed):
 def load_ignore_names(path):
     """Parse a plain list of block NAMEs (one per line, '#' comments and
     blank lines skipped) into a set. Matched only against the
-    bare-block-no-crossref check, by exact NAME text -- global, not
+    bare-block-no-crossref check, by exact NAME text - global, not
     scoped to a file or line, so it stays valid across edits that move
     the block around."""
     names = set()
@@ -720,12 +720,12 @@ def main():
                               "file's mechanical fixes with a diff)")
     parser.add_argument('--log', metavar='FILE',
                          help='write the advisory log to FILE, in addition to stdout '
-                              '(default: <root>/logs/check_comments.log -- shared by any '
+                              '(default: <root>/logs/check_comments.log - shared by any '
                               'tool that adopts the same convention)')
     parser.add_argument('--ignore-file', metavar='FILE',
                          help='block NAMEs accepted as fine to stay bare, one per line '
                               '(default: <root>/tools/check_comments_ignore.txt, if it '
-                              'exists) -- see the "Accepted false positives" section above')
+                              'exists) - see the "Accepted false positives" section above')
     parser.add_argument('files', nargs='*', metavar='FILE',
                          help='one or more specific files to check, instead of walking '
                               '<root>/src. When given, --root is ignored for file '

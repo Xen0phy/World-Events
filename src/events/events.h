@@ -63,6 +63,10 @@ constexpr int64_t EVENTS_DATA_VERSION = 202608191234;
 //                a reward (e.g. Ley Line Anomaly) share one value
 // customName     user override; empty = display name comes from WE_NAME_BASIC_<id>
 //                (see DisplayName, events_storage.h)
+// fixedToScreen  true = anchored to screenX/Y instead of continentX/Y;
+//                continentX/Y are kept but unused while set
+// screenX/Y      normalized [0,1] fraction of the window; options panel
+//                shows/edits these as pixels (ScreenFractionToPixels, maprender.h)
 //--------------------------------------------------------------------------------
 // One "Basic Event": a single map dot with its own schedule, either periodic
 // (period/offset) or irregular (isVarying + varyingTimes).
@@ -94,6 +98,10 @@ struct WorldEvent
     std::string doneGroup;
 
     std::string customName;
+
+    bool  fixedToScreen = false;
+    float screenX = 0.5f;
+    float screenY = 0.5f;
 };
 
 //_ Populated in events_basic.cpp, used by maprender.cpp.
@@ -138,6 +146,10 @@ enum class ColorTier { Primary, Secondary, Tertiary };
 //                   no API "done today" signal
 // customName        user override; empty = display name comes from
 //                   WE_NAME_GROUP_<id> (see DisplayName, events_storage.h)
+// fixedToScreen     true = anchored to screenX/Y instead of continentX/Y;
+//                   continentX/Y are kept but unused while set
+// screenX/Y         normalized [0,1] fraction of the window; options panel
+//                   shows/edits these as pixels (ScreenFractionToPixels, maprender.h)
 //--------------------------------------------------------------------------------
 // One per-map cyclic ring: a repeating `period`-second cycle containing one or
 // more Slots, each occupying a fixed offset/duration within it. apiMapChestId is
@@ -214,6 +226,10 @@ struct CyclicGroup
     std::string apiMapChestId;
 
     std::string customName;
+
+    bool  fixedToScreen = false;
+    float screenX = 0.5f;
+    float screenY = 0.5f;
 
     ImU32 SlotColor(const Slot& slot) const
     {
