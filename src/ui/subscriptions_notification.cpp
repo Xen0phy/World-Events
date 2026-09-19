@@ -396,7 +396,7 @@ static void CollectLiveEventPopups()
 //--------------------------------------------------------------------------------
 static void DrawLayoutPreview(ImDrawList* dl, ImVec2 anchor, float popupWidth, bool stackUpward, float rounding)
 {
-    //_ Same solid yellow (no pulse/fade) as the distribution bar's unsafe-zone preview (addon_options.cpp).
+    //_ Same solid yellow (no pulse/fade) as the distribution bar's unsafe-zone preview (options_general.cpp).
     const ImU32 col = IM_COL32(255, 220, 0, 255);
 
     ImVec2 rectMin = anchor;

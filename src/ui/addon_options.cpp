@@ -144,7 +144,7 @@ void AddonOptions()
 
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
-                //_ DragFloat, same speed/behavior as the unsafe-zone DragInt rows below, but on the underlying float directly - no int round-trip needed since the setting itself is a float.
+                //_ DragFloat on the underlying float directly - no int round-trip needed since the setting itself is a float.
                 ImGui::SetNextItemWidth(60);
                 if (ImGui::DragFloat(Tr("WE_OPT_TOAST_WIDTH"), &NotificationPopupWidth, 1, 0, 0, "%.0fpx"))
                 {
@@ -155,7 +155,6 @@ void AddonOptions()
                 Tooltip(Tr("WE_TIP_TOAST_WIDTH"));
 
                 //_ Shown/edited as pixels, stored as a screen fraction - same convention as DrawFixToScreenRow (addon_options_helpers.cpp).
-                //_ DragFloat2 rather than DragFloat (only one X/Y widget, like the unsafe-zone left/right pair split across two).
                 ImGui::Dummy(dummySquare);
                 ImGui::SameLine();
                 {
@@ -220,129 +219,6 @@ void AddonOptions()
                             PlayNotificationSound(NotificationSoundFile);
                     }
                     Tooltip(Tr("WE_TIP_TEST_SOUND"));
-                }
-            }
-
-            //_ Column 1: Subscriptions bar
-            ImGui::TableSetColumnIndex(1);
-
-            //_ Second, alternate view of subscription data: a thin animated line pinned to the screen edge, no titlebar.
-            ImGui::Checkbox(Tr("WE_OPT_SHOW_SUBS_BAR"), &ShowSubscriptionsBar);
-
-            DisabledBlock(!ShowSubscriptionsBar)
-            {
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::Checkbox(Tr("WE_OPT_HIDE_ACTIVE_ON_BAR"), &SubscriptionsBarHideActive);
-                Tooltip(Tr("WE_TIP_HIDE_ACTIVE_ON_BAR"));
-
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::Checkbox(Tr("WE_OPT_MINIMAL_MODE"), &SubscriptionsBarMinimalMode);
-                ImGui::SameLine();
-                ImGui::Checkbox(Tr("WE_OPT_BOTTOM_LINE"), &SubscriptionsBarBottomAnchored);
-                
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::ColorEdit4(TrId("WE_OPT_DOT_COLOR", "##bar_dot_color").c_str(), SubscriptionsBarDotColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-                
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::InputInt(Tr("WE_OPT_POPOUT_HEIGHT"), &SubscriptionsBarMaxDropPx, 0, 0))
-                {
-                    //_ Floored at 8, not 0: subscriptions_bar.cpp derives the pill's corner radius from half this value.
-                    if (SubscriptionsBarMaxDropPx < 8)     SubscriptionsBarMaxDropPx = 8;
-                    if (SubscriptionsBarMaxDropPx > 300)   SubscriptionsBarMaxDropPx = 300;
-                }
-                Tooltip(Tr("WE_TIP_POPOUT_HEIGHT"));
-                    
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::InputInt(Tr("WE_OPT_POPOUT_DELAY"), &SubscriptionsBarHoverDelayMs, 0, 0))
-                {
-                    //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
-                    if (SubscriptionsBarHoverDelayMs < 0)    SubscriptionsBarHoverDelayMs = 0;
-                    if (SubscriptionsBarHoverDelayMs > 5000) SubscriptionsBarHoverDelayMs = 5000;
-                }
-                Tooltip(Tr("WE_TIP_POPOUT_DELAY"));
-
-                float screenWidth = ImGui::GetIO().DisplaySize.x;
-                float screenHeight = ImGui::GetIO().DisplaySize.y;
-
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::Text("%s", Tr("WE_OPT_UNSAFE_ZONE"));
-                
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::DragInt(TrId("WE_OPT_LEFT", "##leftuz").c_str(), &SubscriptionsBarUnsafeLeftPx, 1, 0,0, "%dpx"))
-                {
-                    if (SubscriptionsBarUnsafeLeftPx < 0)           SubscriptionsBarUnsafeLeftPx = 0;
-                    if (SubscriptionsBarUnsafeLeftPx > screenWidth)  SubscriptionsBarUnsafeLeftPx = (int)screenWidth;
-                    if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
-                        SubscriptionsBarUnsafeRightPx = (int)screenWidth - SubscriptionsBarUnsafeLeftPx;
-                }
-                bool leftActive = ItemPreviewGate();
-                Tooltip(Tr("WE_TIP_UNSAFE_LEFT"));
-                
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::DragInt(TrId("WE_OPT_RIGHT", "##rightuz").c_str(), &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
-                {
-                    if (SubscriptionsBarUnsafeRightPx < 0)           SubscriptionsBarUnsafeRightPx = 0;
-                    if (SubscriptionsBarUnsafeRightPx > screenWidth)  SubscriptionsBarUnsafeRightPx = (int)screenWidth;
-                    if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
-                        SubscriptionsBarUnsafeLeftPx = (int)screenWidth - SubscriptionsBarUnsafeRightPx;
-                }
-                bool rightActive = ItemPreviewGate();
-                Tooltip(Tr("WE_TIP_UNSAFE_RIGHT"));
-                
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::DragInt(TrId("WE_OPT_HEIGHT_LEFT", "##heightuzleft").c_str(), &SubscriptionsBarUnsafeHeightLeftPx, 1, 0, 0, "%dpx"))
-                {
-                    if (SubscriptionsBarUnsafeHeightLeftPx < 0)    SubscriptionsBarUnsafeHeightLeftPx = 0;
-                    if (SubscriptionsBarUnsafeHeightLeftPx > screenHeight) SubscriptionsBarUnsafeHeightLeftPx = (int)screenHeight;
-                }
-                bool heightLeftActive = ItemPreviewGate();
-                Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT_LEFT"));
-
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::DragInt(TrId("WE_OPT_HEIGHT_RIGHT", "##heightuzright").c_str(), &SubscriptionsBarUnsafeHeightRightPx, 1, 0, 0, "%dpx"))
-                {
-                    if (SubscriptionsBarUnsafeHeightRightPx < 0)    SubscriptionsBarUnsafeHeightRightPx = 0;
-                    if (SubscriptionsBarUnsafeHeightRightPx > screenHeight) SubscriptionsBarUnsafeHeightRightPx = (int)screenHeight;
-                }
-                bool heightRightActive = ItemPreviewGate();
-                Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT_RIGHT"));
-                
-                //_ Live preview, shown while one of the four fields above is active or hovered (ItemPreviewGate, addon_options_helpers.h); mirrors subscriptions_bar.cpp's anchor math.
-                if (leftActive || rightActive || heightLeftActive || heightRightActive)
-                {
-                    ImDrawList* dl = ImGui::GetForegroundDrawList();
-                    const ImU32 kYellow = IM_COL32(255, 220, 0, 255);
-                    const float kDropDir  = SubscriptionsBarBottomAnchored ? -1.0f : 1.0f;
-                    const float kBaselineY = SubscriptionsBarBottomAnchored
-                        ? (ImGui::GetIO().DisplaySize.y - 1.0f)
-                        : 1.0f;
-                    const float hLeft  = kBaselineY + kDropDir * (float)SubscriptionsBarUnsafeHeightLeftPx;
-                    const float hRight = kBaselineY + kDropDir * (float)SubscriptionsBarUnsafeHeightRightPx;
-                
-                    //_ Left zone: vertical edge + horizontal top from the screen edge to it
-                    dl->AddLine(ImVec2((float)SubscriptionsBarUnsafeLeftPx, kBaselineY),
-                                ImVec2((float)SubscriptionsBarUnsafeLeftPx, hLeft), kYellow, 2.0f);
-                    dl->AddLine(ImVec2(0.0f, hLeft),
-                                ImVec2((float)SubscriptionsBarUnsafeLeftPx, hLeft), kYellow, 2.0f);
-                
-                    //_ Right zone: mirrored, its own height
-                    float xRight = screenWidth - (float)SubscriptionsBarUnsafeRightPx;
-                    dl->AddLine(ImVec2(xRight, kBaselineY), ImVec2(xRight, hRight), kYellow, 2.0f);
-                    dl->AddLine(ImVec2(xRight, hRight), ImVec2(screenWidth, hRight), kYellow, 2.0f);
                 }
             }
 
