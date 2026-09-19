@@ -20,8 +20,8 @@
 //
 // The remembered tab is the OptionsWindowTab setting (settings_table.h).
 // ShowOptionsWindow is not a setting: the window opens on request (the Nexus
-// options button, or a right-click entry point calling OpenOptionsWindow) and
-// its visibility does not survive a restart.
+// options button, or a right-click entry point calling OpenOptionsWindow) and its
+// visibility does not survive a restart.
 //
 // Rendered from its own RT_Render callback (addon.cpp), outside AddonRender's
 // IsGameplay gate, so it also opens at character select. Not gated by the
@@ -67,9 +67,9 @@ enum class OptionsTab
 // liveEventId   LiveEvent::eventId, meaningful when kind is Live
 //--------------------------------------------------------------------------------
 // Identity of the one row a caller wants shown. Handed to DrawOptionsEvents /
-// DrawOptionsLive by pointer for exactly one frame and nullptr on every other,
-// so a stale target can never keep re-forcing a row open after the player
-// collapses it.
+// DrawOptionsLive by pointer for exactly one frame and nullptr on every other, so
+// a stale target can never keep re-forcing a row open after the player collapses
+// it.
 //--------------------------------------------------------------------------------
 struct OptionsDeepLink
 {
@@ -87,8 +87,7 @@ struct OptionsDeepLink
 //
 // Row form: opens on the Live tab for kind Live, otherwise the Events tab, and
 // hands the row identity to that section for exactly one frame (see
-// OptionsDeepLink). liveEventId defaults to empty and only matters for kind
-// Live.
+// OptionsDeepLink). liveEventId defaults to empty and only matters for kind Live.
 //--------------------------------------------------------------------------------
 void OpenOptionsWindow();
 void OpenOptionsWindow(OptionsTab tab);
@@ -109,9 +108,9 @@ void RenderOptionsWindow();
 // OptionsHighlight_Set / OptionsHighlight_IsActive
 //--------------------------------------------------------------------------------
 // Shared row-flash timer. A section calls OptionsHighlight_Set on the frame it
-// consumes a deep link; each of its rows then asks OptionsHighlight_IsActive
-// with its own id and tints itself while that is true (about 1.5 seconds). One
-// flash at a time: a new Set replaces the previous one.
+// consumes a deep link; each of its rows then asks OptionsHighlight_IsActive with
+// its own id and tints itself while that is true (about 1.5 seconds). One flash
+// at a time: a new Set replaces the previous one.
 //--------------------------------------------------------------------------------
 void OptionsHighlight_Set(const std::string& id);
 bool OptionsHighlight_IsActive(const std::string& id);

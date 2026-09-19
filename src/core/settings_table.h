@@ -438,9 +438,9 @@ SETTING(System, LastKnownVersion, int, 0)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OptionsWindowTab
 //--------------------------------------------------------------------------------
-// Rail tab the settings window (options_window.h) was last left on: an
-// OptionsTab cast to int. Clamped on read, so a stale or hand-edited value falls
-// back to General. The window's own visibility is not a setting.
+// Rail tab the settings window (options_window.h) was last left on: an OptionsTab
+// cast to int. Clamped on read, so a stale or hand-edited value falls back to
+// General. The window's own visibility is not a setting.
 //--------------------------------------------------------------------------------
 SETTING(System, OptionsWindowTab, int, 0)
 

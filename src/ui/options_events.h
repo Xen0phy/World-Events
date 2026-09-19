@@ -16,9 +16,9 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawOptionsEvents
 //--------------------------------------------------------------------------------
-// Called by RenderOptionsWindow (options_window.cpp) once per frame while
-// the tab is selected. link is non-null for exactly one frame after a Basic or
-// Cyclic deep link: the section then selects the matching sub-tab, switches to
-// Quick, opens the row and calls OptionsHighlight_Set (options_window.h).
+// Called by RenderOptionsWindow (options_window.cpp) once per frame while the tab
+// is selected. link is non-null for exactly one frame after a Basic or Cyclic
+// deep link: the section then selects the matching sub-tab, switches to Quick,
+// opens the row and calls OptionsHighlight_Set (options_window.h).
 //--------------------------------------------------------------------------------
 void DrawOptionsEvents(const OptionsDeepLink* link);

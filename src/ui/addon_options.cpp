@@ -99,27 +99,6 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
     
-    //_ Master is a derived AND of the three settings, not its own.
-    bool disableAllCompetitive = DisableWindowWhenCompetitive && DisableBarWhenCompetitive && DisableNotifyWhenCompetitive;
-    if (ImGui::Checkbox(Tr("WE_OPT_DISABLE_COMPETITIVE"), &disableAllCompetitive))
-    {
-        DisableWindowWhenCompetitive = disableAllCompetitive;
-        DisableBarWhenCompetitive    = disableAllCompetitive;
-        DisableNotifyWhenCompetitive = disableAllCompetitive;
-    }
-    Tooltip(Tr("WE_TIP_DISABLE_COMPETITIVE"));
-
-    ImGui::SameLine();
-    ImGui::Checkbox(TrId("WE_OPT_WINDOW", "##dis_comp_window").c_str(), &DisableWindowWhenCompetitive);
-    ImGui::SameLine();
-    ImGui::Checkbox(TrId("WE_OPT_TOAST", "##dis_comp_toast").c_str(), &DisableNotifyWhenCompetitive);
-    ImGui::SameLine();
-    ImGui::Checkbox(TrId("WE_OPT_BAR", "##dis_comp_bar").c_str(), &DisableBarWhenCompetitive);
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
     if (ImGui::CollapsingHeader(Tr("WE_OPT_OVERLAY_SETTINGS")))
     {
         //_ Table 1 - Subscriptions, always visible; split out since CollapsingHeader can't span table columns.
@@ -127,28 +106,8 @@ void AddonOptions()
         {
             ImGui::TableNextRow();
 
-            //_ Column 0: Subscriptions window, then Notification popups
+            //_ Column 0: Notification popups
             ImGui::TableSetColumnIndex(0);
-
-            //_ Watchlist window toggle only opens/closes the window, not which events are subscribed (events.json data).
-            ImGui::Checkbox(Tr("WE_OPT_SHOW_SUBS_WINDOW"), &ShowSubscriptionsWindow);
-            DisabledBlock(!ShowSubscriptionsWindow)
-            {
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::Checkbox(Tr("WE_OPT_HIDE_ACTIVE_IN_WINDOW"), &SubscriptionsHideActive);
-                
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-
-                //_ RGB only (feeds TextColored), not a tinted dot/icon like BasicEventColor* below, which need alpha.
-                ImGui::ColorEdit3(TrId("WE_OPT_ACTIVE", "##sub_color_active").c_str(), SubscriptionsActiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-
-                ImGui::SameLine();
-                ImGui::ColorEdit3(TrId("WE_OPT_SOON", "##sub_color_soon").c_str(), SubscriptionsSoonColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-            }
-
-            ImGui::Dummy(dummySquare);
 
             //_ Third, independent view of the same subscription data (toast popups); not gated by window/bar visibility.
             ImGui::Checkbox(Tr("WE_OPT_ENABLE_NOTIFY_POPUPS"), &NotificationsEnabled);

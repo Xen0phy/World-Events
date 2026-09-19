@@ -15,9 +15,9 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawOptionsLive
 //--------------------------------------------------------------------------------
-// Called by RenderOptionsWindow (options_window.cpp) once per frame while
-// the tab is selected. link is non-null for exactly one frame after a Live deep
-// link: the section then scrolls to the row and calls OptionsHighlight_Set
+// Called by RenderOptionsWindow (options_window.cpp) once per frame while the tab
+// is selected. link is non-null for exactly one frame after a Live deep link: the
+// section then scrolls to the row and calls OptionsHighlight_Set
 // (options_window.h).
 //--------------------------------------------------------------------------------
 void DrawOptionsLive(const OptionsDeepLink* link);

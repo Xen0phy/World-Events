@@ -12,13 +12,13 @@
 // Rail icons are bundled textures resolved through GetOrRequestEventIcon
 // (maprender.h), so they follow the same disk-first, bundled-fallback lookup as
 // event icons and inherit its authoring rule: neutral gray RGB with the shape in
-// alpha, recolored here by the same multiplicative tint. While a texture is
-// still loading the button draws a plain dot instead, so the rail never shows
-// an empty square.
+// alpha, recolored here by the same multiplicative tint. While a texture is still
+// loading the button draws a plain dot instead, so the rail never shows an empty
+// square.
 //
-// Every size derives from ImGui::GetFrameHeight(), never a fixed pixel value,
-// so the window follows Nexus's UI scale. Each tab draws into its own child
-// window ID, which gives every tab its own scroll position.
+// Every size derives from ImGui::GetFrameHeight(), never a fixed pixel value, so
+// the window follows Nexus's UI scale. Each tab draws into its own child window
+// ID, which gives every tab its own scroll position.
 //--------------------------------------------------------------------------------
 
 #include "options_window.h"
@@ -210,9 +210,9 @@ void OpenOptionsWindow(SubscriptionKind kind, const std::string& basicId,
 // RenderOptionsWindow   (see: options_window.h)
 //--------------------------------------------------------------------------------
 // Two child windows side by side: the fixed-width rail (bordered, so it reads as
-// a separate strip) and the content pane filling the rest. The deep link is copied
-// out of the pending slot before drawing, so it reaches the section for exactly
-// this one frame. Esc-to-close is handled by Nexus via the registration
+// a separate strip) and the content pane filling the rest. The deep link is
+// copied out of the pending slot before drawing, so it reaches the section for
+// exactly this one frame. Esc-to-close is handled by Nexus via the registration
 // Localization_SyncCloseOnEscape keeps in step with the translated title.
 //--------------------------------------------------------------------------------
 void RenderOptionsWindow()
@@ -260,7 +260,7 @@ void RenderOptionsWindow()
     //_ Read after the rail ran, so a click switches the content the same frame.
     OptionsTab tab = CurrentTab();
 
-    ImGui::BeginChild(kContentChildIds[(int)tab], ImVec2(0.0f, 0.0f), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
+    ImGui::BeginChild(kContentChildIds[(int)tab], ImVec2(0.0f, 0.0f), false);
     switch (tab)
     {
         case OptionsTab::General: DrawOptionsGeneral();         break;

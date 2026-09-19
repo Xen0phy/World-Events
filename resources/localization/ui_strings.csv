@@ -100,17 +100,6 @@ WE_EDIT_LIVE_COL_EVENT,Event,Event,Événement,Evento,事件,
 WE_EDIT_LIVE_COL_ONLY_NAMED,Only named,Nur benannt,Nommés uniquement,Solo nombrados,仅带上报者名称,
 WE_EDIT_LIVE_COL_DONE_TODAY,Done today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
 #,"addon_options.cpp - tooltips for the generic settings (Live Events tooltips live with events_live, once translated).",,,,,
-WE_TIP_DISABLE_COMPETITIVE,"Hides map events, cyclic rings, and all subscriptions
-views (window/bar/toast) while you're on a PvP or WvW
-map. Doesn't change what's subscribed, only what shows.","Blendet Karten-Events, Zyklische-Ringe und alle Abo-Ansichten
-(Fenster/Leiste/Toast) auf PvP- oder WvW-Karten aus.
-Ändert nichts an den Abos, nur was angezeigt wird.","Masque les événements sur la carte, les anneaux cycliques et toutes les vues
-d'abonnements (fenêtre/barre/notification) lorsque vous êtes sur une carte
-PvP ou McM. Ne change pas ce qui est abonné, seulement ce qui s'affiche.","Oculta los eventos del mapa, los anillos cíclicos y todas las vistas de
-suscripciones (ventana/barra/notificación) mientras estás en un mapa de
-PvP o McM. No cambia lo que está suscrito, solo lo que se muestra.","在PvP或世界之战(WvW)地图时隐藏地图事件、
-循环圆环与全部订阅界面（窗口/订阅栏/弹窗）。
-不会修改订阅设置，仅控制显示状态。",
 WE_TIP_NOTIFY_POPUPS,"Pops up a small toast in the lower-right corner for events
 you have notifications enabled for, whether or not the
 window or distribution line are open. Click a popup to paste
@@ -582,13 +571,7 @@ WE_TIMES_MIN_INTO_PERIOD_LABEL,Times (min into period),Zeiten (Minuten im Zyklus
 WE_MINUTES_UNIT_LABEL,min,Min.,min,min,分钟,
 #,addon_options.cpp - the Nexus options panel. Only the generic settings.,,,,,
 WE_OPT_RELEASE,Release,Version,Version,Versión,版本,
-WE_OPT_DISABLE_COMPETITIVE,Disable overlay in PvP/WvW,Overlay in PvP/WvW deaktivieren,Désactiver la superposition en PvP/McM,Desactivar la superposición en PvP/McM,PvP/世界之战(WvW)下关闭叠加界面,
-WE_OPT_WINDOW,Window,Fenster,Fenêtre,Ventana,窗口,
-WE_OPT_TOAST,Toast,Benachrichtigung,Notification,Notificación,通知弹窗,
-WE_OPT_BAR,Bar,Leiste,Barre,Barra,订阅栏,
 WE_OPT_OVERLAY_SETTINGS,Overlay Settings,Overlay-Einstellungen,Paramètres de superposition,Ajustes de superposición,叠加层设置,
-WE_OPT_SHOW_SUBS_WINDOW,Show subscriptions window,Abo-Fenster anzeigen,Afficher la fenêtre d'abonnements,Mostrar ventana de suscripciones,显示订阅窗口,
-WE_OPT_HIDE_ACTIVE_IN_WINDOW,Hide active in window,Aktive Events im Fenster ausblenden,Masquer les actifs dans la fenêtre,Ocultar activos en la ventana,在窗口隐藏进行中事件,
 WE_OPT_ACTIVE,Active,Aktiv,Actif,Activo,进行中,
 WE_OPT_SOON,Soon,Bald,Bientôt,Pronto,即将到来,
 WE_OPT_ENABLE_NOTIFY_POPUPS,Enable notification popups,Benachrichtigungs-Popups aktivieren,Activer les notifications popup,Activar notificaciones emergentes,启用通知弹窗,
@@ -863,3 +846,23 @@ WE_OPTWIN_TAB_EVENTS,Events,Events,Événements,Eventos,事件,
 WE_OPTWIN_TAB_LIVE,Live Events,Live-Events,Événements en direct,Eventos en vivo,实时事件,
 WE_OPTWIN_TAB_HELP,Help,Hilfe,Aide,Ayuda,帮助,
 WE_OPTWIN_SECTION_PENDING,Not available in this window yet. Use the World Events section of the Nexus options for now.,In diesem Fenster noch nicht verfügbar. Nutze vorerst den World-Events-Bereich der Nexus-Optionen.,Pas encore disponible dans cette fenêtre. Utilisez pour l'instant la section World Events des options de Nexus.,Aún no disponible en esta ventana. Usa por ahora la sección World Events de las opciones de Nexus.,此窗口暂不可用。请先使用 Nexus 设置中的世界事件部分。,placeholder drawn by the options_*.cpp section stubs; delete with them
+#,options_general.cpp - General tab: section headers and their controls.,,,,,
+WE_OPTWIN_HDR_COMPETITIVE,Competitive mode,Wettkampfmodus,Mode compétitif,Modo competitivo,竞技模式,
+WE_OPT_DISABLE_COMPETITIVE,Disable overlay in PvP/WvW,Overlay in PvP/WvW deaktivieren,Désactiver la superposition en PvP/McM,Desactivar la superposición en PvP/McM,PvP/世界之战(WvW)下关闭叠加界面,
+WE_TIP_DISABLE_COMPETITIVE,"Hides map events, cyclic rings, and all subscriptions
+views (window/bar/toast) while you're on a PvP or WvW
+map. Doesn't change what's subscribed, only what shows.","Blendet Karten-Events, Zyklische-Ringe und alle Abo-Ansichten
+(Fenster/Leiste/Toast) auf PvP- oder WvW-Karten aus.
+Ändert nichts an den Abos, nur was angezeigt wird.","Masque les événements sur la carte, les anneaux cycliques et toutes les vues
+d'abonnements (fenêtre/barre/notification) lorsque vous êtes sur une carte
+PvP ou McM. Ne change pas ce qui est abonné, seulement ce qui s'affiche.","Oculta los eventos del mapa, los anillos cíclicos y todas las vistas de
+suscripciones (ventana/barra/notificación) mientras estás en un mapa de
+PvP o McM. No cambia lo que está suscrito, solo lo que se muestra.","在PvP或世界之战(WvW)地图时隐藏地图事件、
+循环圆环与全部订阅界面（窗口/订阅栏/弹窗）。
+不会修改订阅设置，仅控制显示状态。",
+WE_OPT_WINDOW,Window,Fenster,Fenêtre,Ventana,窗口,
+WE_OPT_BAR,Bar,Leiste,Barre,Barra,订阅栏,
+WE_OPT_TOAST,Toast,Benachrichtigung,Notification,Notificación,通知弹窗,
+WE_OPTWIN_HDR_SUBS_WINDOW,Subscriptions window,Abo-Fenster,Fenêtre d'abonnements,Ventana de suscripciones,订阅窗口,
+WE_OPT_SHOW_SUBS_WINDOW,Show subscriptions window,Abo-Fenster anzeigen,Afficher la fenêtre d'abonnements,Mostrar ventana de suscripciones,显示订阅窗口,
+WE_OPT_HIDE_ACTIVE_IN_WINDOW,Hide active in window,Aktive Events im Fenster ausblenden,Masquer les actifs dans la fenêtre,Ocultar activos en la ventana,在窗口隐藏进行中事件,
