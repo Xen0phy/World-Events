@@ -232,15 +232,15 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 // Per-view kill-switches for the three subscriptions views (window/bar/ toast)
 // while Mumble reports Context.IsCompetitive (PvP/WvW). Checked once per frame in
 // AddonRender (addon.cpp); doesn't touch the underlying subscription data, only
-// whether that view gets drawn. The options panel's combined "Disable overlay in
+// whether that view gets drawn. The General tab's combined "Disable overlay in
 // PvP/WvW" checkbox is a derived AND of these three, not a separate stored
 // setting. No equivalent exists for the map overlay - those markers are open-
 // world-only regardless. Default true: the overlay targets open-world meta
 // events.
 //--------------------------------------------------------------------------------
-SETTING(Subscriptions, DisableWindowWhenCompetitive, bool, true)
-SETTING(Subscriptions, DisableBarWhenCompetitive,    bool, true)
-SETTING(Subscriptions, DisableNotifyWhenCompetitive, bool, true)
+SETTING(Subscriptions, DisableWindowWhenCompetitive, bool, false)
+SETTING(Subscriptions, DisableBarWhenCompetitive,    bool, false)
+SETTING(Subscriptions, DisableNotifyWhenCompetitive, bool, false)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ShowSubscriptionsWindow
@@ -434,6 +434,15 @@ SETTING(System, delayMilliseconds, int, 20)
 // 0 never matches a real compiled version).
 //--------------------------------------------------------------------------------
 SETTING(System, LastKnownVersion, int, 0)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// OptionsWindowTab
+//--------------------------------------------------------------------------------
+// Rail tab the settings window (options_window.h) was last left on: an
+// OptionsTab cast to int. Clamped on read, so a stale or hand-edited value falls
+// back to General. The window's own visibility is not a setting.
+//--------------------------------------------------------------------------------
+SETTING(System, OptionsWindowTab, int, 0)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ChatChannelPrefix

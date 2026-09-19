@@ -39,6 +39,7 @@
 #include "localization.h"
 #include "maprender.h" //. ScreenFractionToPixels/PixelsToScreenFraction, for the toast position row
 #include "notify_sound.h"
+#include "options_window.h"
 #include "reset_defaults.h"
 #include "settings.h"
 #include "subscriptions_ui.h" //. RequestNotificationLayoutPreview, for the toast width/position/direction rows
@@ -67,6 +68,11 @@ void AddonOptions()
     OptionsRenderTimer optionsRenderTimer; //. no-op unless ShowDebug
     ImVec2 dummySquare = ImVec2(ImGui::GetFrameHeight(),ImGui::GetFrameHeight());
     
+    //_ Entry point to the unified settings window (options_window.h).
+    if (ImGui::Button(Tr("WE_OPTWIN_OPEN_BUTTON")))
+        OpenOptionsWindow();
+    ImGui::Spacing();
+
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
     if (ImGui::SmallButton(Tr("WE_CHANGELOG_TITLE")))
         ShowVersionHistoryWindow = true;

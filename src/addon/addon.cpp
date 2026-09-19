@@ -24,6 +24,7 @@
 #include "localization.h"
 #include "maprender.h"
 #include "notification_client.h"
+#include "options_window.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_edit_window.h"
@@ -170,6 +171,9 @@ void AddonLoad(AddonAPI_t* aAPI)
     //_ Also registered separately, same reason: the notice should be visible at character select, not just once a character is loaded onto a map - see changelog_window.h.
     APIDefs->GUI_Register(RT_Render, RenderVersionHistoryWindow);
 
+    //_ Own RT_Render registration, not a call inside AddonRender, so the settings window opens at character select too.
+    APIDefs->GUI_Register(RT_Render, RenderOptionsWindow);
+
     //_ Version-history window's title isn't translated (see RenderVersionHistoryWindow), so the plain suffix registration below needs no syncing.
     APIDefs->GUI_RegisterCloseOnEscape(kVersionHistoryWindowId, &ShowVersionHistoryWindow);
 
@@ -191,6 +195,7 @@ void AddonUnload()
     APIDefs->GUI_Deregister(AddonOptions);
     APIDefs->GUI_Deregister(RenderWsDebugWindow);
     APIDefs->GUI_Deregister(RenderVersionHistoryWindow);
+    APIDefs->GUI_Deregister(RenderOptionsWindow);
 
     //_ Matches the GUI_RegisterCloseOnEscape call in AddonLoad.
     APIDefs->GUI_DeregisterCloseOnEscape(kVersionHistoryWindowId);

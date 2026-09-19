@@ -148,6 +148,11 @@ add_library(gw2-world-events SHARED
     src/ui/changelog_window.cpp
     src/ui/icon_whitener.cpp
     src/ui/live_events_ui.cpp
+    src/ui/options_events.cpp
+    src/ui/options_general.cpp
+    src/ui/options_help.cpp
+    src/ui/options_live.cpp
+    src/ui/options_window.cpp
     src/ui/reset_defaults.cpp
     src/ui/subscriptions_bar.cpp
     src/ui/subscriptions_edit_window.cpp
