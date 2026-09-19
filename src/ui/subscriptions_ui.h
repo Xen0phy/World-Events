@@ -58,7 +58,7 @@ void RenderSubscriptionsNotifications();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RequestNotificationLayoutPreview
 //--------------------------------------------------------------------------------
-// One-shot-per-frame request from addon_options.cpp: call while the user is
+// One-shot-per-frame request from options_general.cpp: call while the user is
 // hovering/actively editing the toast width/position/direction controls, so
 // RenderSubscriptionsNotifications draws a yellow preview outline (+ a direction
 // arrow) at the toast's current would-be spot on its next call, even with no

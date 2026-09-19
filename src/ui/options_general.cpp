@@ -5,6 +5,7 @@
 // DrawSubscriptionsWindow  body of the Subscriptions window header
 // DrawUnsafeZonePreview    yellow outline of the four unsafe-zone edges
 // DrawSubscriptionsBar     body of the Subscriptions bar header
+// DrawToastPopups         body of the Toast popups header
 //--------------------------------------------------------------------------------
 
 #include "options_general.h"
@@ -12,7 +13,13 @@
 #include "addon_options_helpers.h" //. Tooltip
 #include "imgui.h"
 #include "localization.h"
+#include "maprender.h" //. ScreenFractionToPixels/PixelsToScreenFraction, for the position row
+#include "notify_sound.h"
 #include "settings.h"
+#include "subscriptions_ui.h" //. RequestNotificationLayoutPreview, for the width/position/direction rows
+
+#include <string>
+#include <vector>
 
 //_ Swatch button only, no numeric fields; the click opens a hue-wheel picker.
 static constexpr ImGuiColorEditFlags kSwatchFlags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel;
@@ -69,9 +76,9 @@ static void DrawSubscriptionsWindow()
 // DrawUnsafeZonePreview
 //--------------------------------------------------------------------------------
 // Draws on the foreground list, so the lines cover the whole screen, not just
-// this window. Mirrors the anchor math in subscriptions_bar.cpp: the baseline is
-// the screen edge the bar is pinned to, and each side's height drops away from
-// it.
+// this window.
+// Mirrors the anchor math in subscriptions_bar.cpp: the baseline is the screen
+// edge the bar is pinned to, and each side's height drops away from it.
 //--------------------------------------------------------------------------------
 static void DrawUnsafeZonePreview()
 {
@@ -194,6 +201,117 @@ static void DrawSubscriptionsBar()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawToastPopups
+//--------------------------------------------------------------------------------
+// Toast popups are a third view of the subscription data, independent of the
+// window and the bar. The rows under the enable toggle are disabled while it is
+// off. Width, position and stack direction request a layout preview
+// (RequestNotificationLayoutPreview) while hovered or active. The sound is one
+// .wav file from "<addon dir>/sounds"; which events play it is each row's notify
+// level.
+//--------------------------------------------------------------------------------
+static void DrawToastPopups()
+{
+    ImGui::Checkbox(Tr("WE_OPT_ENABLE_NOTIFY_POPUPS"), &NotificationsEnabled);
+    Tooltip(Tr("WE_TIP_NOTIFY_POPUPS"));
+
+    DisabledBlock(!NotificationsEnabled)
+    {
+        float subToggleIndent = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
+        ImGui::Indent(subToggleIndent);
+
+        ImGui::SetNextItemWidth(50);
+        if (ImGui::InputInt(Tr("WE_OPT_WARN_BEFORE_START"), &NotificationLeadMinutes, 0, 0))
+        {
+            //_ 0 is off
+            if (NotificationLeadMinutes < 0)   NotificationLeadMinutes = 0;
+            if (NotificationLeadMinutes > 120) NotificationLeadMinutes = 120;
+        }
+        Tooltip(Tr("WE_TIP_WARN_BEFORE_START"));
+
+        ImGui::Checkbox(Tr("WE_OPT_NOTIFY_ON_START"), &NotificationOnStart);
+
+        ImGui::SetNextItemWidth(50);
+        if (ImGui::InputInt(Tr("WE_OPT_POPUP_DURATION"), &NotificationDisplaySeconds, 0, 0))
+        {
+            if (NotificationDisplaySeconds < 1)   NotificationDisplaySeconds = 1;
+            if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
+        }
+        Tooltip(Tr("WE_TIP_POPUP_DURATION"));
+
+        //_ DragFloat on the underlying float directly - no int round-trip needed since the setting itself is a float.
+        ImGui::SetNextItemWidth(50);
+        if (ImGui::DragFloat(Tr("WE_OPT_TOAST_WIDTH"), &NotificationPopupWidth, 1, 0, 0, "%.0fpx"))
+        {
+            if (NotificationPopupWidth < 100.0f) NotificationPopupWidth = 100.0f;
+            if (NotificationPopupWidth > 800.0f) NotificationPopupWidth = 800.0f;
+        }
+        if (ItemPreviewGate()) RequestNotificationLayoutPreview();
+        Tooltip(Tr("WE_TIP_TOAST_WIDTH"));
+
+        //_ Shown/edited as pixels, stored as a screen fraction - same convention as DrawFixToScreenRow (addon_options_helpers.cpp).
+        {
+            ImVec2 anchorPx = ScreenFractionToPixels(NotificationAnchorX, NotificationAnchorY);
+            float anchorPos[2] = { anchorPx.x, anchorPx.y };
+            ImGui::SetNextItemWidth(100.0f);
+            if (ImGui::DragFloat2(Tr("WE_OPT_TOAST_POS"), anchorPos, 1, 0, 0, "%.0fpx"))
+            {
+                ImVec2 frac = PixelsToScreenFraction({ anchorPos[0], anchorPos[1] });
+                NotificationAnchorX = frac.x;
+                NotificationAnchorY = frac.y;
+            }
+            if (ItemPreviewGate()) RequestNotificationLayoutPreview();
+        }
+        Tooltip(Tr("WE_TIP_TOAST_POS"));
+
+        ImGui::Checkbox(Tr("WE_OPT_TOAST_STACK_UP"), &NotificationStackUpward);
+        if (ItemPreviewGate()) RequestNotificationLayoutPreview();
+        Tooltip(Tr("WE_TIP_TOAST_STACK_UP"));
+
+        //_ Speaker glyph (notify level 3's icon) drawn in the margin left of the row, marking the combo as the sound.
+        {
+            float sq = ImGui::GetFrameHeight();
+            ImVec2 rowMin = ImGui::GetCursorScreenPos();
+            ImVec2 center(rowMin.x - subToggleIndent + sq * 0.5f, rowMin.y + sq * 0.5f);
+            DrawSpeakerIcon(ImGui::GetWindowDrawList(), center, sq * 0.96f, ImGui::GetColorU32(ImGuiCol_Text));
+        }
+
+        const std::vector<std::string>& soundFiles = GetNotificationSoundFilenames();
+
+        std::vector<const char*> soundLabels;
+        soundLabels.push_back(Tr("WE_OPT_SOUND_NONE"));
+        for (const auto& fn : soundFiles)
+            soundLabels.push_back(fn.c_str());
+
+        int soundIndex = 0; //. "(none)"
+        if (!NotificationSoundFile.empty())
+            for (int k = 0; k < (int)soundFiles.size(); k++)
+                if (soundFiles[k] == NotificationSoundFile) { soundIndex = k + 1; break; }
+
+        ImGui::SetNextItemWidth(100.0f);
+        if (ImGui::Combo(Tr("WE_OPT_SOUND"), &soundIndex, soundLabels.data(), (int)soundLabels.size()))
+            NotificationSoundFile = (soundIndex == 0) ? std::string() : soundFiles[soundIndex - 1];
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("(.wav)");
+        ImGui::SameLine();
+        if (ImGui::Button(Tr("WE_OPT_RESCAN")))
+            ScanNotificationSoundFiles();
+        Tooltip(Tr("WE_TIP_RESCAN_SOUNDS"));
+
+        ImGui::SameLine();
+        DisabledBlock(NotificationSoundFile.empty())
+        {
+            if (ImGui::Button(Tr("WE_OPT_TEST")))
+                PlayNotificationSound(NotificationSoundFile);
+        }
+        Tooltip(Tr("WE_TIP_TEST_SOUND"));
+
+        ImGui::Unindent(subToggleIndent);
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawOptionsGeneral   (see: options_general.h)
 //--------------------------------------------------------------------------------
 void DrawOptionsGeneral()
@@ -206,6 +324,9 @@ void DrawOptionsGeneral()
 
     if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_SUBS_BAR")))
         DrawSubscriptionsBar();
+
+    if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_TOAST")))
+        DrawToastPopups();
 
     ImGui::Spacing();
     ImGui::TextDisabled("%s", Tr("WE_OPTWIN_SECTION_PENDING"));

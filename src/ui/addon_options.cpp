@@ -37,12 +37,9 @@
 #include "imgui.h"
 #include "live_events_ui.h"
 #include "localization.h"
-#include "maprender.h" //. ScreenFractionToPixels/PixelsToScreenFraction, for the toast position row
-#include "notify_sound.h"
 #include "options_window.h"
 #include "reset_defaults.h"
 #include "settings.h"
-#include "subscriptions_ui.h" //. RequestNotificationLayoutPreview, for the toast width/position/direction rows
 #include "ws_debug_window.h"
 
 #include <algorithm>
@@ -55,10 +52,10 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonOptions
 //--------------------------------------------------------------------------------
-// Laid out as three stacked BeginTable/EndTable pairs plus two full-width
-// CollapsingHeaders (one wrapping Table 2+3, one nested around just the search
-// box and Table 3) - a CollapsingHeader clips to a single table column, so it
-// can't be drawn inside either table. List mutations (add/remove event, group,
+// Laid out as two BeginTable/EndTable pairs (Table 2 and Table 3) inside two
+// full-width CollapsingHeaders (one wrapping both, one nested around just the
+// search box and Table 3) - a CollapsingHeader clips to a single table column, so
+// it can't be drawn inside either table. List mutations (add/remove event, group,
 // category) are captured as bools during the row loop and applied afterward, to
 // avoid invalidating indices mid-iteration. One search box filters both the Basic
 // and Cyclic trees at once.
@@ -99,133 +96,6 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
     
-    if (ImGui::CollapsingHeader(Tr("WE_OPT_OVERLAY_SETTINGS")))
-    {
-        //_ Table 1 - Subscriptions, always visible; split out since CollapsingHeader can't span table columns.
-        if (ImGui::BeginTable("##subs_table", 2, ImGuiTableFlags_SizingStretchSame))
-        {
-            ImGui::TableNextRow();
-
-            //_ Column 0: Notification popups
-            ImGui::TableSetColumnIndex(0);
-
-            //_ Third, independent view of the same subscription data (toast popups); not gated by window/bar visibility.
-            ImGui::Checkbox(Tr("WE_OPT_ENABLE_NOTIFY_POPUPS"), &NotificationsEnabled);
-            Tooltip(Tr("WE_TIP_NOTIFY_POPUPS"));
-
-            DisabledBlock(!NotificationsEnabled)
-            {
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::InputInt(Tr("WE_OPT_WARN_BEFORE_START"), &NotificationLeadMinutes, 0, 0))
-                {
-                    //_ 0 is a valid value ("off"); floor is 0, not 1.
-                    if (NotificationLeadMinutes < 0)   NotificationLeadMinutes = 0;
-                    if (NotificationLeadMinutes > 120) NotificationLeadMinutes = 120;
-                }
-                Tooltip(Tr("WE_TIP_WARN_BEFORE_START"));
-                    
-                ImGui::SameLine();
-                ImGui::Checkbox(Tr("WE_OPT_NOTIFY_ON_START"), &NotificationOnStart);
-
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::InputInt(Tr("WE_OPT_POPUP_DURATION"), &NotificationDisplaySeconds, 0, 0))
-                {
-                    if (NotificationDisplaySeconds < 1)   NotificationDisplaySeconds = 1;
-                    if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
-                }
-                Tooltip(Tr("WE_TIP_POPUP_DURATION"));
-
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                //_ DragFloat on the underlying float directly - no int round-trip needed since the setting itself is a float.
-                ImGui::SetNextItemWidth(60);
-                if (ImGui::DragFloat(Tr("WE_OPT_TOAST_WIDTH"), &NotificationPopupWidth, 1, 0, 0, "%.0fpx"))
-                {
-                    if (NotificationPopupWidth < 100.0f) NotificationPopupWidth = 100.0f;
-                    if (NotificationPopupWidth > 800.0f) NotificationPopupWidth = 800.0f;
-                }
-                if (ItemPreviewGate()) RequestNotificationLayoutPreview();
-                Tooltip(Tr("WE_TIP_TOAST_WIDTH"));
-
-                //_ Shown/edited as pixels, stored as a screen fraction - same convention as DrawFixToScreenRow (addon_options_helpers.cpp).
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                {
-                    ImVec2 anchorPx = ScreenFractionToPixels(NotificationAnchorX, NotificationAnchorY);
-                    float anchorPos[2] = { anchorPx.x, anchorPx.y };
-                    ImGui::SetNextItemWidth(100.0f);
-                    if (ImGui::DragFloat2(Tr("WE_OPT_TOAST_POS"), anchorPos, 1, 0, 0, "%.0fpx"))
-                    {
-                        ImVec2 frac = PixelsToScreenFraction({ anchorPos[0], anchorPos[1] });
-                        NotificationAnchorX = frac.x;
-                        NotificationAnchorY = frac.y;
-                    }
-                    if (ItemPreviewGate()) RequestNotificationLayoutPreview();
-                }
-                Tooltip(Tr("WE_TIP_TOAST_POS"));
-
-                ImGui::Dummy(dummySquare);
-                ImGui::SameLine();
-                ImGui::Checkbox(Tr("WE_OPT_TOAST_STACK_UP"), &NotificationStackUpward);
-                if (ItemPreviewGate()) RequestNotificationLayoutPreview();
-                Tooltip(Tr("WE_TIP_TOAST_STACK_UP"));
-
-                //_ Single .wav file, picked from "<addon dir>/sounds"; which events play it is each row's notify level.
-                {
-                    const std::vector<std::string>& soundFiles = GetNotificationSoundFilenames();
-
-                    //_ Reuses DrawSpeakerIcon (notify level 3's icon) to mark this row as about the notification sound.
-                    {
-                        float sq = ImGui::GetFrameHeight();
-                        ImVec2 rmin = ImGui::GetCursorScreenPos();
-                        ImVec2 center(rmin.x + sq * 0.5f, rmin.y + sq * 0.5f);
-                        DrawSpeakerIcon(ImGui::GetWindowDrawList(), center, sq * 0.96f, ImGui::GetColorU32(ImGuiCol_Text));
-                        ImGui::Dummy(ImVec2(sq, sq));
-                    }
-                    ImGui::SameLine();
-
-                    std::vector<const char*> soundLabels;
-                    soundLabels.push_back(Tr("WE_OPT_SOUND_NONE"));
-                    for (const auto& fn : soundFiles)
-                        soundLabels.push_back(fn.c_str());
-
-                    int soundIndex = 0; //. "(none)"
-                    if (!NotificationSoundFile.empty())
-                        for (int k = 0; k < (int)soundFiles.size(); k++)
-                            if (soundFiles[k] == NotificationSoundFile) { soundIndex = k + 1; break; }
-
-                    ImGui::SetNextItemWidth(100.0f);
-                    if (ImGui::Combo(Tr("WE_OPT_SOUND"), &soundIndex, soundLabels.data(), (int)soundLabels.size()))
-                        NotificationSoundFile = (soundIndex == 0) ? std::string() : soundFiles[soundIndex - 1];
-
-                    ImGui::SameLine();
-                    ImGui::TextDisabled("(.wav)");
-                    ImGui::SameLine();
-                    if (ImGui::Button(Tr("WE_OPT_RESCAN")))
-                        ScanNotificationSoundFiles();
-                    Tooltip(Tr("WE_TIP_RESCAN_SOUNDS"));
-                            
-                    ImGui::SameLine();
-                    DisabledBlock(NotificationSoundFile.empty())
-                    {
-                        if (ImGui::Button(Tr("WE_OPT_TEST")))
-                            PlayNotificationSound(NotificationSoundFile);
-                    }
-                    Tooltip(Tr("WE_TIP_TEST_SOUND"));
-                }
-            }
-
-            ImGui::EndTable();
-        }
-    }
-
     if (ImGui::CollapsingHeader(Tr("WE_OPT_EVENTS_SETTINGS_HEADER")))
     {
         //_ Table 2 - Search/API key (Row 1) and section controls (Row 2); exists only while the header is expanded.

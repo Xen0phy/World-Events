@@ -388,7 +388,7 @@ static void CollectLiveEventPopups()
 // DrawLayoutPreview
 //--------------------------------------------------------------------------------
 // Yellow outline (same solid color as the distribution bar's unsafe-zone preview,
-// addon_options.cpp) around the box a fresh toast would occupy right now, with a
+// options_general.cpp) around the box a fresh toast would occupy right now, with a
 // filled triangle pointing the way stackUpward says older toasts stack away from
 // it. Called from RenderSubscriptionsNotifications once
 // RequestNotificationLayoutPreview (subscriptions_ui.h) has been requested this
@@ -599,7 +599,7 @@ static void DrawAndExpirePopups()
 //--------------------------------------------------------------------------------
 void RenderSubscriptionsNotifications()
 {
-    //_ Consumed regardless of the early-out below - the width/position/direction controls are only interactable (see DisabledBlock, addon_options.cpp) while NotificationsEnabled anyway, so this can only be true here when the rest of this function would have run too.
+    //_ Consumed regardless of the early-out below - the width/position/direction controls are only interactable (see DisabledBlock, options_general.cpp) while NotificationsEnabled anyway, so this can only be true here when the rest of this function would have run too.
     bool showLayoutPreview = s_previewRequestedThisFrame;
     s_previewRequestedThisFrame = false;
 

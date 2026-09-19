@@ -7,7 +7,7 @@
 //--------------------------------------------------------------------------------
 // User-supplied notification sound: a single filename (Settings::
 // NotificationSoundFile, settings_table.h) picked from "<addon dir>/sounds" via a
-// Combo in addon_options.cpp, plus a "Test" button. Just ONE global sound file,
+// Combo in options_general.cpp, plus a "Test" button. Just ONE global sound file,
 // not a per-event library - what varies per event/slot is only whether it plays,
 // gated by that event's notify level (level 3 - see
 // IsBasicEventSoundEnabled/IsCyclicSlotSoundEnabled in subscriptions.h).

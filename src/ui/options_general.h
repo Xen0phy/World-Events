@@ -6,7 +6,8 @@
 // Content pane of the rail's first tab: the app-level settings as flat
 // CollapsingHeader sections - one nesting level, no sub-tabs. Every header starts
 // collapsed. Sections, in order: Competitive mode, Subscriptions window,
-// Subscriptions bar. A WE_OPTWIN_SECTION_PENDING line follows the last section.
+// Subscriptions bar, Toast popups. A WE_OPTWIN_SECTION_PENDING line follows the
+// last section.
 //--------------------------------------------------------------------------------
 
 #pragma once

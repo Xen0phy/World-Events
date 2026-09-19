@@ -100,61 +100,6 @@ WE_EDIT_LIVE_COL_EVENT,Event,Event,Événement,Evento,事件,
 WE_EDIT_LIVE_COL_ONLY_NAMED,Only named,Nur benannt,Nommés uniquement,Solo nombrados,仅带上报者名称,
 WE_EDIT_LIVE_COL_DONE_TODAY,Done today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
 #,"addon_options.cpp - tooltips for the generic settings (Live Events tooltips live with events_live, once translated).",,,,,
-WE_TIP_NOTIFY_POPUPS,"Pops up a small toast in the lower-right corner for events
-you have notifications enabled for, whether or not the
-window or distribution line are open. Click a popup to paste
-its waypoint code, same as clicking a row/segment there.","Zeigt unten rechts eine kleine Benachrichtigung für Events,
-für welche Benachrichtigungen aktiviert sind - unabhängig davon,
-ob Fenster oder Leiste geöffnet sind. Klicke auf ein Popup oder eine
-Zeile um den Wegpunkt im Chat einzufügen.","Affiche une petite notification dans le coin inférieur droit pour les
-événements dont les notifications sont activées, que la fenêtre ou la barre
-soient ouvertes ou non. Cliquez sur une notification pour coller
-son code de point de passage, comme en cliquant sur une ligne/segment là-bas.","Muestra una pequeña notificación en la esquina inferior derecha para los
-eventos con notificaciones activadas, estén abiertas o no la ventana
-o la barra. Haz clic en una notificación para pegar
-su código de punto de acceso, igual que al hacer clic en una fila/segmento allí.","为已开启通知的事件在右下角弹出小型通知，无需打开窗口或订阅栏。
-点击弹窗即可粘贴传送点代码，效果等同于点击对应条目。",
-WE_TIP_WARN_BEFORE_START,"How long before a subscribed event/slot starts to
-fire the ""starting soon"" popup. 0 disables it.","Wie lange vor Start eines abonnierten Events/Slots die
-""Startet bald""-Meldung erscheint. 0 deaktiviert sie.","Combien de temps avant le début d'un événement/créneau abonné la
-notification ""démarre bientôt"" apparaît. 0 la désactive.","Cuánto tiempo antes de que empiece un evento/ranura suscrito aparece
-la notificación ""empieza pronto"". 0 la desactiva.",订阅事件/时段开始前多久弹出“即将开始”通知。填0则关闭该通知。,
-WE_TIP_POPUP_DURATION,"How long a popup stays fully visible before it fades out.
-Hovering a popup pauses its timer.","Wie lange eine Benachrichtigung voll sichtbar bleibt, bevor es ausblendet.
-Der Mauszeiger über einer Benachrichtigung pausiert dessen Timer.","Combien de temps une notification reste pleinement visible avant de s'estomper.
-Survoler une notification met son minuteur en pause.","Cuánto tiempo permanece una notificación totalmente visible antes de desvanecerse.
-Pasar el cursor sobre una notificación pausa su temporizador.",弹窗保持完全可见的时长，之后开始淡出。鼠标悬停弹窗会暂停倒计时。,
-WE_TIP_TOAST_WIDTH,"Width of each toast popup, in pixels. Height is fixed to fit the name/message text.",Breite jedes Popups in Pixeln. Die Höhe ist fest und richtet sich nach dem Name-/Nachrichtentext.,"Largeur de chaque notification popup, en pixels. La hauteur est fixe et s'adapte au texte du nom/message.","Ancho de cada notificación emergente, en píxeles. La altura es fija y se ajusta al texto de nombre/mensaje.",每个通知弹窗的宽度（像素）。高度固定，由名称/消息文本决定。,
-WE_TIP_TOAST_POS,"Screen position of the newest toast's top-left corner, in pixels. Stays put across resolution/window-size changes.","Bildschirmposition der oberen linken Ecke des neuesten Popups, in Pixeln. Bleibt bei Auflösungs- oder Fenstergrößenänderungen an derselben Stelle.","Position à l'écran du coin supérieur gauche de la notification la plus récente, en pixels. Reste en place lors d'un changement de résolution ou de taille de fenêtre.","Posición en pantalla de la esquina superior izquierda de la notificación más reciente, en píxeles. Se mantiene fija ante cambios de resolución o tamaño de ventana.",最新弹窗左上角在屏幕上的位置（像素）。分辨率或窗口大小变化时位置保持不变。,
-WE_TIP_TOAST_STACK_UP,Direction older toasts stack away from the position above: upward (toward the top of the screen) or downward (toward the bottom).,"Richtung, in die ältere Popups von der obigen Position weg gestapelt werden: nach oben (Richtung Bildschirmoberkante) oder nach unten (Richtung Bildschirmunterkante).",Direction dans laquelle les notifications plus anciennes s'empilent à partir de la position ci-dessus : vers le haut (haut de l'écran) ou vers le bas (bas de l'écran).,Dirección en la que se apilan las notificaciones más antiguas a partir de la posición anterior: hacia arriba (parte superior de la pantalla) o hacia abajo (parte inferior).,较旧弹窗相对于上方位置的堆叠方向：向上（朝屏幕顶部）或向下（朝屏幕底部）。,
-WE_TIP_RESCAN_SOUNDS,"Re-scans ""<addon dir>/sounds"" for .wav files you've
-dropped in since the dropdown was last built.","Durchsucht ""<Addon-Ordner>/sounds"" erneut nach .wav-Dateien,
-die seit dem letzten Aufbau der Liste hinzugekommen sind.","Analyse à nouveau ""<dossier addon>/sounds"" à la recherche de fichiers .wav que
-vous avez ajoutés depuis la dernière construction de la liste déroulante.","Vuelve a analizar ""<carpeta del addon>/sounds"" en busca de archivos .wav
-que hayas añadido desde que se generó la lista desplegable por última vez.",重新扫描插件目录下sounds文件夹，读取下拉列表更新后新增的wav音频文件。,
-WE_TIP_TEST_SOUND,"Drop .wav files into ""<addon dir>/sounds"" and pick one
-here to preview it. Only .wav is supported. ""Test"" just
-plays it immediately - it also plays automatically alongside
-a real notification popup, but only for events/slots whose
-own notify level has sound enabled (see the speaker icon on
-each row below).","Lege .wav-Dateien in ""<Addon-Ordner>/sounds"" ab und wähle
-eine zum Vorhören aus. Nur .wav wird unterstützt. ""Testen""
-spielt ihn sofort ab - er spielt auch automatisch bei einer
-echten Benachrichtigung, aber nur für Events/Slots, deren eigene
-Benachrichtigungsstufe Ton aktiviert hat (siehe Lautsprecher-
-Symbol bei jeder Zeile unten).","Déposez des fichiers .wav dans ""<dossier addon>/sounds"" et choisissez-en un
-ici pour l'écouter. Seul .wav est pris en charge. ""Tester"" le joue
-simplement immédiatement - il joue aussi automatiquement en même temps
-qu'une vraie notification, mais uniquement pour les événements/créneaux dont
-le propre niveau de notification a le son activé (voir l'icône de haut-parleur
-sur chaque ligne ci-dessous).","Coloca archivos .wav en ""<carpeta del addon>/sounds"" y elige uno
-aquí para previsualizarlo. Solo se admite .wav. ""Probar"" simplemente
-lo reproduce de inmediato; también se reproduce automáticamente junto
-a una notificación real, pero solo para eventos/ranuras cuyo
-propio nivel de notificación tenga el sonido activado (consulta el icono de
-altavoz en cada fila de abajo).","将wav文件放入插件sounds文件夹，在此选择预览。仅支持wav格式。
-“测试”会立即播放；真实弹窗通知也会自动播放音频，
-但仅针对通知等级开启音效的事件/时段，参见下方每行的喇叭图标。",
 WE_TIP_UNLOCK_PASTE_DELAY,"Only change this if you're having paste issues.
 Controls the internal delay used to paste text into the
 chat box. Default: 20ms.","Nur ändern, wenn es beim Einfügen Probleme gibt.
@@ -538,20 +483,8 @@ WE_TIMES_MIN_INTO_PERIOD_LABEL,Times (min into period),Zeiten (Minuten im Zyklus
 WE_MINUTES_UNIT_LABEL,min,Min.,min,min,分钟,
 #,addon_options.cpp - the Nexus options panel. Only the generic settings.,,,,,
 WE_OPT_RELEASE,Release,Version,Version,Versión,版本,
-WE_OPT_OVERLAY_SETTINGS,Overlay Settings,Overlay-Einstellungen,Paramètres de superposition,Ajustes de superposición,叠加层设置,
 WE_OPT_ACTIVE,Active,Aktiv,Actif,Activo,进行中,
 WE_OPT_SOON,Soon,Bald,Bientôt,Pronto,即将到来,
-WE_OPT_ENABLE_NOTIFY_POPUPS,Enable notification popups,Benachrichtigungs-Popups aktivieren,Activer les notifications popup,Activar notificaciones emergentes,启用通知弹窗,
-WE_OPT_WARN_BEFORE_START,Warn before start (min),Warnung vor Start (Min.),Avertir avant le début (min),Avisar antes del inicio (min),开始前提醒（分钟）,
-WE_OPT_NOTIFY_ON_START,Notify on start,Start Benachrichtigung,Notifier au démarrage,Notificar al empezar,事件开始时通知,
-WE_OPT_POPUP_DURATION,Popup duration (sec),Popup-Dauer (Sek.),Durée de la notification (s),Duración de la notificación (s),弹窗持续时长（秒）,
-WE_OPT_TOAST_WIDTH,Toast width (px),Popup-Breite (px),Largeur de la notification (px),Ancho de la notificación (px),弹窗宽度（像素）,
-WE_OPT_TOAST_POS,Toast position (px),Popup-Position (px),Position de la notification (px),Posición de la notificación (px),弹窗位置（像素）,
-WE_OPT_TOAST_STACK_UP,Stack upward,Nach oben stapeln,Empiler vers le haut,Apilar hacia arriba,向上堆叠,
-WE_OPT_SOUND_NONE,(none),(keiner),(aucun),(ninguno),（无）,
-WE_OPT_SOUND,Sound,Ton,Son,Sonido,音效,
-WE_OPT_RESCAN,Rescan,Neu einlesen,Rescanner,Volver a analizar,重新扫描,
-WE_OPT_TEST,Test,Testen,Tester,Probar,测试,
 WE_OPT_EVENTS_SETTINGS_HEADER,Events Settings (Basic|Cyclic),Event-Einstellungen (Normal|Zyklisch),Paramètres des événements (Normal|Cyclique),Ajustes de eventos (Normal|Cíclico),事件设置（基础|循环）,
 #,addon_options.cpp - Event Lists (Basic|Cyclic) section; some rows shared with subscriptions_edit_window.cpp.,,,,,
 WE_OPT_EVENT_LISTS_HEADER,Event Lists (Basic|Cyclic),Event-Listen (Normal|Zyklisch),Listes d'événements (Normal|Cyclique),Listas de eventos (Normal|Cíclico),事件列表（基础|循环）,
@@ -855,7 +788,7 @@ cubierto por tu propia interfaz de GW2. Los segmentos en esta
 zona bajan para evitar cubrirla.",屏幕左侧不安全区域宽度（像素），视作被游戏原生UI占用。落入该区域的界面元素会向下偏移避免遮挡。,
 WE_OPT_RIGHT,Right,Rechts,Droite,Derecha,右侧,
 WE_TIP_UNSAFE_RIGHT,"Width from the RIGHT screen edge, in px, treated as
-covered by your own GW2 UI.Segmentsin this zone
+covered by your own GW2 UI. Segments in this zone
 drop lower to avoid covering it.","Breite ab dem RECHTEN Bildschirmrand, in px, die als von
 deinem eigenen GW2-UI belegt gilt. Segmente in
 dieser Zone weichen nach unten aus.","Largeur depuis le bord DROIT de l'écran, en px, considérée comme
@@ -867,3 +800,70 @@ WE_OPT_HEIGHT_LEFT,Height (left),Höhe (links),Hauteur (gauche),Altura (izquierd
 WE_TIP_UNSAFE_HEIGHT_LEFT,"How tall your LEFT-side corner UI is, in px. Segments inside that zone start their drop this far down, not from the line itself, so the popped-out block clears your UI.","Wie hoch dein UI auf der LINKEN Seite ist, in px. Segmente in dieser Zone beginnen ab dieser Höhe auszuklappen, nicht ab der Linie selbst, damit der ausgeklappte Block dein UI nicht überdeckt.","Hauteur de votre interface du côté GAUCHE, en px. Les segments dans cette zone commencent leur descente à partir de cette hauteur, et non depuis la ligne elle-même, afin que le bloc déployé dégage votre interface.","Altura de tu interfaz en el lado IZQUIERDO, en px. Los segmentos en esa zona comienzan a descender desde esta altura, no desde la línea misma, para que el bloque desplegado no cubra tu interfaz.",左侧边角UI的高度（像素）。处于该不安全区的元素从该高度开始向下偏移，而非从订阅栏基线，保证悬浮面板不会遮挡游戏界面。,
 WE_OPT_HEIGHT_RIGHT,Height (right),Höhe (rechts),Hauteur (droite),Altura (derecha),高度（右）,
 WE_TIP_UNSAFE_HEIGHT_RIGHT,"How tall your RIGHT-side corner UI is, in px. Segments inside that zone start their drop this far down, not from the line itself, so the popped-out block clears your UI.","Wie hoch dein UI auf der RECHTEN Seite ist, in px. Segmente in dieser Zone beginnen ab dieser Höhe auszuklappen, nicht ab der Linie selbst, damit der ausgeklappte Block dein UI nicht überdeckt.","Hauteur de votre interface du côté DROIT, en px. Les segments dans cette zone commencent leur descente à partir de cette hauteur, et non depuis la ligne elle-même, afin que le bloc déployé dégage votre interface.","Altura de tu interfaz en el lado DERECHO, en px. Los segmentos en esa zona comienzan a descender desde esta altura, no desde la línea misma, para que el bloque desplegado no cubra tu interfaz.",右侧边角UI的高度（像素）。处于该不安全区的元素从该高度开始向下偏移，而非从订阅栏基线，保证悬浮面板不会遮挡游戏界面。,
+WE_OPTWIN_HDR_TOAST,Toast popups,Benachrichtigungs-Popups,Notifications popup,Notificaciones emergentes,通知弹窗,
+WE_OPT_ENABLE_NOTIFY_POPUPS,Enable notification popups,Benachrichtigungs-Popups aktivieren,Activer les notifications popup,Activar notificaciones emergentes,启用通知弹窗,
+WE_TIP_NOTIFY_POPUPS,"Pops up a small toast in the lower-right corner for events
+you have notifications enabled for, whether or not the
+window or distribution line are open. Click a popup to paste
+its waypoint code, same as clicking a row/segment there.","Zeigt unten rechts eine kleine Benachrichtigung für Events,
+für welche Benachrichtigungen aktiviert sind - unabhängig davon,
+ob Fenster oder Leiste geöffnet sind. Klicke auf ein Popup oder eine
+Zeile um den Wegpunkt im Chat einzufügen.","Affiche une petite notification dans le coin inférieur droit pour les
+événements dont les notifications sont activées, que la fenêtre ou la barre
+soient ouvertes ou non. Cliquez sur une notification pour coller
+son code de point de passage, comme en cliquant sur une ligne/segment là-bas.","Muestra una pequeña notificación en la esquina inferior derecha para los
+eventos con notificaciones activadas, estén abiertas o no la ventana
+o la barra. Haz clic en una notificación para pegar
+su código de punto de acceso, igual que al hacer clic en una fila/segmento allí.","为已开启通知的事件在右下角弹出小型通知，无需打开窗口或订阅栏。
+点击弹窗即可粘贴传送点代码，效果等同于点击对应条目。",
+WE_OPT_WARN_BEFORE_START,Warn before start (min),Warnung vor Start (Min.),Avertir avant le début (min),Avisar antes del inicio (min),开始前提醒（分钟）,
+WE_TIP_WARN_BEFORE_START,"How long before a subscribed event/slot starts to
+fire the ""starting soon"" popup. 0 disables it.","Wie lange vor Start eines abonnierten Events/Slots die
+""Startet bald""-Meldung erscheint. 0 deaktiviert sie.","Combien de temps avant le début d'un événement/créneau abonné la
+notification ""démarre bientôt"" apparaît. 0 la désactive.","Cuánto tiempo antes de que empiece un evento/ranura suscrito aparece
+la notificación ""empieza pronto"". 0 la desactiva.",订阅事件/时段开始前多久弹出“即将开始”通知。填0则关闭该通知。,
+WE_OPT_NOTIFY_ON_START,Notify on start,Start Benachrichtigung,Notifier au démarrage,Notificar al empezar,事件开始时通知,
+WE_OPT_POPUP_DURATION,Popup duration (sec),Popup-Dauer (Sek.),Durée de la notification (s),Duración de la notificación (s),弹窗持续时长（秒）,
+WE_TIP_POPUP_DURATION,"How long a popup stays fully visible before it fades out.
+Hovering a popup pauses its timer.","Wie lange eine Benachrichtigung voll sichtbar bleibt, bevor es ausblendet.
+Der Mauszeiger über einer Benachrichtigung pausiert dessen Timer.","Combien de temps une notification reste pleinement visible avant de s'estomper.
+Survoler une notification met son minuteur en pause.","Cuánto tiempo permanece una notificación totalmente visible antes de desvanecerse.
+Pasar el cursor sobre una notificación pausa su temporizador.",弹窗保持完全可见的时长，之后开始淡出。鼠标悬停弹窗会暂停倒计时。,
+WE_OPT_TOAST_WIDTH,Toast width (px),Popup-Breite (px),Largeur de la notification (px),Ancho de la notificación (px),弹窗宽度（像素）,
+WE_TIP_TOAST_WIDTH,"Width of each toast popup, in pixels. Height is fixed to fit the name/message text.",Breite jedes Popups in Pixeln. Die Höhe ist fest und richtet sich nach dem Name-/Nachrichtentext.,"Largeur de chaque notification popup, en pixels. La hauteur est fixe et s'adapte au texte du nom/message.","Ancho de cada notificación emergente, en píxeles. La altura es fija y se ajusta al texto de nombre/mensaje.",每个通知弹窗的宽度（像素）。高度固定，由名称/消息文本决定。,
+WE_OPT_TOAST_POS,Toast position (px),Popup-Position (px),Position de la notification (px),Posición de la notificación (px),弹窗位置（像素）,
+WE_TIP_TOAST_POS,"Screen position of the newest toast's top-left corner, in pixels. Stays put across resolution/window-size changes.","Bildschirmposition der oberen linken Ecke des neuesten Popups, in Pixeln. Bleibt bei Auflösungs- oder Fenstergrößenänderungen an derselben Stelle.","Position à l'écran du coin supérieur gauche de la notification la plus récente, en pixels. Reste en place lors d'un changement de résolution ou de taille de fenêtre.","Posición en pantalla de la esquina superior izquierda de la notificación más reciente, en píxeles. Se mantiene fija ante cambios de resolución o tamaño de ventana.",最新弹窗左上角在屏幕上的位置（像素）。分辨率或窗口大小变化时位置保持不变。,
+WE_OPT_TOAST_STACK_UP,Stack upward,Nach oben stapeln,Empiler vers le haut,Apilar hacia arriba,向上堆叠,
+WE_TIP_TOAST_STACK_UP,Direction older toasts stack away from the position above: upward (toward the top of the screen) or downward (toward the bottom).,"Richtung, in die ältere Popups von der obigen Position weg gestapelt werden: nach oben (Richtung Bildschirmoberkante) oder nach unten (Richtung Bildschirmunterkante).",Direction dans laquelle les notifications plus anciennes s'empilent à partir de la position ci-dessus : vers le haut (haut de l'écran) ou vers le bas (bas de l'écran).,Dirección en la que se apilan las notificaciones más antiguas a partir de la posición anterior: hacia arriba (parte superior de la pantalla) o hacia abajo (parte inferior).,较旧弹窗相对于上方位置的堆叠方向：向上（朝屏幕顶部）或向下（朝屏幕底部）。,
+WE_OPT_SOUND_NONE,(none),(keiner),(aucun),(ninguno),（无）,
+WE_OPT_SOUND,Sound,Ton,Son,Sonido,音效,
+WE_OPT_RESCAN,Rescan,Neu einlesen,Rescanner,Volver a analizar,重新扫描,
+WE_TIP_RESCAN_SOUNDS,"Re-scans ""<addon dir>/sounds"" for .wav files you've
+dropped in since the dropdown was last built.","Durchsucht ""<Addon-Ordner>/sounds"" erneut nach .wav-Dateien,
+die seit dem letzten Aufbau der Liste hinzugekommen sind.","Analyse à nouveau ""<dossier addon>/sounds"" à la recherche de fichiers .wav que
+vous avez ajoutés depuis la dernière construction de la liste déroulante.","Vuelve a analizar ""<carpeta del addon>/sounds"" en busca de archivos .wav
+que hayas añadido desde que se generó la lista desplegable por última vez.",重新扫描插件目录下sounds文件夹，读取下拉列表更新后新增的wav音频文件。,
+WE_OPT_TEST,Test,Testen,Tester,Probar,测试,
+WE_TIP_TEST_SOUND,"Drop .wav files into ""<addon dir>/sounds"" and pick one
+here to preview it. Only .wav is supported. ""Test"" just
+plays it immediately - it also plays automatically alongside
+a real notification popup, but only for events/slots whose
+own notify level has sound enabled (see the speaker icon on
+each row below).","Lege .wav-Dateien in ""<Addon-Ordner>/sounds"" ab und wähle
+eine zum Vorhören aus. Nur .wav wird unterstützt. ""Testen""
+spielt ihn sofort ab - er spielt auch automatisch bei einer
+echten Benachrichtigung, aber nur für Events/Slots, deren eigene
+Benachrichtigungsstufe Ton aktiviert hat (siehe Lautsprecher-
+Symbol bei jeder Zeile unten).","Déposez des fichiers .wav dans ""<dossier addon>/sounds"" et choisissez-en un
+ici pour l'écouter. Seul .wav est pris en charge. ""Tester"" le joue
+simplement immédiatement - il joue aussi automatiquement en même temps
+qu'une vraie notification, mais uniquement pour les événements/créneaux dont
+le propre niveau de notification a le son activé (voir l'icône de haut-parleur
+sur chaque ligne ci-dessous).","Coloca archivos .wav en ""<carpeta del addon>/sounds"" y elige uno
+aquí para previsualizarlo. Solo se admite .wav. ""Probar"" simplemente
+lo reproduce de inmediato; también se reproduce automáticamente junto
+a una notificación real, pero solo para eventos/ranuras cuyo
+propio nivel de notificación tenga el sonido activado (consulta el icono de
+altavoz en cada fila de abajo).","将wav文件放入插件sounds文件夹，在此选择预览。仅支持wav格式。
+“测试”会立即播放；真实弹窗通知也会自动播放音频，
+但仅针对通知等级开启音效的事件/时段，参见下方每行的喇叭图标。",
