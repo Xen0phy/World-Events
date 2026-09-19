@@ -295,20 +295,23 @@ SETTING_ARRAY(Subscriptions, SubscriptionsBarDotColor, 4, ARR(0.996f, 1.000f, 0.
 SETTING(Subscriptions, SubscriptionsBarHoverDelayMs, int, 500)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// SubscriptionsBarUnsafeLeftPx / SubscriptionsBarUnsafeRightPx / SubscriptionsBarUnsafeHeightPx
+// SubscriptionsBarUnsafeLeftPx / SubscriptionsBarUnsafeRightPx /
+// SubscriptionsBarUnsafeHeightLeftPx / SubscriptionsBarUnsafeHeightRightPx
 //--------------------------------------------------------------------------------
 // GW2's own UI (party/buffs top-left, minimap/compass top-right) leaves only ~8px
 // of free space under the top edge, not enough for a dropped block's label; drops
 // only move for segments whose x-range falls inside these edge margins
 // (subscriptions_bar.cpp's SegmentOverlapsUnsafeZone). Left/Right are measured
 // inward from their own screen edge and are independent, since GW2's blocks
-// differ in width (0 disables a zone, dropping straight down there). HeightPx is
-// that corner UI's height in px that the drop needs to clear - one shared value
-// for both corners.
+// differ in width (0 disables a zone, dropping straight down there). HeightLeft/
+// HeightRight are that corner UI's own height in px that the drop needs to clear
+// - independent per side too, since party/buffs and minimap/compass aren't the
+// same height (subscriptions_bar.cpp's SegmentUnsafeZoneHeightPx).
 //--------------------------------------------------------------------------------
-SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,   int, 0)
-SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx,  int, 0)
-SETTING(Subscriptions, SubscriptionsBarUnsafeHeightPx, int, 90)
+SETTING(Subscriptions, SubscriptionsBarUnsafeLeftPx,        int, 0)
+SETTING(Subscriptions, SubscriptionsBarUnsafeRightPx,       int, 0)
+SETTING(Subscriptions, SubscriptionsBarUnsafeHeightLeftPx,  int, 30)
+SETTING(Subscriptions, SubscriptionsBarUnsafeHeightRightPx, int, 0)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SubscriptionsBarMaxDropPx

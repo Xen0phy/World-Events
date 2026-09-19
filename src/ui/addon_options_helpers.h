@@ -312,3 +312,18 @@ inline void Tooltip(const char* text, float delaySeconds = 0.5f)
         }
     }
 }
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ItemPreviewGate
+//--------------------------------------------------------------------------------
+// Shorthand for "the widget just drawn should currently be showing its live
+// preview" - true while it's either being dragged/typed into (IsItemActive) or
+// just moused over (IsItemHovered). Both the subscriptions bar's unsafe-zone
+// preview lines and the toast layout preview (RequestNotificationLayoutPreview,
+// subscriptions_ui.h) gate their preview on exactly this, so callers share one
+// spot instead of repeating the OR. Call right after the widget it applies to.
+//--------------------------------------------------------------------------------
+inline bool ItemPreviewGate()
+{
+    return ImGui::IsItemActive() || ImGui::IsItemHovered();
+}

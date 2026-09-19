@@ -121,6 +121,14 @@ struct Popup
 
 static std::vector<Popup> s_popups;   //. active/fading toast stack
 
+//_ Set by RequestNotificationLayoutPreview (subscriptions_ui.h), consumed once by RenderSubscriptionsNotifications - see that function's header comment for the one-shot-per-frame reset.
+static bool s_previewRequestedThisFrame = false;
+
+void RequestNotificationLayoutPreview()
+{
+    s_previewRequestedThisFrame = true;
+}
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SpawnPopup
 //--------------------------------------------------------------------------------
@@ -377,6 +385,39 @@ static void CollectLiveEventPopups()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawLayoutPreview
+//--------------------------------------------------------------------------------
+// Yellow outline (same solid color as the distribution bar's unsafe-zone preview,
+// addon_options.cpp) around the box a fresh toast would occupy right now, with a
+// filled triangle pointing the way stackUpward says older toasts stack away from
+// it. Called from RenderSubscriptionsNotifications once
+// RequestNotificationLayoutPreview (subscriptions_ui.h) has been requested this
+// frame.
+//--------------------------------------------------------------------------------
+static void DrawLayoutPreview(ImDrawList* dl, ImVec2 anchor, float popupWidth, bool stackUpward, float rounding)
+{
+    //_ Same solid yellow (no pulse/fade) as the distribution bar's unsafe-zone preview (addon_options.cpp).
+    const ImU32 col = IM_COL32(255, 220, 0, 255);
+
+    ImVec2 rectMin = anchor;
+    ImVec2 rectMax(anchor.x + popupWidth, anchor.y + kPopupHeight);
+    dl->AddRect(rectMin, rectMax, col, rounding, 0, 2.0f);
+
+    //_ Arrow tip sits on whichever edge older toasts stack toward - up (tip near the top edge) or down (tip near the bottom edge).
+    constexpr float kArrowHalfWidth  = 8.0f;
+    constexpr float kArrowHalfHeight = 7.0f;
+    float cx = anchor.x + popupWidth * 0.5f;
+    float cy = anchor.y + kPopupHeight * 0.5f;
+    float tipY  = stackUpward ? (cy - kArrowHalfHeight) : (cy + kArrowHalfHeight);
+    float baseY = stackUpward ? (cy + kArrowHalfHeight) : (cy - kArrowHalfHeight);
+    dl->AddTriangleFilled(
+        ImVec2(cx, tipY),
+        ImVec2(cx - kArrowHalfWidth, baseY),
+        ImVec2(cx + kArrowHalfWidth, baseY),
+        col);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawAndExpirePopups
 //--------------------------------------------------------------------------------
 // Draws every entry in s_popups stacked away from NotificationAnchorX/Y (newest
@@ -558,6 +599,10 @@ static void DrawAndExpirePopups()
 //--------------------------------------------------------------------------------
 void RenderSubscriptionsNotifications()
 {
+    //_ Consumed regardless of the early-out below - the width/position/direction controls are only interactable (see DisabledBlock, addon_options.cpp) while NotificationsEnabled anyway, so this can only be true here when the rest of this function would have run too.
+    bool showLayoutPreview = s_previewRequestedThisFrame;
+    s_previewRequestedThisFrame = false;
+
     if (!NotificationsEnabled)
     {
         DrainLiveEventNotifications(); //. discarded - see above
@@ -580,4 +625,10 @@ void RenderSubscriptionsNotifications()
     //_ Popup draw/fade/expire - see g_AvgSubsNotifyDrawMs's comment in addon.h.
     SubsNotifyDrawTimer drawTimer; //. no-op unless ShowDebug
     DrawAndExpirePopups();
+
+    if (showLayoutPreview)
+    {
+        ImVec2 anchor = ScreenFractionToPixels(NotificationAnchorX, NotificationAnchorY);
+        DrawLayoutPreview(ImGui::GetBackgroundDrawList(), anchor, NotificationPopupWidth, NotificationStackUpward, ImGui::GetStyle().PopupRounding);
+    }
 }

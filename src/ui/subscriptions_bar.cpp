@@ -39,7 +39,6 @@
 
 #include <algorithm>
 #include <cfloat>
-#include <climits>
 #include <cmath>
 #include <ctime>
 #include <string>
@@ -287,6 +286,28 @@ static bool SegmentOverlapsUnsafeZone(const LineSegment& seg, float screenW)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SegmentUnsafeZoneHeightPx
+//--------------------------------------------------------------------------------
+// Per-side clearance (SubscriptionsBarUnsafeHeightLeftPx/RightPx) for whichever
+// unsafe zone(s) this segment's x-range actually overlaps (same left/right test
+// as SegmentOverlapsUnsafeZone) - the larger of the two if it spans both zones at
+// once, 0 if it's in neither.
+//--------------------------------------------------------------------------------
+static int SegmentUnsafeZoneHeightPx(const LineSegment& seg, float screenW)
+{
+    float leftZoneEnd    = (float)std::max(0, SubscriptionsBarUnsafeLeftPx);
+    float rightZoneStart = screenW - (float)std::max(0, SubscriptionsBarUnsafeRightPx);
+
+    bool inLeftZone  = leftZoneEnd  > 0.0f && seg.startX < leftZoneEnd;
+    bool inRightZone = rightZoneStart < screenW && seg.endX > rightZoneStart;
+
+    int h = 0;
+    if (inLeftZone)  h = std::max(h, SubscriptionsBarUnsafeHeightLeftPx);
+    if (inRightZone) h = std::max(h, SubscriptionsBarUnsafeHeightRightPx);
+    return h;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CollectVisibleSegments
 //--------------------------------------------------------------------------------
 // Builds one LineSegment per resolved subscription (see subscriptions_cache.h)
@@ -434,6 +455,8 @@ struct StackRowInfo
     float rowMaxDepth = 0.0f;
 };
 
+static constexpr float kStackRowMarginPx = 4.0f;   //. extra px between shared rows
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PackStackRows
 //--------------------------------------------------------------------------------
@@ -452,7 +475,6 @@ static std::unordered_map<std::string, StackRowInfo> PackStackRows(
     const std::unordered_map<std::string, DropState>& dropStates,
     const std::unordered_map<std::string, std::pair<float, float>>& dropBoundsByKey)
 {
-    constexpr float kRowMargin = 4.0f;   //. extra px between shared rows
     std::unordered_map<std::string, StackRowInfo> result;
 
     std::vector<int> durationOrder = order;
@@ -489,7 +511,7 @@ static std::unordered_map<std::string, StackRowInfo> PackStackRows(
             bool fits = true;
             for (const auto& span : rowSpans[row])
             {
-                if (sStartX < span.second - kRowMargin && sEndX > span.first + kRowMargin)
+                if (sStartX < span.second - kStackRowMarginPx && sEndX > span.first + kStackRowMarginPx)
                 {
                     fits = false;
                     break;
@@ -883,7 +905,8 @@ void RenderSubscriptionsBar()
         });
 
         float runningY = kBaselineY;
-        float unsafeBase = (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+        //_ Coarse upper bound for the hover band: the taller of the two sides, so it never falls short of a pill's real (per-side) resting Y in pillStackY.
+        float unsafeBase = (float)std::max(0, std::max(SubscriptionsBarUnsafeHeightLeftPx, SubscriptionsBarUnsafeHeightRightPx));
         float runningPillY = kBaselineY + kDropDir * unsafeBase;
         for (int idx : openLastFrame)
         {
@@ -1084,81 +1107,65 @@ void RenderSubscriptionsBar()
         }
     }
 
-    //_ Per-segment resting Y for detached pills, so multiple simultaneously- open pills stagger below the configured clearance instead of converging on the same absolute Y.
+    //_ Per-pill resting Y: starts at the segment's own unsafe-zone clearance, then steps past every attached block and lower-row pill whose drop span overlaps it.
     std::unordered_map<std::string, float> pillStackY;
     {
-        //_ Base clearance is the larger of the configured unsafe-zone clearance and "past every attached row above the first pill row" (a pill can't rest inside an ordinary block in the same space).
-        int lowestPillRow = INT_MAX;
-        for (int idx : hoveredIndices)
-        {
-            const LineSegment& s = segs[idx];
-            auto rowIt = stackRows.find(s.key);
-            if (rowIt == stackRows.end()) continue;
-            bool stackDetach = rowIt->second.row > 0;
-            bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
-            if (inUnsafeZone || stackDetach) lowestPillRow = std::min(lowestPillRow, rowIt->second.row);
-        }
-
         //_ "Farther along kDropDir": larger y when top-anchored, smaller y when bottom-anchored.
         auto farther = [&](float a, float b) { return (kDropDir > 0.0f) ? std::max(a, b) : std::min(a, b); };
 
-        float unsafeRestY = kBaselineY + kDropDir * (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
-        float runningPillY = unsafeRestY;
-        if (lowestPillRow != INT_MAX)
-        {
-            for (int row = 0; row < lowestPillRow; row++)
-            {
-                auto rowTopIt = std::find_if(stackTopY.begin(), stackTopY.end(),
-                    [&](const std::pair<const std::string, float>& kv)
-                    {
-                        auto ri = stackRows.find(kv.first);
-                        return ri != stackRows.end() && ri->second.row == row;
-                    });
-                if (rowTopIt != stackTopY.end())
-                    runningPillY = farther(runningPillY, rowTopIt->second + kDropDir * (kMaxDropPx + kStackGapPx));
-            }
-        }
+        //_ Y distance one occupied slot pushes an overlapping pill out by.
+        const float kSlotStep = kMaxDropPx + kStackGapPx;
 
-        //_ Keyed by row (not by segment): segments already packed into the same row don't overlap in x, so they share one pill Y slot.
-        struct PillCandidate { int row; std::string key; };
+        //_ Drop span and resting Y of everything already placed; attached blocks go in first, then pills row by row.
+        struct PlacedSlot { float x0, x1, y; };
+        std::vector<PlacedSlot> placed;
+
+        //_ Pill-bound segments, handed out lowest row first so each pill sees everything it overlaps below it.
+        struct PillCandidate { int row; int idx; };
         std::vector<PillCandidate> candidates;
-        //_ negative space, clear of any real row index
-        int nextSyntheticRow = -1000000;
 
         for (int idx : hoveredIndices)
         {
             const LineSegment& s = segs[idx];
             auto rowIt = stackRows.find(s.key);
-            bool stackDetach = (rowIt != stackRows.end() && rowIt->second.row > 0);
-            bool inUnsafeZone = SegmentOverlapsUnsafeZone(s, screenW);
-            if (!inUnsafeZone && !stackDetach) continue;   //. only pills need a slot
+            int row = (rowIt != stackRows.end()) ? rowIt->second.row : 0;
 
-            float depth = s_dropStates[s.key].amount;
-            float detachT = std::min(1.0f, std::max(0.0f, (depth - kPinchEnd) / (kDetachEnd - kPinchEnd)));
-            if (detachT <= 0.0f) continue;   //. not detaching yet
+            if (row > 0 || SegmentOverlapsUnsafeZone(s, screenW))
+            {
+                candidates.push_back({row, idx});
+                continue;
+            }
 
-            int row = (rowIt != stackRows.end()) ? rowIt->second.row : nextSyntheticRow--;
-            candidates.push_back({row, s.key});
+            //_ Still attached (row 0, outside both zones): occupies its stack slot at the baseline.
+            auto boundsIt = dropBoundsByKey.find(s.key);
+            auto topIt = stackTopY.find(s.key);
+            if (boundsIt != dropBoundsByKey.end() && topIt != stackTopY.end())
+                placed.push_back({boundsIt->second.first, boundsIt->second.second, topIt->second});
         }
 
-        //_ Sort by row so slots are handed out row 0, then row 1, etc., regardless of hover-order.
         std::stable_sort(candidates.begin(), candidates.end(),
             [](const PillCandidate& a, const PillCandidate& b) { return a.row < b.row; });
 
-        std::unordered_map<int, float> rowPillY;
         for (const PillCandidate& c : candidates)
         {
-            auto slotIt = rowPillY.find(c.row);
-            if (slotIt == rowPillY.end())
+            const LineSegment& s = segs[c.idx];
+            auto boundsIt = dropBoundsByKey.find(s.key);
+            if (boundsIt == dropBoundsByKey.end()) continue;
+            const float px0 = boundsIt->second.first;
+            const float px1 = boundsIt->second.second;
+
+            //_ Only this segment's own side(s): left-only, right-only, taller of the two if it spans both, none if it touches neither.
+            float y = kBaselineY + kDropDir * (float)SegmentUnsafeZoneHeightPx(s, screenW);
+
+            for (const PlacedSlot& o : placed)
             {
-                rowPillY[c.row] = runningPillY;
-                pillStackY[c.key] = runningPillY;
-                runningPillY += kDropDir * (kMaxDropPx + kStackGapPx);
+                //_ Same overlap test PackStackRows uses, so same-row neighbors never stagger against each other.
+                if (px0 < o.x1 - kStackRowMarginPx && px1 > o.x0 + kStackRowMarginPx)
+                    y = farther(y, o.y + kDropDir * kSlotStep);
             }
-            else
-            {
-                pillStackY[c.key] = slotIt->second;
-            }
+
+            pillStackY[s.key] = y;
+            placed.push_back({px0, px1, y});
         }
     }
 
@@ -1224,7 +1231,8 @@ void RenderSubscriptionsBar()
             //_ Corner radius eases from 0 (attached) to a stadium cap (rx = h/2) as detachT completes.
             float pillRx = (blockH * 0.5f) * detachT;
 
-            float unsafeRestY = kBaselineY + kDropDir * (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+            //_ Fallback only (e.g. easing back out after hover ends): real pill positions come from pillStackY; this segment's own zone height is the right one to fall back to.
+            float unsafeRestY = kBaselineY + kDropDir * (float)SegmentUnsafeZoneHeightPx(seg, screenW);
             auto pillIt = pillStackY.find(seg.key);
             if (pillIt != pillStackY.end()) unsafeRestY = pillIt->second;
             //_ Eases from topY down to this segment's reserved pillStackY slot as it detaches.
@@ -1424,7 +1432,8 @@ void RenderSubscriptionsBar()
         bool shouldDetach = inUnsafeZone || stackDetach;
         float detachT = shouldDetach ? std::min(1.0f, std::max(0.0f, (depth - kPinchEnd) / (kDetachEnd - kPinchEnd))) : 0.0f;
         float baseTopY = stackTopY[s.key];
-        float unsafeRestY = kBaselineY + kDropDir * (float)std::max(0, SubscriptionsBarUnsafeHeightPx);
+        //_ Fallback only - see the matching comment in the draw loop above.
+        float unsafeRestY = kBaselineY + kDropDir * (float)SegmentUnsafeZoneHeightPx(s, screenW);
         auto pillIt = pillStackY.find(s.key);
         if (pillIt != pillStackY.end()) unsafeRestY = pillIt->second;
         float topY = baseTopY + (unsafeRestY - baseTopY) * detachT;
