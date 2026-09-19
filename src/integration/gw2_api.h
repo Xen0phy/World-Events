@@ -53,8 +53,8 @@ void PollGw2Api();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Gw2ApiStatus
 //--------------------------------------------------------------------------------
-// Surfaced for a one-line status indicator in the options panel next to the API
-// key field.
+// Surfaced for a one-line status indicator next to the API key field (General >
+// Account and tracking).
 //--------------------------------------------------------------------------------
 enum class Gw2ApiStatus
 {

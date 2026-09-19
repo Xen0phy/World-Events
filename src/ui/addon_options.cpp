@@ -24,14 +24,12 @@
 
 #include "addon.h"
 #include "addon_options_helpers.h"
-#include "better_chat.h"
 #include "build_info.h"
 #include "changelog_window.h"
 #include "events.h"
 #include "events_categories.h"
 #include "events_live.h"
 #include "events_storage.h"   //. SlugifyName/UniqueId for new categories
-#include "events_tracking.h"
 #include "gw2_api.h"
 #include "icon_whitener.h"
 #include "imgui.h"
@@ -43,7 +41,6 @@
 #include "ws_debug_window.h"
 
 #include <algorithm>
-#include <cstring>
 #include <map>
 #include <string>
 #include <unordered_set>
@@ -98,49 +95,14 @@ void AddonOptions()
     
     if (ImGui::CollapsingHeader(Tr("WE_OPT_EVENTS_SETTINGS_HEADER")))
     {
-        //_ Table 2 - Search/API key (Row 1) and section controls (Row 2); exists only while the header is expanded.
+        //_ Table 2 - Zoom scaling (Row 1) and section controls (Row 2); exists only while the header is expanded.
         if (ImGui::BeginTable("##world_events_table", 2, ImGuiTableFlags_SizingStretchSame))
         {
-            //_ Row 1 - Search/Paste (col 0), API key/tracking (col 1)
+            //_ Row 1 - Zoom-based marker scaling (col 0 only)
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
 
-            ImGui::Text("%s", Tr("WE_OPT_CHAT_SETTINGS"));
-            static bool unlockDelay = false;
-            ImGui::Checkbox("##lock_delay", &unlockDelay);
-            Tooltip(Tr("WE_TIP_UNLOCK_PASTE_DELAY"));
-            ImGui::SameLine();
-            DisabledBlock(!unlockDelay)
-            {
-                ImGui::SetNextItemWidth(50.0f);
-                ImGui::InputInt(Tr("WE_OPT_PASTE_DELAY"), &delayMilliseconds, 0 , 0);
-            }
-
-            {
-                std::vector<const char*> chatChannelLabels;
-                std::vector<const char*> chatChannelPrefixes;
-                BuildChatChannelOptions(chatChannelLabels, chatChannelPrefixes);
-
-                int chatChannelIndex = 0;
-                for (int ci = 0; ci < (int)chatChannelPrefixes.size(); ci++)
-                {
-                    if (ChatChannelPrefix == chatChannelPrefixes[ci]) { chatChannelIndex = ci; break; }
-                }
-
-                ImGui::SetNextItemWidth(100.0f);
-                if (ImGui::Combo(Tr("WE_OPT_PASTE_TO"), &chatChannelIndex, chatChannelLabels.data(), (int)chatChannelLabels.size()))
-                    ChatChannelPrefix = chatChannelPrefixes[chatChannelIndex];
-
-                Tooltip(Tr("WE_TIP_PASTE_TO"));
-                        
-                if (!IsBetterChatLoaded()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_NOT_LOADED"));
-                else if (!IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_SELF_DISABLED"));
-                else if (IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_SELF_ENABLED"));
-            }
-            
-            ImGui::Dummy(dummySquare);
-            
             //_ Zoom-based marker scaling; disabled by default keeps the old fixed-size behavior, just optional now.
             {
                 ImGui::Checkbox(TrId("WE_OPT_GROW_MARKERS_ZOOM", "##basic_zoom_scaling_enabled").c_str(), &BasicEventZoomScalingEnabled);
@@ -158,74 +120,6 @@ void AddonOptions()
                 }
             }
 
-            ImGui::TableSetColumnIndex(1);
-            //_ Not gated by window/bar/notifications visibility: drives auto-hiding completed content in all three.
-            ImGui::TextUnformatted(Tr("WE_OPT_GW2_API_KEY"));
-            ImGui::SameLine();
-            ImGui::TextDisabled("%s", Tr("WE_OPT_API_KEY_DELAY_NOTE"));
-
-            {
-                static char apiKeyBuf[128] = "";
-                static bool bufInitialized = false;
-                if (!bufInitialized) //. one-time seed from setting
-                {
-                    strncpy(apiKeyBuf, Gw2ApiKey.c_str(), sizeof(apiKeyBuf) - 1);
-                    apiKeyBuf[sizeof(apiKeyBuf) - 1] = '\0';
-                    bufInitialized = true;
-                }
-
-                ImGui::SetNextItemWidth(200.0f);
-                if (ImGui::InputText("##gw2_api_key", apiKeyBuf, sizeof(apiKeyBuf), ImGuiInputTextFlags_Password))
-                    Gw2ApiKey = apiKeyBuf;
-            }
-            Tooltip(Tr("WE_TIP_GW2_API_KEY"));
-
-            ImGui::SameLine();
-            switch (GetGw2ApiStatus())
-            {
-                case Gw2ApiStatus::NoKey:
-                    ImGui::TextDisabled("%s", Tr("WE_OPT_API_NO_KEY"));
-                    break;
-                case Gw2ApiStatus::Pending:
-                    ImGui::TextDisabled("%s", Tr("WE_OPT_API_CHECKING"));
-                    break;
-                case Gw2ApiStatus::Ok:
-                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "%s", Tr("WE_OPT_API_CONNECTED"));
-                    break;
-                case Gw2ApiStatus::InvalidKey:
-                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", Tr("WE_OPT_API_INVALID_KEY"));
-                    break;
-                case Gw2ApiStatus::NetworkError:
-                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_OPT_API_NETWORK_ERROR"));
-                    break;
-            }
-
-            //_ Whether the API half of doneToday is consulted at all; the manual mark always still applies.
-            ImGui::Checkbox(Tr("WE_OPT_AUTO_MARK_API_DONE"), &Gw2ApiAutoMarkDoneEnabled);
-            Tooltip(Tr("WE_TIP_AUTO_MARK_API_DONE"));
-
-            //_ Master switch: drives whether any of the three subscription views auto-surfaces this week's Vault targets.
-            ImGui::Checkbox(Tr("WE_OPT_AUTO_TRACK_VAULT"), &WeeklyAutoTrackEnabled);
-            Tooltip(Tr("WE_TIP_AUTO_TRACK_VAULT"));
-            
-            //_ Color swatch for the weekly Wizard's Vault tracked dot
-            DisabledBlock(!WeeklyAutoTrackEnabled)
-            {
-                ImGui::ColorEdit4(TrId("WE_OPT_WEEKLY_COLOR", "##weekly_tracking_color").c_str(), WeeklyAutoTrackColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-            }
-            
-            ImGui::Dummy(dummySquare);
-
-            //_ Manual counterpart to the API-based hiding above; covers everything the API doesn't, key or no key.
-            static bool unlockMarkers = false;
-            ImGui::Checkbox("##lock_markers", &unlockMarkers);
-            Tooltip(Tr("WE_TIP_UNLOCK_DONE_MARKERS"));
-            ImGui::SameLine();
-            DisabledBlock(!unlockMarkers)
-            {
-                if (ImGui::Button(Tr("WE_OPT_CLEAR_DONE_MARKERS")))
-                    ClearAllDoneMarkers();
-            }
             //_ Row 2 - Basic Events controls (col 0), Cyclic Events controls (col 1)
             ImGui::TableNextRow();
 

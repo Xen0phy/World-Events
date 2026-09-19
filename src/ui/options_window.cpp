@@ -42,7 +42,7 @@ bool ShowOptionsWindow = false;
 static constexpr float kRailButtonScale = 1.5f;
 
 //_ Icon box as a fraction of the button side.
-static constexpr float kRailIconFill = 0.7f;
+static constexpr float kRailIconFill = 1.0f;
 
 //_ Length of the deep-link row flash, in seconds.
 static constexpr double kHighlightDurationSec = 1.5;
@@ -209,8 +209,8 @@ void OpenOptionsWindow(SubscriptionKind kind, const std::string& basicId,
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderOptionsWindow   (see: options_window.h)
 //--------------------------------------------------------------------------------
-// Two child windows side by side: the fixed-width rail (bordered, so it reads as
-// a separate strip) and the content pane filling the rest. The deep link is
+// Two child windows side by side: the fixed-width rail and the content pane
+// filling the rest, split by a 1 px vertical line. The deep link is
 // copied out of the pending slot before drawing, so it reaches the section for
 // exactly this one frame. Esc-to-close is handled by Nexus via the registration
 // Localization_SyncCloseOnEscape keeps in step with the translated title.
@@ -247,15 +247,24 @@ void RenderOptionsWindow()
     }
     const OptionsDeepLink* linkPtr = hasLink ? &link : nullptr;
 
-    float side = ImGui::GetFrameHeight() * kRailButtonScale;
-    float railWidth = side + ImGui::GetStyle().WindowPadding.x * 2.0f;
+    //_ Icons, line and content are each one window padding apart.
+    const float pad  = ImGui::GetStyle().WindowPadding.x;
+    const float side = ImGui::GetFrameHeight() * kRailButtonScale;
 
-    ImGui::BeginChild("##options_rail", ImVec2(railWidth, 0.0f), true,
+    //_ Borderless and padding-free: the window edge and the line frame the icons.
+    ImGui::BeginChild("##options_rail", ImVec2(side, 0.0f), false,
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     DrawRail(side);
     ImGui::EndChild();
 
-    ImGui::SameLine();
+    ImGui::SameLine(0.0f, pad * 2.0f);
+
+    //_ Line on a whole pixel, one padding from the rail and one from the content.
+    const ImVec2 pane  = ImGui::GetCursorScreenPos();
+    const float  lineX = (float)(int)(pane.x - pad);
+    ImGui::GetWindowDrawList()->AddLine(ImVec2(lineX, pane.y),
+        ImVec2(lineX, pane.y + ImGui::GetContentRegionAvail().y),
+        ImGui::GetColorU32(ImGuiCol_Separator, 0.5f), 1.0f);
 
     //_ Read after the rail ran, so a click switches the content the same frame.
     OptionsTab tab = CurrentTab();

@@ -452,8 +452,8 @@ SETTING(System, OptionsWindowTab, int, 0)
 // specific chat channel regardless of which tab has keyboard focus. Empty
 // (default) pastes exactly as before. One value covers all three subscription
 // views (same reasoning as delayMilliseconds above), stored as the literal
-// command text (e.g. "/p ") instead of an enum index, so the options-panel Combo
-// (addon_options.cpp) is the only place that needs the full label<->command
+// command text (e.g. "/p ") instead of an enum index, so the General tab's Combo
+// (options_general.cpp) is the only place that needs the full label<->command
 // mapping.
 //--------------------------------------------------------------------------------
 SETTING(System, ChatChannelPrefix, std::string, std::string())
@@ -501,7 +501,7 @@ SETTING(Notifications, NotificationDisplaySeconds, int, 10)
 // NotificationSoundFile
 //--------------------------------------------------------------------------------
 // Filename (no path) of a single user-supplied .wav under "<addon dir>/ sounds",
-// picked via the Combo next to the "Test" button in the options panel (see
+// picked via the Combo next to the "Test" button in the General tab (see
 // notify_sound.h for the scan/playback plumbing). Empty (default) means no sound
 // file selected. Played by subscriptions_notification.cpp alongside a fired popup
 // for any event/slot whose notify level has sound enabled (level 3 - see

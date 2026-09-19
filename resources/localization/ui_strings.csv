@@ -100,158 +100,6 @@ WE_EDIT_LIVE_COL_EVENT,Event,Event,Événement,Evento,事件,
 WE_EDIT_LIVE_COL_ONLY_NAMED,Only named,Nur benannt,Nommés uniquement,Solo nombrados,仅带上报者名称,
 WE_EDIT_LIVE_COL_DONE_TODAY,Done today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
 #,"addon_options.cpp - tooltips for the generic settings (Live Events tooltips live with events_live, once translated).",,,,,
-WE_TIP_UNLOCK_PASTE_DELAY,"Only change this if you're having paste issues.
-Controls the internal delay used to paste text into the
-chat box. Default: 20ms.","Nur ändern, wenn es beim Einfügen Probleme gibt.
-Steuert die interne Verzögerung beim Einfügen von Text
-ins Chatfeld. Standard: 20ms.","Ne modifiez ceci que si vous avez des problèmes de collage.
-Contrôle le délai interne utilisé pour coller du texte dans la
-zone de chat. Par défaut : 20 ms.","Cambia esto solo si tienes problemas al pegar.
-Controla el retraso interno usado para pegar texto en el
-cuadro de chat. Predeterminado: 20 ms.",仅在粘贴出现异常时修改。控制向聊天框粘贴文本的内部延迟，默认20毫秒。,
-WE_TIP_PASTE_TO,"Which chat channel a watchlist row/segment/toast click
-pastes into, regardless of whatever channel is currently
-selected in-game. Prepends that channel's slash command
-(e.g. ""/p "") before the name/waypoint. ""Current chat""
-pastes exactly as before, into whichever channel already
-has focus.
-
-When Better Chat's ""/self"" is enabled, it's available here too.","In welchen Chat-Kanal ein Klick auf eine Zeile, Segment oder
-Popup einfügt, unabhängig vom aktuell im Spiel gewählten
-Kanal. Stellt den Slash-Befehl des Kanals voran (z.B. ""/p "")
-vor Name/Wegpunkt. ""Aktueller Chat"" fügt wie gewohnt in den
-gerade fokussierten Kanal ein.
-Wenn Better Chats ""/self"" aktiviert ist, steht es auch hier""
-zur Verfügung.","Dans quel canal de chat un clic sur une ligne/segment/notification de la
-liste colle le texte, quel que soit le canal actuellement sélectionné en jeu.
-Ajoute la commande slash de ce canal (ex. ""/p "") avant le nom/point de
-passage. ""Chat actuel"" colle exactement comme avant, dans le canal ayant
-actuellement le focus.
-
-Lorsque le ""/self"" de Better Chat est activé, il est aussi disponible ici.","En qué canal de chat pega un clic en una fila/segmento/notificación de la
-lista, sin importar el canal seleccionado actualmente en el juego.
-Antepone el comando de barra de ese canal (p. ej. ""/p "") antes del
-nombre/punto de acceso. ""Chat actual"" pega exactamente como antes, en
-el canal que tenga el foco en ese momento.
-
-Cuando el ""/self"" de Better Chat está activado, también está disponible aquí.","点击订阅条目/片段/弹窗时，文本粘贴到哪个聊天频道，无视游戏当前选中频道。
-会自动前置对应频道斜杠指令，例如/p。“当前聊天”维持原有行为，
-粘贴至当前焦点频道。若Better Chat开启/self，该频道也会出现在此列表。",
-WE_TIP_GW2_API_KEY,"Needs the ""progression"" permission. When set, a subscribed
-Core Boss (Admiral Taidha Covington, Tequatl, etc.) is
-automatically left off the watchlist window and bar once
-your account has already killed it since the last daily
-reset. The same applies to any subscribed slot in Verdant
-Brink, Auric Basin, Tangled Depths, Dragon's Stand, Crystal
-Oasis, Elon Riverlands, The Desolation, or Domain of Vabbi,
-once that map's Hero's Choice Chest has already been
-claimed today (the whole ring hides together, not just the
-one slot). Nothing else is affected: the public API has no
-""already done today"" signal for any other event type in
-this addon (other map metas, invasions, LLA, convergences),
-so those are never hidden by this.","Benötigt die Berechtigung ""progression"". Wenn gesetzt, wird
-ein abonnierter Core Boss (Admiral Taidha Covington, Tequatl
-usw.) automatisch aus Abo-Fenster und -Leiste entfernt, sobald
-dein Account ihn seit dem letzten täglichen Reset schon
-besiegt hat. Gleiches gilt für jeden abonnierten Slot in
-Grasgrüne Schwelle, Güldener Talkessel, Verschlungene Tiefen,
-Widerstand des Drachen, Kristalloase, Elon-Flusslande, Das
-Ödland oder Domäne Vaabi, sobald die tägliche Belohnungstruhe
-dieser Karte heute schon errungen wurde (der ganze Zyklus wird
-als Gesamtes ausgeblendet, nicht nur der eine Slot). Sonst
-ändert sich nichts: Die öffentliche API hat für keinen anderen
-Event-Typ in diesem Addon (andere Karten-Metas, Invasionen,
-LLA, Konvergenzen) ein ""heute schon erledigt""-Signal, daher
-wird dort nie etwas dadurch ausgeblendet.","Nécessite la permission ""progression"". Une fois définie, un Boss du jeu de
-base abonné (Amiral Taidha Covington, Tequatl, etc.) est automatiquement
-retiré de la fenêtre et de la barre d'abonnements dès que votre compte l'a
-déjà vaincu depuis la dernière réinitialisation quotidienne. Il en va de même
-pour tout créneau abonné dans l'Orée d'émeraude, le Bassin aurique,
-les Profondeurs verdoyantes, le Repli du dragon, l'Oasis de cristal, les
-Rives de l'Elon, la Désolation ou le Domaine de Vabbi, dès que le
-Coffre du choix du héros de cette carte a déjà été récupéré aujourd'hui
-(l'anneau entier se masque ensemble, pas seulement ce créneau). Rien
-d'autre n'est affecté : l'API publique n'a aucun signal ""déjà fait aujourd'hui""
-pour tout autre type d'événement de cet addon (autres métas de carte,
-invasions, LLA, convergences), donc ceux-ci ne sont jamais masqués par ceci.","Requiere el permiso ""progression"". Una vez configurada, un Jefe del juego
-base suscrito (Almirante Taidha Covington, Tequatl, etc.) se elimina
-automáticamente de la ventana y la barra de suscripciones en cuanto tu
-cuenta ya lo haya derrotado desde el último reinicio diario. Lo mismo se
-aplica a cualquier ranura suscrita en Umbral Verdeante, Valle Áurico,
-Profundidades Enredadas, Defensa del Dragón, Oasis de Cristal,
-La Ribera del Elon, La Desolación o Dominio de Vabbi, en cuanto el
-Cofre de Elección del Héroe de ese mapa ya se haya reclamado hoy (todo
-el anillo se oculta en conjunto, no solo esa ranura). No se ve afectado nada
-más: la API pública no tiene una señal de ""ya hecho hoy"" para ningún otro
-tipo de evento de este addon (otras metas de mapa, invasiones, LLA,
-convergencias), por lo que estos nunca se ocultan por esto.","需要启用 “进度追踪” 权限。启用后，若账号在每日重置后已击杀所订阅的核心世界首领（上将泰达·科文顿、吞噬托），
-该首领便会自动从监控列表窗口和状态栏中隐藏。苍翠边界、赤金盆地、缠藤深渊、巨龙阵地、水晶绿洲、伊伦河湾、
-荒芜之地及瓦比领域中的任一订阅条目，只要当日已领取该地图的英雄抉择宝箱，整个事件圆环将一并隐藏，而非仅隐藏单个条目。
-其余内容不受影响：公开 API 无法提供其他事件类型（其他地图元事件、入侵、LLA、汇聚）的「今日已完成」状态，
-因此这些事件永远不会被本规则隐藏。","REVIEW: ""progression"" seems to be the same for all languages"
-WE_TIP_AUTO_MARK_API_DONE,"When on (default), any Basic Event/Cyclic group tagged
-(auto) in the lists below auto-hides once the GW2 API
-reports it done for the day. Turn this off to ignore
-that signal and rely only on marking events done for
-today yourself (right-click a row/segment/popup).","Wenn aktiv (Standard), blenden mit (auto) markierte normale
-Events/zyklische Gruppen unten automatisch aus, sobald die
-GW2-API sie als heute erledigt meldet. Deaktivieren, um
-dieses Signal zu ignorieren und Events nur manuell als erledigt
-zu markieren (Rechtsklick auf Zeile/Segment/Popup).","Lorsqu'activé (par défaut), tout Événement normal/Groupe cyclique marqué
-(auto) dans les listes ci-dessous se masque automatiquement dès que
-l'API GW2 le signale comme fait pour la journée. Désactivez pour ignorer
-ce signal et ne compter que sur le marquage manuel des événements comme
-faits aujourd'hui (clic droit sur une ligne/segment/notification).","Cuando está activado (predeterminado), cualquier Evento normal/Grupo
-cíclico marcado (auto) en las listas de abajo se oculta automáticamente
-en cuanto la API de GW2 lo indica como hecho por hoy. Desactívalo para
-ignorar esa señal y depender solo de marcar los eventos como hechos
-hoy manualmente (clic derecho en una fila/segmento/notificación).","开启（默认）时，列表内标记(auto)的基础事件、循环事件组，
-当GW2API反馈今日完成后会自动隐藏。关闭则忽略API状态，仅依靠手动右键标记今日已完成。",
-WE_TIP_AUTO_TRACK_VAULT,"When on (default), the subscriptions window, distribution
-line, and notification popups automatically surface any
-Basic Event/Cyclic slot that's an active, incomplete
-target of this week's Wizard's Vault rotation, even without
-a manual subscription, marked with a small red dot/border.
-Turn this off to see only what you've manually subscribed to
-in all three views.","Wenn aktiv (Standard), zeigen Abo-Fenster, Leiste und
-Benachrichtigungen automatisch jedes normale Event/zyklischen
-Slot, der ein aktives, unerledigtes Ziel der Gewölbe des
-Zauberers-Rotation dieser Woche ist, auch ohne manuelles Abo,
-markiert mit einem kleinen roten Punkt/Rahmen. Deaktivieren,
-um in allen drei Ansichten nur manuell Abonniertes zu sehen.","Lorsqu'activé (par défaut), la fenêtre d'abonnements, la barre de
-distribution et les notifications font automatiquement remonter tout
-Événement normal/créneau cyclique qui est une cible active et incomplète
-de la rotation du Coffre du Sorcier de cette semaine, même sans
-abonnement manuel, marqué d'un petit point/bordure rouge. Désactivez
-pour ne voir que ce à quoi vous êtes manuellement abonné dans les trois vues.","Cuando está activado (predeterminado), la ventana de suscripciones, la
-barra de distribución y las notificaciones muestran automáticamente
-cualquier Evento normal/ranura cíclica que sea un objetivo activo e
-incompleto de la rotación de la Bóveda del Mago de esta semana, incluso
-sin suscripción manual, marcado con un pequeño punto/borde rojo.
-Desactívalo para ver solo lo suscrito manualmente en las tres vistas.","开启（默认）时，订阅窗口、订阅栏、弹窗通知会自动高亮本周巫师宝库未完成目标对应的基础事件/循环时段，
-无需手动订阅，带有红色小点/边框。关闭后，三处界面将仅展示手动订阅的内容。",
-WE_TIP_UNLOCK_DONE_MARKERS,"Right-click any row in the watchlist window, segment on the
-distribution line, or notification popup to mark it done for
-today. It then hides from all three views, the same way an
-API-confirmed Core Boss kill or map chest claim does, until
-the next daily reset (00:00 UTC) - or until you clear it
-manually.","Rechtsklick auf eine Zeile im Abo-Fenster, ein Segment auf
-der Leiste oder ein Benachrichtigungs-Popup um es als für
-heute erledigt zu markieren. Es verschwindet dann aus allen
-drei Ansichten, genau wie bei einem API-bestätigten Core-
-Boss-Kill oder Kistenerhalt, bis zum nächsten täglichen
-Reset (00:00 UTC) - oder bis du es manuell zurücksetzt.","Clic droit sur n'importe quelle ligne de la fenêtre d'abonnements, segment
-sur la barre de distribution, ou notification, pour la marquer comme faite
-pour aujourd'hui. Elle disparaît alors des trois vues, de la même manière
-qu'une victoire sur un Boss du jeu de base confirmée par l'API ou une
-récupération de coffre de carte, jusqu'à la prochaine réinitialisation
-quotidienne (00h00 UTC) - ou jusqu'à ce que vous la réinitialisiez manuellement.","Haz clic derecho en cualquier fila de la ventana de suscripciones,
-segmento en la barra de distribución, o notificación, para marcarla como
-hecha hoy. Entonces desaparece de las tres vistas, igual que una muerte
-de un Jefe del juego base confirmada por la API o la recogida de un cofre
-de mapa, hasta el siguiente reinicio diario (00:00 UTC), o hasta que la
-restablezcas manualmente.","右键订阅窗口条目、订阅栏片段或通知弹窗，标记为今日已完成。该事件会在全部三处界面隐藏，
-效果等同API确认击杀首领/领取宝箱，持续至UTC0点每日重置，也可手动清除标记。",
 WE_TIP_FUTURE_WINDOW,"How far ahead an upcoming event starts fading into view.
 Measured in degrees of the ring.","Wie weit im Voraus ein bevorstehendes Event einzublenden
 beginnt. Gemessen in Grad des Rings.","Combien de temps à l'avance un événement à venir commence à apparaître.
@@ -494,26 +342,9 @@ WE_OPT_BASIC_EVENTS,Basic Events,Normale Events,Événements normaux,Eventos nor
 WE_OPT_CATEGORIES,Categories,Kategorien,Catégories,Categorías,分类,
 WE_OPT_SET_ALL_ICONS,Set all icons,Alle Symbole festlegen,Définir toutes les icônes,Establecer todos los iconos,设置所有图标,
 WE_OPT_CYCLIC_EVENTS,Cyclic Events,Zyklische Events,Événements cycliques,Eventos cíclicos,循环事件,
-WE_OPT_CHAT_SETTINGS,Chat settings:,Chat-Einstellungen:,Paramètres du chat :,Ajustes de chat:,聊天设置：,
-WE_OPT_PASTE_DELAY,Paste Delay,Einfügeverzögerung,Délai de collage,Retraso de pegado,粘贴延迟,
-WE_OPT_PASTE_TO,Paste to,Einfügen in,Coller dans,Pegar en,粘贴至,
-WE_OPT_BETTER_CHAT_NOT_LOADED,Better Chat not loaded (optional),Better Chat nicht geladen (optional),Better Chat non chargé (facultatif),Better Chat no cargado (opcional),未加载Better Chat（可选组件）,
-WE_OPT_BETTER_CHAT_SELF_DISABLED,"Better Chat loaded, /self disabled","Better Chat geladen, /self deaktiviert","Better Chat chargé, /self désactivé","Better Chat cargado, /self desactivado",已加载Better Chat，/self未启用,
-WE_OPT_BETTER_CHAT_SELF_ENABLED,"Better Chat loaded, /self enabled","Better Chat geladen, /self aktiviert","Better Chat chargé, /self activé","Better Chat cargado, /self activado",已加载Better Chat，/self已启用,
 WE_OPT_GROW_MARKERS_ZOOM,Grow markers when zooming in,Markierungen beim Hineinzoomen vergrößern,Agrandir les marqueurs en zoomant,Agrandar marcadores al acercar el zoom,放大地图时标记随之放大,
 WE_OPT_START_GROWING_AT,Start growing at,Beginn Vergrößerung bei,Commence à grandir à,Empieza a agrandarse en,开始放大的缩放等级,
 WE_OPT_MAX_SIZE_AT_ZOOM,Max size at 100% zoom,Maximalgröße bei 100% Zoom,Taille max. à 100% de zoom,Tamaño máx. al 100% de zoom,100%缩放时的最大标记尺寸,
-WE_OPT_GW2_API_KEY,GW2 API key,GW2-API-Schlüssel,Clé API GW2,Clave de API de GW2,GW2 API密钥,
-WE_OPT_API_KEY_DELAY_NOTE,Can take up to 5min to take effect.,"Kann bis zu 5 Min. dauern, bis Änderungen sichtbar sind.",Peut prendre jusqu'à 5 min pour prendre effet.,Puede tardar hasta 5 min en surtir efecto.,生效最多需要等待5分钟。,
-WE_OPT_API_NO_KEY,No key set,Kein API-Schlüssel gesetzt,Aucune clé définie,No hay clave configurada,未设置密钥,
-WE_OPT_API_CHECKING,Checking...,Wird geprüft...,Vérification...,Comprobando...,正在校验…,
-WE_OPT_API_CONNECTED,Connected,Verbunden,Connecté,Conectado,连接成功,
-WE_OPT_API_INVALID_KEY,Invalid key / missing permission,Ungültiger Schlüssel / fehlende Berechtigung,Clé invalide / permission manquante,Clave no válida / falta permiso,密钥无效 / 缺少权限,
-WE_OPT_API_NETWORK_ERROR,"Network error, retrying","Netzwerkfehler, erneuter Versuch","Erreur réseau, nouvelle tentative","Error de red, reintentando",网络错误，正在重试,
-WE_OPT_AUTO_MARK_API_DONE,Automatically mark API-confirmed events done,API-bestätigte Events automatisch als erledigt markieren,Marquer automatiquement les événements confirmés par l'API comme faits,Marcar automáticamente como hechos los eventos confirmados por la API,API确认事件自动标记为已完成,
-WE_OPT_AUTO_TRACK_VAULT,Auto-track weekly Wizard's Vault targets,Wöchentliche Gewölbe des Zauberers-Ziele automatisch verfolgen,Suivre automatiquement les cibles hebdomadaires du Coffre du Sorcier,Rastrear automáticamente los objetivos semanales de la Bóveda del Mago,自动追踪每周巫师宝库目标,
-WE_OPT_WEEKLY_COLOR,Weekly Color,Wochenfarbe,Couleur hebdomadaire,Color semanal,宝库目标高亮颜色,
-WE_OPT_CLEAR_DONE_MARKERS,Clear events manually marked done,Manuell als erledigt markierte Events zurücksetzen,Réinitialiser les événements marqués faits manuellement,Restablecer eventos marcados como hechos manualmente,清除手动标记的已完成事件,
 WE_OPT_ONLY_SHOW_STARTING_IN,Only show events starting in,Zeige nur Events innerhalb der nächsten,N'afficher que les événements commençant dans,Mostrar solo eventos que empiecen en,仅显示多久之后开始的事件,
 WE_OPT_WAITING,Waiting,Pause,En attente,Esperando,等待中,
 WE_OPT_DOT_RADIUS,Dot radius,Punktradius,Rayon du point,Radio del punto,圆点半径,
@@ -867,3 +698,150 @@ propio nivel de notificación tenga el sonido activado (consulta el icono de
 altavoz en cada fila de abajo).","将wav文件放入插件sounds文件夹，在此选择预览。仅支持wav格式。
 “测试”会立即播放；真实弹窗通知也会自动播放音频，
 但仅针对通知等级开启音效的事件/时段，参见下方每行的喇叭图标。",
+WE_OPTWIN_HDR_CHAT,Chat and paste,Chat und Einfügen,Chat et collage,Chat y pegado,聊天与粘贴,
+WE_TIP_UNLOCK_PASTE_DELAY,"Only change this if you're having paste issues.
+Controls the internal delay used to paste text into the
+chat box. Default: 20ms.","Nur ändern, wenn es beim Einfügen Probleme gibt.
+Steuert die interne Verzögerung beim Einfügen von Text
+ins Chatfeld. Standard: 20ms.","Ne modifiez ceci que si vous avez des problèmes de collage.
+Contrôle le délai interne utilisé pour coller du texte dans la
+zone de chat. Par défaut : 20 ms.","Cambia esto solo si tienes problemas al pegar.
+Controla el retraso interno usado para pegar texto en el
+cuadro de chat. Predeterminado: 20 ms.",仅在粘贴出现异常时修改。控制向聊天框粘贴文本的内部延迟，默认20毫秒。,
+WE_OPT_PASTE_DELAY,Paste Delay,Einfügeverzögerung,Délai de collage,Retraso de pegado,粘贴延迟,
+WE_OPT_PASTE_TO,Paste to,Einfügen in,Coller dans,Pegar en,粘贴至,
+WE_TIP_PASTE_TO,"Which chat channel a watchlist row/segment/toast click
+pastes into, regardless of whatever channel is currently
+selected in-game. Prepends that channel's slash command
+(e.g. ""/p "") before the name/waypoint. ""Current chat""
+pastes exactly as before, into whichever channel already
+has focus.
+
+When Better Chat's ""/self"" is enabled, it's available here too.","In welchen Chat-Kanal ein Klick auf eine Zeile, Segment oder
+Popup einfügt, unabhängig vom aktuell im Spiel gewählten
+Kanal. Stellt den Slash-Befehl des Kanals voran (z.B. ""/p "")
+vor Name/Wegpunkt. ""Aktueller Chat"" fügt wie gewohnt in den
+gerade fokussierten Kanal ein.
+Wenn Better Chats ""/self"" aktiviert ist, steht es auch hier
+zur Verfügung.","Dans quel canal de chat un clic sur une ligne/segment/notification de la
+liste colle le texte, quel que soit le canal actuellement sélectionné en jeu.
+Ajoute la commande slash de ce canal (ex. ""/p "") avant le nom/point de
+passage. ""Chat actuel"" colle exactement comme avant, dans le canal ayant
+actuellement le focus.
+
+Lorsque le ""/self"" de Better Chat est activé, il est aussi disponible ici.","En qué canal de chat pega un clic en una fila/segmento/notificación de la
+lista, sin importar el canal seleccionado actualmente en el juego.
+Antepone el comando de barra de ese canal (p. ej. ""/p "") antes del
+nombre/punto de acceso. ""Chat actual"" pega exactamente como antes, en
+el canal que tenga el foco en ese momento.
+
+Cuando el ""/self"" de Better Chat está activado, también está disponible aquí.","点击订阅条目/片段/弹窗时，文本粘贴到哪个聊天频道，无视游戏当前选中频道。
+会自动前置对应频道斜杠指令，例如/p。“当前聊天”维持原有行为，
+粘贴至当前焦点频道。若Better Chat开启/self，该频道也会出现在此列表。",
+WE_OPT_BETTER_CHAT_NOT_LOADED,Better Chat not loaded (optional),Better Chat nicht geladen (optional),Better Chat non chargé (facultatif),Better Chat no cargado (opcional),未加载Better Chat（可选组件）,
+WE_OPT_BETTER_CHAT_SELF_DISABLED,"Better Chat loaded, /self disabled","Better Chat geladen, /self deaktiviert","Better Chat chargé, /self désactivé","Better Chat cargado, /self desactivado",已加载Better Chat，/self未启用,
+WE_OPT_BETTER_CHAT_SELF_ENABLED,"Better Chat loaded, /self enabled","Better Chat geladen, /self aktiviert","Better Chat chargé, /self activé","Better Chat cargado, /self activado",已加载Better Chat，/self已启用,
+WE_OPTWIN_HDR_ACCOUNT,Account and tracking,Konto und Nachverfolgung,Compte et suivi,Cuenta y rastreo,账号与追踪,
+WE_OPT_GW2_API_KEY,GW2 API key,GW2-API-Schlüssel,Clé API GW2,Clave de API de GW2,GW2 API密钥,
+WE_OPT_API_KEY_DELAY_NOTE,Can take up to 5min to take effect.,"Kann bis zu 5 Min. dauern, bis Änderungen sichtbar sind.",Peut prendre jusqu'à 5 min pour prendre effet.,Puede tardar hasta 5 min en surtir efecto.,生效最多需要等待5分钟。,
+WE_TIP_GW2_API_KEY,"Needs the ""progression"" permission. When set, a subscribed
+Core Boss (Admiral Taidha Covington, Tequatl, etc.) is
+automatically left off the watchlist window and bar once
+your account has already killed it since the last daily
+reset. The same applies to any subscribed slot in Verdant
+Brink, Auric Basin, Tangled Depths, Dragon's Stand, Crystal
+Oasis, Elon Riverlands, The Desolation, or Domain of Vabbi,
+once that map's Hero's Choice Chest has already been
+claimed today (the whole ring hides together, not just the
+one slot). Nothing else is affected: the public API has no
+""already done today"" signal for any other event type in
+this addon (other map metas, invasions, LLA, convergences),
+so those are never hidden by this.","Benötigt die Berechtigung ""progression"". Wenn gesetzt, wird
+ein abonnierter Core Boss (Admiral Taidha Covington, Tequatl
+usw.) automatisch aus Abo-Fenster und -Leiste entfernt, sobald
+dein Account ihn seit dem letzten täglichen Reset schon
+besiegt hat. Gleiches gilt für jeden abonnierten Slot in
+Grasgrüne Schwelle, Güldener Talkessel, Verschlungene Tiefen,
+Widerstand des Drachen, Kristalloase, Elon-Flusslande, Das
+Ödland oder Domäne Vaabi, sobald die tägliche Belohnungstruhe
+dieser Karte heute schon errungen wurde (der ganze Zyklus wird
+als Gesamtes ausgeblendet, nicht nur der eine Slot). Sonst
+ändert sich nichts: Die öffentliche API hat für keinen anderen
+Event-Typ in diesem Addon (andere Karten-Metas, Invasionen,
+LLA, Konvergenzen) ein ""heute schon erledigt""-Signal, daher
+wird dort nie etwas dadurch ausgeblendet.","Nécessite la permission ""progression"". Une fois définie, un Boss du jeu de
+base abonné (Amiral Taidha Covington, Tequatl, etc.) est automatiquement
+retiré de la fenêtre et de la barre d'abonnements dès que votre compte l'a
+déjà vaincu depuis la dernière réinitialisation quotidienne. Il en va de même
+pour tout créneau abonné dans l'Orée d'émeraude, le Bassin aurique,
+les Profondeurs verdoyantes, le Repli du dragon, l'Oasis de cristal, les
+Rives de l'Elon, la Désolation ou le Domaine de Vabbi, dès que le
+Coffre du choix du héros de cette carte a déjà été récupéré aujourd'hui
+(l'anneau entier se masque ensemble, pas seulement ce créneau). Rien
+d'autre n'est affecté : l'API publique n'a aucun signal ""déjà fait aujourd'hui""
+pour tout autre type d'événement de cet addon (autres métas de carte,
+invasions, LLA, convergences), donc ceux-ci ne sont jamais masqués par ceci.","Requiere el permiso ""progression"". Una vez configurada, un Jefe del juego
+base suscrito (Almirante Taidha Covington, Tequatl, etc.) se elimina
+automáticamente de la ventana y la barra de suscripciones en cuanto tu
+cuenta ya lo haya derrotado desde el último reinicio diario. Lo mismo se
+aplica a cualquier ranura suscrita en Umbral Verdeante, Valle Áurico,
+Profundidades Enredadas, Defensa del Dragón, Oasis de Cristal,
+La Ribera del Elon, La Desolación o Dominio de Vabbi, en cuanto el
+Cofre de Elección del Héroe de ese mapa ya se haya reclamado hoy (todo
+el anillo se oculta en conjunto, no solo esa ranura). No se ve afectado nada
+más: la API pública no tiene una señal de ""ya hecho hoy"" para ningún otro
+tipo de evento de este addon (otras metas de mapa, invasiones, LLA,
+convergencias), por lo que estos nunca se ocultan por esto.","需要启用 “进度追踪” 权限。启用后，若账号在每日重置后已击杀所订阅的核心世界首领（上将泰达·科文顿、吞噬托），
+该首领便会自动从监控列表窗口和状态栏中隐藏。苍翠边界、赤金盆地、缠藤深渊、巨龙阵地、水晶绿洲、伊伦河湾、
+荒芜之地及瓦比领域中的任一订阅条目，只要当日已领取该地图的英雄抉择宝箱，整个事件圆环将一并隐藏，而非仅隐藏单个条目。
+其余内容不受影响：公开 API 无法提供其他事件类型（其他地图元事件、入侵、LLA、汇聚）的「今日已完成」状态，
+因此这些事件永远不会被本规则隐藏。","REVIEW: ""progression"" seems to be the same for all languages"
+WE_OPT_API_NO_KEY,No key set,Kein API-Schlüssel gesetzt,Aucune clé définie,No hay clave configurada,未设置密钥,
+WE_OPT_API_CHECKING,Checking...,Wird geprüft...,Vérification...,Comprobando...,正在校验…,
+WE_OPT_API_CONNECTED,Connected,Verbunden,Connecté,Conectado,连接成功,
+WE_OPT_API_INVALID_KEY,Invalid key / missing permission,Ungültiger Schlüssel / fehlende Berechtigung,Clé invalide / permission manquante,Clave no válida / falta permiso,密钥无效 / 缺少权限,
+WE_OPT_API_NETWORK_ERROR,"Network error, retrying","Netzwerkfehler, erneuter Versuch","Erreur réseau, nouvelle tentative","Error de red, reintentando",网络错误，正在重试,
+WE_OPT_AUTO_MARK_API_DONE,Automatically mark API-confirmed events done,API-bestätigte Events automatisch als erledigt markieren,Marquer automatiquement les événements confirmés par l'API comme faits,Marcar automáticamente como hechos los eventos confirmados por la API,API确认事件自动标记为已完成,
+WE_TIP_AUTO_MARK_API_DONE,"When on (default), any Basic Event/Cyclic group tagged
+(auto) in the lists below auto-hides once the GW2 API
+reports it done for the day. Turn this off to ignore
+that signal and rely only on marking events done for
+today yourself (right-click a row/segment/popup).","Wenn aktiv (Standard), blenden mit (auto) markierte normale
+Events/zyklische Gruppen unten automatisch aus, sobald die
+GW2-API sie als heute erledigt meldet. Deaktivieren, um
+dieses Signal zu ignorieren und Events nur manuell als erledigt
+zu markieren (Rechtsklick auf Zeile/Segment/Popup).","Lorsqu'activé (par défaut), tout Événement normal/Groupe cyclique marqué
+(auto) dans les listes ci-dessous se masque automatiquement dès que
+l'API GW2 le signale comme fait pour la journée. Désactivez pour ignorer
+ce signal et ne compter que sur le marquage manuel des événements comme
+faits aujourd'hui (clic droit sur une ligne/segment/notification).","Cuando está activado (predeterminado), cualquier Evento normal/Grupo
+cíclico marcado (auto) en las listas de abajo se oculta automáticamente
+en cuanto la API de GW2 lo indica como hecho por hoy. Desactívalo para
+ignorar esa señal y depender solo de marcar los eventos como hechos
+hoy manualmente (clic derecho en una fila/segmento/notificación).","开启（默认）时，列表内标记(auto)的基础事件、循环事件组，
+当GW2API反馈今日完成后会自动隐藏。关闭则忽略API状态，仅依靠手动右键标记今日已完成。",
+WE_OPT_AUTO_TRACK_VAULT,Auto-track weekly Wizard's Vault targets,Wöchentliche Gewölbe des Zauberers-Ziele automatisch verfolgen,Suivre automatiquement les cibles hebdomadaires du Coffre du Sorcier,Rastrear automáticamente los objetivos semanales de la Bóveda del Mago,自动追踪每周巫师宝库目标,
+WE_TIP_AUTO_TRACK_VAULT,"When on (default), the subscriptions window, distribution
+line, and notification popups automatically surface any
+Basic Event/Cyclic slot that's an active, incomplete
+target of this week's Wizard's Vault rotation, even without
+a manual subscription, marked with a small red dot/border.
+Turn this off to see only what you've manually subscribed to
+in all three views.","Wenn aktiv (Standard), zeigen Abo-Fenster, Leiste und
+Benachrichtigungen automatisch jedes normale Event/zyklischen
+Slot, der ein aktives, unerledigtes Ziel der Gewölbe des
+Zauberers-Rotation dieser Woche ist, auch ohne manuelles Abo,
+markiert mit einem kleinen roten Punkt/Rahmen. Deaktivieren,
+um in allen drei Ansichten nur manuell Abonniertes zu sehen.","Lorsqu'activé (par défaut), la fenêtre d'abonnements, la barre de
+distribution et les notifications font automatiquement remonter tout
+Événement normal/créneau cyclique qui est une cible active et incomplète
+de la rotation du Coffre du Sorcier de cette semaine, même sans
+abonnement manuel, marqué d'un petit point/bordure rouge. Désactivez
+pour ne voir que ce à quoi vous êtes manuellement abonné dans les trois vues.","Cuando está activado (predeterminado), la ventana de suscripciones, la
+barra de distribución y las notificaciones muestran automáticamente
+cualquier Evento normal/ranura cíclica que sea un objetivo activo e
+incompleto de la rotación de la Bóveda del Mago de esta semana, incluso
+sin suscripción manual, marcado con un pequeño punto/borde rojo.
+Desactívalo para ver solo lo suscrito manualmente en las tres vistas.","开启（默认）时，订阅窗口、订阅栏、弹窗通知会自动高亮本周巫师宝库未完成目标对应的基础事件/循环时段，
+无需手动订阅，带有红色小点/边框。关闭后，三处界面将仅展示手动订阅的内容。",
+WE_OPT_WEEKLY_COLOR,Weekly Color,Wochenfarbe,Couleur hebdomadaire,Color semanal,宝库目标高亮颜色,

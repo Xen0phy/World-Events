@@ -5,12 +5,16 @@
 // DrawSubscriptionsWindow  body of the Subscriptions window header
 // DrawUnsafeZonePreview    yellow outline of the four unsafe-zone edges
 // DrawSubscriptionsBar     body of the Subscriptions bar header
-// DrawToastPopups         body of the Toast popups header
+// DrawToastPopups          body of the Toast popups header
+// DrawChatAndPaste         body of the Chat and paste header
+// DrawAccountAndTracking   body of the Account and tracking header
 //--------------------------------------------------------------------------------
 
 #include "options_general.h"
 
-#include "addon_options_helpers.h" //. Tooltip
+#include "addon_options_helpers.h" //. Tooltip, BuildChatChannelOptions
+#include "better_chat.h" //. IsBetterChatLoaded/IsBetterChatSelfCommandEnabled, for the status line
+#include "gw2_api.h" //. GetGw2ApiStatus, for the key status word
 #include "imgui.h"
 #include "localization.h"
 #include "maprender.h" //. ScreenFractionToPixels/PixelsToScreenFraction, for the position row
@@ -18,6 +22,7 @@
 #include "settings.h"
 #include "subscriptions_ui.h" //. RequestNotificationLayoutPreview, for the width/position/direction rows
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -312,6 +317,123 @@ static void DrawToastPopups()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawChatAndPaste
+//--------------------------------------------------------------------------------
+// Everything here feeds PasteToChat (subscriptions.cpp), shared by all three
+// subscription views. The status line under the channel combo reports Better
+// Chat's /self, which the combo offers only while it is usable.
+//--------------------------------------------------------------------------------
+static void DrawChatAndPaste()
+{
+    //_ Session-only unlock; the delay field stays greyed until ticked.
+    static bool unlockDelay = false;
+    ImGui::Checkbox("##lock_delay", &unlockDelay);
+    Tooltip(Tr("WE_TIP_UNLOCK_PASTE_DELAY"));
+    ImGui::SameLine();
+    DisabledBlock(!unlockDelay)
+    {
+        ImGui::SetNextItemWidth(50.0f);
+        ImGui::InputInt(Tr("WE_OPT_PASTE_DELAY"), &delayMilliseconds, 0, 0);
+    }
+
+    std::vector<const char*> chatChannelLabels;
+    std::vector<const char*> chatChannelPrefixes;
+    BuildChatChannelOptions(chatChannelLabels, chatChannelPrefixes);
+
+    int chatChannelIndex = 0;
+    for (int ci = 0; ci < (int)chatChannelPrefixes.size(); ci++)
+    {
+        if (ChatChannelPrefix == chatChannelPrefixes[ci]) { chatChannelIndex = ci; break; }
+    }
+
+    ImGui::SetNextItemWidth(100.0f);
+    if (ImGui::Combo(Tr("WE_OPT_PASTE_TO"), &chatChannelIndex, chatChannelLabels.data(), (int)chatChannelLabels.size()))
+        ChatChannelPrefix = chatChannelPrefixes[chatChannelIndex];
+    Tooltip(Tr("WE_TIP_PASTE_TO"));
+
+    if (!IsBetterChatLoaded())                  ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_NOT_LOADED"));
+    else if (!IsBetterChatSelfCommandEnabled()) ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_SELF_DISABLED"));
+    else                                        ImGui::TextDisabled("%s", Tr("WE_OPT_BETTER_CHAT_SELF_ENABLED"));
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawAccountAndTracking
+//--------------------------------------------------------------------------------
+// The only place the GW2 API key is edited.
+//--------------------------------------------------------------------------------
+static void DrawAccountAndTracking()
+{
+    //_ Not gated by window/bar/notifications visibility: drives auto-hiding completed content in all three.
+    ImGui::TextUnformatted(Tr("WE_OPT_GW2_API_KEY"));
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", Tr("WE_OPT_API_KEY_DELAY_NOTE"));
+
+    {
+        static char apiKeyBuf[128] = "";
+        static bool bufInitialized = false;
+        if (!bufInitialized) //. one-time seed from setting
+        {
+            strncpy(apiKeyBuf, Gw2ApiKey.c_str(), sizeof(apiKeyBuf) - 1);
+            apiKeyBuf[sizeof(apiKeyBuf) - 1] = '\0';
+            bufInitialized = true;
+        }
+
+        ImGui::SetNextItemWidth(200.0f);
+        if (ImGui::InputText("##gw2_api_key", apiKeyBuf, sizeof(apiKeyBuf), ImGuiInputTextFlags_Password))
+            Gw2ApiKey = apiKeyBuf;
+    }
+    Tooltip(Tr("WE_TIP_GW2_API_KEY"));
+
+    ImGui::SameLine();
+    switch (GetGw2ApiStatus())
+    {
+        case Gw2ApiStatus::NoKey:
+            ImGui::TextDisabled("%s", Tr("WE_OPT_API_NO_KEY"));
+            break;
+        case Gw2ApiStatus::Pending:
+            ImGui::TextDisabled("%s", Tr("WE_OPT_API_CHECKING"));
+            break;
+        case Gw2ApiStatus::Ok:
+            ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "%s", Tr("WE_OPT_API_CONNECTED"));
+            break;
+        case Gw2ApiStatus::InvalidKey:
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", Tr("WE_OPT_API_INVALID_KEY"));
+            break;
+        case Gw2ApiStatus::NetworkError:
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_OPT_API_NETWORK_ERROR"));
+            break;
+    }
+
+    //_ Whether the API half of doneToday is consulted at all; the manual mark always still applies.
+    ImGui::Checkbox(Tr("WE_OPT_AUTO_MARK_API_DONE"), &Gw2ApiAutoMarkDoneEnabled);
+    Tooltip(Tr("WE_TIP_AUTO_MARK_API_DONE"));
+
+    //_ Master switch: drives whether any of the three subscription views auto-surfaces this week's Vault targets.
+    ImGui::Checkbox(Tr("WE_OPT_AUTO_TRACK_VAULT"), &WeeklyAutoTrackEnabled);
+    Tooltip(Tr("WE_TIP_AUTO_TRACK_VAULT"));
+
+    //_ Color swatch for the weekly Wizard's Vault tracked dot
+    DisabledBlock(!WeeklyAutoTrackEnabled)
+    {
+        float subToggleIndent = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
+        ImGui::Indent(subToggleIndent);
+        ImGui::ColorEdit4(TrId("WE_OPT_WEEKLY_COLOR", "##weekly_tracking_color").c_str(), WeeklyAutoTrackColor, kSwatchFlags);
+        ImGui::Unindent(subToggleIndent);
+    }
+}
+
+//_ Set by RequestOpenAccountHeader, cleared by the frame that consumes it.
+static bool s_openAccountHeader = false;
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// RequestOpenAccountHeader   (see: options_general.h)
+//--------------------------------------------------------------------------------
+void RequestOpenAccountHeader()
+{
+    s_openAccountHeader = true;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawOptionsGeneral   (see: options_general.h)
 //--------------------------------------------------------------------------------
 void DrawOptionsGeneral()
@@ -328,6 +450,17 @@ void DrawOptionsGeneral()
     if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_TOAST")))
         DrawToastPopups();
 
-    ImGui::Spacing();
-    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_SECTION_PENDING"));
+    if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_CHAT")))
+        DrawChatAndPaste();
+
+    if (s_openAccountHeader)
+        ImGui::SetNextItemOpen(true);
+    bool accountOpen = ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_ACCOUNT"));
+    if (s_openAccountHeader)
+    {
+        ImGui::SetScrollHereY(0.0f); //. align header to top edge
+        s_openAccountHeader = false;
+    }
+    if (accountOpen)
+        DrawAccountAndTracking();
 }
