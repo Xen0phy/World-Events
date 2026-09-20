@@ -3,9 +3,11 @@
 //--------------------------------------------------------------------------------
 // DrawOptionsHelp   Help tab content
 //--------------------------------------------------------------------------------
-// Content pane of the rail's bottom-pinned tab: the version and changelog entry,
-// the explanatory text that would otherwise sit inline on other tabs, and the
-// diagnostics. The body currently draws only the WE_OPTWIN_SECTION_PENDING line.
+// Content pane of the rail's bottom-pinned tab, in three groups: About (version,
+// release date, changelog button), Live events explained (the feature's prose as
+// three collapsed headers, so the Live tab stays controls only), and Diagnostics
+// (WS debug window button, plus render-time metrics in ShowDebug builds). Draws
+// no settings and keeps no state.
 //--------------------------------------------------------------------------------
 
 #pragma once

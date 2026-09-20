@@ -9,8 +9,8 @@
 // "Cyclic Events" (CyclicGroup, events.h). Unlike those two, a LiveEvent has NO
 // schedule of its own - GW2 doesn't expose one, which is the entire reason the
 // live-reporting feature exists (ws_client.h/notification_client.h for the wire
-// side, live_events_ui.h for the UI): players report "it's up right now" instead
-// of the addon predicting it.
+// side, options_live.h for the UI): players report "it's up right now" instead of
+// the addon predicting it.
 //
 // Compiled-in, not user-editable. g_Events/g_CyclicGroups go through
 // events_storage.cpp's JSON merge and maprender.cpp's drag-to-reposition edit
@@ -92,8 +92,8 @@ const char* DisplayName(const LiveEvent& ev);
 //--------------------------------------------------------------------------------
 // True only when the player is on event.mapId AND within event.radius (full 3D
 // sphere) of (event.worldX, event.worldY, event.worldZ). Gates the report button
-// in live_events_ui.cpp's RenderLiveEventButtons - a LiveEvent's button should
-// only be offered when this returns true, so players can't report something they
+// in options_live.cpp's RenderLiveEventButtons - a LiveEvent's button should only
+// be offered when this returns true, so players can't report something they
 // aren't actually near. See events_live.cpp for the unit-conversion story.
 //--------------------------------------------------------------------------------
 bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble);
@@ -102,7 +102,7 @@ bool IsPlayerNearLiveEvent(const LiveEvent& event, const Mumble::Data& mumble);
 // MapHasLiveEvents
 //--------------------------------------------------------------------------------
 // True if any entry in g_LiveEvents has this mapId. Gates whether the client
-// opens a shard connection at all (live_events_ui.cpp) - the relay server
-// enforces the same allow-list independently (server/src/index.ts).
+// opens a shard connection at all (options_live.cpp) - the relay server enforces
+// the same allow-list independently (server/src/index.ts).
 //--------------------------------------------------------------------------------
 bool MapHasLiveEvents(int mapId);

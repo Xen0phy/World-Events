@@ -9,15 +9,14 @@
 //--------------------------------------------------------------------------------
 // Standalone "quick access" window for subscription state only (notify level,
 // done-for-today) - a lean, read-through view over the same Basic Event / Cyclic
-// slot / Live Event data as the main options panel's Table 3 (addon_options.cpp),
-// with none of that panel's structural editing (add/remove/rename, drag-and-drop,
-// coordinates, icon/color pickers, chat codes). Two tabs: "Basic & Cyclic" (the
-// original two-column view) and "Live Events" (flat list, no notify-level ladder
-// - Live Events are all-or-nothing subscribe/unsubscribe, unlike Basic/Cyclic's
-// four-level DrawNotifyLevelIcon/DrawNotifyLevelButtons in
-// addon_options_helpers.cpp). Reached via the "Edit Subscriptions" entry in the
-// bar segment / window row / toast right-click popups, plus a background right-
-// click on the bar strip and the window's empty content area - see
+// slot data as the main options panel's Table 3 (addon_options.cpp), with none of
+// that panel's structural editing (add/remove/rename, drag-and-drop, coordinates,
+// icon/color pickers, chat codes). One tab, "Basic & Cyclic" (the original two-
+// column view); Live Events are not handled here - they are all-or-nothing
+// subscribe/unsubscribe rows on the settings window's Live tab (options_live.h).
+// Reached via the "Edit Subscriptions" entry in the bar segment / window row /
+// toast right-click popups, plus a background right- click on the bar strip and
+// the window's empty content area - see
 // subscriptions_bar.cpp/subscriptions_window.cpp/subscriptions_notification.cpp.
 //
 // ShowEditSubscriptionsWindow is NOT a persisted setting (contrast
@@ -45,13 +44,13 @@ inline constexpr const char* kEditSubscriptionsWindowId = "###WorldEventsEditSub
 // No-argument overload: opens the window with nothing pre-expanded - the
 // background right-click entry point (bar strip / window empty area).
 //
-// Four-argument overload: opens the window, switches to the matching tab, and on
-// the very next draw expands the row identified by (kind, basicId, cyclicKey) for
-// Basic/Cyclic - and, for a Cyclic slot, its enclosing group too - or liveEventId
-// for Live. Same identity trio (now three-way via SubscriptionKind,
-// subscriptions.h) already threaded through LineSegment/Row/Popup in
-// subscriptions_bar.cpp/subscriptions_window.cpp/subscriptions_notification.cpp;
-// liveEventId defaults to empty, meaningful only when kind is Live.
+// Four-argument overload: opens the window and, on the very next draw, expands
+// the row identified by (kind, basicId, cyclicKey) - and, for a Cyclic slot, its
+// enclosing group too. Same identity trio already threaded through
+// LineSegment/Row/Popup in subscriptions_bar.cpp/subscriptions_window.cpp/
+// subscriptions_notification.cpp. For kind Live it opens nothing here: it
+// forwards to OpenOptionsWindow (options_window.h), which scrolls to liveEventId
+// on the Live tab. liveEventId defaults to empty, meaningful only for Live.
 //--------------------------------------------------------------------------------
 void OpenEditSubscriptionsWindow();
 void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicId,

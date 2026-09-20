@@ -18,10 +18,10 @@ bool ShowWsDebugWindow = false;
 namespace
 {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // ConnStateLabel   (pairs with: ConnectionStateLabel in live_events_ui.cpp)
+    // ConnStateLabel   (pairs with: ConnectionStateLabel in options_live.cpp)
     //--------------------------------------------------------------------------------
     // Own copy, not a shared helper - this file has no other dependency on
-    // live_events_ui.cpp, and the mapping is one line either way.
+    // options_live.cpp, and the mapping is one line either way.
     //--------------------------------------------------------------------------------
     const char* ConnStateLabel(WsConnectionState state)
     {

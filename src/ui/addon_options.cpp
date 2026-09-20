@@ -24,21 +24,15 @@
 
 #include "addon.h"
 #include "addon_options_helpers.h"
-#include "build_info.h"
-#include "changelog_window.h"
 #include "events.h"
 #include "events_categories.h"
-#include "events_live.h"
 #include "events_storage.h"   //. SlugifyName/UniqueId for new categories
-#include "gw2_api.h"
 #include "icon_whitener.h"
 #include "imgui.h"
-#include "live_events_ui.h"
 #include "localization.h"
 #include "options_window.h"
 #include "reset_defaults.h"
 #include "settings.h"
-#include "ws_debug_window.h"
 
 #include <algorithm>
 #include <map>
@@ -65,30 +59,6 @@ void AddonOptions()
     //_ Entry point to the unified settings window (options_window.h).
     if (ImGui::Button(Tr("WE_OPTWIN_OPEN_BUTTON")))
         OpenOptionsWindow();
-    ImGui::Spacing();
-
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
-    if (ImGui::SmallButton(Tr("WE_CHANGELOG_TITLE")))
-        ShowVersionHistoryWindow = true;
-    ImGui::PopStyleVar();
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s: %s", Tr("WE_OPT_RELEASE"), DateAndTime.c_str());
-    ImGui::SameLine();
-    
-    if constexpr (ShowDebug)
-    {
-        //_ "Render" = AddonRender's own cost (rings/bar/window/notify); "Options UI" = this panel's per-frame cost.
-        ImGui::TextDisabled("Render: %.3f ms avg (1s)", g_AvgRenderTimeMs);
-        ImGui::SameLine();
-        ImGui::TextDisabled("| Options UI: %.3f ms avg (1s)", g_AvgOptionsRenderTimeMs);
-
-        //_ Per-view Data (cache refresh) vs Draw (pixel work) split, so "why is view X slow" maps to one number.
-        ImGui::TextDisabled("Bar: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsBarDataMs, g_AvgSubsBarDrawMs);
-        ImGui::SameLine();
-        ImGui::TextDisabled("| Window: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsWindowDataMs, g_AvgSubsWindowDrawMs);
-        ImGui::TextDisabled("Notify: %.3f data / %.3f draw ms avg (1s)", g_AvgSubsNotifyDataMs, g_AvgSubsNotifyDrawMs);
-    }
-    
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -668,87 +638,6 @@ void AddonOptions()
             }
 
             ImGui::EndTable();
-        }
-    }
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    if (ImGui::CollapsingHeader(Tr("WE_OPT_LIVE_EVENTS_HEADER")))
-    {
-        //_ Informational panel above the controls - explains the feature before the checkboxes, not a control itself.
-        static const ImVec4 kInfoHeaderColor(0.65f, 0.80f, 1.00f, 1.0f);
-
-        ImGui::TextColored(kInfoHeaderColor, "%s", Tr("WE_OPT_LIVE_HOW_IT_WORKS_HEADING"));
-        ImGui::TextWrapped("%s", Tr("WE_OPT_LIVE_HOW_IT_WORKS_BODY"));
-        ImGui::Spacing();
-
-        ImGui::TextColored(kInfoHeaderColor, "%s", Tr("WE_OPT_LIVE_WHAT_DATA_HEADING"));
-        ImGui::TextWrapped("%s", Tr("WE_OPT_LIVE_WHAT_DATA_BODY"));
-        ImGui::Spacing();
-
-        ImGui::TextColored(kInfoHeaderColor, "%s", Tr("WE_OPT_LIVE_WHERE_HEADING"));
-        ImGui::TextWrapped("%s", Tr("WE_OPT_LIVE_WHERE_BODY"));
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        ImGui::Checkbox(Tr("WE_OPT_LIVE_SUBSCRIBE_CHECKBOX"), &LiveEventsSubscribed);
-        Tooltip(Tr("WE_OPT_LIVE_SUBSCRIBE_TIP"));
-
-        ImGui::SameLine();
-        if (ImGui::SmallButton(Tr("WE_OPT_LIVE_DEBUG_WS_BUTTON")))
-            ShowWsDebugWindow = true;
-        Tooltip(Tr("WE_OPT_LIVE_DEBUG_WS_TIP"));
-
-        if (Gw2ApiKey.empty())
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_OPT_LIVE_NO_API_KEY_WARNING"));
-        }
-        else if (GetLiveEventsRegion() == LiveEventsRegion::Unknown)
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_OPT_LIVE_REGION_UNKNOWN_WARNING"));
-        }
-
-        //_ RGB only (feeds the toast's accent stripe via ToImVec4), same convention as the Active/Soon pickers above.
-        ImGui::ColorEdit3(TrId("WE_LIVE_REPORT_COLOR", "##sub_color_live").c_str(), SubscriptionsLiveColor, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-        Tooltip(Tr("WE_LIVE_REPORT_COLOR_TIP"));
-
-        ImGui::Checkbox(Tr("WE_LIVE_SHARE_NAME_REPORTS"), &ShareNameInReports);
-        Tooltip(Tr("WE_LIVE_SHARE_NAME_REPORTS_TIP"));
-
-        ImGui::Checkbox(Tr("WE_OPT_LIVE_MOVE_BUTTON"), &LiveEventButtonMoveMode);
-        Tooltip(Tr("WE_OPT_LIVE_MOVE_BUTTON_TIP"));
-
-        ImGui::Checkbox(Tr("WE_OPT_LIVE_SHOW_REPORTS_WINDOW"), &ShowLiveEventReportsWindow);
-        Tooltip(Tr("WE_OPT_LIVE_SHOW_REPORTS_WINDOW_TIP"));
-
-        DisabledBlock(!ShowLiveEventReportsWindow)
-        {
-            ImGui::Checkbox(Tr("WE_OPT_LIVE_LOCK_WINDOW"), &LiveEventReportsWindowLocked);
-            Tooltip(Tr("WE_OPT_LIVE_LOCK_WINDOW_TIP"));
-        }
-
-        ImGui::Checkbox(Tr("WE_OPT_LIVE_SHOW_MAP_DOTS"), &ShowLiveEventMapDots);
-        Tooltip(Tr("WE_OPT_LIVE_SHOW_MAP_DOTS_TIP"));
-        ImGui::Spacing();
-
-        ImGui::TextDisabled("%s", Tr("WE_OPT_LIVE_ROSTER_NOTE"));
-        ImGui::Spacing();
-
-        if (g_LiveEvents.empty())
-        {
-            ImGui::TextDisabled("%s", Tr("WE_LIVE_NONE_COMPILED"));
-        }
-        else
-        {
-            for (const LiveEvent& ev : g_LiveEvents)
-            {
-                ImGui::BulletText("%s", DisplayName(ev));
-                ImGui::SameLine();
-                ImGui::TextDisabled("(map %d)", ev.mapId);
-            }
         }
     }
 }

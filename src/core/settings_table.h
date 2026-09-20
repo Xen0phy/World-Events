@@ -387,11 +387,11 @@ SETTING_ARRAY(Subscriptions, WeeklyAutoTrackColor, 4, ARR(1.000f, 0.157f, 0.157f
 // /mapchests), and is now also the only source for the live-event feature's NA/EU
 // region (GET /v2/account's home world - see GetLiveEventsRegion, gw2_api.h -
 // since Mumble Link's Identity JSON no longer carries a usable world_id). Empty =
-// all of that off, no requests made (PollGw2Api's early-out). Only gates
-// subscriptions_edit_window.cpp's per-event region-wide toast checkbox -
-// live_events_ui.cpp's report button needs no key. Always holds the PLAINTEXT key
-// at runtime - see apikey_crypto.h/.cpp for the at-rest encryption, special-cased
-// out of settings.cpp's generic parse path.
+// all of that off, no requests made (PollGw2Api's early-out). Only gates the Live
+// tab's per-event region-wide toast checkbox (options_live.cpp); the report
+// button needs no key. Always holds the PLAINTEXT key at runtime - see
+// apikey_crypto.h/.cpp for the at-rest encryption, special-cased out of
+// settings.cpp's generic parse path.
 //--------------------------------------------------------------------------------
 SETTING_SECRET(Subscriptions, Gw2ApiKey, std::string())
 
@@ -551,15 +551,14 @@ SETTING(Notifications, NotificationStackUpward, bool, true)
 // LiveEventsSubscribed
 //--------------------------------------------------------------------------------
 // Master opt-in for the whole live-event-reporting feature. False (default) makes
-// RenderLiveEventButtons() (live_events_ui.h/.cpp) a complete no-op AND keeps the
+// RenderLiveEventButtons() (options_live.h/.cpp) a complete no-op AND keeps the
 // client from ever connecting to the relay server/Durable Object (see UpdateShard
-// call in live_events_ui.cpp) - not just hiding the button. True follows every
+// call in options_live.cpp) - not just hiding the button. True follows every
 // compiled-in LiveEvent (events_live.h) at once; there's no per-event opt-in
 // beneath this one. Independent of Gw2ApiKey (above): reporting/receiving on your
-// own map instance needs no region, so the options-panel checkbox for this isn't
-// gated on a key - only the separate per-event toast-delivery opt-in
-// (subscriptions_edit_window.cpp) is, since that one needs GetLiveEventsRegion
-// (gw2_api.h) to route across maps.
+// own map instance needs no region, so the Live tab's switch for this isn't gated
+// on a key - only the separate per-event toast-delivery opt-in (options_live.cpp)
+// is, since that one needs GetLiveEventsRegion (gw2_api.h) to route across maps.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, LiveEventsSubscribed, bool, false)
 
@@ -568,9 +567,9 @@ SETTING(LiveEvents, LiveEventsSubscribed, bool, false)
 //--------------------------------------------------------------------------------
 // Report button's anchor point, in screen-space pixels from the top-right corner
 // (X grows leftward, Y grows downward - see RenderLiveEventButtons). User-
-// draggable via "Move button" in the options panel (LiveEventButtonMoveMode,
-// live_events_ui.h); 20.0f/20.0f matches the button stack's original hardcoded
-// margin, so an existing settings.ini with no entry for these keeps that look.
+// draggable via "Move button" on the Live tab (options_live.cpp); 20.0f/20.0f
+// matches the button stack's original hardcoded margin, so an existing
+// settings.ini with no entry for these keeps that look.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, LiveEventButtonMarginX, float, 20.0f)
 SETTING(LiveEvents, LiveEventButtonMarginY, float, 20.0f)
@@ -578,9 +577,9 @@ SETTING(LiveEvents, LiveEventButtonMarginY, float, 20.0f)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ShowLiveEventReportsWindow
 //--------------------------------------------------------------------------------
-// Visibility for the live-event reports window (live_events_ui.h/.cpp) - set true
+// Visibility for the live-event reports window (options_live.h/.cpp) - set true
 // either by clicking/right-clicking a report button, or directly via "Show live
-// event reports window" in the options panel, so it can stay open (and reopen on
+// event reports window" on the Live tab, so it can stay open (and reopen on
 // restart) without being near any event. The window's own close button writes
 // back through this same flag.
 //--------------------------------------------------------------------------------
@@ -589,10 +588,10 @@ SETTING(LiveEvents, ShowLiveEventReportsWindow, bool, false)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // LiveEventReportsWindowLocked
 //--------------------------------------------------------------------------------
-// Low-profile display mode for the reports window (live_events_ui.h/.cpp): title
+// Low-profile display mode for the reports window (options_live.h/.cpp): title
 // bar, background, and resize/move all dropped, leaving just the text content
 // pinned at its current screen position - a lightweight always-on HUD instead of
-// an interactive window. Toggled via "Lock window" in the options panel, next to
+// an interactive window. Toggled via "Lock window" on the Live tab, next to
 // ShowLiveEventReportsWindow; has no effect while that flag is false, since
 // there's no window to reshape.
 //--------------------------------------------------------------------------------
@@ -616,6 +615,6 @@ SETTING(LiveEvents, ShowLiveEventMapDots, bool, false)
 // anonymous, matching this feature's original trust model. True sends
 // GetMumbleCharacterName() (subscriptions.h) instead, letting a subscribed Live
 // Event toast whisper the reporter directly (WhisperToChat, subscriptions.h) -
-// see the report-button click in live_events_ui.cpp, the only place this is read.
+// see the report-button click in options_live.cpp, the only place this is read.
 //--------------------------------------------------------------------------------
 SETTING(LiveEvents, ShareNameInReports, bool, false)

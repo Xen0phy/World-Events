@@ -237,7 +237,7 @@ void WhisperToChat(const std::string& targetName, const std::string& message, st
 // Local player's character name, straight from Mumble identity - empty if
 // unavailable (MumbleLink not ready, malformed identity, no name). Used as the
 // reporter_name passed to SendReport when ShareNameInReports is on
-// (live_events_ui.cpp); see subscriptions.cpp for the UTF-16 parse/narrow this
-// does to get there.
+// (options_live.cpp); see subscriptions.cpp for the UTF-16 parse/narrow this does
+// to get there.
 //--------------------------------------------------------------------------------
 std::string GetMumbleCharacterName();

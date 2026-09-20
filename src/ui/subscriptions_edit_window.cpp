@@ -20,12 +20,6 @@
 // convention as the main panel, for glanceable state - and DrawNotifyLevelButtons
 // in the expanded body, for a direct jump to any level; see
 // DrawLeanBasicEventRow/DrawLeanCyclicSlotRow below for both.
-//
-// The Live Events tab is its own flat table (subscribe / name / "Only named" /
-// done-today columns), not the category tree the other tab uses - see
-// DrawLeanLiveEventRow - with the same "Share my name in reports" checkbox
-// (ShareNameInReports, settings_table.h) the options panel exposes, since whether
-// a report carries the reporter's name is what "Only named" filters on.
 //--------------------------------------------------------------------------------
 
 #include "subscriptions_edit_window.h"
@@ -33,16 +27,12 @@
 #include "addon_options_helpers.h" //. DrawSubscribeCheckbox/DrawNotifyLevelIcon/DrawNotifyLevelButtons/search predicates/DisabledBlock
 #include "events.h"
 #include "events_categories.h"
-#include "events_live.h" //. g_LiveEvents, for the Live Events tab
 #include "events_storage.h" //. DisplayName
 #include "events_tracking.h"
 #include "imgui.h"
 #include "localization.h"
-#include "settings.h" //. Gw2ApiKey, gates the live-event subscribe checkbox below
+#include "options_window.h" //. OpenOptionsWindow, where Live rows are handled
 #include "subscriptions.h"
-
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 
 #include <algorithm>
 #include <cctype>
@@ -56,8 +46,8 @@ bool ShowEditSubscriptionsWindow = false;
 //********************************************************************************
 // EditSubscriptionsTarget
 //--------------------------------------------------------------------------------
-// kind/basicId/cyclicKey/liveEventId   identity, four-way via
-//                                        SubscriptionKind (subscriptions.h)
+// kind/basicId/cyclicKey   identity via SubscriptionKind (subscriptions.h);
+//                          Basic or Cyclic only, Live goes to the settings window
 //--------------------------------------------------------------------------------
 // The row a deep-linking open() call wants expanded on the next draw. Consumed
 // exactly once by RenderEditSubscriptionsWindow (see s_hasPendingTarget below),
@@ -68,22 +58,16 @@ struct EditSubscriptionsTarget
     SubscriptionKind kind = SubscriptionKind::Basic;
     std::string basicId;
     CyclicSubscriptionKey cyclicKey;
-    std::string liveEventId;
 };
 
 static EditSubscriptionsTarget s_pendingTarget;
 static bool                    s_hasPendingTarget = false;
 
-//_ Live tab has no row to expand (see DrawLeanLiveEventRow) - scrolled-to id and its GetTickCount64() flash deadline instead.
-static std::string        s_liveHighlightEventId;
-static unsigned long long s_liveHighlightUntil = 0;
-
-static constexpr unsigned long long kLiveHighlightDurationMs = 1500;   //. deep-link scroll-to flash duration
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OpenEditSubscriptionsWindow
 //--------------------------------------------------------------------------------
-// See the header for the two overloads' contracts.
+// See the header for the two overloads' contracts. The four-argument one hands a
+// Live row to the settings window instead of opening this window.
 //--------------------------------------------------------------------------------
 void OpenEditSubscriptionsWindow()
 {
@@ -94,8 +78,14 @@ void OpenEditSubscriptionsWindow()
 void OpenEditSubscriptionsWindow(SubscriptionKind kind, const std::string& basicId,
     const CyclicSubscriptionKey& cyclicKey, const std::string& liveEventId)
 {
+    if (kind == SubscriptionKind::Live)
+    {
+        OpenOptionsWindow(kind, basicId, cyclicKey, liveEventId);
+        return;
+    }
+
     ShowEditSubscriptionsWindow = true;
-    s_pendingTarget = EditSubscriptionsTarget{ kind, basicId, cyclicKey, liveEventId };
+    s_pendingTarget = EditSubscriptionsTarget{ kind, basicId, cyclicKey };
     s_hasPendingTarget = true;
 }
 
@@ -252,77 +242,16 @@ static void DrawLeanCyclicGroupRow(int i, bool forceOpenGroup, bool hasForceSlot
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawLeanLiveEventRow
-//--------------------------------------------------------------------------------
-// One table row per compiled-in LiveEvent: subscribe checkbox, name, "Only named"
-// gate, and done-today toggle. No notify-level ladder or category tree -
-// subscribing IS the toast opt-in, one flat list (subscriptions.h), so unlike
-// DrawLeanBasicEventRow/DrawLeanCyclicSlotRow there's nothing to collapse. The
-// subscribe checkbox is disabled while Gw2ApiKey (settings.h) is empty -
-// GetLiveEventsRegion (gw2_api.h) needs it for region-wide toast delivery. See
-// IsLiveEventNamedOnly (subscriptions.h) for what "Only named" gates. isTarget is
-// true for exactly one row, on the frame a deep-link target lands on it - scrolls
-// to it and starts the s_liveHighlightEventId/Until flash, since there's no row
-// here to expand.
-//--------------------------------------------------------------------------------
-static void DrawLeanLiveEventRow(const LiveEvent& ev, bool isTarget)
-{
-    ImGui::TableNextRow();
-
-    if (isTarget)
-    {
-        ImGui::SetScrollHereY(0.5f);
-        s_liveHighlightEventId = ev.eventId;
-        s_liveHighlightUntil   = GetTickCount64() + kLiveHighlightDurationMs;
-    }
-    if (ev.eventId == s_liveHighlightEventId && GetTickCount64() < s_liveHighlightUntil)
-        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
-
-    ImGui::TableSetColumnIndex(0);
-    bool subscribed = IsLiveEventSubscribed(ev.eventId);
-    DisabledBlock(Gw2ApiKey.empty())
-    {
-        if (DrawSubscribeCheckbox("##edit_live_subscribe", subscribed))
-            ToggleLiveEventSubscription(ev.eventId);
-    }
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::SetTooltip("%s", Gw2ApiKey.empty()
-            ? Tr("WE_EDIT_LIVE_SUBSCRIBE_TIP_NO_KEY")
-            : Tr("WE_EDIT_LIVE_SUBSCRIBE_TIP"));
-    }
-
-    ImGui::TableSetColumnIndex(1);
-    ImGui::TextUnformatted(DisplayName(ev));
-
-    ImGui::TableSetColumnIndex(2);
-    bool namedOnly = IsLiveEventNamedOnly(ev.eventId);
-    if (ImGui::Checkbox("##edit_live_named_only", &namedOnly))
-        ToggleLiveEventNamedOnly(ev.eventId);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", Tr("WE_EDIT_LIVE_NAMED_ONLY_TIP"));
-
-    ImGui::TableSetColumnIndex(3);
-    bool doneToday = IsLiveEventMarkedDoneToday(ev.eventId);
-    if (ImGui::Checkbox("##edit_live_done", &doneToday))
-        ToggleLiveEventDoneToday(ev.eventId);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", Tr("WE_EDIT_LIVE_DONE_TIP"));
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderEditSubscriptionsWindow
 //--------------------------------------------------------------------------------
-// Two tabs (first BeginTabBar use in this addon): "Basic & Cyclic", the original
+// One tab, "Basic & Cyclic" (first BeginTabBar use in this addon): the original
 // search box + 2-column table (Basic Events / Cyclic Events), each a category-
 // aware tree exactly like addon_options.cpp's Table 3, minus every structural-
 // editing affordance that doesn't belong in a quick-access view - see the file
-// header; and "Live Events", a "Share my name in reports" checkbox above a
-// 4-column table (DrawLeanLiveEventRow per g_LiveEvents entry), no search box -
-// the compiled-in roster is short enough not to need one. The pending deep-link
-// target (if any) is consumed once Begin() confirms the window drew this frame,
-// forcing its row/category and matching tab open for that one draw. Esc-to-close
-// is handled by Nexus via GUI_RegisterCloseOnEscape (addon.cpp).
+// header. The pending deep-link target (if any) is consumed once Begin() confirms
+// the window drew this frame, forcing its row/category and the tab open for that
+// one draw. Esc-to-close is handled by Nexus via GUI_RegisterCloseOnEscape
+// (addon.cpp).
 //--------------------------------------------------------------------------------
 void RenderEditSubscriptionsWindow()
 {
@@ -358,16 +287,8 @@ void RenderEditSubscriptionsWindow()
         return;
     }
 
-    //_ Forces whichever tab matches the pending target open for its one consuming frame - see DrawLeanBasicEventRow's header comment for why _SetSelected here, not a _Once-style flag.
-    ImGuiTabItemFlags basicCyclicTabFlags = ImGuiTabItemFlags_None;
-    ImGuiTabItemFlags liveTabFlags        = ImGuiTabItemFlags_None;
-    if (pendingTarget)
-    {
-        if (pendingTarget->kind == SubscriptionKind::Live)
-            liveTabFlags = ImGuiTabItemFlags_SetSelected;
-        else
-            basicCyclicTabFlags = ImGuiTabItemFlags_SetSelected;
-    }
+    //_ Forces the tab open for the pending target's one consuming frame - see DrawLeanBasicEventRow's header comment for why _SetSelected here, not a _Once-style flag.
+    ImGuiTabItemFlags basicCyclicTabFlags = pendingTarget ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
 
     if (ImGui::BeginTabItem(Tr("WE_EDIT_TAB_BASIC_CYCLIC"), nullptr, basicCyclicTabFlags))
     {
@@ -554,39 +475,6 @@ void RenderEditSubscriptionsWindow()
             ImGui::EndTable();
         }
 
-        ImGui::EndTabItem();
-    }
-
-    if (ImGui::BeginTabItem(Tr("WE_EDIT_TAB_LIVE"), nullptr, liveTabFlags))
-    {
-        ImGui::Checkbox(Tr("WE_LIVE_SHARE_NAME_REPORTS"), &ShareNameInReports);
-        Tooltip(Tr("WE_LIVE_SHARE_NAME_REPORTS_TIP"));
-        ImGui::Spacing();
-
-        if (g_LiveEvents.empty())
-        {
-            ImGui::TextDisabled("%s", Tr("WE_LIVE_NONE_COMPILED"));
-        }
-        else if (ImGui::BeginTable("##edit_live_events", 4,
-            ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingFixedFit))
-        {
-            ImGui::TableSetupColumn("##edit_live_subscribe_col", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_EVENT"), ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_ONLY_NAMED"), ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_DONE_TODAY"), ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableHeadersRow();
-
-            for (const LiveEvent& ev : g_LiveEvents)
-            {
-                ImGui::PushID(ev.eventId.c_str());
-                bool isTarget = pendingTarget && pendingTarget->kind == SubscriptionKind::Live
-                    && ev.eventId == pendingTarget->liveEventId;
-                DrawLeanLiveEventRow(ev, isTarget);
-                ImGui::PopID();
-            }
-
-            ImGui::EndTable();
-        }
         ImGui::EndTabItem();
     }
 

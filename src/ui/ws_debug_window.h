@@ -1,8 +1,8 @@
 //################################################################################
 // ws_debug_window.h
 //--------------------------------------------------------------------------------
-// ShowWsDebugWindow          visibility flag - toggle from AddonOptions or
-//                            anywhere else convenient
+// ShowWsDebugWindow          visibility flag - set by the Help tab's Diagnostics
+//                            button (options_help.cpp)
 // kWsDebugWindowId           stable ImGui window ID, independent of the
 //                            localized title (see below)
 // RenderWsDebugWindow()      draws the window if ShowWsDebugWindow is set -
