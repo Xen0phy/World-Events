@@ -149,9 +149,9 @@ void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color);
 // shows the *current* level (minus/plus/bell/speaker for 0-3). Left-click always
 // advances one level, wrapping 3 -> 0; jumping to an arbitrary level lives in
 // DrawNameAndContextMenu's right-click menu instead (notifyLevel/ setNotifyLevel
-// params below). Also used at the front of each Quick row in options_events.cpp
-// for glanceable state - see DrawNotifyLevelButtons below for the direct-jump
-// control in the expanded body.
+// params below). Also used at the front of each event and slot row
+// (DrawBasicEventRow, DrawCyclicGroupRow) for glanceable state - see
+// DrawNotifyLevelButtons below for the direct-jump control in the expanded body.
 //--------------------------------------------------------------------------------
 int DrawNotifyLevelIcon(const char* idSuffix, int level);
 
@@ -161,12 +161,12 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level);
 // Same 0..3 notify ladder as DrawNotifyLevelIcon, laid out as four side-by-side
 // hit-boxes (minus, plus, bell, speaker) instead of one cycling icon - each
 // independently clickable, jumping straight to that level instead of advancing
-// one step. The currently-active box is framed/highlighted. Used by the Quick
-// rows in options_events.cpp, inside each row's expanded body, alongside the
-// front-of-row DrawNotifyLevelIcon - the icon gives glanceable state, this gives
-// a direct jump without the right-click menu DrawNotifyLevelIcon otherwise relies
-// on (Quick rows have none). Returns the level to apply this frame - unchanged
-// unless one of the four boxes was just clicked.
+// one step. The currently-active box is framed/highlighted. Used inside each
+// event and slot row's expanded body (DrawBasicEventRow, DrawCyclicGroupRow),
+// alongside the front-of-row DrawNotifyLevelIcon - the icon gives glanceable
+// state, this gives a direct jump without opening the right-click menu. Returns
+// the level to apply this frame - unchanged unless one of the four boxes was just
+// clicked.
 //--------------------------------------------------------------------------------
 int DrawNotifyLevelButtons(const char* idSuffix, int level);
 
@@ -276,17 +276,44 @@ bool ContainsCaseInsensitive(const std::string& haystack, const std::string& nee
 bool EventMatchesSearch(const WorldEvent& ev, const std::string& queryLower);
 bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower);
 
+//********************************************************************************
+// RowMode
+//--------------------------------------------------------------------------------
+// deep          true when an expanded body also shows the editing fields
+// linked        a deep link names this row; for a group row, the group or one of
+//               its slots
+// linkPending   the link has not landed yet
+// linkedSlotId  group rows: id of the slot the link names, empty when it names
+//               the group itself; null for a Basic row
+//--------------------------------------------------------------------------------
+// What the caller decides about one row. options_events.cpp builds it per row
+// from the Quick/Deep toggle and its pending deep link (options_window.h), so the
+// row drawers below read no window state of their own.
+//--------------------------------------------------------------------------------
+struct RowMode
+{
+    bool deep;
+    bool linked;
+    bool linkPending;
+    const std::string* linkedSlotId;
+};
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBasicEventRow / DrawCyclicGroupRow
 //--------------------------------------------------------------------------------
-// Full row drawers for one g_Events[i] / g_CyclicGroups[i] entry. PushID/PopID
-// around each call is the CALLER's responsibility (the same index can be drawn
-// from different places depending on category membership). Neither modifies the
-// underlying vector directly - each sets its pendingRemove* index and the caller
-// defers the actual erase until every row for that frame has been drawn.
+// Full row drawers for one g_Events[i] / g_CyclicGroups[i] entry, drawn in Quick
+// and Deep mode alike: mode.deep adds the editing fields under the notify
+// buttons, Done for today or Subscribe all. A group row nests its slot rows. The
+// row a pending deep link names (mode.linked) opens, scrolls to the middle of the
+// pane and flashes; a slot link opens its group and flashes only the slot.
+// PushID/PopID around each call is the CALLER's responsibility (the same index
+// can be drawn from different places depending on category membership). Neither
+// modifies the underlying vector directly - each sets its pendingRemove* index
+// and the caller defers the actual erase until every row for that frame has been
+// drawn.
 //--------------------------------------------------------------------------------
-void DrawBasicEventRow(int i, int& pendingRemoveIndex);
-void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex);
+void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex);
+void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Tooltip

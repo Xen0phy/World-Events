@@ -694,22 +694,18 @@ donc sa notification est ignorée plutôt que d'en afficher une sur laquelle vou
 Un reporte anónimo no se puede susurrar ni seguir directamente,
 así que se omite su notificación en lugar de mostrar una sobre la que no puedes actuar.",仅当上报者共享角色名时才推送通知。匿名上报无法直接密语或跟进，因此不会弹出无法交互的通知。,
 WE_OPT_LIVE_ROW_DONE_TIP,Done for today - mutes toasts for this event until the daily reset.,Heute erledigt - stummt Benachrichtigungen für dieses Event bis zum täglichen Reset.,Fait aujourd'hui - coupe les notifications pour cet événement jusqu'à la réinitialisation quotidienne.,Hecho hoy: silencia las notificaciones de este evento hasta el reinicio diario.,今日已完成：该事件弹窗通知将被静音，直至每日重置。,
-#,"options_events.cpp - Events tab: top strip (Quick/Deep toggle), the shared, Basic and Cyclic settings headers with their controls (including Set all icons), the Quick rows, and the toolbar above each list (add item, add category). The search box, Reset/Restore buttons, right-click hint and sub-tab names reuse rows above; WE_OPT_ACTIVE and WE_OPT_SOON are shared with options_general.cpp.",,,,,
+#,"options_events.cpp - Events tab: top strip (Quick/Deep toggle), the shared, Basic and Cyclic settings headers with their controls (including Set all icons), the toolbar above each list (add item, add category), and the Subscribe all and Done for today labels of the expanded rows (drawn by addon_options_helpers.cpp). The search box, Reset/Restore buttons, right-click hint and sub-tab names reuse rows above; WE_OPT_ACTIVE and WE_OPT_SOON are shared with options_general.cpp.",,,,,
 WE_OPTWIN_EVENTS_QUICK,Quick,Schnell,Rapide,Rápido,快速,
 WE_OPTWIN_EVENTS_DEEP,Deep,Detailliert,Détaillé,Detallado,详细,
-WE_OPTWIN_EVENTS_QUICK_TIP,Expanded rows show only the notify level and Done for today.,"Aufgeklappte Zeilen zeigen nur die Benachrichtigungsstufe
-und Heute erledigt.","Les lignes développées n'affichent que le niveau de notification
-et Fait aujourd'hui.","Las filas desplegadas solo muestran el nivel de notificación
-y Hecho hoy.",展开的条目只显示通知级别和“今日已完成”。,
-WE_OPTWIN_EVENTS_DEEP_TIP,"Expanded rows show every setting: location, timing, icon, colors and
-text to copy. Categories can only be edited in this mode.","Aufgeklappte Zeilen zeigen alle Einstellungen: Position, Zeiten, Symbol,
-Farben und zu kopierenden Text. Kategorien lassen sich nur in diesem
-Modus bearbeiten.","Les lignes développées affichent tous les réglages : position, horaires,
-icône, couleurs et texte à copier. Les catégories ne se modifient que
-dans ce mode.","Las filas desplegadas muestran todos los ajustes: ubicación, horarios,
-icono, colores y texto para copiar. Las categorías solo se editan en
-este modo.","展开的条目显示全部设置：位置、时间、图标、颜色和待复制文本。
-分类只能在此模式下编辑。",
+WE_OPTWIN_EVENTS_QUICK_TIP,Expanded rows show the notify level and Done for today.,"Aufgeklappte Zeilen zeigen die Benachrichtigungsstufe
+und Heute erledigt.","Les lignes développées affichent le niveau de notification
+et Fait aujourd'hui.","Las filas desplegadas muestran el nivel de notificación
+y Hecho hoy.",展开的条目显示通知级别和“今日已完成”。,
+WE_OPTWIN_EVENTS_DEEP_TIP,"Expanded rows also show every setting: location, timing, icon, colors
+and text to copy.","Aufgeklappte Zeilen zeigen zusätzlich alle Einstellungen: Position,
+Zeiten, Symbol, Farben und zu kopierenden Text.","Les lignes développées affichent aussi tous les réglages : position,
+horaires, icône, couleurs et texte à copier.","Las filas desplegadas muestran además todos los ajustes: ubicación,
+horarios, icono, colores y texto para copiar.",展开的条目还显示全部设置：位置、时间、图标、颜色和待复制文本。,
 WE_OPTWIN_HDR_SHARED,Shared settings (Basic and Cyclic),Gemeinsame Einstellungen (Normal und Zyklisch),Paramètres communs (Normal et Cyclique),Ajustes comunes (Normal y Cíclico),通用设置（基础和循环）,
 WE_OPT_GROW_MARKERS_ZOOM,Grow markers and rings when zooming in,Markierungen und Ringe beim Zoomen vergrößern,Agrandir marqueurs et anneaux en zoomant,Agrandar marcadores y anillos al acercar el zoom,放大地图时标记和圆环随之放大,
 WE_OPT_START_GROWING_AT,Markers/rings start growing at,Markierungen/Ringe wachsen ab,Marqueurs/anneaux grandissent dès,Marcadores/anillos crecen desde,标记/圆环开始放大的缩放等级,

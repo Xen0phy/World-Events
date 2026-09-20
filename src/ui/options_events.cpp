@@ -4,7 +4,6 @@
 // kMinSearchWidthEm    narrowest the search box may shrink to
 // kAlphaSwatchFlags    color swatch whose picker has an alpha bar
 // kLinkLifeFrames      frames a deep link waits for its sub-tab to show
-// kLinkFlashId         highlight id the linked row's flash runs on
 // s_deepMode           Quick/Deep toggle state
 // s_searchBuf          text of the search box
 // s_basicWasSearching  Basic list had a query on its last drawn frame
@@ -23,12 +22,10 @@
 // DrawBasicSettings    body of the Basic event settings header
 // DrawCyclicSettings   body of the Cyclic event settings header
 // SearchQueryLower     search box text, lowercased for the predicates
-// BeginLinkedRow       flash and landing test for one Quick row
 // LinkedItemId/SelectIfLinked/ConsumeLink
 //                      list-level side of a pending deep link
-// DrawQuickBasicRow    Quick row for one Basic event
-// DrawQuickSlotRow     Quick row for one Cyclic slot
-// DrawQuickGroupRow    Quick row for one Cyclic group, nests its slot rows
+// BasicRowMode/GroupRowMode
+//                      RowMode for one Basic event / Cyclic group
 // CategoryEditState    what one list's category rows remember between frames
 // DrawListToolbar      line above a list: name, add item, add category
 // AddCategory          append an unnamed category and open its name box
@@ -45,13 +42,11 @@
 #include "events.h" //. g_Events, g_CyclicGroups
 #include "events_categories.h" //. Category, DisplayName
 #include "events_storage.h" //. DisplayName for events, groups and slots
-#include "events_tracking.h" //. done-for-today queries and toggles
 #include "imgui.h"
 #include "localization.h"
 #include "maprender.h" //. GetEventIconFilenames
 #include "reset_defaults.h" //. DrawResetToDefaultsButton/Popup, DrawRestoreMissingButton
 #include "settings.h"
-#include "subscriptions.h" //. IsCyclicSlotSubscribed
 #include "texture_whitener.h"
 
 #include <algorithm>
@@ -70,9 +65,6 @@ static constexpr ImGuiColorEditFlags kAlphaSwatchFlags = ImGuiColorEditFlags_Alp
 
 //_ Covers the frame a sub-tab selection takes to show, plus one spare.
 static constexpr int kLinkLifeFrames = 3;
-
-//_ One id for every row: s_link decides which row matches it.
-static constexpr const char* kLinkFlashId = "events_linked_row";
 
 //_ Not persisted: the window opens in Quick every time (ResetOptionsEventsView).
 static bool s_deepMode = false;
@@ -471,34 +463,6 @@ static std::string SearchQueryLower()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// BeginLinkedRow
-//--------------------------------------------------------------------------------
-// Call before a Quick row's first item; isLinked says whether s_link names this
-// row. Returns true on the one frame the pending link lands on it: the caller
-// then scrolls to the row and opens its node, and the flash starts. While the
-// flash runs (OptionsHighlight_Set, options_window.h), the row's first line gets
-// a Header tint. It is drawn ahead of the row's items, so they sit on top of it.
-//--------------------------------------------------------------------------------
-static bool BeginLinkedRow(bool isLinked)
-{
-    if (!isLinked)
-        return false;
-
-    const bool landing = s_linkPending;
-    if (landing)
-        OptionsHighlight_Set(kLinkFlashId);
-
-    if (OptionsHighlight_IsActive(kLinkFlashId))
-    {
-        const ImVec2 pos = ImGui::GetCursorScreenPos();
-        const ImVec2 end(pos.x + ImGui::GetContentRegionAvail().x, pos.y + ImGui::GetFrameHeight());
-        ImGui::GetWindowDrawList()->AddRectFilled(pos, end, ImGui::GetColorU32(ImGuiCol_HeaderHovered), ImGui::GetStyle().FrameRounding);
-    }
-
-    return landing;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // LinkedItemId/SelectIfLinked/ConsumeLink
 //--------------------------------------------------------------------------------
 // The list-level side of a pending deep link; kind is the list asking, Basic or
@@ -528,133 +492,22 @@ static void ConsumeLink(SubscriptionKind kind)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawQuickBasicRow/DrawQuickSlotRow/DrawQuickGroupRow
+// BasicRowMode/GroupRowMode
 //--------------------------------------------------------------------------------
-// The Quick renderers for DrawCategorizedList. Each row is a tree node; the
-// collapsed line shows the state at a glance: notify icon, then the show-on-map
-// checkbox, then the name (a group has the checkbox only). The expanded body of
-// an event or slot is the four-way DrawNotifyLevelButtons jump plus "Done for
-// today"; a group's is a "Subscribe all" checkbox above its slot rows. The icon
-// and the buttons re-read the level, since the icon may change it this frame.
-// Levels and done flags live in events_tracking.h and subscriptions.h. The row
-// s_link names goes through BeginLinkedRow: it opens and scrolls into view. A
-// link to one slot opens the slot's group and flashes the slot, not the group.
+// The RowMode (addon_options_helpers.h) for one row: the Quick/Deep toggle, and
+// whether the pending deep link names the row. A group is linked by a link to it
+// or to any of its slots; the slot id rides along for the row to tell them apart.
 //--------------------------------------------------------------------------------
-static void DrawQuickBasicRow(int i)
+static RowMode BasicRowMode(const WorldEvent& ev)
 {
-    WorldEvent& ev = g_Events[i];
-    const bool landing = BeginLinkedRow(s_link.kind == SubscriptionKind::Basic && s_link.basicId == ev.id);
-
-    int notifyLevel = GetBasicEventNotifyLevel(ev.id);
-    int newNotifyLevel = DrawNotifyLevelIcon("##quick_notify", notifyLevel);
-    if (newNotifyLevel != notifyLevel)
-        SetBasicEventNotifyLevel(ev.id, newNotifyLevel);
-    if (landing)
-        ImGui::SetScrollHereY(0.5f); //. after the row's first item
-    ImGui::SameLine();
-
-    DrawSubscribeCheckbox("##quick_show_on_map", ev.shown);
-    Tooltip(Tr("WE_TIP_SHOW_ON_MAP"));
-    ImGui::SameLine();
-
-    //_ Always, not Once: a repeat link to the same row must reopen it.
-    if (landing)
-        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-    if (ImGui::TreeNode("##quick_event_node", "%s", DisplayName(ev)))
-    {
-        int level = GetBasicEventNotifyLevel(ev.id);
-        int newLevel = DrawNotifyLevelButtons("##quick_notify_buttons", level);
-        if (newLevel != level)
-            SetBasicEventNotifyLevel(ev.id, newLevel);
-
-        bool doneToday = IsBasicEventMarkedDoneToday(ev.id);
-        if (ImGui::Checkbox(Tr("WE_OPTWIN_QUICK_DONE_TODAY"), &doneToday))
-            ToggleBasicEventDoneToday(ev.id);
-
-        ImGui::TreePop();
-    }
+    const bool linked = s_link.kind == SubscriptionKind::Basic && s_link.basicId == ev.id;
+    return RowMode{ s_deepMode, linked, s_linkPending, nullptr };
 }
 
-static void DrawQuickSlotRow(CyclicGroup& grp, int s)
+static RowMode GroupRowMode(const CyclicGroup& grp)
 {
-    CyclicGroup::Slot& slot = grp.slots[s];
-    CyclicSubscriptionKey key{ grp.id, slot.id };
-    const bool landing = BeginLinkedRow(s_link.kind == SubscriptionKind::Cyclic && s_link.cyclicKey == key);
-
-    int notifyLevel = GetCyclicSlotNotifyLevel(key);
-    int newNotifyLevel = DrawNotifyLevelIcon("##quick_notify", notifyLevel);
-    if (newNotifyLevel != notifyLevel)
-        SetCyclicSlotNotifyLevel(key, newNotifyLevel);
-    if (landing)
-        ImGui::SetScrollHereY(0.5f); //. after the row's first item
-    ImGui::SameLine();
-
-    DrawSubscribeCheckbox("##quick_show_slot_on_map", slot.shown);
-    Tooltip(Tr("WE_TIP_SHOW_OCCURRENCE"));
-    ImGui::SameLine();
-
-    if (landing)
-        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-    if (ImGui::TreeNode("##quick_slot_node", "%s", DisplayName(slot, grp.id)))
-    {
-        int level = GetCyclicSlotNotifyLevel(key);
-        int newLevel = DrawNotifyLevelButtons("##quick_notify_buttons", level);
-        if (newLevel != level)
-            SetCyclicSlotNotifyLevel(key, newLevel);
-
-        bool doneToday = IsCyclicSlotMarkedDoneToday(key);
-        if (ImGui::Checkbox(Tr("WE_OPTWIN_QUICK_DONE_TODAY"), &doneToday))
-            ToggleCyclicSlotDoneToday(key);
-
-        ImGui::TreePop();
-    }
-}
-
-static void DrawQuickGroupRow(int i)
-{
-    CyclicGroup& grp = g_CyclicGroups[i];
-    const bool inLink = s_link.kind == SubscriptionKind::Cyclic && s_link.cyclicKey.groupId == grp.id;
-    const bool landing = BeginLinkedRow(inLink && s_link.cyclicKey.slotId.empty());
-
-    DrawSubscribeCheckbox("##quick_show_group_on_map", grp.shown);
-    if (landing)
-        ImGui::SetScrollHereY(0.5f); //. after the row's first item
-    Tooltip(Tr("WE_TIP_SHOW_RING"));
-    ImGui::SameLine();
-
-    if (inLink && s_linkPending)
-        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-    if (ImGui::TreeNode("##quick_group_node", "%s", DisplayName(grp)))
-    {
-        bool allSlotsSubscribed = !grp.slots.empty() &&
-            std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
-            {
-                return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.id });
-            });
-        if (DrawSubscribeCheckbox("##quick_subscribe_group", allSlotsSubscribed))
-        {
-            for (const auto& slot : grp.slots)
-            {
-                CyclicSubscriptionKey key{ grp.id, slot.id };
-                //_ Unticking drops every slot to 0; ticking only raises 0 to 1, so higher levels survive.
-                if (!allSlotsSubscribed)
-                    SetCyclicSlotNotifyLevel(key, 0);
-                else if (GetCyclicSlotNotifyLevel(key) == 0)
-                    SetCyclicSlotNotifyLevel(key, 1);
-            }
-        }
-        Tooltip(Tr("WE_TIP_SUBSCRIBE_CYCLE"));
-        ImGui::SameLine();
-        ImGui::TextUnformatted(Tr("WE_OPTWIN_QUICK_SUBSCRIBE_ALL"));
-
-        for (int s = 0; s < (int)grp.slots.size(); s++)
-        {
-            ImGui::PushID(s);
-            DrawQuickSlotRow(grp, s);
-            ImGui::PopID();
-        }
-        ImGui::TreePop();
-    }
+    const bool linked = s_link.kind == SubscriptionKind::Cyclic && s_link.cyclicKey.groupId == grp.id;
+    return RowMode{ s_deepMode, linked, s_linkPending, linked ? &s_link.cyclicKey.slotId : nullptr };
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -720,8 +573,8 @@ static void AddCategory(std::vector<Category>& categories, CategoryEditState& ed
 //--------------------------------------------------------------------------------
 // Append an unnamed entry with default values and ask its row to open the name
 // box (RequestBasicEventNameEdit / RequestCyclicGroupNameEdit,
-// addon_options_helpers.h). Only Deep rows draw that box, so both switch to Deep;
-// both also clear the search, since a query would hide the unnamed entry and
+// addon_options_helpers.h). Both switch to Deep, where the new entry's fields
+// are; both also clear the search, since a query would hide the unnamed entry and
 // leave the "+" locked.
 //--------------------------------------------------------------------------------
 static void AddBasicEvent()
@@ -896,10 +749,9 @@ static void DrawCategorizedList(const std::vector<Item>& items, std::vector<Cate
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBasicList   (pairs with: DrawCyclicList)
 //--------------------------------------------------------------------------------
-// The toolbar, then the list: Deep mode draws DrawBasicEventRow
-// (addon_options_helpers.h) for every event, Quick mode DrawQuickBasicRow. A Deep
-// row's remove request and the toolbar's adds are applied after the loop, so no
-// index moves mid-draw.
+// The toolbar, then the list: DrawBasicEventRow (addon_options_helpers.h) draws
+// every event, in Quick and Deep mode alike. A row's remove request and the
+// toolbar's adds are applied after the loop, so no index moves mid-draw.
 //--------------------------------------------------------------------------------
 static void DrawBasicList(const std::string& queryLower)
 {
@@ -910,20 +762,12 @@ static void DrawBasicList(const std::string& queryLower)
     DrawListToolbar("WE_OPT_BASIC_EVENTS", kBasicEventDragType, g_BasicCategories, s_basicCategoryEdit, IsBasicEventCreationPending(),
         "+##add_basic_event", "+##add_basic_category", addEvent, addCategory);
 
-    if (!s_deepMode)
-    {
-        DrawCategorizedList(g_Events, g_BasicCategories, CategoryListKind::Basic, kBasicEventDragType, s_basicCategoryEdit, queryLower,
-            EventMatchesSearch, s_basicWasSearching, linkedId, [](int i) { DrawQuickBasicRow(i); });
-    }
-    else
-    {
-        int pendingRemoveIndex = -1;
-        DrawCategorizedList(g_Events, g_BasicCategories, CategoryListKind::Basic, kBasicEventDragType, s_basicCategoryEdit, queryLower,
-            EventMatchesSearch, s_basicWasSearching, linkedId, [&](int i) { DrawBasicEventRow(i, pendingRemoveIndex); });
+    int pendingRemoveIndex = -1;
+    DrawCategorizedList(g_Events, g_BasicCategories, CategoryListKind::Basic, kBasicEventDragType, s_basicCategoryEdit, queryLower,
+        EventMatchesSearch, s_basicWasSearching, linkedId, [&](int i) { DrawBasicEventRow(i, BasicRowMode(g_Events[i]), pendingRemoveIndex); });
 
-        if (pendingRemoveIndex >= 0)
-            g_Events.erase(g_Events.begin() + pendingRemoveIndex);
-    }
+    if (pendingRemoveIndex >= 0)
+        g_Events.erase(g_Events.begin() + pendingRemoveIndex);
 
     if (addEvent)
         AddBasicEvent();
@@ -934,7 +778,7 @@ static void DrawBasicList(const std::string& queryLower)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawCyclicList   (pairs with: DrawBasicList)
 //--------------------------------------------------------------------------------
-// Same as DrawBasicList, with DrawCyclicGroupRow (Deep) or DrawQuickGroupRow.
+// Same as DrawBasicList, with DrawCyclicGroupRow.
 //--------------------------------------------------------------------------------
 static void DrawCyclicList(const std::string& queryLower)
 {
@@ -945,20 +789,12 @@ static void DrawCyclicList(const std::string& queryLower)
     DrawListToolbar("WE_OPT_CYCLIC_EVENTS", kCyclicGroupDragType, g_CyclicCategories, s_cyclicCategoryEdit, IsCyclicGroupCreationPending(),
         "+##add_cyclic_group", "+##add_cyclic_category", addGroup, addCategory);
 
-    if (!s_deepMode)
-    {
-        DrawCategorizedList(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, kCyclicGroupDragType, s_cyclicCategoryEdit, queryLower,
-            GroupMatchesSearch, s_cyclicWasSearching, linkedId, [](int i) { DrawQuickGroupRow(i); });
-    }
-    else
-    {
-        int pendingRemoveGroupIndex = -1;
-        DrawCategorizedList(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, kCyclicGroupDragType, s_cyclicCategoryEdit, queryLower,
-            GroupMatchesSearch, s_cyclicWasSearching, linkedId, [&](int i) { DrawCyclicGroupRow(i, pendingRemoveGroupIndex); });
+    int pendingRemoveGroupIndex = -1;
+    DrawCategorizedList(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, kCyclicGroupDragType, s_cyclicCategoryEdit, queryLower,
+        GroupMatchesSearch, s_cyclicWasSearching, linkedId, [&](int i) { DrawCyclicGroupRow(i, GroupRowMode(g_CyclicGroups[i]), pendingRemoveGroupIndex); });
 
-        if (pendingRemoveGroupIndex >= 0)
-            g_CyclicGroups.erase(g_CyclicGroups.begin() + pendingRemoveGroupIndex);
-    }
+    if (pendingRemoveGroupIndex >= 0)
+        g_CyclicGroups.erase(g_CyclicGroups.begin() + pendingRemoveGroupIndex);
 
     if (addGroup)
         AddCyclicGroup();
@@ -982,7 +818,7 @@ void DrawOptionsEvents(const OptionsDeepLink* link)
 {
     if (link)
     {
-        ResetOptionsEventsView(); //. row must stay visible
+        s_searchBuf[0] = '\0'; //. row must stay visible
         if (ImGui::GetActiveID() == ImGui::GetID("##events_search"))
             ImGui::ClearActiveID(); //. focused box keeps own text
 

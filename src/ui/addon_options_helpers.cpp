@@ -16,6 +16,7 @@
 #include "events_tracking.h"
 #include "imgui_internal.h" //. for internal-only ImGui APIs
 #include "localization.h"
+#include "options_window.h" //. OptionsHighlight_Set/IsActive, for BeginLinkedRow
 #include "subscriptions.h"
 
 #include <algorithm>
@@ -766,27 +767,64 @@ void RequestCyclicGroupNameEdit(int index)
 bool IsBasicEventCreationPending()  { return s_newBasicEventIndex  >= 0; }
 bool IsCyclicGroupCreationPending() { return s_newCyclicGroupIndex >= 0; }
 
+//_ One id for every row: RowMode::linked decides which row matches it.
+static constexpr const char* kLinkFlashId = "events_linked_row";
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BeginLinkedRow
+//--------------------------------------------------------------------------------
+// Call before a row's first item; linked says whether the deep link names this
+// row and linkPending whether it has not landed yet. Returns true on the frame
+// the link lands on the row: the caller then scrolls to it and opens its node,
+// and the flash starts. While the flash runs (OptionsHighlight_Set,
+// options_window.h), the row's first line gets a Header tint. It is drawn ahead
+// of the row's items, so they sit on top of it.
+//--------------------------------------------------------------------------------
+static bool BeginLinkedRow(bool linked, bool linkPending)
+{
+    if (!linked)
+        return false;
+
+    const bool landing = linkPending;
+    if (landing)
+        OptionsHighlight_Set(kLinkFlashId);
+
+    if (OptionsHighlight_IsActive(kLinkFlashId))
+    {
+        const ImVec2 pos = ImGui::GetCursorScreenPos();
+        const ImVec2 end(pos.x + ImGui::GetContentRegionAvail().x, pos.y + ImGui::GetFrameHeight());
+        ImGui::GetWindowDrawList()->AddRectFilled(pos, end, ImGui::GetColorU32(ImGuiCol_HeaderHovered), ImGui::GetStyle().FrameRounding);
+    }
+
+    return landing;
+}
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBasicEventRow   (pairs with: DrawCyclicGroupRow)
 //--------------------------------------------------------------------------------
-// Draws one g_Events[i] row in full - extracted out of the main loop so both the
-// "uncategorized" pass and each category's "members" pass can call the same
-// drawing code. PushID/PopID is the CALLER's responsibility (the same index is
-// drawn from different places depending on category membership). Sets
-// pendingRemoveIndex = i on remove; does not modify g_Events directly.
+// The header is the same in both modes: notify icon, show-on-map checkbox, then
+// the DrawNameAndContextMenu row ("(auto)" tag, drag source, right-click menu,
+// duplicate warning). The expanded body starts with the four-way notify buttons
+// and Done for today, re-reading the level since the icon may have changed it
+// this frame; the editing fields follow when mode.deep is set. On the frame a
+// pending deep link lands (BeginLinkedRow) the row scrolls to the middle of the
+// pane after its first item and forces its node open.
 //--------------------------------------------------------------------------------
-void DrawBasicEventRow(int i, int& pendingRemoveIndex)
+void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
 {
     //_ Tracks in-edit-mode indices (see DrawNameAndContextMenu); function-static, shared across category and uncategorized passes.
     static std::map<int, std::string> editingNames;
 
     WorldEvent& ev = g_Events[i];
+    const bool landing = BeginLinkedRow(mode.linked, mode.linkPending);
 
     //_ Drawn before the name/tree-arrow, in the slot DrawSubscribeCheckbox used to occupy; see subscriptions.h for what each level touches.
     int notifyLevel = GetBasicEventNotifyLevel(ev.id);
     int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
     if (newNotifyLevel != notifyLevel)
         SetBasicEventNotifyLevel(ev.id, newNotifyLevel);
+    if (landing)
+        ImGui::SetScrollHereY(0.5f); //. after the row's first item
     ImGui::SameLine();
 
     //_ Map-only show/hide; the Subscriptions bar/window are unaffected (that's the checkbox above). ev.shown defaults to true.
@@ -806,6 +844,9 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
     }
     bool isNew = (s_newBasicEventIndex == i);
 
+    //_ Always, not Once: a repeat link to the same row must reopen it.
+    if (landing)
+        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, DisplayName(ev), editingNames, pendingRemoveIndex, kBasicEventDragType, ev.id,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
         [&ev]() { ToggleBasicEventDoneToday(ev.id); },
@@ -826,130 +867,142 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 
     if (open)
     {
-        ImGui::SetNextItemWidth(100.0f);
-        ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &ev.continentX, "%.0f");
+        int level = GetBasicEventNotifyLevel(ev.id);
+        int newLevel = DrawNotifyLevelButtons("##notify_buttons", level);
+        if (newLevel != level)
+            SetBasicEventNotifyLevel(ev.id, newLevel);
 
-        ImGui::SameLine();
+        bool doneToday = IsBasicEventMarkedDoneToday(ev.id);
+        if (ImGui::Checkbox(Tr("WE_OPTWIN_QUICK_DONE_TODAY"), &doneToday))
+            ToggleBasicEventDoneToday(ev.id);
+
+        if (mode.deep)
         {
-            char idSuffix[16];
-            snprintf(idSuffix, sizeof(idSuffix), "be%d", i);
-            DrawDragButton(EditTarget::BasicEvent, i, idSuffix);
-        }
+            ImGui::SetNextItemWidth(100.0f);
+            ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &ev.continentX, "%.0f");
 
-        {
-            char idSuffix[16];
-            snprintf(idSuffix, sizeof(idSuffix), "##be%d", i);
-            DrawFixToScreenRow(idSuffix, &ev.fixedToScreen, &ev.screenX, &ev.screenY);
-        }
-
-        ImGui::SetNextItemWidth(50.0f);
-        int durationMinutes = ev.duration / 60;
-        if (ImGui::InputInt(Tr("WE_DURATION_MIN_LABEL"), &durationMinutes,0,0))
-        {
-            if (durationMinutes < 1) durationMinutes = 1;
-            ev.duration = durationMinutes * 60;
-        }
-
-        ImGui::SameLine();
-        ImGui::Checkbox(Tr("WE_VARYING_CHECKBOX"), &ev.isVarying);
-
-        if (ev.isVarying)
-        {
-            //_ Sorted HH:MM start times, labeled UTC and not auto-converted; the schedule is UTC by design.
-            ImGui::Spacing();
-            ImGui::TextUnformatted(Tr("WE_TIMES_UTC_LABEL"));
             ImGui::SameLine();
-            bool pendingAddTime = ImGui::SmallButton("+##add_time");
-
-            int pendingRemoveTimeIndex = -1;
-
-            for (int t = 0; t < (int)ev.varyingTimes.size(); t++)
             {
-                ImGui::PushID(t);
+                char idSuffix[16];
+                snprintf(idSuffix, sizeof(idSuffix), "be%d", i);
+                DrawDragButton(EditTarget::BasicEvent, i, idSuffix);
+            }
 
-                int hour   = ev.varyingTimes[t] / 3600;
-                int minute = (ev.varyingTimes[t] % 3600) / 60;
+            {
+                char idSuffix[16];
+                snprintf(idSuffix, sizeof(idSuffix), "##be%d", i);
+                DrawFixToScreenRow(idSuffix, &ev.fixedToScreen, &ev.screenX, &ev.screenY);
+            }
 
-                //_ Narrow, unlabeled fields (":" between them reads as a clock) so hour+minute+remove fit on one row.
-                bool changed = false;
-                ImGui::SetNextItemWidth(25.0f);
-                if (ImGui::InputInt("##Hour", &hour, 0, 0))
-                {
-                    hour = std::clamp(hour, 0, 23);
-                    changed = true;
-                }
-                ImGui::SameLine(0.0f, 4.0f);
-                ImGui::TextUnformatted(":");
-                ImGui::SameLine(0.0f, 4.0f);
-                ImGui::SetNextItemWidth(25.0f);
-                if (ImGui::InputInt("##Minute", &minute, 0, 0))
-                {
-                    minute = std::clamp(minute, 0, 59);
-                    changed = true;
-                }
+            ImGui::SetNextItemWidth(50.0f);
+            int durationMinutes = ev.duration / 60;
+            if (ImGui::InputInt(Tr("WE_DURATION_MIN_LABEL"), &durationMinutes,0,0))
+            {
+                if (durationMinutes < 1) durationMinutes = 1;
+                ev.duration = durationMinutes * 60;
+            }
+
+            ImGui::SameLine();
+            ImGui::Checkbox(Tr("WE_VARYING_CHECKBOX"), &ev.isVarying);
+
+            if (ev.isVarying)
+            {
+                //_ Sorted HH:MM start times, labeled UTC and not auto-converted; the schedule is UTC by design.
+                ImGui::Spacing();
+                ImGui::TextUnformatted(Tr("WE_TIMES_UTC_LABEL"));
                 ImGui::SameLine();
-                if (ImGui::SmallButton("-##remove_time"))
-                    pendingRemoveTimeIndex = t;
+                bool pendingAddTime = ImGui::SmallButton("+##add_time");
 
-                if (changed)
-                    ev.varyingTimes[t] = hour * 3600 + minute * 60;
+                int pendingRemoveTimeIndex = -1;
 
-                ImGui::PopID();
+                for (int t = 0; t < (int)ev.varyingTimes.size(); t++)
+                {
+                    ImGui::PushID(t);
+
+                    int hour   = ev.varyingTimes[t] / 3600;
+                    int minute = (ev.varyingTimes[t] % 3600) / 60;
+
+                    //_ Narrow, unlabeled fields (":" between them reads as a clock) so hour+minute+remove fit on one row.
+                    bool changed = false;
+                    ImGui::SetNextItemWidth(25.0f);
+                    if (ImGui::InputInt("##Hour", &hour, 0, 0))
+                    {
+                        hour = std::clamp(hour, 0, 23);
+                        changed = true;
+                    }
+                    ImGui::SameLine(0.0f, 4.0f);
+                    ImGui::TextUnformatted(":");
+                    ImGui::SameLine(0.0f, 4.0f);
+                    ImGui::SetNextItemWidth(25.0f);
+                    if (ImGui::InputInt("##Minute", &minute, 0, 0))
+                    {
+                        minute = std::clamp(minute, 0, 59);
+                        changed = true;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("-##remove_time"))
+                        pendingRemoveTimeIndex = t;
+
+                    if (changed)
+                        ev.varyingTimes[t] = hour * 3600 + minute * 60;
+
+                    ImGui::PopID();
+                }
+
+                if (pendingRemoveTimeIndex >= 0)
+                    ev.varyingTimes.erase(ev.varyingTimes.begin() + pendingRemoveTimeIndex);
+
+                if (pendingAddTime)
+                    ev.varyingTimes.push_back(0); //. midnight UTC
+
+                //_ Re-sorted every frame (not conditionally) since GetSecondsUntilEventStart() requires ascending order.
+                std::sort(ev.varyingTimes.begin(), ev.varyingTimes.end());
             }
-
-            if (pendingRemoveTimeIndex >= 0)
-                ev.varyingTimes.erase(ev.varyingTimes.begin() + pendingRemoveTimeIndex);
-
-            if (pendingAddTime)
-                ev.varyingTimes.push_back(0); //. midnight UTC
-
-            //_ Re-sorted every frame (not conditionally) since GetSecondsUntilEventStart() requires ascending order.
-            std::sort(ev.varyingTimes.begin(), ev.varyingTimes.end());
-        }
-        else
-        {
-            ImGui::SetNextItemWidth(50.0f);
-            int offsetMinutes = ev.offset / 60;
-            if (ImGui::InputInt(Tr("WE_OFFSET_MIN_LABEL"), &offsetMinutes, 0, 0))
+            else
             {
-                if (offsetMinutes < 0) offsetMinutes = 0;
-                ev.offset = offsetMinutes * 60;
+                ImGui::SetNextItemWidth(50.0f);
+                int offsetMinutes = ev.offset / 60;
+                if (ImGui::InputInt(Tr("WE_OFFSET_MIN_LABEL"), &offsetMinutes, 0, 0))
+                {
+                    if (offsetMinutes < 0) offsetMinutes = 0;
+                    ev.offset = offsetMinutes * 60;
+                }
+
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50.0f);
+                DrawPeriodHoursDragInt(&ev.period);
             }
 
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(50.0f);
-            DrawPeriodHoursDragInt(&ev.period);
-        }
+            //_ "Dot" (index 0) keeps the plain circle; any other entry names a textures/ file tinted to the status color (see maprender.cpp).
+            const std::vector<std::string>& iconFiles = GetEventIconFilenames();
+            std::vector<const char*> iconLabels;
+            iconLabels.push_back(Tr("WE_ICON_DOT"));
+            for (const auto& fn : iconFiles)
+                iconLabels.push_back(fn.c_str());
 
-        //_ "Dot" (index 0) keeps the plain circle; any other entry names a textures/ file tinted to the status color (see maprender.cpp).
-        const std::vector<std::string>& iconFiles = GetEventIconFilenames();
-        std::vector<const char*> iconLabels;
-        iconLabels.push_back(Tr("WE_ICON_DOT"));
-        for (const auto& fn : iconFiles)
-            iconLabels.push_back(fn.c_str());
-
-        int iconIndex = 0; //. "Dot"
-        for (int k = 0; k < (int)iconFiles.size(); k++)
-            if (iconFiles[k] == ev.iconTexture)
-                iconIndex = k + 1;
-
-        ImGui::SetNextItemWidth(100.0f);
-        if (ImGui::Combo(TrId("WE_ICON_LABEL", "##event_icon").c_str(), &iconIndex, iconLabels.data(), (int)iconLabels.size()))
-            ev.iconTexture = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
-
-        ImGui::SameLine();
-        if (ImGui::SmallButton(TrId("WE_ICON_REFRESH", "###icon_rescan").c_str()))
-            ScanEventIconFiles();
-
-        //_ Free-text chat/map code for the copy-to-clipboard button; not a merge key, so no Save-button buffering like the name field.
-        {
-            char chatCodeBuf[128];
-            strncpy(chatCodeBuf, ev.chatCode.c_str(), sizeof(chatCodeBuf) - 1);
-            chatCodeBuf[sizeof(chatCodeBuf) - 1] = '\0';
+            int iconIndex = 0; //. "Dot"
+            for (int k = 0; k < (int)iconFiles.size(); k++)
+                if (iconFiles[k] == ev.iconTexture)
+                    iconIndex = k + 1;
 
             ImGui::SetNextItemWidth(100.0f);
-            if (ImGui::InputText(TrId("WE_TEXT_TO_COPY_LABEL", "##chat_code").c_str(), chatCodeBuf, sizeof(chatCodeBuf)))
-                ev.chatCode = chatCodeBuf;
+            if (ImGui::Combo(TrId("WE_ICON_LABEL", "##event_icon").c_str(), &iconIndex, iconLabels.data(), (int)iconLabels.size()))
+                ev.iconTexture = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
+
+            ImGui::SameLine();
+            if (ImGui::SmallButton(TrId("WE_ICON_REFRESH", "###icon_rescan").c_str()))
+                ScanEventIconFiles();
+
+            //_ Free-text chat/map code for the copy-to-clipboard button; not a merge key, so no Save-button buffering like the name field.
+            {
+                char chatCodeBuf[128];
+                strncpy(chatCodeBuf, ev.chatCode.c_str(), sizeof(chatCodeBuf) - 1);
+                chatCodeBuf[sizeof(chatCodeBuf) - 1] = '\0';
+
+                ImGui::SetNextItemWidth(100.0f);
+                if (ImGui::InputText(TrId("WE_TEXT_TO_COPY_LABEL", "##chat_code").c_str(), chatCodeBuf, sizeof(chatCodeBuf)))
+                    ev.chatCode = chatCodeBuf;
+            }
         }
 
         ImGui::TreePop();
@@ -959,51 +1012,28 @@ void DrawBasicEventRow(int i, int& pendingRemoveIndex)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawCyclicGroupRow   (pairs with: DrawBasicEventRow)
 //--------------------------------------------------------------------------------
-// Draws one g_CyclicGroups[i] row in full (header, name, location, period,
-// colors, idle-color override, and the nested per-slot list) - extracted the same
-// way as DrawBasicEventRow, so both the "uncategorized" pass and each category's
-// "members" pass can call the identical drawing code.
-//
-// PushID/PopID for this row are the CALLER's responsibility, same as
-// DrawBasicEventRow.
-//
-// Sets pendingRemoveGroupIndex = i if this row's remove button was clicked this
-// frame; does not modify g_CyclicGroups directly.
+// The header is the show-ring checkbox and the name row; the expanded body starts
+// with Subscribe all. With mode.deep, the location, period and color fields
+// follow, then the "Group events" label with the add-slot button. The slot rows
+// nest in both modes: the same header and Quick body as a Basic event, with their
+// own editing fields under mode.deep. A link to the group scrolls after the ring
+// checkbox; a link to a slot opens the group and lands on that slot's row, which
+// flashes alone.
 //--------------------------------------------------------------------------------
-void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
+void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex)
 {
     static std::map<int, std::string> editingNames;
 
     CyclicGroup& grp = g_CyclicGroups[i];
 
-    //_ Bulk convenience over per-slot subscriptions, no storage of its own; checked only if every slot is subscribed, mixed reads unchecked.
-    bool allSlotsSubscribed = !grp.slots.empty() &&
-        std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
-        {
-            return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.id });
-        });
-    if (DrawSubscribeCheckbox("##subscribe_group", allSlotsSubscribed))
-    {
-        for (const auto& slot : grp.slots)
-        {
-            CyclicSubscriptionKey key{ grp.id, slot.id };
-            //_ allSlotsSubscribed already holds the post-click state: unticking drops every slot to 0, ticking only raises 0 -> 1.
-            if (!allSlotsSubscribed)
-            {
-                SetCyclicSlotNotifyLevel(key, 0);
-            }
-            else if (GetCyclicSlotNotifyLevel(key) == 0)
-            {
-                SetCyclicSlotNotifyLevel(key, 1);
-            }
-        }
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", Tr("WE_TIP_SUBSCRIBE_CYCLE"));
-    ImGui::SameLine();
+    //_ Set when the link names one of this group's slots; the group then opens but only that slot lands.
+    const std::string* slotTargetId = (mode.linked && mode.linkedSlotId && !mode.linkedSlotId->empty()) ? mode.linkedSlotId : nullptr;
+    const bool landing = BeginLinkedRow(mode.linked && !slotTargetId, mode.linkPending);
 
     //_ Show/hide the ENTIRE ring (track + every slot); see CyclicGroup::shown in events.h.
     DrawSubscribeCheckbox("##show_group_on_map", grp.shown);
+    if (landing)
+        ImGui::SetScrollHereY(0.5f); //. after the row's first item
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", Tr("WE_TIP_SHOW_RING"));
     ImGui::SameLine();
@@ -1019,6 +1049,9 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
     }
     bool isNew = (s_newCyclicGroupIndex == i);
 
+    //_ Always, not Once: a repeat link must reopen the row; a link to one of its slots opens the group too.
+    if (mode.linked && mode.linkPending)
+        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
     NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, DisplayName(grp), editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
         grp.apiMapChestId.empty() ? nullptr : "(auto)",
         nullptr, -1, nullptr,
@@ -1036,57 +1069,32 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
     if (open)
     {
-        //_ Compact row: Location, Period, Color, Idle override share one line; swatches use NoInputs (small square, full picker on click).
-        ImGui::SetNextItemWidth(100.0f);
-        ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &grp.continentX, "%.0f");
-
-        ImGui::SameLine();
+        //_ Bulk convenience over per-slot subscriptions, no storage of its own; checked only if every slot is subscribed, mixed reads unchecked.
+        bool allSlotsSubscribed = !grp.slots.empty() &&
+            std::all_of(grp.slots.begin(), grp.slots.end(), [&](const CyclicGroup::Slot& slot)
+            {
+                return IsCyclicSlotSubscribed(CyclicSubscriptionKey{ grp.id, slot.id });
+            });
+        if (DrawSubscribeCheckbox("##subscribe_group", allSlotsSubscribed))
         {
-            char idSuffix[16];
-            snprintf(idSuffix, sizeof(idSuffix), "cg%d", i);
-            DrawDragButton(EditTarget::CyclicGroup, i, idSuffix);
+            for (const auto& slot : grp.slots)
+            {
+                CyclicSubscriptionKey key{ grp.id, slot.id };
+                //_ allSlotsSubscribed already holds the post-click state: unticking drops every slot to 0, ticking only raises 0 -> 1.
+                if (!allSlotsSubscribed)
+                {
+                    SetCyclicSlotNotifyLevel(key, 0);
+                }
+                else if (GetCyclicSlotNotifyLevel(key) == 0)
+                {
+                    SetCyclicSlotNotifyLevel(key, 1);
+                }
+            }
         }
-
-        {
-            char idSuffix[16];
-            snprintf(idSuffix, sizeof(idSuffix), "##cg%d", i);
-            DrawFixToScreenRow(idSuffix, &grp.fixedToScreen, &grp.screenX, &grp.screenY);
-        }
-
-        ImGui::SetNextItemWidth(50.0f);
-        DrawPeriodHoursDragInt(&grp.period);
-
-        //_ colors.base is a plain ImVec4, so ColorEdit4 binds to it directly; no read/convert/write-back round trip needed.
-        ImGui::ColorEdit4(Tr("WE_COLOR_LABEL"), &grp.colors.base.x, ImGuiColorEditFlags_AlphaBar |
-                                                                         ImGuiColorEditFlags_NoInputs |
-                                                                         ImGuiColorEditFlags_PickerHueWheel);
-
-        //_ Optional override: unchecked uses colors.ter() (see CyclicGroup::IdleColor()); checked stores an explicit ImU32.
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", Tr("WE_TIP_SUBSCRIBE_CYCLE"));
         ImGui::SameLine();
-        bool hasCustomIdle = grp.idleColor.has_value();
-        if (ImGui::Checkbox("##customcolorcyclicgroup", &hasCustomIdle))
-        {
-            if (hasCustomIdle)
-                grp.idleColor = grp.colors.ter(); //. seed with current color
-            else
-                grp.idleColor.reset();
-        }
-
-        ImGui::SameLine();
-        DisabledBlock(!hasCustomIdle)
-        {
-            ImU32 idleU32 = grp.idleColor.has_value() ? *grp.idleColor : grp.colors.ter();
-            ImVec4 idleColorVec = ColorFloat4(idleU32);
-            if (ImGui::ColorEdit4(TrId("WE_CUSTOM_COLOR_LABEL", "##group").c_str(), &idleColorVec.x, ImGuiColorEditFlags_AlphaBar |
-                                                                                            ImGuiColorEditFlags_NoInputs |
-                                                                                            ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
-                grp.idleColor = ColorU32(idleColorVec);
-        }
-
-        //_ Slots are the individual events within this cycle; same deferred add/remove pattern, nested one PushID level deeper.
-        ImGui::Spacing();
-        ImGui::TextUnformatted(Tr("WE_GROUP_EVENTS_LABEL"));
-        ImGui::SameLine();
+        ImGui::TextUnformatted(Tr("WE_OPTWIN_QUICK_SUBSCRIBE_ALL"));
 
         //_ Function-static, shared across every group; keyed by (group i, slot s) so slot 0 in different groups can't collide.
         static std::map<int, std::string> editingSlotNames;
@@ -1098,12 +1106,68 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         static int s_newSlotEditKey = -1;
 
         bool pendingAddSlot = false;
-        DisabledBlock(s_newSlotEditKey >= 0)
+
+        if (mode.deep)
         {
-            pendingAddSlot = ImGui::SmallButton("+##add_slot");
+            //_ Compact row: Location, Period, Color, Idle override share one line; swatches use NoInputs (small square, full picker on click).
+            ImGui::SetNextItemWidth(100.0f);
+            ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &grp.continentX, "%.0f");
+
+            ImGui::SameLine();
+            {
+                char idSuffix[16];
+                snprintf(idSuffix, sizeof(idSuffix), "cg%d", i);
+                DrawDragButton(EditTarget::CyclicGroup, i, idSuffix);
+            }
+
+            {
+                char idSuffix[16];
+                snprintf(idSuffix, sizeof(idSuffix), "##cg%d", i);
+                DrawFixToScreenRow(idSuffix, &grp.fixedToScreen, &grp.screenX, &grp.screenY);
+            }
+
+            ImGui::SetNextItemWidth(50.0f);
+            DrawPeriodHoursDragInt(&grp.period);
+
+            //_ colors.base is a plain ImVec4, so ColorEdit4 binds to it directly; no read/convert/write-back round trip needed.
+            ImGui::ColorEdit4(Tr("WE_COLOR_LABEL"), &grp.colors.base.x, ImGuiColorEditFlags_AlphaBar |
+                                                                             ImGuiColorEditFlags_NoInputs |
+                                                                             ImGuiColorEditFlags_PickerHueWheel);
+
+            //_ Optional override: unchecked uses colors.ter() (see CyclicGroup::IdleColor()); checked stores an explicit ImU32.
+            ImGui::SameLine();
+            bool hasCustomIdle = grp.idleColor.has_value();
+            if (ImGui::Checkbox("##customcolorcyclicgroup", &hasCustomIdle))
+            {
+                if (hasCustomIdle)
+                    grp.idleColor = grp.colors.ter(); //. seed with current color
+                else
+                    grp.idleColor.reset();
+            }
+
+            ImGui::SameLine();
+            DisabledBlock(!hasCustomIdle)
+            {
+                ImU32 idleU32 = grp.idleColor.has_value() ? *grp.idleColor : grp.colors.ter();
+                ImVec4 idleColorVec = ColorFloat4(idleU32);
+                if (ImGui::ColorEdit4(TrId("WE_CUSTOM_COLOR_LABEL", "##group").c_str(), &idleColorVec.x, ImGuiColorEditFlags_AlphaBar |
+                                                                                                ImGuiColorEditFlags_NoInputs |
+                                                                                                ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
+                    grp.idleColor = ColorU32(idleColorVec);
+            }
+
+            //_ Slots are the individual events within this cycle; same deferred add/remove pattern, nested one PushID level deeper.
+            ImGui::Spacing();
+            ImGui::TextUnformatted(Tr("WE_GROUP_EVENTS_LABEL"));
+            ImGui::SameLine();
+
+            DisabledBlock(s_newSlotEditKey >= 0)
+            {
+                pendingAddSlot = ImGui::SmallButton("+##add_slot");
+            }
+            if (s_newSlotEditKey >= 0 && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
         }
-        if (s_newSlotEditKey >= 0 && ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
 
         int pendingRemoveSlotIndex = -1;
 
@@ -1111,6 +1175,7 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
         {
             CyclicGroup::Slot& slot = grp.slots[s];
             ImGui::PushID(s);
+            const bool slotLanding = BeginLinkedRow(slotTargetId && *slotTargetId == slot.id, mode.linkPending);
 
             //_ Per SLOT, not per group; the group checkbox above is a bulk convenience over these same per-slot subscriptions.
             CyclicSubscriptionKey subKey{ grp.id, slot.id };
@@ -1118,6 +1183,8 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             int newNotifyLevel = DrawNotifyLevelIcon("##notify", notifyLevel);
             if (newNotifyLevel != notifyLevel)
                 SetCyclicSlotNotifyLevel(subKey, newNotifyLevel);
+            if (slotLanding)
+                ImGui::SetScrollHereY(0.5f); //. after the row's first item
             ImGui::SameLine();
 
             //_ Show/hide just THIS occurrence; the rest of the ring still draws (see CyclicGroup::Slot::shown in events.h).
@@ -1138,6 +1205,9 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
             }
             bool slotIsNew = (s_newSlotEditKey == slotEditKey);
 
+            if (slotLanding)
+                ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+
             //_ Slot rows aren't draggable (dragType left null) - a slot moves with its group, not independently between categories.
             NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, oldSlotName, editingSlotNames, pendingRemoveSlotIndex,
                 nullptr, std::string(), nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
@@ -1157,132 +1227,144 @@ void DrawCyclicGroupRow(int i, int& pendingRemoveGroupIndex)
 
             if (slotOpen)
             {
-                ImGui::SetNextItemWidth(50.0f);
-                int durationMinutes = slot.duration / 60;
-                if (ImGui::DragInt(Tr("WE_DURATION_MIN_LABEL"), &durationMinutes, 0, 0, 0, "%dmin"))
-                {
-                    if (durationMinutes < 1) durationMinutes = 1;
-                    slot.duration = durationMinutes * 60;
-                }
+                int level = GetCyclicSlotNotifyLevel(subKey);
+                int newLevel = DrawNotifyLevelButtons("##notify_buttons", level);
+                if (newLevel != level)
+                    SetCyclicSlotNotifyLevel(subKey, newLevel);
 
-                ImGui::SameLine();
-                ImGui::Checkbox(Tr("WE_VARYING_CHECKBOX"), &slot.isVarying);
+                bool doneToday = IsCyclicSlotMarkedDoneToday(subKey);
+                if (ImGui::Checkbox(Tr("WE_OPTWIN_QUICK_DONE_TODAY"), &doneToday))
+                    ToggleCyclicSlotDoneToday(subKey);
 
-                if (!slot.isVarying)
+                if (mode.deep)
                 {
                     ImGui::SetNextItemWidth(50.0f);
-                    int offsetMinutes = slot.offset / 60;
-                    if (ImGui::DragInt(Tr("WE_OFFSET_LABEL"), &offsetMinutes, 0, 0, 0, "%dmin"))
+                    int durationMinutes = slot.duration / 60;
+                    if (ImGui::DragInt(Tr("WE_DURATION_MIN_LABEL"), &durationMinutes, 0, 0, 0, "%dmin"))
                     {
-                        if (offsetMinutes < 0) offsetMinutes = 0;
-                        slot.offset = offsetMinutes * 60;
+                        if (durationMinutes < 1) durationMinutes = 1;
+                        slot.duration = durationMinutes * 60;
                     }
 
-                    //_ Repeat must evenly divide the period; snaps down to the nearest divisor of the CURRENT period, re-checked every frame.
                     ImGui::SameLine();
-                    ImGui::SetNextItemWidth(50.0f);
-                    int repeatInput = slot.repeat;
-                    if (ImGui::InputInt(Tr("WE_REPETITION_LABEL"), &repeatInput, 0, 0))
-                    {
-                        if (repeatInput < 1) repeatInput = 1;
-                        if (repeatInput > grp.period) repeatInput = grp.period;
-                        while (repeatInput > 1 && grp.period % repeatInput != 0)
-                            repeatInput--;
-                        slot.repeat = repeatInput;
-                    }
-                    else if (grp.period % slot.repeat != 0)
-                    {
-                        //_ Period changed elsewhere (e.g. the dropdown above)
-                        // and no longer divides evenly - snap down the same way.
-                        int fixed = slot.repeat;
-                        while (fixed > 1 && grp.period % fixed != 0)
-                            fixed--;
-                        slot.repeat = fixed;
-                    }
-                    Tooltip(Tr("WE_TIP_REPETITION"));
-                }
-                else
-                {
-                    //_ Sorted minute-into-period times, not HH:MM (period isn't always 24h); offset/repeat are unused while isVarying is set (see events.h).
-                    ImGui::Spacing();
-                    ImGui::TextUnformatted(Tr("WE_TIMES_MIN_INTO_PERIOD_LABEL"));
-                    ImGui::SameLine();
-                    bool pendingAddTime = ImGui::SmallButton("+##add_slot_time");
+                    ImGui::Checkbox(Tr("WE_VARYING_CHECKBOX"), &slot.isVarying);
 
-                    int pendingRemoveTimeIndex = -1;
-                    int periodMinutes = grp.period / 60;
-
-                    for (int t = 0; t < (int)slot.varyingTimes.size(); t++)
+                    if (!slot.isVarying)
                     {
-                        ImGui::PushID(t);
-
-                        int minutes = slot.varyingTimes[t] / 60;
-                        bool changed = false;
                         ImGui::SetNextItemWidth(50.0f);
-                        if (ImGui::InputInt("##slotVaryingTime", &minutes, 0, 0))
+                        int offsetMinutes = slot.offset / 60;
+                        if (ImGui::DragInt(Tr("WE_OFFSET_LABEL"), &offsetMinutes, 0, 0, 0, "%dmin"))
                         {
-                            minutes = std::clamp(minutes, 0, periodMinutes > 0 ? periodMinutes - 1 : 0);
-                            changed = true;
+                            if (offsetMinutes < 0) offsetMinutes = 0;
+                            slot.offset = offsetMinutes * 60;
                         }
-                        ImGui::SameLine();
-                        ImGui::TextUnformatted(Tr("WE_MINUTES_UNIT_LABEL"));
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("-##remove_slot_time"))
-                            pendingRemoveTimeIndex = t;
 
-                        if (changed)
-                            slot.varyingTimes[t] = minutes * 60;
+                        //_ Repeat must evenly divide the period; snaps down to the nearest divisor of the CURRENT period, re-checked every frame.
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(50.0f);
+                        int repeatInput = slot.repeat;
+                        if (ImGui::InputInt(Tr("WE_REPETITION_LABEL"), &repeatInput, 0, 0))
+                        {
+                            if (repeatInput < 1) repeatInput = 1;
+                            if (repeatInput > grp.period) repeatInput = grp.period;
+                            while (repeatInput > 1 && grp.period % repeatInput != 0)
+                                repeatInput--;
+                            slot.repeat = repeatInput;
+                        }
+                        else if (grp.period % slot.repeat != 0)
+                        {
+                            //_ Period changed elsewhere (e.g. the dropdown above)
+                            // and no longer divides evenly - snap down the same way.
+                            int fixed = slot.repeat;
+                            while (fixed > 1 && grp.period % fixed != 0)
+                                fixed--;
+                            slot.repeat = fixed;
+                        }
+                        Tooltip(Tr("WE_TIP_REPETITION"));
+                    }
+                    else
+                    {
+                        //_ Sorted minute-into-period times, not HH:MM (period isn't always 24h); offset/repeat are unused while isVarying is set (see events.h).
+                        ImGui::Spacing();
+                        ImGui::TextUnformatted(Tr("WE_TIMES_MIN_INTO_PERIOD_LABEL"));
+                        ImGui::SameLine();
+                        bool pendingAddTime = ImGui::SmallButton("+##add_slot_time");
 
-                        ImGui::PopID();
+                        int pendingRemoveTimeIndex = -1;
+                        int periodMinutes = grp.period / 60;
+
+                        for (int t = 0; t < (int)slot.varyingTimes.size(); t++)
+                        {
+                            ImGui::PushID(t);
+
+                            int minutes = slot.varyingTimes[t] / 60;
+                            bool changed = false;
+                            ImGui::SetNextItemWidth(50.0f);
+                            if (ImGui::InputInt("##slotVaryingTime", &minutes, 0, 0))
+                            {
+                                minutes = std::clamp(minutes, 0, periodMinutes > 0 ? periodMinutes - 1 : 0);
+                                changed = true;
+                            }
+                            ImGui::SameLine();
+                            ImGui::TextUnformatted(Tr("WE_MINUTES_UNIT_LABEL"));
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("-##remove_slot_time"))
+                                pendingRemoveTimeIndex = t;
+
+                            if (changed)
+                                slot.varyingTimes[t] = minutes * 60;
+
+                            ImGui::PopID();
+                        }
+
+                        if (pendingRemoveTimeIndex >= 0)
+                            slot.varyingTimes.erase(slot.varyingTimes.begin() + pendingRemoveTimeIndex);
+
+                        if (pendingAddTime)
+                            slot.varyingTimes.push_back(0);
+
+                        //_ Re-sorted every frame; GetSubscriptionActiveState's cyclic-varying branch (subscriptions_cache.cpp) requires ascending order.
+                        std::sort(slot.varyingTimes.begin(), slot.varyingTimes.end());
                     }
 
-                    if (pendingRemoveTimeIndex >= 0)
-                        slot.varyingTimes.erase(slot.varyingTimes.begin() + pendingRemoveTimeIndex);
+                    ImGui::SetNextItemWidth(100.0f);
+                    const char* kTierLabels[] = { Tr("WE_TIER_PRIMARY"), Tr("WE_TIER_SECONDARY"), Tr("WE_TIER_TERTIARY") };
+                    int tierIndex = (int)slot.tier;
+                    if (ImGui::Combo(TrId("WE_TIER_LABEL", "##slot_tier").c_str(), &tierIndex, kTierLabels, 3))
+                        slot.tier = (ColorTier)tierIndex;
 
-                    if (pendingAddTime)
-                        slot.varyingTimes.push_back(0);
+                    //_ Same checkbox-gates-swatch pattern as Custom Idle above; seeded from the slot's current resolved color.
+                    ImGui::SameLine();
+                    bool hasCustomColor = slot.customColor.has_value();
+                    if (ImGui::Checkbox("##customcolorcyclicslot", &hasCustomColor))
+                    {
+                        if (hasCustomColor)
+                            slot.customColor = grp.SlotColor(slot);
+                        else
+                            slot.customColor.reset();
+                    }
 
-                    //_ Re-sorted every frame; GetSubscriptionActiveState's cyclic-varying branch (subscriptions_cache.cpp) requires ascending order.
-                    std::sort(slot.varyingTimes.begin(), slot.varyingTimes.end());
-                }
+                    ImGui::SameLine();
+                    DisabledBlock(!hasCustomColor)
+                    {
+                        ImU32 slotU32 = slot.customColor.has_value() ? *slot.customColor : grp.SlotColor(slot);
+                        ImVec4 slotColorVec = ColorFloat4(slotU32);
+                        if (ImGui::ColorEdit4(TrId("WE_CUSTOM_COLOR_LABEL", "##slot").c_str(), &slotColorVec.x, ImGuiColorEditFlags_AlphaBar |
+                                                                                                       ImGuiColorEditFlags_NoInputs |
+                                                                                                       ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
+                            slot.customColor = ColorU32(slotColorVec);
+                    }
 
-                ImGui::SetNextItemWidth(100.0f);
-                const char* kTierLabels[] = { Tr("WE_TIER_PRIMARY"), Tr("WE_TIER_SECONDARY"), Tr("WE_TIER_TERTIARY") };
-                int tierIndex = (int)slot.tier;
-                if (ImGui::Combo(TrId("WE_TIER_LABEL", "##slot_tier").c_str(), &tierIndex, kTierLabels, 3))
-                    slot.tier = (ColorTier)tierIndex;
+                    //_ Same as WorldEvent::chatCode; not a merge key, so it live-edits directly with no Save-button buffering.
+                    {
+                        char chatCodeBuf[128];
+                        strncpy(chatCodeBuf, slot.chatCode.c_str(), sizeof(chatCodeBuf) - 1);
+                        chatCodeBuf[sizeof(chatCodeBuf) - 1] = '\0';
 
-                //_ Same checkbox-gates-swatch pattern as Custom Idle above; seeded from the slot's current resolved color.
-                ImGui::SameLine();
-                bool hasCustomColor = slot.customColor.has_value();
-                if (ImGui::Checkbox("##customcolorcyclicslot", &hasCustomColor))
-                {
-                    if (hasCustomColor)
-                        slot.customColor = grp.SlotColor(slot);
-                    else
-                        slot.customColor.reset();
-                }
-
-                ImGui::SameLine();
-                DisabledBlock(!hasCustomColor)
-                {
-                    ImU32 slotU32 = slot.customColor.has_value() ? *slot.customColor : grp.SlotColor(slot);
-                    ImVec4 slotColorVec = ColorFloat4(slotU32);
-                    if (ImGui::ColorEdit4(TrId("WE_CUSTOM_COLOR_LABEL", "##slot").c_str(), &slotColorVec.x, ImGuiColorEditFlags_AlphaBar |
-                                                                                                   ImGuiColorEditFlags_NoInputs |
-                                                                                                   ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
-                        slot.customColor = ColorU32(slotColorVec);
-                }
-
-                //_ Same as WorldEvent::chatCode; not a merge key, so it live-edits directly with no Save-button buffering.
-                {
-                    char chatCodeBuf[128];
-                    strncpy(chatCodeBuf, slot.chatCode.c_str(), sizeof(chatCodeBuf) - 1);
-                    chatCodeBuf[sizeof(chatCodeBuf) - 1] = '\0';
-
-                    ImGui::SetNextItemWidth(160.0f);
-                    if (ImGui::InputText(TrId("WE_TEXT_TO_COPY_LABEL", "##slot_chat_code").c_str(), chatCodeBuf, sizeof(chatCodeBuf)))
-                        slot.chatCode = chatCodeBuf;
+                        ImGui::SetNextItemWidth(160.0f);
+                        if (ImGui::InputText(TrId("WE_TEXT_TO_COPY_LABEL", "##slot_chat_code").c_str(), chatCodeBuf, sizeof(chatCodeBuf)))
+                            slot.chatCode = chatCodeBuf;
+                    }
                 }
 
                 ImGui::TreePop();
