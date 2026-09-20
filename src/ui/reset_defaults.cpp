@@ -5,6 +5,7 @@
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
+#include "addon_options_helpers.h" //. Tooltip
 #include "events_categories.h"
 #include "events_storage.h"
 #include "imgui.h"
@@ -21,7 +22,7 @@ static bool s_open = false;
 
 void DrawResetToDefaultsButton()
 {
-    //_ Red, matching the "you're about to lose data" tone used for the invalid-API-key state elsewhere in this panel - not a normal action.
+    //_ Red, matching the "you're about to lose data" tone used for the invalid-API-key state elsewhere in the settings window - not a normal action.
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.15f, 0.15f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.70f, 0.20f, 0.20f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.45f, 0.10f, 0.10f, 1.0f));
@@ -32,8 +33,7 @@ void DrawResetToDefaultsButton()
     }
     ImGui::PopStyleColor(3);
 
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", Tr("WE_TIP_RESET_WIPE"));
+    Tooltip(Tr("WE_TIP_RESET_WIPE"));
 }
 
 void DrawResetToDefaultsPopup()
@@ -79,8 +79,7 @@ void DrawRestoreMissingButton()
     if (ImGui::Button(Tr("WE_RESTORE_BUTTON")))
         s_lastRestoreCount = RestoreMissingDefaults() + RestoreMissingCategories();
 
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", Tr("WE_TIP_RESTORE"));
+    Tooltip(Tr("WE_TIP_RESTORE"));
 
     if (s_lastRestoreCount >= 0)
     {

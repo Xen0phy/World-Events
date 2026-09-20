@@ -42,8 +42,8 @@ void ResetEventsToDefaults();
 // a renamed/edited default, and a player-added entry all pass through completely
 // untouched; only a genuinely missing default gets appended back (at the end of
 // its list, not its original position). No-op (returns 0) if LoadEventsData never
-// ran. Returns the number of entries added back, for the options panel to report
-// to the player - see DrawRestoreMissingButton, reset_defaults.cpp.
+// ran. Returns the number of entries added back, for the Events tab to report to
+// the player - see DrawRestoreMissingButton, reset_defaults.cpp.
 //--------------------------------------------------------------------------------
 int RestoreMissingDefaults();
 

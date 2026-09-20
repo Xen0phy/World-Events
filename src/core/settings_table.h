@@ -187,11 +187,13 @@ SETTING(BasicEvents, BasicEventIconSize,  float, 12.0f)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // BasicEventZoomScalingEnabled / BasicEventZoomStartPct / BasicEventZoomMaxMultiplier
 //--------------------------------------------------------------------------------
-// Zoom-based marker scaling. Markers stay at base size from fully-zoomed- out
-// until StartPct of the way to fully-zoomed-in, then grow linearly to
-// MaxMultiplier * base size at 100% zoom. Compass.Scale has no fixed 0-100 range
-// from Mumble, so "percent zoom" is derived at render time from the current map's
-// own min/max Compass.Scale - see GetZoomPercent() in maprender.cpp.
+// Zoom-based scaling for Basic Event markers and Cyclic group rings alike: both
+// read these through GetEventZoomSizeMultiplier (maprender.h), despite the Basic
+// prefix. Sizes stay at base from fully-zoomed-out until StartPct of the way to
+// fully-zoomed-in, then grow linearly to MaxMultiplier * base size at 100% zoom.
+// Compass.Scale has no fixed 0-100 range from Mumble, so "percent zoom" is
+// derived at render time from the current map's own min/max Compass.Scale - see
+// GetZoomPercent() in maprender.cpp.
 //--------------------------------------------------------------------------------
 SETTING(BasicEvents, BasicEventZoomScalingEnabled, bool,  true)
 SETTING(BasicEvents, BasicEventZoomStartPct,       float, 0.0f)

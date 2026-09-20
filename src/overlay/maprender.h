@@ -8,7 +8,7 @@
 //                              continent coordinate <-> screen pixel
 // EditModeState/g_EditMode    momentary drag-to-reposition state for the map
 // ClearEditMode                clears g_EditMode unconditionally
-// GetEventZoomSizeMultiplier  current zoom-based marker size multiplier
+// GetEventZoomSizeMultiplier  current zoom-based marker and ring size multiplier
 // RenderMapEvents              draws all Basic Events + live-event radius
 //                               rings onto the open world map
 // GetEventIconFilenames/ScanEventIconFiles
@@ -108,10 +108,10 @@ void ClearEditMode();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetEventZoomSizeMultiplier
 //--------------------------------------------------------------------------------
-// Returns the current zoom-based size multiplier (1.0 = no change), driven by the
-// BasicEventZoomScaling* settings and the current map's Compass.Scale. Shared
-// with cyclicrender.cpp so cyclic group rings scale the same way as basic event
-// markers do.
+// Returns the current zoom-based size multiplier (1.0 = no change) for Basic
+// Event markers and Cyclic group rings alike: one curve, driven by the
+// BasicEventZoom* settings (Basic in the name, both kinds in effect) and the
+// current map's Compass.Scale. cyclicrender.cpp reads it for the rings.
 //--------------------------------------------------------------------------------
 float GetEventZoomSizeMultiplier();
 

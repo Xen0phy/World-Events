@@ -77,8 +77,7 @@ void ToggleLiveEventDoneToday(const std::string& eventId);
 //--------------------------------------------------------------------------------
 // Clears every manual mark immediately, regardless of today's UTC day. Used by
 // ResetAllDataToDefaults (addon.cpp); there is no button for it. Does not touch
-// API-derived completion state (that's gw2_api.cpp's own cache, not manual
-// data).
+// API-derived completion state (that's gw2_api.cpp's own cache, not manual data).
 //--------------------------------------------------------------------------------
 void ClearAllDoneMarkers();
 

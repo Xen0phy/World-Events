@@ -4,6 +4,7 @@
 // RailEntry                one rail button: tab, icon filename, tooltip id
 // kRailTabs/kRailHelp      the rail's buttons; the icon filenames live here
 // s_pendingLink            deep link waiting for the next drawn frame
+// s_wasOpen                window was drawn last frame; spots the frame it closes
 // s_highlightId/Until      the one running row flash
 // CurrentTab/SetCurrentTab OptionsWindowTab, clamped on read
 // DrawRailButton           one icon-only button, tinted texture or dot
@@ -65,6 +66,8 @@ static const char* const kContentChildIds[kOptionsTabCount] = {
 
 static OptionsDeepLink s_pendingLink;
 static bool            s_hasPendingLink = false;
+
+static bool s_wasOpen = false;
 
 static std::string s_highlightId;
 static double      s_highlightUntil = 0.0;
@@ -210,14 +213,27 @@ void OpenOptionsWindow(SubscriptionKind kind, const std::string& basicId,
 // RenderOptionsWindow   (see: options_window.h)
 //--------------------------------------------------------------------------------
 // Two child windows side by side: the fixed-width rail and the content pane
-// filling the rest, split by a 1 px vertical line. The deep link is
-// copied out of the pending slot before drawing, so it reaches the section for
-// exactly this one frame. Esc-to-close is handled by Nexus via the registration
+// filling the rest, split by a 1 px vertical line. The deep link is copied out of
+// the pending slot before drawing, so it reaches the section for exactly this one
+// frame. Esc-to-close is handled by Nexus via the registration
 // Localization_SyncCloseOnEscape keeps in step with the translated title.
+//
+// Every way of closing (X button, Esc) just clears ShowOptionsWindow, so the
+// close is spotted here on the next frame and the Events tab drops its Quick/Deep
+// mode and search text (ResetOptionsEventsView).
 //--------------------------------------------------------------------------------
 void RenderOptionsWindow()
 {
-    if (!ShowOptionsWindow) return;
+    if (!ShowOptionsWindow)
+    {
+        if (s_wasOpen)
+        {
+            s_wasOpen = false;
+            ResetOptionsEventsView();
+        }
+        return;
+    }
+    s_wasOpen = true;
 
     float fontSize = ImGui::GetFontSize();
     ImGui::SetNextWindowSize(ImVec2(fontSize * kInitialWidthEm, fontSize * kInitialHeightEm), ImGuiCond_FirstUseEver);

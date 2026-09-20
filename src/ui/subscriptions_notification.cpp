@@ -388,9 +388,9 @@ static void CollectLiveEventPopups()
 // DrawLayoutPreview
 //--------------------------------------------------------------------------------
 // Yellow outline (same solid color as the distribution bar's unsafe-zone preview,
-// options_general.cpp) around the box a fresh toast would occupy right now, with a
-// filled triangle pointing the way stackUpward says older toasts stack away from
-// it. Called from RenderSubscriptionsNotifications once
+// options_general.cpp) around the box a fresh toast would occupy right now, with
+// a filled triangle pointing the way stackUpward says older toasts stack away
+// from it. Called from RenderSubscriptionsNotifications once
 // RequestNotificationLayoutPreview (subscriptions_ui.h) has been requested this
 // frame.
 //--------------------------------------------------------------------------------

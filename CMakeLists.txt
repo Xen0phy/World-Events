@@ -146,7 +146,6 @@ add_library(gw2-world-events SHARED
     src/ui/addon_options_helpers.cpp
     src/ui/addon_options.cpp
     src/ui/changelog_window.cpp
-    src/ui/icon_whitener.cpp
     src/ui/options_events.cpp
     src/ui/options_general.cpp
     src/ui/options_help.cpp
@@ -157,6 +156,7 @@ add_library(gw2-world-events SHARED
     src/ui/subscriptions_edit_window.cpp
     src/ui/subscriptions_notification.cpp
     src/ui/subscriptions_window.cpp
+    src/ui/texture_whitener.cpp
     src/ui/ws_debug_window.cpp
 )
 
@@ -174,7 +174,7 @@ target_include_directories(gw2-world-events PRIVATE
 
 # NOMINMAX: without this, <windows.h>/minwindef.h's macro-style min/max
 # collide with std::min/std::max call sites (e.g. subscriptions_bar.cpp,
-# subscriptions_notification.cpp, icon_whitener.cpp), producing
+# subscriptions_notification.cpp, texture_whitener.cpp), producing
 # "expected unqualified-id" errors under clang-cl/xwin's SDK headers.
 target_compile_definitions(gw2-world-events PRIVATE NOMINMAX)
 

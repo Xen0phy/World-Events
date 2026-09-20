@@ -4,16 +4,15 @@
 // AddonOptions()   draws the World Events section of the Nexus options panel
 //--------------------------------------------------------------------------------
 // Nexus UI callback - draws into a panel Nexus owns, not a standalone window.
-// Widgets write directly into the global settings (settings.h / settings_table.h)
-// or into g_Events / g_CyclicGroups / g_BasicCategories / g_CyclicCategories.
-// There is no explicit "Save" button: everything is writtento disk on AddonUnload
-// (see addon.cpp), so edits here just live in memory until the addon (or the
-// game) closes.
+// Widgets write directly into g_Events / g_CyclicGroups / g_BasicCategories /
+// g_CyclicCategories. There is no explicit "Save" button: everything is written
+// to disk on AddonUnload (see addon.cpp), so edits here just live in memory until
+// the addon (or the game) closes.
 //
-// Covers all the flat scalar settings (overlay visibility, ring radius/thickness,
-// entry/exit window) and full editing of individual events cyclic groups/slots,
-// and categories - creating, renaming, deleting, recoloring, drag-and-drop
-// categorization, and icon assignment.
+// Covers full editing of individual events, cyclic groups/slots, and categories -
+// creating, renaming, deleting, recoloring, drag-and-drop categorization, and
+// icon assignment. Every scalar setting is edited in the settings window
+// (options_window.h).
 //
 // The widget-drawing helpers themselves (scoped-disable, period widget,
 // icon/color pickers, duplicate-name checks, drag-and-drop plumbing, the notify-
@@ -27,12 +26,9 @@
 #include "events.h"
 #include "events_categories.h"
 #include "events_storage.h"   //. SlugifyName/UniqueId for new categories
-#include "icon_whitener.h"
 #include "imgui.h"
 #include "localization.h"
 #include "options_window.h"
-#include "reset_defaults.h"
-#include "settings.h"
 
 #include <algorithm>
 #include <map>
@@ -43,10 +39,10 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonOptions
 //--------------------------------------------------------------------------------
-// Laid out as two BeginTable/EndTable pairs (Table 2 and Table 3) inside two
-// full-width CollapsingHeaders (one wrapping both, one nested around just the
-// search box and Table 3) - a CollapsingHeader clips to a single table column, so
-// it can't be drawn inside either table. List mutations (add/remove event, group,
+// Draws the button that opens the settings window, then the Event Lists
+// CollapsingHeader around the search box and Table 3 (one BeginTable/EndTable
+// pair). A CollapsingHeader clips to a single table column, so it wraps the table
+// instead of sitting inside it. List mutations (add/remove event, group,
 // category) are captured as bools during the row loop and applied afterward, to
 // avoid invalidating indices mid-iteration. One search box filters both the Basic
 // and Cyclic trees at once.
@@ -54,8 +50,7 @@
 void AddonOptions()
 {
     OptionsRenderTimer optionsRenderTimer; //. no-op unless ShowDebug
-    ImVec2 dummySquare = ImVec2(ImGui::GetFrameHeight(),ImGui::GetFrameHeight());
-    
+
     //_ Entry point to the unified settings window (options_window.h).
     if (ImGui::Button(Tr("WE_OPTWIN_OPEN_BUTTON")))
         OpenOptionsWindow();
@@ -63,228 +58,6 @@ void AddonOptions()
     ImGui::Separator();
     ImGui::Spacing();
     
-    if (ImGui::CollapsingHeader(Tr("WE_OPT_EVENTS_SETTINGS_HEADER")))
-    {
-        //_ Table 2 - Zoom scaling (Row 1) and section controls (Row 2); exists only while the header is expanded.
-        if (ImGui::BeginTable("##world_events_table", 2, ImGuiTableFlags_SizingStretchSame))
-        {
-            //_ Row 1 - Zoom-based marker scaling (col 0 only)
-            ImGui::TableNextRow();
-
-            ImGui::TableSetColumnIndex(0);
-
-            //_ Zoom-based marker scaling; disabled by default keeps the old fixed-size behavior, just optional now.
-            {
-                ImGui::Checkbox(TrId("WE_OPT_GROW_MARKERS_ZOOM", "##basic_zoom_scaling_enabled").c_str(), &BasicEventZoomScalingEnabled);
-    
-                DisabledBlock(!BasicEventZoomScalingEnabled)
-                {
-                    ImGui::Dummy(dummySquare);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(80.0f);
-                    ImGui::DragFloat(TrId("WE_OPT_START_GROWING_AT", "##basic_zoom_start_pct").c_str(), &BasicEventZoomStartPct, 1.0f, 0.0f, 100.0f, "%.0f%%");
-                    ImGui::Dummy(dummySquare);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(80.0f);
-                    ImGui::DragFloat(TrId("WE_OPT_MAX_SIZE_AT_ZOOM", "##basic_zoom_max_mult").c_str(), &BasicEventZoomMaxMultiplier, 1.0f, 1.0f, 4.0f, "%.1fx");
-                }
-            }
-
-            //_ Row 2 - Basic Events controls (col 0), Cyclic Events controls (col 1)
-            ImGui::TableNextRow();
-
-            ImGui::TableSetColumnIndex(0);
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            //_ Only affects upcoming Basic Events (active always show); not offered for cyclic groups.
-            {
-                int mins = BasicEventTimeFilterMinutes;
-                int h    = mins / 60;
-                int m    = mins % 60;
-            
-                char label[96];
-                if (h > 0)
-                    snprintf(label, sizeof(label), "%dh %02dm", h, m);
-                else
-                    snprintf(label, sizeof(label), "%dm", m);
-            
-                ImGui::Checkbox(TrId("WE_OPT_ONLY_SHOW_STARTING_IN", "##basic_time_filter_enabled").c_str(), &BasicEventTimeFilterEnabled);
-            
-                if (BasicEventTimeFilterEnabled)
-                {
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(50.0f);
-                
-                    int stepIndex = BasicEventTimeFilterMinutes / 15;
-                    if (ImGui::DragInt("##basic_time_filter_minutes", &stepIndex, 0.2f, 0, 48, label, ImGuiSliderFlags_NoInput))
-                    {
-                        BasicEventTimeFilterMinutes = stepIndex * 15;
-                    }
-                }
-            }
-
-            //_ One shared color set for every Basic Event, matching the active/soon/waiting dot and icon-tint states.
-            {
-                ImGui::ColorEdit4(TrId("WE_OPT_ACTIVE", "##basic_color_active").c_str(), BasicEventColorActive, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-
-                ImGui::SameLine();
-                ImGui::ColorEdit4(TrId("WE_OPT_SOON", "##basic_color_soon").c_str(), BasicEventColorSoon, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-
-                ImGui::SameLine();
-                ImGui::ColorEdit4(TrId("WE_OPT_WAITING", "##basic_color_waiting").c_str(), BasicEventColorWaiting, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-            }
-
-            //_ Independent settings, not derived from one another - dot and icon sizes can differ freely.
-            {
-                ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat(TrId("WE_OPT_DOT_RADIUS", "##basic_dot_radius").c_str(), &BasicEventDotRadius, 1.0f, 2.0f, 30.0f, "%.0f px");
-
-                ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat(TrId("WE_OPT_ICON_SIZE", "##basic_icon_size").c_str(), &BasicEventIconSize, 1.0f, 2.0f, 40.0f, "%.0f px");
-            }
-
-            DrawIconWhitenerButton();   //. opens the Icon Whitener modal
-            DrawIconWhitenerPopup();    //. renders modal, no-op if closed
-
-            ImGui::TableSetColumnIndex(1);
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            ImGui::Checkbox(Tr("WE_OPT_SHOW_CYCLIC_ON_MAP"), &ShowCyclicOverlay);
-            DisabledBlock(!ShowCyclicOverlay)
-            {
-                ImGui::TextUnformatted(Tr("WE_OPT_RING_APPEARANCE"));
-                ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat(Tr("WE_OPT_RADIUS"), &CyclicRadius, 1.0f, 5.0f, 50.0f, "%.0f px");
-                if ( CyclicRadius < CyclicThickness / 2 ) { CyclicThickness = CyclicRadius * 2; }
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat(Tr("WE_OPT_THICKNESS"), &CyclicThickness, 1.0f, 5.0f, 100.0f, "%.0f px");
-                if ( CyclicThickness > CyclicRadius * 2 ) { CyclicRadius = CyclicThickness / 2; }
-
-                ImGui::TextUnformatted(Tr("WE_OPT_ENTRY_EXIT_WINDOW"));
-                ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat(Tr("WE_OPT_FUTURE_WINDOW"), &CyclicMaxFutureDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
-                if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxPastDeg = 360 - CyclicMaxFutureDeg; }
-                Tooltip(Tr("WE_TIP_FUTURE_WINDOW"));
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50.0f);
-                ImGui::DragFloat(Tr("WE_OPT_PAST_WINDOW"), &CyclicMaxPastDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
-                if ( CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f ) { CyclicMaxFutureDeg = 360 - CyclicMaxPastDeg; }
-                Tooltip(Tr("WE_TIP_PAST_WINDOW"));
-
-                ImGui::Checkbox(TrId("WE_OPT_FADE_PAST_EVENTS", "##cyclic_past_fade_enabled").c_str(), &CyclicPastFadeEnabled);
-                Tooltip(Tr("WE_TIP_FADE_PAST_EVENTS"));
-
-                ImGui::TextUnformatted(Tr("WE_OPT_HAND"));
-                ImGui::ColorEdit4(TrId("WE_OPT_COLOR", "##cyclic_hand_color").c_str(), CyclicHandColor, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-                Tooltip(Tr("WE_TIP_HAND_COLOR"));
-                
-                ImGui::SameLine();
-                ImGui::Checkbox(TrId("WE_OPT_USE_TEXTURE", "##cyclic_hand_image_enabled").c_str(), &CyclicHandImageEnabled);
-                Tooltip(Tr("WE_TIP_HAND_USE_TEXTURE"));
-
-                DisabledBlock(!CyclicHandImageEnabled)
-                {
-                    //_ Same source list/folder as the Basic Event icon picker and the Ring edge image below.
-                    const std::vector<std::string>& handIconFiles = GetEventIconFilenames();
-                    std::vector<const char*> handIconLabels;
-                    handIconLabels.push_back(Tr("WE_OPT_NONE"));
-                    for (const auto& fn : handIconFiles)
-                        handIconLabels.push_back(fn.c_str());
-
-                    int handIconIndex = 0;
-                    if (!CyclicHandImageFilename.empty())
-                        for (int k = 0; k < (int)handIconFiles.size(); k++)
-                            if (handIconFiles[k] == CyclicHandImageFilename)
-                                handIconIndex = k + 1;
-
-                    ImGui::SetNextItemWidth(100.0f);
-                    if (ImGui::Combo("##cyclic_hand_image_file", &handIconIndex, handIconLabels.data(), (int)handIconLabels.size()))
-                        CyclicHandImageFilename = (handIconIndex == 0) ? std::string() : handIconFiles[handIconIndex - 1];
-
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(50.0f);
-                    ImGui::DragFloat(TrId("WE_OPT_WIDTH", "##cyclic_hand_image_width").c_str(), &CyclicHandImageWidth, 1.0f, 2.0f, 60.0f, "%.0f px");
-                    Tooltip(Tr("WE_TIP_HAND_TEXTURE_WIDTH"));
-                }
-
-                ImGui::Spacing();
-                ImGui::TextUnformatted(Tr("WE_OPT_RING_EDGE_TEXTURE"));
-                ImGui::Checkbox("##cyclic_ring_image_enabled", &CyclicRingImageEnabled);
-                Tooltip(Tr("WE_TIP_RING_EDGE_TEXTURE"));
-
-                DisabledBlock(!CyclicRingImageEnabled)
-                {
-                    //_ Same source list as the Basic Event icon picker (maprender.h); "None" replaces "Dot" - no fallback shape here.
-                    const std::vector<std::string>& iconFiles = GetEventIconFilenames();
-                    std::vector<const char*> iconLabels;
-                    iconLabels.push_back(Tr("WE_OPT_NONE"));
-                    for (const auto& fn : iconFiles)
-                        iconLabels.push_back(fn.c_str());
-
-                    int iconIndex = 0;
-                    if (!CyclicRingImageFilename.empty())
-                        for (int k = 0; k < (int)iconFiles.size(); k++)
-                            if (iconFiles[k] == CyclicRingImageFilename)
-                                iconIndex = k + 1;
-                                
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(100.0f);
-                    if (ImGui::Combo(TrId("WE_OPT_TEXTURE", "##cyclic_ring_image_file").c_str(), &iconIndex, iconLabels.data(), (int)iconLabels.size()))
-                        CyclicRingImageFilename = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
-
-                    //_ Its own row - the ONLY control over on-screen band thickness (CyclicRingImageThickness).
-                    ImGui::SetNextItemWidth(50.0f);
-                    ImGui::DragFloat(TrId("WE_OPT_THICKNESS", "##cyclic_ring_image_thickness").c_str(), &CyclicRingImageThickness, 0.5f, 1.0f, 80.0f, "%.1f px");
-                    Tooltip(Tr("WE_TIP_RING_TEXTURE_THICKNESS"));
-                            
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(50.0f);
-                    ImGui::DragFloat(TrId("WE_OPT_OFFSET", "##cyclic_ring_image_offset").c_str(), &CyclicRingImageOffset, 0.1f, -5.0f, 5.0f, "%.1f px");
-                    Tooltip(Tr("WE_TIP_RING_TEXTURE_OFFSET"));
-                }
-
-                ImGui::Spacing();
-                ImGui::TextUnformatted(Tr("WE_OPT_FILL_TEXTURE"));
-                ImGui::Checkbox("##cyclic_fill_image_enabled", &CyclicFillImageEnabled);
-                Tooltip(Tr("WE_TIP_FILL_TEXTURE"));
-
-                DisabledBlock(!CyclicFillImageEnabled)
-                {
-                    //_ Same source list/folder as the other icon pickers above.
-                    const std::vector<std::string>& fillIconFiles = GetEventIconFilenames();
-                    std::vector<const char*> fillIconLabels;
-                    fillIconLabels.push_back(Tr("WE_OPT_NONE"));
-                    for (const auto& fn : fillIconFiles)
-                        fillIconLabels.push_back(fn.c_str());
-
-                    int fillIconIndex = 0;
-                    if (!CyclicFillImageFilename.empty())
-                        for (int k = 0; k < (int)fillIconFiles.size(); k++)
-                            if (fillIconFiles[k] == CyclicFillImageFilename)
-                                fillIconIndex = k + 1;
-                                
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(100.0f);
-                    if (ImGui::Combo("##cyclic_fill_image_file", &fillIconIndex, fillIconLabels.data(), (int)fillIconLabels.size()))
-                        CyclicFillImageFilename = (fillIconIndex == 0) ? std::string() : fillIconFiles[fillIconIndex - 1];
-                        
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(50.0f);
-                    ImGui::DragFloat(TrId("WE_OPT_OPACITY", "##cyclic_fill_image_opacity").c_str(), &CyclicFillImageOpacity, 0.01f, 0.0f, 1.0f, "%.2f");
-                }
-            }
-            
-            ImGui::EndTable();
-        }
-    }
-
     if (ImGui::CollapsingHeader(Tr("WE_OPT_EVENT_LISTS_HEADER")))
     {
         //_ Transient UI state (not persisted); filters both trees - event name for Basic, group+slot for Cyclic.
@@ -297,16 +70,9 @@ void AddonOptions()
         bool searchActive = !searchQueryLower.empty();
 
         ImGui::SameLine();
-        DrawResetToDefaultsButton();
-        DrawResetToDefaultsPopup(); //. no-op unless the confirm popup is open
-
-        ImGui::SameLine();
-        DrawRestoreMissingButton();
-
-        ImGui::SameLine();
         ImGui::TextDisabled("%s", Tr("WE_OPT_RIGHT_CLICK_HINT"));
 
-        //_ Table 3 - Basic Events tree (col 0), Cyclic Events tree (col 1); split out so search can filter both.
+        //_ Table 3 - Basic Events tree (col 0), Cyclic Events tree (col 1); one search filters both.
         if (ImGui::BeginTable("##world_events_data", 2, ImGuiTableFlags_SizingStretchSame))
         {
             //_ Row 3 - Basic Events tree (col 0), Cyclic Events tree (col 1)

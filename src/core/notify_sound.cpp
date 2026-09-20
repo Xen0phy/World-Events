@@ -21,9 +21,9 @@ static bool                     s_soundFilenamesScanned = false;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ToWide
 //--------------------------------------------------------------------------------
-// Same UTF-8 -> UTF-16 conversion as icon_whitener.cpp's ToWide - a plain byte-
-// widen isn't safe here, since an addon/GW2 install path can contain non-ASCII
-// characters and PlaySoundW needs real UTF-16.
+// Same UTF-8 -> UTF-16 conversion as texture_whitener.cpp's ToWide. Widening each
+// byte on its own isn't safe here, since an addon/GW2 install path can contain
+// non-ASCII characters and PlaySoundW needs real UTF-16.
 //--------------------------------------------------------------------------------
 static std::wstring ToWide(const std::string& s)
 {

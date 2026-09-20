@@ -133,7 +133,7 @@ bool LoadCategoriesData(const std::string& addonDir);
 // untouched. Same "a missing default id is always added back" rule
 // LoadCategoriesData already applies via MergeCategoryDefaults on every startup,
 // just run here against the current live lists instead of a freshly-loaded JSON
-// one. Returns the number of categories added back, for the options panel to
-// report to the player - see DrawRestoreMissingButton, reset_defaults.cpp.
+// one. Returns the number of categories added back, for the Events tab to report
+// to the player - see DrawRestoreMissingButton, reset_defaults.cpp.
 //--------------------------------------------------------------------------------
 int RestoreMissingCategories();

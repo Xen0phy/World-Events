@@ -81,9 +81,9 @@ static void DrawSubscriptionsWindow()
 // DrawUnsafeZonePreview
 //--------------------------------------------------------------------------------
 // Draws on the foreground list, so the lines cover the whole screen, not just
-// this window.
-// Mirrors the anchor math in subscriptions_bar.cpp: the baseline is the screen
-// edge the bar is pinned to, and each side's height drops away from it.
+// this window. Mirrors the anchor math in subscriptions_bar.cpp: the baseline is
+// the screen edge the bar is pinned to, and each side's height drops away from
+// it.
 //--------------------------------------------------------------------------------
 static void DrawUnsafeZonePreview()
 {

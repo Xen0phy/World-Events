@@ -1,16 +1,16 @@
 //################################################################################
-// icon_whitener.cpp
+// texture_whitener.cpp
 //--------------------------------------------------------------------------------
-// DrawIconWhitenerButton() / DrawIconWhitenerPopup()   whitener popup UI
+// DrawTextureWhitenerButton() / DrawTextureWhitenerPopup()   whitener popup UI
 //--------------------------------------------------------------------------------
-// Implements the popup described in icon_whitener.h using the Windows Imaging
+// Implements the popup described in texture_whitener.h using the Windows Imaging
 // Component (WIC) - no extra files/libraries needed beyond wincodec.h (mingw-w64)
 // and -lwindowscodecs -lole32 in the linker flags. See ProcessPixels for the
 // desaturate+normalize pipeline and DoConvert for the WIC load/save sequence.
 //--------------------------------------------------------------------------------
 
 #include "addon.h"          //. g_AddonDir
-#include "icon_whitener.h"
+#include "texture_whitener.h"
 #include "imgui.h"
 #include "imgui_internal.h" //. ImGuiItemFlags_Disabled
 #include "localization.h"
@@ -30,12 +30,12 @@
 // (anonymous namespace)
 //--------------------------------------------------------------------------------
 // Internal state and helpers for the whitener popup - not part of the public API
-// (see icon_whitener.h).
+// (see texture_whitener.h).
 //--------------------------------------------------------------------------------
 namespace {
 
 static bool        s_open          = false;   //. popup open/closed
-static int         s_iconIndex     = 0;       //. combo selection index (0=none)
+static int         s_textureIndex  = 0;       //. combo selection index (0=none)
 static std::string s_statusMessage;           //. last convert result or error
 static bool        s_statusIsError = false;   //. whether s_statusMessage is an error
 
@@ -242,82 +242,82 @@ static void DoConvert(const std::string& filename)
     }
 
     ScanEventIconFiles();
-    s_statusMessage = Tr("WE_ICONWHITE_SAVED_AS") + outFilename;
+    s_statusMessage = Tr("WE_TEXWHITE_SAVED_AS") + outFilename;
     s_statusIsError = false;
 }
 
 } //. namespace
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawIconWhitenerButton / DrawIconWhitenerPopup   (see: icon_whitener.h)
+// DrawTextureWhitenerButton / DrawTextureWhitenerPopup   (see: texture_whitener.h)
 //--------------------------------------------------------------------------------
 
-void DrawIconWhitenerButton()
+void DrawTextureWhitenerButton()
 {
-    if (ImGui::Button(Tr("WE_ICONWHITE_TITLE")))
+    if (ImGui::Button(Tr("WE_TEXWHITE_TITLE")))
     {
         s_open          = true;
         s_statusMessage = "";
-        s_iconIndex     = 0;
-        ImGui::OpenPopup(TrId("WE_ICONWHITE_TITLE", "##popup").c_str());
+        s_textureIndex     = 0;
+        ImGui::OpenPopup(TrId("WE_TEXWHITE_TITLE", "##popup").c_str());
     }
 }
 
-void DrawIconWhitenerPopup()
+void DrawTextureWhitenerPopup()
 {
     ImVec2 display = ImGui::GetIO().DisplaySize;
     ImGui::SetNextWindowPos(ImVec2(display.x * 0.5f, display.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(480, 0), ImGuiCond_Appearing);
 
-    if (!ImGui::BeginPopupModal(TrId("WE_ICONWHITE_TITLE", "##popup").c_str(), &s_open,
+    if (!ImGui::BeginPopupModal(TrId("WE_TEXWHITE_TITLE", "##popup").c_str(), &s_open,
             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
         return;
 
-    ImGui::TextWrapped("%s", Tr("WE_ICONWHITE_INTRO"));
+    ImGui::TextWrapped("%s", Tr("WE_TEXWHITE_INTRO"));
     ImGui::Spacing();
-    ImGui::TextWrapped("%s", Tr("WE_ICONWHITE_INSTRUCTIONS"));
+    ImGui::TextWrapped("%s", Tr("WE_TEXWHITE_INSTRUCTIONS"));
     ImGui::Separator();
     ImGui::Spacing();
 
     //_ GetEventIconFilenames() also lists bundled default icons that only exist as in-memory data (see maprender.cpp)
     std::string texDir = g_AddonDir + "\\textures";
-    std::vector<std::string> iconFiles;
+    std::vector<std::string> textureFiles;
     for (const auto& fn : GetEventIconFilenames())
     {
         std::error_code ec;
         //_ DoConvert can only WIC-decode a real file, so those are filtered out here.
         if (std::filesystem::exists(texDir + "\\" + fn, ec))
-            iconFiles.push_back(fn);
+            textureFiles.push_back(fn);
     }
 
     std::vector<const char*> labels;
-    labels.push_back("(select an icon)");
-    for (const auto& fn : iconFiles)
+    labels.push_back("(select a texture)");
+    for (const auto& fn : textureFiles)
         labels.push_back(fn.c_str());
 
     ImGui::SetNextItemWidth(300.0f);
-    ImGui::Combo(TrId("WE_ICONWHITE_ICON_LABEL", "##whitener_pick").c_str(), &s_iconIndex, labels.data(), (int)labels.size());
+    ImGui::Combo(TrId("WE_TEXWHITE_TEXTURE_LABEL", "##whitener_pick").c_str(), &s_textureIndex, labels.data(), (int)labels.size());
     ImGui::SameLine();
-    if (ImGui::SmallButton(TrId("WE_ICONWHITE_REFRESH", "##whitener_rescan").c_str()))
+    if (ImGui::SmallButton(TrId("WE_TEXWHITE_REFRESH", "##whitener_rescan").c_str()))
     {
         ScanEventIconFiles();
-        s_iconIndex     = 0;
+        s_textureIndex     = 0;
         s_statusMessage = "";
     }
 
     ImGui::Spacing();
 
-    bool canConvert = (s_iconIndex > 0);
+    bool canConvert = (s_textureIndex > 0);
     if (!canConvert)
     {
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
     }
 
-    if (ImGui::Button(TrId("WE_ICONWHITE_CONVERT", "##whitener_go").c_str()))
+    if (ImGui::Button(TrId("WE_TEXWHITE_CONVERT", "##whitener_go").c_str()))
     {
         s_statusMessage = "";
-        DoConvert(iconFiles[s_iconIndex - 1]);
+        DoConvert(textureFiles[s_textureIndex - 1]);
     }
 
     if (!canConvert)
@@ -327,7 +327,7 @@ void DrawIconWhitenerPopup()
     }
 
     ImGui::SameLine();
-    if (ImGui::Button(TrId("WE_ICONWHITE_CLOSE", "##whitener_close").c_str()))
+    if (ImGui::Button(TrId("WE_TEXWHITE_CLOSE", "##whitener_close").c_str()))
     {
         s_open = false;
         ImGui::CloseCurrentPopup();
