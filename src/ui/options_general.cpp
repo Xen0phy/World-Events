@@ -333,7 +333,12 @@ static void DrawChatAndPaste()
     DisabledBlock(!unlockDelay)
     {
         ImGui::SetNextItemWidth(50.0f);
-        ImGui::InputInt(Tr("WE_OPT_PASTE_DELAY"), &delayMilliseconds, 0, 0);
+        if (ImGui::InputInt(Tr("WE_OPT_PASTE_DELAY"), &delayMilliseconds, 0, 0))
+        {
+            //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
+            if (delayMilliseconds < 0)   delayMilliseconds = 0;
+            if (delayMilliseconds > 100) delayMilliseconds = 100;
+        }
     }
 
     std::vector<const char*> chatChannelLabels;

@@ -9,7 +9,7 @@
 // dedicated invalidation hook: editing an already-subscribed event's own schedule
 // in the options panel while it's live - a rare edit-while-watching case where a
 // bounded few seconds of staleness is an accepted tradeoff over adding a hook to
-// every field editor in addon_options.cpp.
+// every field editor in addon_options_helpers.cpp.
 //--------------------------------------------------------------------------------
 
 #include "events.h"

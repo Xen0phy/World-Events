@@ -19,11 +19,11 @@
 #include "events_tracking.h"
 #include "imgui.h"
 #include "localization.h"
+#include "options_window.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_ui.h"
 #include "subscriptions_cache.h"
-#include "subscriptions_edit_window.h"
 #include "time_format.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -157,8 +157,8 @@ static bool DrawSubscriptionRow(const std::string& name, const std::string& chat
             else         ToggleCyclicSlotDoneToday(cyclicKey);
         }
         ImGui::Separator();
-        if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
-            OpenEditSubscriptionsWindow(isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, basicId, cyclicKey);
+        if (ImGui::Selectable(Tr("WE_SUBS_OPEN_SETTINGS")))
+            OpenOptionsWindow(isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, basicId, cyclicKey);
         ImGui::EndPopup();
     }
 
@@ -267,11 +267,11 @@ void RenderSubscriptionsWindow()
 
     //_ Background "manage subscriptions" entry point - fires on empty content area only; a row's own right-click is already handled inside DrawSubscriptionRow above (anyRowHovered rules this out there).
     if (ImGui::IsWindowHovered() && !anyRowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
-        ImGui::OpenPopup("##we_edit_subs_bg_popup");
-    if (ImGui::BeginPopup("##we_edit_subs_bg_popup"))
+        ImGui::OpenPopup("##we_subs_bg_popup");
+    if (ImGui::BeginPopup("##we_subs_bg_popup"))
     {
-        if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
-            OpenEditSubscriptionsWindow();
+        if (ImGui::Selectable(Tr("WE_SUBS_OPEN_SETTINGS")))
+            OpenOptionsWindow(OptionsTab::Events);
         ImGui::EndPopup();
     }
 

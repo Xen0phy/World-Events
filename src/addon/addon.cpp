@@ -27,7 +27,6 @@
 #include "options_window.h"
 #include "settings.h"
 #include "subscriptions.h"
-#include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
 #include "version.h"
 #include "ws_client.h"
@@ -108,9 +107,9 @@ bool ResetAllDataToDefaults()
 // callbacks are registered last so nothing can render before setup has actually
 // finished.
 //
-// Edit Subscriptions, live-events, and WS debug windows have translated titles,
-// so each self-registers via Localization_SyncCloseOnEscape per frame instead
-// (see localization.h).
+// The settings, live-reports, and WS debug windows have translated titles, so
+// each self-registers via Localization_SyncCloseOnEscape per frame instead (see
+// localization.h).
 //--------------------------------------------------------------------------------
 void AddonLoad(AddonAPI_t* aAPI)
 {
@@ -268,10 +267,7 @@ void AddonRender()
             if (!(isCompetitive && DisableNotifyWhenCompetitive)) RenderSubscriptionsNotifications();
         }
 
-        //_ Not gated by the competitive kill-switches above: those govern passive overlay visibility, not an editor the user just explicitly opened.
-        RenderEditSubscriptionsWindow();
-
-        //_ Also not gated by the kill-switches: g_LiveEvents only has PvE-map entries, so IsPlayerNearLiveEvent is already false on PvP/WvW (events_live.h).
+        //_ Not gated by the kill-switches above: g_LiveEvents only has PvE-map entries, so IsPlayerNearLiveEvent is already false on PvP/WvW (events_live.h).
         RenderLiveEventButtons();
         RenderLiveEventReportsWindow();
     }

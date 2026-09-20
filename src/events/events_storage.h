@@ -67,11 +67,11 @@ const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const 
 // Otherwise, a compiled-in row (GetDefaultEvent/GetDefaultCyclicGroup/
 // GetDefaultCyclicSlot) resolves to the WE_NAME_BASIC_<id>/WE_NAME_GROUP_<id>/
 // WE_NAME_SLOT_<groupId>_<id> identifier (event_names.csv) via Tr()/ TrEnglish().
-// Neither -> WE_UNNAMED, subscriptions_edit_window.cpp's existing fallback. The
-// Slot overload takes groupId separately since Slot::id is only unique within its
-// group. DisplayNameEnglish always resolves to English regardless of active
-// language, for code that must match ArenaNet's own API text or an old English-
-// only save (weekly_vault.cpp, the eventNameToId/groupNameToId migrations).
+// Neither -> WE_UNNAMED. The Slot overload takes groupId separately since
+// Slot::id is only unique within its group. DisplayNameEnglish always resolves to
+// English regardless of active language, for code that must match ArenaNet's own
+// API text or an old English-only save (weekly_vault.cpp, the
+// eventNameToId/groupNameToId migrations).
 //--------------------------------------------------------------------------------
 const char* DisplayName(const WorldEvent& ev);
 const char* DisplayNameEnglish(const WorldEvent& ev);
@@ -87,7 +87,7 @@ const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string&
 //--------------------------------------------------------------------------------
 // Id-assignment helpers. A brand-new WorldEvent/CyclicGroup/CyclicGroup::Slot or
 // Category gets its id up front, right when the options panel's "+" button
-// creates it (see addon_options.cpp/addon_options_helpers.cpp) - the id is never
+// creates it (see options_events.cpp/addon_options_helpers.cpp) - the id is never
 // derived from the (still-unset) name. LoadEventsData also calls these as a one-
 // time backfill for any id left empty by a save from before that assignment
 // existed (see the .cpp).

@@ -80,9 +80,9 @@ const char* TrEnglish(const char* aIdentifier);
 // - for ImGui widgets that need a translated visible label but a stable ID. Dear
 // ImGui only drops preceding text from the ID hash at a triple "###"; a plain
 // "##" still folds the translated label into the hash, so aIdSuffix must start
-// with "###", not "##" - see kEditSubscriptionsWindowId (subscriptions_edit_
-// window.h) for the pattern. Returns a std::string since the result is built at
-// call time, not a static string - pass .c_str() to ImGui.
+// with "###", not "##" - see kOptionsWindowId (options_window.h) for the pattern.
+// Returns a std::string since the result is built at call time, not a static
+// string - pass .c_str() to ImGui.
 //--------------------------------------------------------------------------------
 std::string TrId(const char* aIdentifier, const char* aIdSuffix);
 

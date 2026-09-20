@@ -103,8 +103,8 @@ const char* DisplayNameEnglish(const Category& cat, CategoryListKind kind);
 //--------------------------------------------------------------------------------
 // Moves memberId into targetCategoryIndex, removing it from every other category
 // first - membership is exclusive. Pass -1 for "uncategorized": removes without
-// adding anywhere. Pure data operation; the drag-and-drop UI in addon_options.cpp
-// calls this on drop.
+// adding anywhere. Pure data operation; the drag-and-drop UI (options_events.cpp,
+// addon_options.cpp) calls this on drop.
 //--------------------------------------------------------------------------------
 void MoveCategoryMember(std::vector<Category>& categories, const std::string& memberId, int targetCategoryIndex);
 

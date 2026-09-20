@@ -72,8 +72,8 @@
 // three views applies the skip itself at consumption time.
 //
 // basicId/cyclicGroupId are the identity fields (Toggle.../Is...Enabled/
-// OpenEditSubscriptionsWindow calls); basicName/cyclicGroupName stay display-only
-// (bar segment color hash, row label).
+// OpenOptionsWindow calls); basicName/cyclicGroupName stay display-only (bar
+// segment color hash, row label).
 //--------------------------------------------------------------------------------
 struct ResolvedSubscription
 {

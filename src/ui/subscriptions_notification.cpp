@@ -41,10 +41,10 @@
 #include "maprender.h" //. ScreenFractionToPixels, for NotificationAnchorX/Y
 #include "notification_client.h" //. DrainLiveEventNotifications
 #include "notify_sound.h"
+#include "options_window.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
-#include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
 #include "time_format.h"
 
@@ -496,8 +496,8 @@ static void DrawAndExpirePopups()
                 else                                          ToggleLiveEventDoneToday(p.liveEventId);
             }
             ImGui::Separator();
-            if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
-                OpenEditSubscriptionsWindow(p.kind, p.basicId, p.cyclicKey, p.liveEventId);
+            if (ImGui::Selectable(Tr("WE_SUBS_OPEN_SETTINGS")))
+                OpenOptionsWindow(p.kind, p.basicId, p.cyclicKey, p.liveEventId);
             ImGui::EndPopup();
         }
 

@@ -6,7 +6,7 @@
 // ShowDebug                           build-time debug/timing switch
 // ScopedRenderTimer<T>                RAII per-frame timer, debug-only
 // AddonLoad/AddonUnload/AddonRender   Nexus-required exports (see addon.cpp)
-// AddonOptions                        options panel callback (addon_options.cpp)
+// AddonOptions                        Nexus options panel callback (addon_options.cpp)
 //--------------------------------------------------------------------------------
 
 #pragma once
@@ -36,7 +36,7 @@ extern float g_AvgSubsBarDataMs,      g_AvgSubsBarDrawMs;
 extern float g_AvgSubsWindowDataMs,   g_AvgSubsWindowDrawMs;
 extern float g_AvgSubsNotifyDataMs,   g_AvgSubsNotifyDrawMs;
 
-//_ Same idea as g_AvgRenderTimeMs, but for AddonOptions's own body - a distinct render cost, kept separate.
+//_ Same idea as g_AvgRenderTimeMs, but for RenderOptionsWindow's own body - a distinct render cost, kept separate.
 extern float g_AvgOptionsRenderTimeMs;
 
 //********************************************************************************
@@ -113,8 +113,9 @@ void AddonRender();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AddonOptions
 //--------------------------------------------------------------------------------
-// Options panel callback (RT_OptionsRender) - implemented in addon_options.cpp,
-// not addon.cpp.
+// Nexus options panel callback (RT_OptionsRender) - implemented in
+// addon_options.cpp, not addon.cpp. Draws only the button that opens the settings
+// window.
 //--------------------------------------------------------------------------------
 void AddonOptions();
 

@@ -1,17 +1,17 @@
 //################################################################################
 // addon_options_helpers.h
 //--------------------------------------------------------------------------------
-// Declarations for the World Events options panel's helper layer: scoped-disable,
-// period widgets, icon/color pickers, duplicate-name checks, drag-and-drop
-// plumbing, the notify-level control, the shared name/context-menu row, search
-// predicates, the chat-channel combo options, and the two full row drawers (Basic
-// Event / Cyclic Group).
+// Declarations for the World Events settings window's helper layer: scoped-
+// disable, period widgets, icon/color pickers, duplicate-name checks, drag-and-
+// drop plumbing, the notify-level control, the shared name/context-menu row,
+// search predicates, the chat-channel combo options, and the two full row drawers
+// (Basic Event / Cyclic Group).
 //
-// addon_options.cpp (AddonOptions() itself) includes this and calls into it
-// directly for several things beyond just the row drawers (bulk icon picker,
-// category name/context-menu rows, search predicates, the drag-drop
-// "uncategorized" targets, and the DisabledBlock macro) - so these are declared
-// here with external linkage instead of kept `static` in one .cpp.
+// The options_*.cpp files include this and call into it directly for several
+// things beyond just the row drawers (bulk icon picker, category name/context-
+// menu rows, search predicates, the drag-drop "uncategorized" targets, and the
+// DisabledBlock macro) - so these are declared here with external linkage instead
+// of kept `static` in one .cpp.
 //
 // addon_options_helpers.cpp holds every implementation; nothing here should need
 // editing just to change behavior, only to change a signature.
@@ -80,8 +80,8 @@ void DrawPeriodHoursDragInt(int* periodSeconds);
 // DrawBulkIconPicker
 //--------------------------------------------------------------------------------
 // One dropdown that sets ev.iconTexture for every event index in `targetIndices`
-// at once. Used by the Basic Events section header's "All icons" picker, but
-// written generically over any index list.
+// at once. Used by the "Set all icons" picker in the Basic event settings header
+// (options_events.cpp), but written generically over any index list.
 //--------------------------------------------------------------------------------
 void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices);
 
@@ -137,7 +137,7 @@ bool DrawSubscribeCheckbox(const char* label, bool& value);
 //--------------------------------------------------------------------------------
 // Hand-drawn glyphs (no icon font in the base build) - see the .cpp for the
 // geometry notes. DrawSpeakerIcon is also used standalone as a plain label glyph
-// next to the notification-sound picker in AddonOptions.
+// next to the notification-sound picker (options_general.cpp).
 //--------------------------------------------------------------------------------
 void DrawBellIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color);
 void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color);
@@ -149,10 +149,9 @@ void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color);
 // shows the *current* level (minus/plus/bell/speaker for 0-3). Left-click always
 // advances one level, wrapping 3 -> 0; jumping to an arbitrary level lives in
 // DrawNameAndContextMenu's right-click menu instead (notifyLevel/ setNotifyLevel
-// params below). Also used, at the front of each row, by the "Edit Subscriptions"
-// quick-access window (subscriptions_edit_window.cpp) for glanceable state - see
-// DrawNotifyLevelButtons below for that same window's expanded-body direct-jump
-// control.
+// params below). Also used at the front of each Quick row in options_events.cpp
+// for glanceable state - see DrawNotifyLevelButtons below for the direct-jump
+// control in the expanded body.
 //--------------------------------------------------------------------------------
 int DrawNotifyLevelIcon(const char* idSuffix, int level);
 
@@ -162,13 +161,12 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level);
 // Same 0..3 notify ladder as DrawNotifyLevelIcon, laid out as four side-by-side
 // hit-boxes (minus, plus, bell, speaker) instead of one cycling icon - each
 // independently clickable, jumping straight to that level instead of advancing
-// one step. The currently-active box is framed/highlighted. Used by the "Edit
-// Subscriptions" quick-access window (subscriptions_edit_window.cpp), inside each
-// row's expanded body, alongside the front-of-row DrawNotifyLevelIcon - the icon
-// gives glanceable state without expanding, this gives a direct jump once
-// expanded, without needing the right-click menu DrawNotifyLevelIcon otherwise
-// relies on for that (which this window doesn't have). Returns the level to apply
-// this frame - unchanged unless one of the four boxes was just clicked.
+// one step. The currently-active box is framed/highlighted. Used by the Quick
+// rows in options_events.cpp, inside each row's expanded body, alongside the
+// front-of-row DrawNotifyLevelIcon - the icon gives glanceable state, this gives
+// a direct jump without the right-click menu DrawNotifyLevelIcon otherwise relies
+// on (Quick rows have none). Returns the level to apply this frame - unchanged
+// unless one of the four boxes was just clicked.
 //--------------------------------------------------------------------------------
 int DrawNotifyLevelButtons(const char* idSuffix, int level);
 
@@ -243,15 +241,15 @@ NameRowResult DrawNameAndContextMenu(
 // RequestBasicEventNameEdit / RequestCyclicGroupNameEdit
 //--------------------------------------------------------------------------------
 // Called once, right after pushing a freshly-created (empty-customName) entry
-// onto g_Events/g_CyclicGroups, from AddonOptions() (addon_options.cpp) - which
-// has no access to DrawBasicEventRow's/DrawCyclicGroupRow's own file-static
-// editBuffers maps. The next time that row actually draws (the following frame -
-// add/remove is applied after the draw loop, same as everywhere else in this
-// file), it seeds its own editBuffers entry and opens already focused for typing,
-// instead of showing a placeholder name the player has to notice and replace.
-// Cyclic Slots don't need an equivalent: their add button lives in the same
-// function as their editBuffers map (DrawCyclicGroupRow), so that seeding happens
-// inline instead - see the .cpp.
+// onto g_Events/g_CyclicGroups, from options_events.cpp - which has no access to
+// DrawBasicEventRow's/DrawCyclicGroupRow's own file-static editBuffers maps. The
+// next time that row actually draws (the following frame - add/remove is applied
+// after the draw loop, same as everywhere else in this file), it seeds its own
+// editBuffers entry and opens already focused for typing, instead of showing a
+// placeholder name the player has to notice and replace. Cyclic Slots don't need
+// an equivalent: their add button lives in the same function as their editBuffers
+// map (DrawCyclicGroupRow), so that seeding happens inline instead - see the
+// .cpp.
 //--------------------------------------------------------------------------------
 void RequestBasicEventNameEdit(int index);
 void RequestCyclicGroupNameEdit(int index);
@@ -261,9 +259,9 @@ void RequestCyclicGroupNameEdit(int index);
 //--------------------------------------------------------------------------------
 // True from the index passed to the matching Request*NameEdit call until that
 // entry is saved or cancelled (NameRowResult::cancelled) - the same span
-// DrawBasicEventRow/DrawCyclicGroupRow pass through as isNew. AddonOptions()
-// disables the matching "+" button while true, capping creation to one pending,
-// not-yet-named entry at a time.
+// DrawBasicEventRow/DrawCyclicGroupRow pass through as isNew. The list toolbar in
+// options_events.cpp disables the matching "+" button while true, capping
+// creation to one pending, not-yet-named entry at a time.
 //--------------------------------------------------------------------------------
 bool IsBasicEventCreationPending();
 bool IsCyclicGroupCreationPending();

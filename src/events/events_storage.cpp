@@ -10,7 +10,7 @@
 // SlotKey) - name is display-only. Every entry on disk already has an id: a pre-
 // id-migration file is deleted before it ever reaches here (see
 // WipeLegacyEventsFile, addon.cpp), and the options panel's "+" button assigns
-// one up front for anything created since (see addon_options.cpp). The id
+// one up front for anything created since (see options_events.cpp). The id
 // backfill below only fires for a save written by a build that predates that
 // assignment.
 //
@@ -662,7 +662,7 @@ bool LoadEventsData(const std::string& addonDir)
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // (id backfill)
         //--------------------------------------------------------------------------------
-        // The options panel's "+" button assigns an id up front (see addon_options.cpp),
+        // The options panel's "+" button assigns an id up front (see options_events.cpp),
         // so a loaded id is only ever empty for a save written by a build predating that
         // fix - see SerializeEvent/SerializeSlot/SerializeGroup and SlugifyName/UniqueId
         // (events_storage.h). Everything else on disk already carries a real id.

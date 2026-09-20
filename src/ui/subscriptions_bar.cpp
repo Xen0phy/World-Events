@@ -30,10 +30,10 @@
 #include "events_tracking.h"
 #include "imgui.h"
 #include "localization.h"
+#include "options_window.h"
 #include "settings.h"
 #include "subscriptions.h"
 #include "subscriptions_cache.h"
-#include "subscriptions_edit_window.h"
 #include "subscriptions_ui.h"
 #include "time_format.h"
 
@@ -1389,13 +1389,13 @@ void RenderSubscriptionsBar()
         //_ Background "manage subscriptions" entry point
         if (lineRightClicked)
         {
-            ImGui::OpenPopup("##we_subbar_bg_edit_popup");
+            ImGui::OpenPopup("##we_subbar_bg_popup");
             io.WantCaptureMouse = true;
         }
-        if (ImGui::BeginPopup("##we_subbar_bg_edit_popup"))
+        if (ImGui::BeginPopup("##we_subbar_bg_popup"))
         {
-            if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
-                OpenEditSubscriptionsWindow();
+            if (ImGui::Selectable(Tr("WE_SUBS_OPEN_SETTINGS")))
+                OpenOptionsWindow(OptionsTab::Events);
             ImGui::EndPopup();
         }
     }
@@ -1487,8 +1487,8 @@ void RenderSubscriptionsBar()
                 else           ToggleCyclicSlotDoneToday(s.cyclicKey);
             }
             ImGui::Separator();
-            if (ImGui::Selectable(Tr("WE_SUBS_EDIT_SUBSCRIPTIONS")))
-                OpenEditSubscriptionsWindow(s.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, s.basicId, s.cyclicKey);
+            if (ImGui::Selectable(Tr("WE_SUBS_OPEN_SETTINGS")))
+                OpenOptionsWindow(s.isBasic ? SubscriptionKind::Basic : SubscriptionKind::Cyclic, s.basicId, s.cyclicKey);
             ImGui::EndPopup();
         }
     }

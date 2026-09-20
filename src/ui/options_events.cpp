@@ -12,8 +12,8 @@
 // s_link               row the last deep link named
 // s_linkPending        that link has not reached its row yet
 // s_linkFrame          frame count when the link arrived
-// s_basicCategoryEdit  Basic Categories editor state
-// s_cyclicCategoryEdit Cyclic Categories editor state
+// s_basicCategoryEdit  Basic list's category edit state
+// s_cyclicCategoryEdit Cyclic list's category edit state
 // SegmentWidth         pixel width of one Quick/Deep button
 // DrawModeSegment      one Quick/Deep button
 // DrawRightClickHint   the hint text, right-aligned when it fits
@@ -29,11 +29,14 @@
 // DrawQuickBasicRow    Quick row for one Basic event
 // DrawQuickSlotRow     Quick row for one Cyclic slot
 // DrawQuickGroupRow    Quick row for one Cyclic group, nests its slot rows
-// CategoryEditState    what one categories editor remembers between frames
-// DrawCategoryEditor   Deep body of a Categories header: add, rename, remove, drop
+// CategoryEditState    what one list's category rows remember between frames
+// DrawListToolbar      line above a list: name, add item, add category
+// AddCategory          append an unnamed category and open its name box
+// AddBasicEvent/AddCyclicGroup
+//                      append an unnamed event or group with default values
 // DrawCategorizedList  the one category-aware list loop, takes a row renderer
-// DrawBasicList        event list under the Basic settings header, Quick or Deep
-// DrawCyclicList       group list under the Cyclic settings header, Quick or Deep
+// DrawBasicList        toolbar and event list under the Basic settings header
+// DrawCyclicList       toolbar and group list under the Cyclic settings header
 //--------------------------------------------------------------------------------
 
 #include "options_events.h"
@@ -345,6 +348,12 @@ static void DrawBasicSettings()
 
     ImGui::SetNextItemWidth(50.0f);
     ImGui::DragFloat(TrId("WE_OPT_ICON_SIZE", "##basic_icon_size").c_str(), &BasicEventIconSize, 1.0f, 2.0f, 40.0f, "%.0f px");
+
+    //_ Applies to every Basic Event regardless of category; there is no per-category picker.
+    std::vector<int> allIndices(g_Events.size());
+    for (int i = 0; i < (int)g_Events.size(); i++)
+        allIndices[i] = i;
+    DrawBulkIconPicker(TrId("WE_OPT_SET_ALL_ICONS", "###bulk_icon_all").c_str(), allIndices);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -649,100 +658,112 @@ static void DrawQuickGroupRow(int i)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawCategoryEditor
+// DrawListToolbar
 //--------------------------------------------------------------------------------
-// Body of a Deep-only Categories header. Draws a drag hint, the "+" button, an
-// "Uncategorized" drop target, then one tree node per category: click to rename
-// inline, right-click for Edit name / Delete, drop a row on it to move the row
-// in. Opening a node lists its members read-only. Item is any type with an id
-// that matches Category::members; dragType must be the payload type that list's
-// rows drag with. Adds and removes are applied after the loop so no index moves
-// mid-draw; a removed category's members become uncategorized.
+// The line above a list, laid out as in the old panel: the list's name (drop a
+// row on it to uncategorize), "+" to add an item, then "Categories" and "+" to
+// add a category. Each "+" greys with the WE_TIP_FINISH_NAMING tooltip while its
+// last new entry is unresolved. Clicks come back through addItem and addCategory
+// and are applied by the caller after the list has drawn, so no index moves mid-
+// draw.
 //--------------------------------------------------------------------------------
-template <typename Item>
-static void DrawCategoryEditor(const std::vector<Item>& items, std::vector<Category>& categories, CategoryListKind kind,
-    const char* dragType, CategoryEditState& edit)
+static void DrawListToolbar(const char* nameKey, const char* dragType, std::vector<Category>& categories, const CategoryEditState& edit,
+    bool itemCreationPending, const char* addItemId, const char* addCategoryId, bool& addItem, bool& addCategory)
 {
-    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_CATEGORIES_HINT"));
+    ImGui::TextUnformatted(Tr(nameKey));
+    MakeDropTarget(dragType, categories, -1); //. drop here to uncategorize
 
-    bool pendingAdd = false;
+    ImGui::SameLine();
+    DisabledBlock(itemCreationPending)
+    {
+        addItem = ImGui::SmallButton(addItemId);
+    }
+    if (itemCreationPending && ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
+
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+    ImGui::TextUnformatted(Tr("WE_OPT_CATEGORIES"));
+    ImGui::SameLine();
     DisabledBlock(edit.newIndex >= 0)
     {
-        pendingAdd = ImGui::SmallButton("+##add_category");
+        addCategory = ImGui::SmallButton(addCategoryId);
     }
     if (edit.newIndex >= 0 && ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
+}
 
-    ImGui::TextUnformatted(Tr("WE_OPTWIN_CATEGORIES_NONE"));
-    MakeDropTarget(dragType, categories, -1); //. drop here to uncategorize
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// AddCategory
+//--------------------------------------------------------------------------------
+// Appends an unnamed category; its name box opens focused on the next draw and
+// edit.newIndex blocks the "+" until it is saved or cancelled. The search is
+// cleared, since a query would hide the unnamed entry and leave the "+" locked.
+//--------------------------------------------------------------------------------
+static void AddCategory(std::vector<Category>& categories, CategoryEditState& edit)
+{
+    std::unordered_set<std::string> usedIds;
+    for (const Category& existing : categories) usedIds.insert(existing.id);
 
-    int pendingRemoveIndex = -1;
-    for (int c = 0; c < (int)categories.size(); c++)
-    {
-        Category& cat = categories[c];
-        ImGui::PushID(c);
+    Category newCat;
+    //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
+    newCat.id = UniqueId(SlugifyName("category"), usedIds);
+    categories.push_back(newCat); //. customName empty: name box opens
+    edit.pendingFocus = (int)categories.size() - 1;
+    edit.newIndex     = edit.pendingFocus;
+    s_searchBuf[0]    = '\0'; //. unnamed entry must stay visible
+}
 
-        const std::string oldName = DisplayName(cat, kind);
-        const bool autoFocus = (edit.pendingFocus == c);
-        if (autoFocus)
-        {
-            edit.editingNames[c] = ""; //. freshly created - starts empty, forces the inline editor open
-            edit.pendingFocus = -1;
-        }
-        const bool isNew = (edit.newIndex == c);
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// AddBasicEvent / AddCyclicGroup
+//--------------------------------------------------------------------------------
+// Append an unnamed entry with default values and ask its row to open the name
+// box (RequestBasicEventNameEdit / RequestCyclicGroupNameEdit,
+// addon_options_helpers.h). Only Deep rows draw that box, so both switch to Deep;
+// both also clear the search, since a query would hide the unnamed entry and
+// leave the "+" locked.
+//--------------------------------------------------------------------------------
+static void AddBasicEvent()
+{
+    std::unordered_set<std::string> usedIds;
+    for (const WorldEvent& ev : g_Events) usedIds.insert(ev.id);
 
-        NameRowResult nameResult = DrawNameAndContextMenu("##category_node", c, c, oldName, edit.editingNames, pendingRemoveIndex,
-            nullptr, std::string(), nullptr, nullptr, -1, nullptr, nullptr, true, autoFocus, isNew);
-        MakeDropTarget(dragType, categories, c);
+    WorldEvent newEvent{};
+    //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
+    newEvent.id         = UniqueId(SlugifyName("event"), usedIds);
+    newEvent.customName = ""; //. unnamed: forces the name box
+    newEvent.continentX = 49332.0f;
+    newEvent.continentY = 31457.0f;
+    newEvent.isVarying  = false;
+    newEvent.duration   = 900;  //. 15 min, a reasonable default
+    newEvent.period     = 7200; //. 2h, most common period
+    newEvent.offset     = 0;
+    g_Events.push_back(newEvent);
+    RequestBasicEventNameEdit((int)g_Events.size() - 1);
 
-        //_ Members and forced membership reference the category by id, never customName, so a rename needs no patching.
-        if (nameResult.newName != oldName)
-            cat.customName = nameResult.newName;
+    s_deepMode     = true;
+    s_searchBuf[0] = '\0';
+}
 
-        //_ Resolved (saved or cancelled) - frees the "+" button back up.
-        if (isNew && (nameResult.cancelled || nameResult.newName != oldName))
-            edit.newIndex = -1;
+static void AddCyclicGroup()
+{
+    std::unordered_set<std::string> usedIds;
+    for (const CyclicGroup& grp : g_CyclicGroups) usedIds.insert(grp.id);
 
-        if (nameResult.open)
-        {
-            for (const std::string& memberId : cat.members)
-                for (const Item& item : items)
-                    if (item.id == memberId) { ImGui::TextDisabled("%s", DisplayName(item)); break; }
-            ImGui::TreePop();
-        }
+    CyclicGroup newGroup{};
+    //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
+    newGroup.id         = UniqueId(SlugifyName("group"), usedIds);
+    newGroup.customName = ""; //. unnamed: forces the name box
+    newGroup.continentX = 49332.0f;
+    newGroup.continentY = 31457.0f;
+    newGroup.period     = 7200; //. 2h, most common period
+    newGroup.colors     = ColorSet{ ImVec4(0.502f, 0.502f, 0.502f, 1.0f) }; //. neutral gray, placeholder
+    g_CyclicGroups.push_back(newGroup);
+    RequestCyclicGroupNameEdit((int)g_CyclicGroups.size() - 1);
 
-        ImGui::PopID();
-    }
-
-    if (pendingRemoveIndex >= 0)
-    {
-        categories.erase(categories.begin() + pendingRemoveIndex);
-
-        //_ Later categories moved down one slot, so their rename boxes and the new-entry marker follow them.
-        std::map<int, std::string> shifted;
-        for (const auto& [index, text] : edit.editingNames)
-        {
-            if (index < pendingRemoveIndex)      shifted[index]     = text;
-            else if (index > pendingRemoveIndex) shifted[index - 1] = text;
-        }
-        edit.editingNames.swap(shifted);
-
-        if (edit.newIndex == pendingRemoveIndex)     edit.newIndex = -1;
-        else if (edit.newIndex > pendingRemoveIndex) edit.newIndex--;
-    }
-
-    if (pendingAdd)
-    {
-        std::unordered_set<std::string> usedIds;
-        for (const Category& existing : categories) usedIds.insert(existing.id);
-
-        Category newCat;
-        //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
-        newCat.id = UniqueId(SlugifyName("category"), usedIds);
-        categories.push_back(newCat); //. customName empty: name box opens
-        edit.pendingFocus = (int)categories.size() - 1;
-        edit.newIndex     = edit.pendingFocus;
-    }
+    s_deepMode     = true;
+    s_searchBuf[0] = '\0';
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -750,28 +771,30 @@ static void DrawCategoryEditor(const std::vector<Item>& items, std::vector<Categ
 //--------------------------------------------------------------------------------
 // Draws items as one tree node per category with its members nested, then the
 // uncategorized items. Item is any type with an id matching Category::members.
-// drawRow(i) draws items[i] inside its own PushID(i) and is the only part that
-// differs per tab and mode; it must defer any erase until this returns. A query
-// skips categories without a match and opens the ones that have one. The frame
-// the query clears, every category collapses again; wasSearchActive carries that
-// edge between frames and belongs to this list alone. linkedId is the id of the
-// item a deep link wants shown, or empty; the category holding it opens and stays
-// open on that frame, ahead of the collapse above.
+// drawRow(i) draws items[i] inside its own PushID(i), the only part that differs
+// per tab and mode; it must defer any erase until this returns. Category nodes
+// are DrawNameAndContextMenu rows (rename, right-click Delete) and drop targets
+// for dragType. A query skips categories without a match and opens the ones that
+// have one; the frame it clears, every category collapses again (wasSearchActive
+// carries that edge, one per list). linkedId is the item a deep link wants shown;
+// its category opens ahead of that collapse. A deleted category goes after the
+// loops and its members become uncategorized.
 //--------------------------------------------------------------------------------
 template <typename Item, typename RowFn>
-static void DrawCategorizedList(const std::vector<Item>& items, const std::vector<Category>& categories, CategoryListKind kind,
-    const std::string& queryLower, bool (*matches)(const Item&, const std::string&), bool& wasSearchActive, const std::string& linkedId,
-    RowFn drawRow)
+static void DrawCategorizedList(const std::vector<Item>& items, std::vector<Category>& categories, CategoryListKind kind, const char* dragType,
+    CategoryEditState& edit, const std::string& queryLower, bool (*matches)(const Item&, const std::string&), bool& wasSearchActive,
+    const std::string& linkedId, RowFn drawRow)
 {
     const bool searchActive      = !queryLower.empty();
     const bool searchJustCleared = wasSearchActive && !searchActive;
     wasSearchActive = searchActive;
 
     std::vector<bool> isCategorized(items.size(), false);
+    int pendingRemoveCategory = -1;
 
     for (int c = 0; c < (int)categories.size(); c++)
     {
-        const Category& cat = categories[c];
+        Category& cat = categories[c];
         ImGui::PushID(c);
 
         //_ Members resolved to item indices in member order; ids with no matching item are skipped.
@@ -780,7 +803,8 @@ static void DrawCategorizedList(const std::vector<Item>& items, const std::vecto
             for (int i = 0; i < (int)items.size(); i++)
                 if (items[i].id == memberId) { memberIndices.push_back(i); break; }
 
-        const char* categoryName = DisplayName(cat, kind);
+        //_ A copy: the pointer DisplayName returns dies when a rename below rewrites customName.
+        const std::string categoryName = DisplayName(cat, kind);
         const bool nameMatches = ContainsCaseInsensitive(categoryName, queryLower);
         const bool hasMatch = nameMatches || std::any_of(memberIndices.begin(), memberIndices.end(),
             [&](int i) { return matches(items[i], queryLower); });
@@ -797,7 +821,26 @@ static void DrawCategorizedList(const std::vector<Item>& items, const std::vecto
             else if (searchJustCleared)
                 ImGui::SetNextItemOpen(false, ImGuiCond_Always);
 
-            open = ImGui::TreeNode("##category_node", "%s", categoryName);
+            const bool autoFocus = (edit.pendingFocus == c);
+            if (autoFocus)
+            {
+                edit.editingNames[c] = ""; //. freshly created - starts empty, forces the inline editor open
+                edit.pendingFocus = -1;
+            }
+            const bool isNew = (edit.newIndex == c);
+
+            NameRowResult nameResult = DrawNameAndContextMenu("##category_node", c, c, categoryName, edit.editingNames, pendingRemoveCategory,
+                nullptr, std::string(), nullptr, nullptr, -1, nullptr, nullptr, true, autoFocus, isNew);
+            open = nameResult.open;
+            MakeDropTarget(dragType, categories, c);
+
+            //_ Members and forced membership reference the category by id, never customName, so a rename needs no patching.
+            if (nameResult.newName != categoryName)
+                cat.customName = nameResult.newName;
+
+            //_ Resolved (saved or cancelled) - frees the "+" button back up.
+            if (isNew && (nameResult.cancelled || nameResult.newName != categoryName))
+                edit.newIndex = -1;
         }
 
         //_ Marked even when the category is folded or skipped, so a member never resurfaces as uncategorized.
@@ -831,32 +874,61 @@ static void DrawCategorizedList(const std::vector<Item>& items, const std::vecto
         ImGui::PopID();
     }
     ImGui::PopID();
+
+    if (pendingRemoveCategory >= 0)
+    {
+        categories.erase(categories.begin() + pendingRemoveCategory);
+
+        //_ Later categories moved down one slot, so their rename boxes and the new-entry marker follow them.
+        std::map<int, std::string> shifted;
+        for (const auto& [index, text] : edit.editingNames)
+        {
+            if (index < pendingRemoveCategory)      shifted[index]     = text;
+            else if (index > pendingRemoveCategory) shifted[index - 1] = text;
+        }
+        edit.editingNames.swap(shifted);
+
+        if (edit.newIndex == pendingRemoveCategory)     edit.newIndex = -1;
+        else if (edit.newIndex > pendingRemoveCategory) edit.newIndex--;
+    }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawBasicList   (pairs with: DrawCyclicList)
 //--------------------------------------------------------------------------------
-// Deep mode draws DrawBasicEventRow (addon_options_helpers.h) for every event,
-// Quick mode DrawQuickBasicRow. A Deep row's remove request is applied after the
-// loop, so no index moves mid-draw.
+// The toolbar, then the list: Deep mode draws DrawBasicEventRow
+// (addon_options_helpers.h) for every event, Quick mode DrawQuickBasicRow. A Deep
+// row's remove request and the toolbar's adds are applied after the loop, so no
+// index moves mid-draw.
 //--------------------------------------------------------------------------------
 static void DrawBasicList(const std::string& queryLower)
 {
     const std::string& linkedId = LinkedItemId(SubscriptionKind::Basic);
 
+    bool addEvent    = false;
+    bool addCategory = false;
+    DrawListToolbar("WE_OPT_BASIC_EVENTS", kBasicEventDragType, g_BasicCategories, s_basicCategoryEdit, IsBasicEventCreationPending(),
+        "+##add_basic_event", "+##add_basic_category", addEvent, addCategory);
+
     if (!s_deepMode)
     {
-        DrawCategorizedList(g_Events, g_BasicCategories, CategoryListKind::Basic, queryLower, EventMatchesSearch, s_basicWasSearching,
-            linkedId, [](int i) { DrawQuickBasicRow(i); });
-        return;
+        DrawCategorizedList(g_Events, g_BasicCategories, CategoryListKind::Basic, kBasicEventDragType, s_basicCategoryEdit, queryLower,
+            EventMatchesSearch, s_basicWasSearching, linkedId, [](int i) { DrawQuickBasicRow(i); });
+    }
+    else
+    {
+        int pendingRemoveIndex = -1;
+        DrawCategorizedList(g_Events, g_BasicCategories, CategoryListKind::Basic, kBasicEventDragType, s_basicCategoryEdit, queryLower,
+            EventMatchesSearch, s_basicWasSearching, linkedId, [&](int i) { DrawBasicEventRow(i, pendingRemoveIndex); });
+
+        if (pendingRemoveIndex >= 0)
+            g_Events.erase(g_Events.begin() + pendingRemoveIndex);
     }
 
-    int pendingRemoveIndex = -1;
-    DrawCategorizedList(g_Events, g_BasicCategories, CategoryListKind::Basic, queryLower, EventMatchesSearch, s_basicWasSearching,
-        linkedId, [&](int i) { DrawBasicEventRow(i, pendingRemoveIndex); });
-
-    if (pendingRemoveIndex >= 0)
-        g_Events.erase(g_Events.begin() + pendingRemoveIndex);
+    if (addEvent)
+        AddBasicEvent();
+    if (addCategory)
+        AddCategory(g_BasicCategories, s_basicCategoryEdit);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -868,19 +940,30 @@ static void DrawCyclicList(const std::string& queryLower)
 {
     const std::string& linkedId = LinkedItemId(SubscriptionKind::Cyclic);
 
+    bool addGroup    = false;
+    bool addCategory = false;
+    DrawListToolbar("WE_OPT_CYCLIC_EVENTS", kCyclicGroupDragType, g_CyclicCategories, s_cyclicCategoryEdit, IsCyclicGroupCreationPending(),
+        "+##add_cyclic_group", "+##add_cyclic_category", addGroup, addCategory);
+
     if (!s_deepMode)
     {
-        DrawCategorizedList(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, queryLower, GroupMatchesSearch, s_cyclicWasSearching,
-            linkedId, [](int i) { DrawQuickGroupRow(i); });
-        return;
+        DrawCategorizedList(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, kCyclicGroupDragType, s_cyclicCategoryEdit, queryLower,
+            GroupMatchesSearch, s_cyclicWasSearching, linkedId, [](int i) { DrawQuickGroupRow(i); });
+    }
+    else
+    {
+        int pendingRemoveGroupIndex = -1;
+        DrawCategorizedList(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, kCyclicGroupDragType, s_cyclicCategoryEdit, queryLower,
+            GroupMatchesSearch, s_cyclicWasSearching, linkedId, [&](int i) { DrawCyclicGroupRow(i, pendingRemoveGroupIndex); });
+
+        if (pendingRemoveGroupIndex >= 0)
+            g_CyclicGroups.erase(g_CyclicGroups.begin() + pendingRemoveGroupIndex);
     }
 
-    int pendingRemoveGroupIndex = -1;
-    DrawCategorizedList(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, queryLower, GroupMatchesSearch, s_cyclicWasSearching,
-        linkedId, [&](int i) { DrawCyclicGroupRow(i, pendingRemoveGroupIndex); });
-
-    if (pendingRemoveGroupIndex >= 0)
-        g_CyclicGroups.erase(g_CyclicGroups.begin() + pendingRemoveGroupIndex);
+    if (addGroup)
+        AddCyclicGroup();
+    if (addCategory)
+        AddCategory(g_CyclicCategories, s_cyclicCategoryEdit);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -932,9 +1015,6 @@ void DrawOptionsEvents(const OptionsDeepLink* link)
             if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_BASIC")))
                 DrawBasicSettings();
 
-            if (s_deepMode && ImGui::CollapsingHeader(Tr("WE_OPT_CATEGORIES")))
-                DrawCategoryEditor(g_Events, g_BasicCategories, CategoryListKind::Basic, kBasicEventDragType, s_basicCategoryEdit);
-
             DrawBasicList(queryLower);
             ConsumeLink(SubscriptionKind::Basic);
             ImGui::EndTabItem();
@@ -944,9 +1024,6 @@ void DrawOptionsEvents(const OptionsDeepLink* link)
         {
             if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_CYCLIC")))
                 DrawCyclicSettings();
-
-            if (s_deepMode && ImGui::CollapsingHeader(Tr("WE_OPT_CATEGORIES")))
-                DrawCategoryEditor(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, kCyclicGroupDragType, s_cyclicCategoryEdit);
 
             DrawCyclicList(queryLower);
             ConsumeLink(SubscriptionKind::Cyclic);

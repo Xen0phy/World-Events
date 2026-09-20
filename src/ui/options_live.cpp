@@ -527,8 +527,8 @@ static void DrawLiveEventRow(const LiveEvent& ev, bool isTarget)
     if (ImGui::IsItemHovered())
     {
         ImGui::SetTooltip("%s", Gw2ApiKey.empty()
-            ? Tr("WE_EDIT_LIVE_SUBSCRIBE_TIP_NO_KEY")
-            : Tr("WE_EDIT_LIVE_SUBSCRIBE_TIP"));
+            ? Tr("WE_OPT_LIVE_ROW_SUBSCRIBE_TIP_NO_KEY")
+            : Tr("WE_OPT_LIVE_ROW_SUBSCRIBE_TIP"));
     }
 
     if (isTarget)
@@ -544,14 +544,14 @@ static void DrawLiveEventRow(const LiveEvent& ev, bool isTarget)
     if (ImGui::Checkbox("##live_named_only", &namedOnly))
         ToggleLiveEventNamedOnly(ev.eventId);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", Tr("WE_EDIT_LIVE_NAMED_ONLY_TIP"));
+        ImGui::SetTooltip("%s", Tr("WE_OPT_LIVE_ROW_NAMED_ONLY_TIP"));
 
     ImGui::TableSetColumnIndex(3);
     bool doneToday = IsLiveEventMarkedDoneToday(ev.eventId);
     if (ImGui::Checkbox("##live_done", &doneToday))
         ToggleLiveEventDoneToday(ev.eventId);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", Tr("WE_EDIT_LIVE_DONE_TIP"));
+        ImGui::SetTooltip("%s", Tr("WE_OPT_LIVE_ROW_DONE_TIP"));
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -576,9 +576,9 @@ static void DrawEventList(const OptionsDeepLink* link)
         return;
 
     ImGui::TableSetupColumn("##live_subscribe_col", ImGuiTableColumnFlags_WidthFixed);
-    ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_EVENT"), ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_ONLY_NAMED"), ImGuiTableColumnFlags_WidthFixed);
-    ImGui::TableSetupColumn(Tr("WE_EDIT_LIVE_COL_DONE_TODAY"), ImGuiTableColumnFlags_WidthFixed);
+    ImGui::TableSetupColumn(Tr("WE_OPT_LIVE_COL_EVENT"), ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn(Tr("WE_OPT_LIVE_COL_ONLY_NAMED"), ImGuiTableColumnFlags_WidthFixed);
+    ImGui::TableSetupColumn(Tr("WE_OPT_LIVE_COL_DONE_TODAY"), ImGuiTableColumnFlags_WidthFixed);
     ImGui::TableHeadersRow();
 
     const bool hasTarget = link && link->kind == SubscriptionKind::Live;

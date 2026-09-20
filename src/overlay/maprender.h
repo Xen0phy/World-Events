@@ -77,14 +77,14 @@ enum class EditTarget { None, BasicEvent, CyclicGroup };
 // isDragging  true only while a drag gesture is actively in progress
 //--------------------------------------------------------------------------------
 // Clicking "Drag" next to a Basic Event's or Cyclic Group's Location field
-// (addon_options.cpp) arms drag-to-reposition for that one marker (target/index);
-// dragging it on the map then moves it, and the same button (now "Stop") disarms
-// it - there is no separate map gesture to end editing, since right-click doesn't
-// reliably reach this overlay and a left-click-to-close would conflict with the
-// drag gesture itself. At most one marker is armed at a time. isDragging is true
-// only during an actual left-click-drag started on the marker itself; without
-// that distinction, any left-drag elsewhere - including the mouse-down from
-// "Stop" - would be mistaken for dragging the marker.
+// (addon_options_helpers.cpp) arms drag-to-reposition for that one marker
+// (target/index); dragging it on the map then moves it, and the same button (now
+// "Stop") disarms it - there is no separate map gesture to end editing, since
+// right-click doesn't reliably reach this overlay and a left-click-to-close would
+// conflict with the drag gesture itself. At most one marker is armed at a time.
+// isDragging is true only during an actual left-click-drag started on the marker
+// itself; without that distinction, any left-drag elsewhere - including the
+// mouse-down from "Stop" - would be mistaken for dragging the marker.
 //--------------------------------------------------------------------------------
 struct EditModeState
 {

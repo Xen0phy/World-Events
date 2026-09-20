@@ -12,9 +12,10 @@
 // tab's settings header, the events (Basic) or groups (Cyclic) are listed in
 // their categories: Quick rows only subscribe, notify and show on the map; Deep
 // rows are the full editors of addon_options_helpers.h. The search box filters
-// the list, and a category with a match opens on its own. Deep mode also adds a
-// collapsed Categories header above each list: add, rename and delete categories,
-// and drop a row onto one to move it there.
+// the list, and a category with a match opens on its own. A toolbar above each
+// list adds events (Basic) or groups (Cyclic) and categories; category rows
+// rename, delete and take dropped rows, in Quick and Deep alike. Adding an event
+// or group switches to Deep, where its name box lives.
 //
 // Quick/Deep mode and the search text are transient: never saved, and dropped
 // whenever the window closes or a deep link arrives. The link's row then opens in

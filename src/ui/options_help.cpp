@@ -80,7 +80,7 @@ static void DrawDiagnostics()
     {
         ImGui::Spacing();
 
-        //_ "Render" = AddonRender's own cost (rings/bar/window/notify); "Options UI" = the Nexus options panel's, not this window's.
+        //_ "Render" = AddonRender's own cost (rings/bar/window/notify); "Options UI" = this settings window's, while it is open.
         ImGui::TextDisabled("Render: %.3f ms avg (1s)", g_AvgRenderTimeMs);
         ImGui::TextDisabled("Options UI: %.3f ms avg (1s)", g_AvgOptionsRenderTimeMs);
 

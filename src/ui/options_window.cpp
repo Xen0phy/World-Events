@@ -24,6 +24,7 @@
 
 #include "options_window.h"
 
+#include "addon.h" //. OptionsRenderTimer
 #include "addon_options_helpers.h" //. Tooltip
 #include "imgui.h"
 #include "localization.h"
@@ -234,6 +235,8 @@ void RenderOptionsWindow()
         return;
     }
     s_wasOpen = true;
+
+    OptionsRenderTimer optionsRenderTimer; //. no-op unless ShowDebug; times drawn frames only
 
     float fontSize = ImGui::GetFontSize();
     ImGui::SetNextWindowSize(ImVec2(fontSize * kInitialWidthEm, fontSize * kInitialHeightEm), ImGuiCond_FirstUseEver);

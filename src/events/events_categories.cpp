@@ -106,7 +106,7 @@ void MoveCategoryMember(std::vector<Category>& categories, const std::string& me
 // Category <-> json conversion; the List variants map the single-item versions
 // over a json array (dropping abandoned unnamed entries - IsAbandonedEntry
 // above). A Category always has an id by the time it reaches disk - assigned up
-// front at creation (see addon_options.cpp) - so there's nothing to backfill on
+// front at creation (see options_events.cpp) - so there's nothing to backfill on
 // load, unlike WorldEvent/CyclicGroup/Slot (events_storage.cpp).
 //--------------------------------------------------------------------------------
 static json SerializeCategory(const Category& cat)

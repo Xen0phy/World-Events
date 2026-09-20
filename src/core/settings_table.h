@@ -213,8 +213,8 @@ SETTING(BasicEvents, BasicEventZoomScaleMaxObserved, float, -1.0f)
 // BasicEventTimeFilterEnabled / BasicEventTimeFilterMinutes
 //--------------------------------------------------------------------------------
 // Only show upcoming Basic Events starting within the next N minutes; currently-
-// active events always show regardless. Minutes, in 10-minute steps up to 360
-// (6h); a separate enabled flag gates the filter instead of using 0 as an "off"
+// active events always show regardless. Minutes, in 15-minute steps up to 720
+// (12h); a separate enabled flag gates the filter instead of using 0 as an "off"
 // sentinel, since 0 is also a theoretically valid window value. NOT applied to
 // cyclic groups - see RenderCyclicGroups in cyclicrender.cpp: a cyclic group's
 // ring already shows its own rolling window per slot, and a group-level "hide the

@@ -37,26 +37,20 @@ WE_NOTIFY_REPORTED_ACTIVE,Reported active!,Als aktiv gemeldet!,Signalé actif !,
 WE_NOTIFY_REPORTED_BY_FMT,Reported by %s,Gemeldet von %s,Signalé par %s,Reportado por %s,由%s上报,
 #,subscriptions_window.cpp / subscriptions_bar.cpp / subscriptions_notification.cpp / addon_options_helpers.cpp - shared right-click menu entries.,,,,,
 WE_SUBS_MARK_DONE_TODAY,Mark done for today,Heute als erledigt markieren,Marquer comme fait aujourd'hui,Marcar como hecho hoy,标记为今日已完成,
-WE_SUBS_EDIT_SUBSCRIPTIONS,Edit Subscriptions,Abos bearbeiten,Modifier les abonnements,Editar suscripciones,编辑订阅,
-#,Title bar text for the addon's three player-facing windows.,,,,,
+WE_SUBS_OPEN_SETTINGS,Open settings,Einstellungen öffnen,Ouvrir les paramètres,Abrir ajustes,打开设置,
+#,Title bar text for the subscriptions and live reports windows.,,,,,
 WE_SUBS_WINDOW_TITLE,World Events - Subscriptions,World Events - Abos,World Events - Abonnements,World Events - Suscripciones,世界事件 - 订阅列表,
 WE_LIVE_REPORTS_WINDOW_TITLE,World Events - Live Reports,World Events - Live-Meldungen,World Events - Signalements en direct,World Events - Reportes en vivo,世界事件 - 实时上报,
-WE_EDIT_SUBS_WINDOW_TITLE,World Events - Edit Subscriptions,World Events - Abos bearbeiten,World Events - Modifier les abonnements,World Events - Editar suscripciones,世界事件 - 编辑订阅,
 #,subscriptions_window.cpp - watchlist empty states and row hints.,,,,,
 WE_SUBS_EMPTY_ACTIVE,Nothing upcoming - everything subscribed is currently active.,Nichts Bevorstehendes - alles Abonnierte ist derzeit aktiv.,Rien à venir - tout ce qui est abonné est actuellement actif.,Nada próximo: todo lo suscrito está activo en este momento.,没有即将到来的事件，所有已订阅事件正在进行中。,
 WE_SUBS_EMPTY_DONE,Nothing to show - everything subscribed is already done today.,Nichts anzuzeigen - alles Abonnierte ist heute bereits erledigt.,Rien à afficher - tout ce qui est abonné est déjà fait aujourd'hui.,Nada que mostrar: todo lo suscrito ya está hecho hoy.,无内容可显示，所有订阅事件今日均已完成。,
-WE_SUBS_EMPTY_NONE,"No subscribed events yet. Check the box next to an event's name in
-the options panel or Edit Subscriptions window to add it here.","Noch keine abonnierten Events. Aktiviere das Kästchen neben einem
-Event-Namen im Optionsfenster oder im Fenster ""Abos bearbeiten"",
-um es hier hinzuzufügen.","Aucun événement abonné pour l'instant. Cochez la case à côté du nom d'un
-événement dans le panneau d'options ou la fenêtre Modifier les abonnements pour l'ajouter ici.","Aún no hay eventos suscritos. Marca la casilla junto al nombre de un
-evento en el panel de opciones o en la ventana Editar suscripciones para añadirlo aquí.",尚未订阅任何事件。在设置面板或编辑订阅窗口勾选事件名称旁的复选框，即可添加至此。,
+WE_SUBS_EMPTY_NONE,"No subscribed events yet. Subscribe to an event in the Events tab of the
+settings window to add it here.","Noch keine abonnierten Events. Abonniere ein Event im Events-Tab des
+Einstellungsfensters, um es hier hinzuzufügen.","Aucun événement abonné pour l'instant. Abonnez-vous à un événement dans
+l'onglet Événements de la fenêtre des paramètres pour l'ajouter ici.","Aún no hay eventos suscritos. Suscríbete a un evento en la pestaña Eventos
+de la ventana de ajustes para añadirlo aquí.",尚未订阅任何事件。在设置窗口的事件标签页中订阅事件，即可添加至此。,
 WE_SUBS_HINT_CLICK,Click a row to copy its waypoint code.,"Klicke eine Zeile an, um deren Wegpunkt-Code zu kopieren.",Cliquez sur une ligne pour copier son code de point de passage.,Haz clic en una fila para copiar su código de punto de acceso.,点击条目复制传送点代码。,
 WE_SUBS_HINT_RIGHT_CLICK,Right-click a row to mark it done for today.,"Rechtsklick auf eine Zeile, um sie als heute erledigt zu markieren.",Clic droit sur une ligne pour la marquer comme faite aujourd'hui.,Haz clic derecho en una fila para marcarla como hecha hoy.,右键点击条目可将其标记为今日已完成。,
-#,subscriptions_edit_window.cpp - Basic & Cyclic tab (shares WE_OPT_SEARCH_LABEL/WE_OPT_BASIC_EVENTS/WE_OPT_CYCLIC_EVENTS with addon_options.cpp).,,,,,
-WE_EDIT_TAB_BASIC_CYCLIC,Basic & Cyclic,Normal & Zyklisch,Normal & Cyclique,Normal y cíclico,基础与循环,
-WE_EDIT_SUBSCRIBE_ALL,Subscribe all,Alle abonnieren,Tout abonner,Suscribir todo,全部订阅,
-WE_EDIT_DONE_TODAY,Done for today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
 #,maprender.cpp / cyclicrender.cpp - shared map-hover status format strings for Basic/Cyclic events.,,,,,
 WE_TIP_MAP_ACTIVE_FMT,%s - Active (ends in %s),%s - Aktiv (endet in %s),%s - Actif (se termine dans %s),%s - Activo (termina en %s),%s - 进行中（%s后结束）,
 WE_TIP_MAP_UPCOMING_FMT,%s - in %s,%s - in %s,%s - dans %s,%s - en %s,%s - %s后开始,
@@ -76,7 +70,7 @@ WE_WSDEBUG_SEARCH_HINT,Search text...,Durchsuche Text...,Rechercher du texte...,
 WE_WSDEBUG_COL_ELAPSED,T+,T+,T+,T+,T+,
 WE_WSDEBUG_COL_DIR,Dir,Dir,Dir,Dir,方向,
 WE_WSDEBUG_COL_MESSAGE,Message,Nachricht,Message,Mensaje,消息,
-#,addon_options_helpers.cpp / subscriptions_edit_window.cpp - fallback label for an empty user-entered name.,,,,,
+#,addon_options_helpers.cpp / events_storage.cpp / events_categories.cpp - fallback label for an empty user-entered name.,,,,,
 WE_UNNAMED,(unnamed),(unbenannt),(sans nom),(sin nombre),（未命名）,
 #,addon_options_helpers.cpp - duplicate-name warning tag next to a Cyclic Group slot's name.,,,,,
 WE_DUPLICATE_TAG,[duplicate],[Duplikat],[doublon],[duplicado],[重复],
@@ -183,13 +177,10 @@ WE_GROUP_EVENTS_LABEL,Events,Events,Événements,Eventos,事件列表,
 WE_REPETITION_LABEL,Repetition,Wiederholung,Répétition,Repetición,重复次数,
 WE_TIMES_MIN_INTO_PERIOD_LABEL,Times (min into period),Zeiten (Minuten im Zyklus),Heures (min dans la période),Horas (min dentro del periodo),时间（周期内分钟）,
 WE_MINUTES_UNIT_LABEL,min,Min.,min,min,分钟,
-#,addon_options.cpp - Event Lists (Basic|Cyclic) section; some rows shared with subscriptions_edit_window.cpp and options_events.cpp.,,,,,
-WE_OPT_EVENT_LISTS_HEADER,Event Lists (Basic|Cyclic),Event-Listen (Normal|Zyklisch),Listes d'événements (Normal|Cyclique),Listas de eventos (Normal|Cíclico),事件列表（基础|循环）,
+#,"options_events.cpp - search box, right-click hint, and the Basic / Cyclic names (sub-tab titles and list headings).",,,,,
 WE_OPT_SEARCH_LABEL,Search,Suche,Rechercher,Buscar,搜索,
 WE_OPT_RIGHT_CLICK_HINT,(right-click an entry below for more options),(Rechtsklick auf einen Eintrag unten für weitere Optionen),(clic droit sur une entrée ci-dessous pour plus d'options),(clic derecho en una entrada de abajo para más opciones),（右键下方条目获取更多选项）,
 WE_OPT_BASIC_EVENTS,Basic Events,Normale Events,Événements normaux,Eventos normales,基础事件,
-WE_OPT_CATEGORIES,Categories,Kategorien,Catégories,Categorías,分类,
-WE_OPT_SET_ALL_ICONS,Set all icons,Alle Symbole festlegen,Définir toutes les icônes,Establecer todos los iconos,设置所有图标,
 WE_OPT_CYCLIC_EVENTS,Cyclic Events,Zyklische Events,Événements cycliques,Eventos cíclicos,循环事件,
 #,options_live.cpp - report button (upper-right corner overlay) and its tooltips/reports window.,,,,,
 WE_LIVE_DRAG_BUTTON,Drag to move,Ziehen zum Verschieben,Glisser pour déplacer,Arrastrar para mover,拖拽移动,
@@ -679,20 +670,20 @@ Evento en vivo suscrito, distinto del color Activo para que
 un reporte de jugador se distinga de uno programado.",订阅的实时事件收到玩家上报后的弹窗强调色，独立于普通“进行中”颜色，区分玩家上报事件与计划事件。,
 WE_OPT_LIVE_ROSTER_NOTE,"Compiled-in, player-reportable events with no fixed schedule.","Fest kompilierte, von Spielern meldbare Events ohne festen Zeitplan.","Événements intégrés, signalables par les joueurs, sans horaire fixe.","Eventos integrados, reportables por jugadores, sin horario fijo.",内置无固定时间表、依靠玩家上报的事件。,
 WE_LIVE_NONE_COMPILED,No live events compiled in yet.,Noch keine Live-Events kompiliert.,Aucun événement en direct compilé pour l'instant.,Aún no hay eventos en vivo integrados.,尚未内置任何实时事件。,
-WE_EDIT_LIVE_COL_EVENT,Event,Event,Événement,Evento,事件,
-WE_EDIT_LIVE_COL_ONLY_NAMED,Only named,Nur benannt,Nommés uniquement,Solo nombrados,仅带上报者名称,
-WE_EDIT_LIVE_COL_DONE_TODAY,Done today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
-WE_EDIT_LIVE_SUBSCRIBE_TIP,"Subscribe to region-wide toast notifications for this event,
+WE_OPT_LIVE_COL_EVENT,Event,Event,Événement,Evento,事件,
+WE_OPT_LIVE_COL_ONLY_NAMED,Only named,Nur benannt,Nommés uniquement,Solo nombrados,仅带上报者名称,
+WE_OPT_LIVE_COL_DONE_TODAY,Done today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
+WE_OPT_LIVE_ROW_SUBSCRIBE_TIP,"Subscribe to region-wide toast notifications for this event,
 regardless of which map you're currently on.","Abonniere regionsweite Benachrichtigungen für dieses Event,
 unabhängig davon, auf welcher Karte du dich gerade befindest.","Abonnez-vous aux notifications à l'échelle de la région pour cet événement,
 quelle que soit la carte sur laquelle vous vous trouvez actuellement.","Suscríbete a las notificaciones a nivel de región para este evento,
 sin importar en qué mapa te encuentres en este momento.",订阅该事件的全区弹窗通知，不受当前所在地图限制。,
-WE_EDIT_LIVE_SUBSCRIBE_TIP_NO_KEY,"Requires a GW2 API key (General tab, Account and tracking) - region-wide toast
+WE_OPT_LIVE_ROW_SUBSCRIBE_TIP_NO_KEY,"Requires a GW2 API key (General tab, Account and tracking) - region-wide toast
 delivery needs it to tell NA and EU apart.","Erfordert einen GW2-API-Schlüssel (Tab ""Allgemein"", ""Konto und Nachverfolgung"") - die
 regionsweite Zustellung braucht ihn, um NA und EU zu unterscheiden.","Nécessite une clé API GW2 (onglet Général, Compte et suivi) - la diffusion des notifications
 à l'échelle de la région en a besoin pour distinguer NA et EU.","Requiere una clave de API de GW2 (pestaña General, Cuenta y rastreo): la entrega de
 notificaciones a nivel de región la necesita para distinguir NA de EU.",需要GW2 API密钥（“常规”标签页，账号与追踪），全区弹窗通知依靠密钥区分美服与欧服。,
-WE_EDIT_LIVE_NAMED_ONLY_TIP,"Only notify me when the reporter shared their name.
+WE_OPT_LIVE_ROW_NAMED_ONLY_TIP,"Only notify me when the reporter shared their name.
 An unnamed report can't be whispered or joined directly,
 so skip its toast rather than show one you can't act on.","Nur benachrichtigen, wenn der Meldende seinen Namen geteilt hat.
 Eine anonyme Meldung kann nicht direkt angeflüstert oder
@@ -702,8 +693,8 @@ Un signalement anonyme ne peut pas être chuchoté ni rejoint directement,
 donc sa notification est ignorée plutôt que d'en afficher une sur laquelle vous ne pouvez pas agir.","Notificarme solo cuando quien reporta haya compartido su nombre.
 Un reporte anónimo no se puede susurrar ni seguir directamente,
 así que se omite su notificación en lugar de mostrar una sobre la que no puedes actuar.",仅当上报者共享角色名时才推送通知。匿名上报无法直接密语或跟进，因此不会弹出无法交互的通知。,
-WE_EDIT_LIVE_DONE_TIP,Done for today - mutes toasts for this event until the daily reset.,Heute erledigt - stummt Benachrichtigungen für dieses Event bis zum täglichen Reset.,Fait aujourd'hui - coupe les notifications pour cet événement jusqu'à la réinitialisation quotidienne.,Hecho hoy: silencia las notificaciones de este evento hasta el reinicio diario.,今日已完成：该事件弹窗通知将被静音，直至每日重置。,
-#,"options_events.cpp - Events tab: top strip (Quick/Deep toggle), the shared, Basic and Cyclic settings headers with their controls, and the Quick rows, and the Deep Categories editor. The search box, Reset/Restore buttons, right-click hint and sub-tab names reuse rows above; WE_OPT_ACTIVE and WE_OPT_SOON are shared with options_general.cpp.",,,,,
+WE_OPT_LIVE_ROW_DONE_TIP,Done for today - mutes toasts for this event until the daily reset.,Heute erledigt - stummt Benachrichtigungen für dieses Event bis zum täglichen Reset.,Fait aujourd'hui - coupe les notifications pour cet événement jusqu'à la réinitialisation quotidienne.,Hecho hoy: silencia las notificaciones de este evento hasta el reinicio diario.,今日已完成：该事件弹窗通知将被静音，直至每日重置。,
+#,"options_events.cpp - Events tab: top strip (Quick/Deep toggle), the shared, Basic and Cyclic settings headers with their controls (including Set all icons), the Quick rows, and the toolbar above each list (add item, add category). The search box, Reset/Restore buttons, right-click hint and sub-tab names reuse rows above; WE_OPT_ACTIVE and WE_OPT_SOON are shared with options_general.cpp.",,,,,
 WE_OPTWIN_EVENTS_QUICK,Quick,Schnell,Rapide,Rápido,快速,
 WE_OPTWIN_EVENTS_DEEP,Deep,Detailliert,Détaillé,Detallado,详细,
 WE_OPTWIN_EVENTS_QUICK_TIP,Expanded rows show only the notify level and Done for today.,"Aufgeklappte Zeilen zeigen nur die Benachrichtigungsstufe
@@ -854,5 +845,5 @@ de pista y ranura) para romperlo con algo de textura o grano.",为圆环纯色�
 WE_OPT_OPACITY,Opacity,Deckkraft,Opacité,Opacidad,不透明度,
 WE_OPTWIN_QUICK_SUBSCRIBE_ALL,Subscribe all,Alle abonnieren,Tout abonner,Suscribir todo,全部订阅,
 WE_OPTWIN_QUICK_DONE_TODAY,Done for today,Heute erledigt,Fait aujourd'hui,Hecho hoy,今日已完成,
-WE_OPTWIN_CATEGORIES_HINT,Drag a row onto a category to move it there. Right-click a category to edit its name or delete it.,"Ziehe eine Zeile auf eine Kategorie, um sie dorthin zu verschieben. Rechtsklick auf eine Kategorie zum Bearbeiten des Namens oder Löschen.",Faites glisser une ligne sur une catégorie pour l'y déplacer. Clic droit sur une catégorie pour modifier son nom ou la supprimer.,Arrastra una fila sobre una categoría para moverla allí. Clic derecho en una categoría para editar su nombre o eliminarla.,将一行拖到某个分类上即可移入该分类。右键点击分类可编辑名称或删除。,
-WE_OPTWIN_CATEGORIES_NONE,Uncategorized (drop a row here),Ohne Kategorie (Zeile hier ablegen),Sans catégorie (déposez une ligne ici),Sin categoría (suelta una fila aquí),未分类（将行拖放到此处）,
+WE_OPT_SET_ALL_ICONS,Set all icons,Alle Symbole festlegen,Définir toutes les icônes,Establecer todos los iconos,设置所有图标,
+WE_OPT_CATEGORIES,Categories,Kategorien,Catégories,Categorías,分类,

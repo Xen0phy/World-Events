@@ -5,8 +5,8 @@
 // scoped-disable helper, period widget, bulk icon picker, color conversion,
 // duplicate-name checks, drag-and-drop plumbing, hand-drawn glyphs, the notify-
 // level control, the shared name/context-menu row, search predicates, and the two
-// full row drawers (Basic Event / Cyclic Group). See addon_options.cpp for the
-// panel that assembles these into the actual Nexus options UI.
+// full row drawers (Basic Event / Cyclic Group). See options_events.cpp for the
+// tab that assembles these into the settings window.
 //--------------------------------------------------------------------------------
 
 #include "addon_options_helpers.h"
