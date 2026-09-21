@@ -12,6 +12,7 @@
 
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SaveEventsData / LoadEventsData
@@ -54,7 +55,7 @@ int RestoreMissingDefaults();
 // restores from, keyed by id the same way MergeByKey/MergeGroups match on load.
 // Returns nullptr if the snapshot hasn't been captured yet, or no compiled-in
 // entry has that id (a purely user-added event/group/slot) - the per-row "Reset"
-// menu item in addon_options_helpers.cpp uses that to disable itself.
+// menu item in options_events_rows.cpp uses that to disable itself.
 //--------------------------------------------------------------------------------
 const WorldEvent* GetDefaultEvent(const std::string& id);
 const CyclicGroup* GetDefaultCyclicGroup(const std::string& id);
@@ -83,14 +84,24 @@ const char* DisplayName(const CyclicGroup::Slot& slot, const std::string& groupI
 const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string& groupId);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// SlugifyName / UniqueId
+// SlugifyName / UniqueId / NewUniqueId
 //--------------------------------------------------------------------------------
 // Id-assignment helpers. A brand-new WorldEvent/CyclicGroup/CyclicGroup::Slot or
 // Category gets its id up front, right when the options panel's "+" button
-// creates it (see options_events.cpp/addon_options_helpers.cpp) - the id is never
-// derived from the (still-unset) name. LoadEventsData also calls these as a one-
-// time backfill for any id left empty by a save from before that assignment
-// existed (see the .cpp).
+// creates it (see options_events.cpp/options_events_rows.cpp) - the id is never
+// derived from the (still-unset) name. LoadEventsData also calls SlugifyName and
+// UniqueId as a one-time backfill for any id left empty by a save from before
+// that assignment existed (see the .cpp). NewUniqueId is the "+" side: an id
+// unused among items (any element type with an id). The seed is a fixed ASCII
+// word, since SlugifyName reduces a non-ASCII display default to nothing.
 //--------------------------------------------------------------------------------
 std::string SlugifyName(const std::string& name);
 std::string UniqueId(const std::string& candidate, std::unordered_set<std::string>& used);
+
+template <typename Item>
+std::string NewUniqueId(const std::string& seed, const std::vector<Item>& items)
+{
+    std::unordered_set<std::string> used;
+    for (const Item& item : items) used.insert(item.id);
+    return UniqueId(SlugifyName(seed), used);
+}

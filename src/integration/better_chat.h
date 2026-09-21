@@ -6,9 +6,9 @@
 //--------------------------------------------------------------------------------
 // Reads Better Chat's shared settings via Nexus DataLink (BetterChat.Settings) to
 // determine whether its /self command is available right now, so the "Better Chat
-// (/self)" paste-to-chat option (addon_options_helpers.cpp) only appears when it
-// will actually work. This addon never talks to Better Chat beyond that one read-
-// only settings blob.
+// (/self)" paste-to-chat option (options_general.cpp) only appears when it will
+// actually work. This addon never talks to Better Chat beyond that one read-only
+// settings blob.
 //
 // DataLink alone can't tell us Better Chat has unloaded: per Nexus's own docs, an
 // addon's shared "static data" is left untouched on unload instead of cleared, so

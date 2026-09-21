@@ -25,7 +25,6 @@
 #include "options_window.h"
 
 #include "addon.h" //. OptionsRenderTimer
-#include "addon_options_helpers.h" //. Tooltip
 #include "imgui.h"
 #include "localization.h"
 #include "maprender.h" //. GetOrRequestEventIcon
@@ -33,6 +32,7 @@
 #include "options_general.h"
 #include "options_help.h"
 #include "options_live.h"
+#include "options_widgets.h" //. Tooltip
 #include "settings.h" //. OptionsWindowTab
 
 #include <cfloat>
@@ -120,8 +120,8 @@ static void SetCurrentTab(OptionsTab tab)
 // DrawRailButton
 //--------------------------------------------------------------------------------
 // Manual hit-test and ImDrawList, the same approach as DrawNotifyLevelIcon
-// (addon_options_helpers.cpp). Returns true on the frame the button is clicked.
-// The icon keeps its aspect ratio inside a square box and is tinted with the text
+// (options_events_rows.cpp). Returns true on the frame the button is clicked. The
+// icon keeps its aspect ratio inside a square box and is tinted with the text
 // color, brighter while selected or hovered.
 //--------------------------------------------------------------------------------
 static bool DrawRailButton(const RailEntry& entry, bool selected, float side)

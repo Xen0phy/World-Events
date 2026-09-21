@@ -64,7 +64,7 @@ static std::string SlotNameIdentifier(const std::string& groupId, const std::str
 // True for a WorldEvent/CyclicGroup/Slot with a blank (or whitespace-only) name
 // that also doesn't resolve to a compiled-in default - the state a "+"-created
 // entry is left in if the player never gets around to naming it (see
-// RequestBasicEventNameEdit, addon_options_helpers.h) and closes/unloads anyway.
+// RequestBasicEventNameEdit, options_events_rows.h) and closes/unloads anyway.
 // SaveEventsData drops these instead of writing them to events.json as a
 // permanent "(unnamed)" row; a real stock default with an unedited (blank)
 // customName still resolves via its id and is kept.

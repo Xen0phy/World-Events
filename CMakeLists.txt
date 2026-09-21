@@ -143,13 +143,14 @@ add_library(gw2-world-events SHARED
     src/overlay/cyclicrender.cpp
     src/overlay/maprender.cpp
     src/overlay/map_shared.cpp
-    src/ui/addon_options_helpers.cpp
     src/ui/addon_options.cpp
     src/ui/changelog_window.cpp
     src/ui/options_events.cpp
+    src/ui/options_events_rows.cpp
     src/ui/options_general.cpp
     src/ui/options_help.cpp
     src/ui/options_live.cpp
+    src/ui/options_widgets.cpp
     src/ui/options_window.cpp
     src/ui/reset_defaults.cpp
     src/ui/subscriptions_bar.cpp

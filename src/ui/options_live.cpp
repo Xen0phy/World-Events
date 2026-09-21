@@ -30,7 +30,6 @@
 #include "options_live.h"
 
 #include "addon.h"
-#include "addon_options_helpers.h" //. Tooltip, DisabledBlock, DrawSubscribeCheckbox
 #include "events_live.h"
 #include "events_tracking.h" //. IsLiveEventMarkedDoneToday/ToggleLiveEventDoneToday, for the Done today column
 #include "gw2_api.h" //. GetLiveEventsRegion, for the UpdateNotificationState call and the region warning
@@ -38,6 +37,7 @@
 #include "localization.h"
 #include "notification_client.h" //. UpdateNotificationState, GetRegionViewerCount
 #include "options_general.h" //. RequestOpenAccountHeader, for the Set API key link
+#include "options_widgets.h" //. Tooltip, DisabledBlock, DrawSubscribeCheckbox, SubToggleIndent, kSwatchFlags, kWarningColor
 #include "settings.h"
 #include "shard_id.h"
 #include "subscriptions.h" //. GetMumbleCharacterName, read when ShareNameInReports is on
@@ -71,14 +71,8 @@ static std::unordered_map<std::string, unsigned long long> s_lastReportPressMs;
 //_ Transient (an editing mode, not state worth persisting): set by the Move button checkbox, read by RenderLiveEventButtons.
 static bool LiveEventButtonMoveMode = false;
 
-//_ Warning line color.
-static const ImVec4 kWarningColor(1.0f, 0.6f, 0.2f, 1.0f);
-
 //_ Link text color; links have no underline, so this alone marks them as clickable.
 static const ImVec4 kLinkColor(0.4f, 0.7f, 1.0f, 1.0f);
-
-//_ Swatch button only, no numeric fields; the click opens a hue-wheel picker.
-static constexpr ImGuiColorEditFlags kSwatchFlags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderLiveEventButtonMovePreview   (pairs with: RenderLiveEventButtons)
@@ -479,11 +473,9 @@ static void DrawDisplay()
 
     DisabledBlock(!ShowLiveEventReportsWindow)
     {
-        float subToggleIndent = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::Indent(subToggleIndent);
+        SubToggleIndent indent;
         ImGui::Checkbox(Tr("WE_OPT_LIVE_LOCK_WINDOW"), &LiveEventReportsWindowLocked);
         Tooltip(Tr("WE_OPT_LIVE_LOCK_WINDOW_TIP"));
-        ImGui::Unindent(subToggleIndent);
     }
 
     ImGui::Checkbox(Tr("WE_OPT_LIVE_SHOW_MAP_DOTS"), &ShowLiveEventMapDots);

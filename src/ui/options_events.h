@@ -10,14 +10,14 @@
 // one tab with a second nesting level. Each tab opens with its own settings
 // header. Every header starts collapsed, in Quick and Deep alike. Under each
 // tab's settings header, the events (Basic) or groups (Cyclic) are listed in
-// their categories, drawn by the row drawers of addon_options_helpers.h. The
-// toggle changes only what an expanded row shows: the notify level and Done for
-// today (Subscribe all for a group) in both modes, every editing field in Deep.
-// Rows have the right-click menu and drag into categories in both modes. The
-// search box filters the list, and a category with a match opens on its own. A
-// toolbar above each list adds events (Basic) or groups (Cyclic) and categories;
-// category rows rename, delete and take dropped rows, in Quick and Deep alike.
-// Adding an event or group switches to Deep, where the new entry's fields are.
+// their categories, drawn by the row drawers of options_events_rows.h. The toggle
+// changes only what an expanded row shows: the notify level and Done for today
+// (Subscribe all for a group) in both modes, every editing field in Deep. Rows
+// have the right-click menu and drag into categories in both modes. The search
+// box filters the list, and a category with a match opens on its own. A toolbar
+// above each list adds events (Basic) or groups (Cyclic) and categories; category
+// rows rename, delete and take dropped rows, in Quick and Deep alike. Adding an
+// event or group switches to Deep, where the new entry's fields are.
 //
 // Quick/Deep mode and the search text are transient: never saved, and dropped
 // whenever the window closes. A deep link only empties the search.

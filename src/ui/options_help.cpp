@@ -10,11 +10,11 @@
 #include "options_help.h"
 
 #include "addon.h" //. ShowDebug and the g_Avg* render-time averages
-#include "addon_options_helpers.h" //. Tooltip
 #include "build_info.h" //. DateAndTime
 #include "changelog_window.h" //. ShowVersionHistoryWindow
 #include "imgui.h"
 #include "localization.h"
+#include "options_widgets.h" //. Tooltip
 #include "version.h" //. Maj/Min/Bld/Rev
 #include "ws_debug_window.h" //. ShowWsDebugWindow
 

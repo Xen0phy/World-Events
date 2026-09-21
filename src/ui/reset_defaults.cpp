@@ -5,11 +5,11 @@
 //--------------------------------------------------------------------------------
 
 #include "addon.h"
-#include "addon_options_helpers.h" //. Tooltip
 #include "events_categories.h"
 #include "events_storage.h"
 #include "imgui.h"
 #include "localization.h"
+#include "options_widgets.h" //. Tooltip
 #include "reset_defaults.h"
 
 #include <string>

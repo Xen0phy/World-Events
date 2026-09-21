@@ -1,6 +1,8 @@
 //################################################################################
 // options_general.cpp   (see: options_general.h)
 //--------------------------------------------------------------------------------
+// ItemPreviewGate          widget just drawn is active or hovered
+// BuildChatChannelOptions  entries of the Paste to combo
 // DrawCompetitiveMode      body of the Competitive mode header
 // DrawSubscriptionsWindow  body of the Subscriptions window header
 // DrawUnsafeZonePreview    yellow outline of the four unsafe-zone edges
@@ -12,22 +14,68 @@
 
 #include "options_general.h"
 
-#include "addon_options_helpers.h" //. Tooltip, BuildChatChannelOptions
-#include "better_chat.h" //. IsBetterChatLoaded/IsBetterChatSelfCommandEnabled, for the status line
+#include "better_chat.h" //. IsBetterChatLoaded/IsBetterChatSelfCommandEnabled, for the status line and combo
 #include "gw2_api.h" //. GetGw2ApiStatus, for the key status word
 #include "imgui.h"
 #include "localization.h"
 #include "maprender.h" //. ScreenFractionToPixels/PixelsToScreenFraction, for the position row
 #include "notify_sound.h"
+#include "options_widgets.h" //. Tooltip, DisabledBlock, SubToggleIndent/SubToggleIndentWidth, kSwatchFlags, kWarningColor, DrawSpeakerIcon, DrawFileCombo
 #include "settings.h"
 #include "subscriptions_ui.h" //. RequestNotificationLayoutPreview, for the width/position/direction rows
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <vector>
 
-//_ Swatch button only, no numeric fields; the click opens a hue-wheel picker.
-static constexpr ImGuiColorEditFlags kSwatchFlags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel;
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ItemPreviewGate
+//--------------------------------------------------------------------------------
+// True while the widget just drawn is being dragged or typed into (IsItemActive)
+// or moused over (IsItemHovered), the condition that shows its live preview. The
+// unsafe-zone lines (DrawUnsafeZonePreview) and the toast layout preview
+// (RequestNotificationLayoutPreview, subscriptions_ui.h) gate on it. Call right
+// after the widget it applies to.
+//--------------------------------------------------------------------------------
+static bool ItemPreviewGate()
+{
+    return ImGui::IsItemActive() || ImGui::IsItemHovered();
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// BuildChatChannelOptions
+//--------------------------------------------------------------------------------
+// Fills labels/prefixes with the "Paste to" combo's entries, in matching index
+// order. Index 0 is the empty prefix (ChatChannelPrefix's "current chat"
+// default); the Better Chat entry stays last so dropping it is a single tail
+// check. It is dropped unless IsBetterChatSelfCommandEnabled() (better_chat.h) is
+// true: offering it otherwise would let the player pick a channel that just types
+// "/self ..." into whatever chat box has focus.
+//--------------------------------------------------------------------------------
+static void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const char*>& prefixes)
+{
+    static const char* const kLabels[] = {
+        "Current chat (default)", "Say", "Party", "Squad",
+        "Guild (represented)", "Guild 1", "Guild 2", "Guild 3",
+        "Guild 4", "Guild 5", "Map", "Whisper (/w self)",
+        "Better Chat (/self)"
+    };
+    static const char* const kPrefixes[] = {
+        "", "/s ", "/p ", "/d ",
+        "/g ", "/g1 ", "/g2 ", "/g3 ",
+        "/g4 ", "/g5 ", "/m ", "/w ",
+        "/self "
+    };
+    constexpr int kCount = sizeof(kLabels) / sizeof(kLabels[0]);
+
+    for (int i = 0; i < kCount; i++)
+    {
+        if (std::string(kPrefixes[i]) == "/self " && !IsBetterChatSelfCommandEnabled()) continue;
+        labels.push_back(kLabels[i]);
+        prefixes.push_back(kPrefixes[i]);
+    }
+}
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawCompetitiveMode
@@ -47,12 +95,10 @@ static void DrawCompetitiveMode()
     }
     Tooltip(Tr("WE_TIP_DISABLE_COMPETITIVE"));
 
-    float subToggleIndent = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
-    ImGui::Indent(subToggleIndent);
+    SubToggleIndent indent;
     ImGui::Checkbox(TrId("WE_OPT_WINDOW", "##dis_comp_window").c_str(), &DisableWindowWhenCompetitive);
     ImGui::Checkbox(TrId("WE_OPT_BAR",    "##dis_comp_bar").c_str(),    &DisableBarWhenCompetitive);
     ImGui::Checkbox(TrId("WE_OPT_TOAST",  "##dis_comp_toast").c_str(),  &DisableNotifyWhenCompetitive);
-    ImGui::Unindent(subToggleIndent);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -66,14 +112,12 @@ static void DrawSubscriptionsWindow()
     ImGui::Checkbox(Tr("WE_OPT_SHOW_SUBS_WINDOW"), &ShowSubscriptionsWindow);
     DisabledBlock(!ShowSubscriptionsWindow)
     {
-        float subToggleIndent = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::Indent(subToggleIndent);
+        SubToggleIndent indent;
         ImGui::Checkbox(Tr("WE_OPT_HIDE_ACTIVE_IN_WINDOW"), &SubscriptionsHideActive);
 
         //_ RGB only (feeds TextColored), not a tinted dot/icon like BasicEventColor*, which need alpha.
         ImGui::ColorEdit3(TrId("WE_OPT_ACTIVE", "##sub_color_active").c_str(), SubscriptionsActiveColor, kSwatchFlags);
         ImGui::ColorEdit3(TrId("WE_OPT_SOON",   "##sub_color_soon").c_str(),   SubscriptionsSoonColor,   kSwatchFlags);
-        ImGui::Unindent(subToggleIndent);
     }
 }
 
@@ -121,8 +165,7 @@ static void DrawSubscriptionsBar()
     ImGui::Checkbox(Tr("WE_OPT_SHOW_SUBS_BAR"), &ShowSubscriptionsBar);
     DisabledBlock(!ShowSubscriptionsBar)
     {
-        float subToggleIndent = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::Indent(subToggleIndent);
+        SubToggleIndent indent;
 
         ImGui::Checkbox(Tr("WE_OPT_HIDE_ACTIVE_ON_BAR"), &SubscriptionsBarHideActive);
         Tooltip(Tr("WE_TIP_HIDE_ACTIVE_ON_BAR"));
@@ -136,8 +179,7 @@ static void DrawSubscriptionsBar()
         if (ImGui::InputInt(Tr("WE_OPT_POPOUT_HEIGHT"), &SubscriptionsBarMaxDropPx, 0, 0))
         {
             //_ Floored at 8: subscriptions_bar.cpp derives the pill's corner radius from half this value.
-            if (SubscriptionsBarMaxDropPx < 8)   SubscriptionsBarMaxDropPx = 8;
-            if (SubscriptionsBarMaxDropPx > 300) SubscriptionsBarMaxDropPx = 300;
+            SubscriptionsBarMaxDropPx = std::clamp(SubscriptionsBarMaxDropPx, 8, 300);
         }
         Tooltip(Tr("WE_TIP_POPOUT_HEIGHT"));
 
@@ -145,8 +187,7 @@ static void DrawSubscriptionsBar()
         if (ImGui::InputInt(Tr("WE_OPT_POPOUT_DELAY"), &SubscriptionsBarHoverDelayMs, 0, 0))
         {
             //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
-            if (SubscriptionsBarHoverDelayMs < 0)    SubscriptionsBarHoverDelayMs = 0;
-            if (SubscriptionsBarHoverDelayMs > 5000) SubscriptionsBarHoverDelayMs = 5000;
+            SubscriptionsBarHoverDelayMs = std::clamp(SubscriptionsBarHoverDelayMs, 0, 5000);
         }
         Tooltip(Tr("WE_TIP_POPOUT_DELAY"));
 
@@ -154,14 +195,13 @@ static void DrawSubscriptionsBar()
         const float screenHeight = ImGui::GetIO().DisplaySize.y;
 
         ImGui::Text("%s", Tr("WE_OPT_UNSAFE_ZONE"));
-        ImGui::Indent(subToggleIndent);
+        SubToggleIndent unsafeZoneIndent;
 
         //_ Left + right together stay within the screen width; the field not being edited gives way.
         ImGui::SetNextItemWidth(50);
         if (ImGui::DragInt(TrId("WE_OPT_LEFT", "##leftuz").c_str(), &SubscriptionsBarUnsafeLeftPx, 1, 0, 0, "%dpx"))
         {
-            if (SubscriptionsBarUnsafeLeftPx < 0)            SubscriptionsBarUnsafeLeftPx = 0;
-            if (SubscriptionsBarUnsafeLeftPx > screenWidth)  SubscriptionsBarUnsafeLeftPx = (int)screenWidth;
+            SubscriptionsBarUnsafeLeftPx = std::clamp(SubscriptionsBarUnsafeLeftPx, 0, (int)screenWidth);
             if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
                 SubscriptionsBarUnsafeRightPx = (int)screenWidth - SubscriptionsBarUnsafeLeftPx;
         }
@@ -171,8 +211,7 @@ static void DrawSubscriptionsBar()
         ImGui::SetNextItemWidth(50);
         if (ImGui::DragInt(TrId("WE_OPT_RIGHT", "##rightuz").c_str(), &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
         {
-            if (SubscriptionsBarUnsafeRightPx < 0)            SubscriptionsBarUnsafeRightPx = 0;
-            if (SubscriptionsBarUnsafeRightPx > screenWidth)  SubscriptionsBarUnsafeRightPx = (int)screenWidth;
+            SubscriptionsBarUnsafeRightPx = std::clamp(SubscriptionsBarUnsafeRightPx, 0, (int)screenWidth);
             if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
                 SubscriptionsBarUnsafeLeftPx = (int)screenWidth - SubscriptionsBarUnsafeRightPx;
         }
@@ -182,8 +221,7 @@ static void DrawSubscriptionsBar()
         ImGui::SetNextItemWidth(50);
         if (ImGui::DragInt(TrId("WE_OPT_HEIGHT_LEFT", "##heightuzleft").c_str(), &SubscriptionsBarUnsafeHeightLeftPx, 1, 0, 0, "%dpx"))
         {
-            if (SubscriptionsBarUnsafeHeightLeftPx < 0)            SubscriptionsBarUnsafeHeightLeftPx = 0;
-            if (SubscriptionsBarUnsafeHeightLeftPx > screenHeight) SubscriptionsBarUnsafeHeightLeftPx = (int)screenHeight;
+            SubscriptionsBarUnsafeHeightLeftPx = std::clamp(SubscriptionsBarUnsafeHeightLeftPx, 0, (int)screenHeight);
         }
         bool heightLeftActive = ItemPreviewGate();
         Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT_LEFT"));
@@ -191,14 +229,10 @@ static void DrawSubscriptionsBar()
         ImGui::SetNextItemWidth(50);
         if (ImGui::DragInt(TrId("WE_OPT_HEIGHT_RIGHT", "##heightuzright").c_str(), &SubscriptionsBarUnsafeHeightRightPx, 1, 0, 0, "%dpx"))
         {
-            if (SubscriptionsBarUnsafeHeightRightPx < 0)            SubscriptionsBarUnsafeHeightRightPx = 0;
-            if (SubscriptionsBarUnsafeHeightRightPx > screenHeight) SubscriptionsBarUnsafeHeightRightPx = (int)screenHeight;
+            SubscriptionsBarUnsafeHeightRightPx = std::clamp(SubscriptionsBarUnsafeHeightRightPx, 0, (int)screenHeight);
         }
         bool heightRightActive = ItemPreviewGate();
         Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT_RIGHT"));
-
-        ImGui::Unindent(subToggleIndent);
-        ImGui::Unindent(subToggleIndent);
 
         if (leftActive || rightActive || heightLeftActive || heightRightActive)
             DrawUnsafeZonePreview();
@@ -222,15 +256,13 @@ static void DrawToastPopups()
 
     DisabledBlock(!NotificationsEnabled)
     {
-        float subToggleIndent = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::Indent(subToggleIndent);
+        SubToggleIndent indent;
 
         ImGui::SetNextItemWidth(50);
         if (ImGui::InputInt(Tr("WE_OPT_WARN_BEFORE_START"), &NotificationLeadMinutes, 0, 0))
         {
             //_ 0 is off
-            if (NotificationLeadMinutes < 0)   NotificationLeadMinutes = 0;
-            if (NotificationLeadMinutes > 120) NotificationLeadMinutes = 120;
+            NotificationLeadMinutes = std::clamp(NotificationLeadMinutes, 0, 120);
         }
         Tooltip(Tr("WE_TIP_WARN_BEFORE_START"));
 
@@ -239,8 +271,7 @@ static void DrawToastPopups()
         ImGui::SetNextItemWidth(50);
         if (ImGui::InputInt(Tr("WE_OPT_POPUP_DURATION"), &NotificationDisplaySeconds, 0, 0))
         {
-            if (NotificationDisplaySeconds < 1)   NotificationDisplaySeconds = 1;
-            if (NotificationDisplaySeconds > 120) NotificationDisplaySeconds = 120;
+            NotificationDisplaySeconds = std::clamp(NotificationDisplaySeconds, 1, 120);
         }
         Tooltip(Tr("WE_TIP_POPUP_DURATION"));
 
@@ -248,13 +279,12 @@ static void DrawToastPopups()
         ImGui::SetNextItemWidth(50);
         if (ImGui::DragFloat(Tr("WE_OPT_TOAST_WIDTH"), &NotificationPopupWidth, 1, 0, 0, "%.0fpx"))
         {
-            if (NotificationPopupWidth < 100.0f) NotificationPopupWidth = 100.0f;
-            if (NotificationPopupWidth > 800.0f) NotificationPopupWidth = 800.0f;
+            NotificationPopupWidth = std::clamp(NotificationPopupWidth, 100.0f, 800.0f);
         }
         if (ItemPreviewGate()) RequestNotificationLayoutPreview();
         Tooltip(Tr("WE_TIP_TOAST_WIDTH"));
 
-        //_ Shown/edited as pixels, stored as a screen fraction - same convention as DrawFixToScreenRow (addon_options_helpers.cpp).
+        //_ Shown/edited as pixels, stored as a screen fraction - same convention as DrawFixToScreenRow (options_events_rows.cpp).
         {
             ImVec2 anchorPx = ScreenFractionToPixels(NotificationAnchorX, NotificationAnchorY);
             float anchorPos[2] = { anchorPx.x, anchorPx.y };
@@ -277,25 +307,11 @@ static void DrawToastPopups()
         {
             float sq = ImGui::GetFrameHeight();
             ImVec2 rowMin = ImGui::GetCursorScreenPos();
-            ImVec2 center(rowMin.x - subToggleIndent + sq * 0.5f, rowMin.y + sq * 0.5f);
+            ImVec2 center(rowMin.x - SubToggleIndentWidth() + sq * 0.5f, rowMin.y + sq * 0.5f);
             DrawSpeakerIcon(ImGui::GetWindowDrawList(), center, sq * 0.96f, ImGui::GetColorU32(ImGuiCol_Text));
         }
 
-        const std::vector<std::string>& soundFiles = GetNotificationSoundFilenames();
-
-        std::vector<const char*> soundLabels;
-        soundLabels.push_back(Tr("WE_OPT_SOUND_NONE"));
-        for (const auto& fn : soundFiles)
-            soundLabels.push_back(fn.c_str());
-
-        int soundIndex = 0; //. "(none)"
-        if (!NotificationSoundFile.empty())
-            for (int k = 0; k < (int)soundFiles.size(); k++)
-                if (soundFiles[k] == NotificationSoundFile) { soundIndex = k + 1; break; }
-
-        ImGui::SetNextItemWidth(100.0f);
-        if (ImGui::Combo(Tr("WE_OPT_SOUND"), &soundIndex, soundLabels.data(), (int)soundLabels.size()))
-            NotificationSoundFile = (soundIndex == 0) ? std::string() : soundFiles[soundIndex - 1];
+        DrawFileCombo(Tr("WE_OPT_SOUND"), "WE_OPT_SOUND_NONE", GetNotificationSoundFilenames(), NotificationSoundFile);
 
         ImGui::SameLine();
         ImGui::TextDisabled("(.wav)");
@@ -311,8 +327,6 @@ static void DrawToastPopups()
                 PlayNotificationSound(NotificationSoundFile);
         }
         Tooltip(Tr("WE_TIP_TEST_SOUND"));
-
-        ImGui::Unindent(subToggleIndent);
     }
 }
 
@@ -336,8 +350,7 @@ static void DrawChatAndPaste()
         if (ImGui::InputInt(Tr("WE_OPT_PASTE_DELAY"), &delayMilliseconds, 0, 0))
         {
             //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
-            if (delayMilliseconds < 0)   delayMilliseconds = 0;
-            if (delayMilliseconds > 100) delayMilliseconds = 100;
+            delayMilliseconds = std::clamp(delayMilliseconds, 0, 100);
         }
     }
 
@@ -405,7 +418,7 @@ static void DrawAccountAndTracking()
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", Tr("WE_OPT_API_INVALID_KEY"));
             break;
         case Gw2ApiStatus::NetworkError:
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_OPT_API_NETWORK_ERROR"));
+            ImGui::TextColored(kWarningColor, "%s", Tr("WE_OPT_API_NETWORK_ERROR"));
             break;
     }
 
@@ -420,10 +433,8 @@ static void DrawAccountAndTracking()
     //_ Color swatch for the weekly Wizard's Vault tracked dot
     DisabledBlock(!WeeklyAutoTrackEnabled)
     {
-        float subToggleIndent = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::Indent(subToggleIndent);
+        SubToggleIndent indent;
         ImGui::ColorEdit4(TrId("WE_OPT_WEEKLY_COLOR", "##weekly_tracking_color").c_str(), WeeklyAutoTrackColor, kSwatchFlags);
-        ImGui::Unindent(subToggleIndent);
     }
 }
 

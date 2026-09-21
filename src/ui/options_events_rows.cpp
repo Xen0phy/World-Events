@@ -1,167 +1,103 @@
 //################################################################################
-// addon_options_helpers.cpp
+// options_events_rows.cpp   (see: options_events_rows.h)
 //--------------------------------------------------------------------------------
-// Implementations for everything declared in addon_options_helpers.h - the
-// scoped-disable helper, period widget, bulk icon picker, color conversion,
-// duplicate-name checks, drag-and-drop plumbing, hand-drawn glyphs, the notify-
-// level control, the shared name/context-menu row, search predicates, and the two
-// full row drawers (Basic Event / Cyclic Group). See options_events.cpp for the
-// tab that assembles these into the settings window.
+// kMinPeriodHours/kMaxPeriodHours
+//                            whole-hour bounds of a period
+// PeriodSecondsToHours/DrawPeriodHoursDragInt
+//                            period widget shared by both row kinds
+// IsDuplicateName            same visible name as another entry
+// DrawDuplicateWarning       the "[duplicate]" tag beside such a row
+// DragPayload                fixed-size copy of a dragged item's id
+// MakeDragSource             drag source for a row
+// DrawNotifyGlyph            minus, plus, bell or speaker for one notify level
+// DrawNotifyLevelIcon/DrawNotifyLevelButtons
+//                            the two notify-level controls
+// DrawDragButton             map-drag edit mode toggle
+// DrawFixToScreenRow         pin a marker or ring to a screen position
+// DrawOptionalColor          checkbox that gates a color swatch for an optional override
+// s_basicEventEdit/s_cyclicGroupEdit
+//                            name-edit state of the two row kinds
+// kLinkFlashId               highlight id shared by every row
+// BeginLinkedRow             start of a row a deep link may name
 //--------------------------------------------------------------------------------
 
-#include "addon_options_helpers.h"
-#include "better_chat.h" //. IsBetterChatSelfCommandEnabled, for BuildChatChannelOptions
+#include "options_events_rows.h"
+
 #include "color_utils.h"
-#include "events_storage.h" //. GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot/DisplayName
+#include "events.h"
+#include "events_storage.h" //. GetDefaultEvent/GetDefaultCyclicGroup/GetDefaultCyclicSlot/DisplayName/NewUniqueId
 #include "events_tracking.h"
-#include "imgui_internal.h" //. for internal-only ImGui APIs
+#include "imgui.h"
 #include "localization.h"
+#include "maprender.h" //. EditTarget/g_EditMode, ScreenFractionToPixels/PixelsToScreenFraction
+#include "options_widgets.h" //. Tooltip, DisabledBlock, DrawSubscribeCheckbox, DrawBellIcon/DrawSpeakerIcon, DrawFileCombo, kAlphaSwatchFlags, kWarningColor
 #include "options_window.h" //. OptionsHighlight_Set/IsActive, for BeginLinkedRow
 #include "subscriptions.h"
 
 #include <algorithm>
-#include <cctype>
-#include <cstdio>
 #include <cstring>
-#include <unordered_set>
+#include <optional>
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ImGuiScopedDisabled ctor / dtor
-//--------------------------------------------------------------------------------
-// See the struct's own comment in the header for the disable/dim contract.
-//--------------------------------------------------------------------------------
-ImGuiScopedDisabled::ImGuiScopedDisabled(bool cond) : active(cond)
-{
-    if (active) { ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true); ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f); }
-}
-
-ImGuiScopedDisabled::~ImGuiScopedDisabled()
-{
-    if (active) { ImGui::PopItemFlag(); ImGui::PopStyleVar(); }
-}
+//_ Period is whole hours only, 1-12h; see PeriodSecondsToHours for why.
+static constexpr int kMinPeriodHours = 1;
+static constexpr int kMaxPeriodHours = 12;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PeriodSecondsToHours / DrawPeriodHoursDragInt
 //--------------------------------------------------------------------------------
 // Whole hours only, 1-12h: no GW2 event/chain runs on anything but a whole-hour
-// cycle. A DragInt is used instead of a Combo over a fixed label array, leaving
-// room to raise the cap later without code changes.
-//
-// PeriodSecondsToHours clamps to [kMinPeriodHours, kMaxPeriodHours], snapping any
-// out-of-range or non-whole-hour value (e.g. from a hand-edited JSON file) to the
-// nearest valid hour.
+// cycle. DrawPeriodHoursDragInt is the period widget of both the Basic Event row
+// and the Cyclic Group row; a DragInt, with no fixed label array, leaves room to
+// raise the cap later without code changes. PeriodSecondsToHours is the
+// seconds->hours conversion it is built on: it clamps to [kMinPeriodHours,
+// kMaxPeriodHours], snapping any out-of-range or non-whole-hour value (e.g. from
+// a hand-edited JSON file) to the nearest valid hour.
 //--------------------------------------------------------------------------------
-int PeriodSecondsToHours(int periodSeconds)
+static int PeriodSecondsToHours(int periodSeconds)
 {
-    int hours = periodSeconds / 3600;
-    if (hours < kMinPeriodHours) hours = kMinPeriodHours;
-    if (hours > kMaxPeriodHours) hours = kMaxPeriodHours;
-    return hours;
+    return std::clamp(periodSeconds / 3600, kMinPeriodHours, kMaxPeriodHours);
 }
 
-void DrawPeriodHoursDragInt(int* periodSeconds)
+static void DrawPeriodHoursDragInt(int* periodSeconds)
 {
     int hours = PeriodSecondsToHours(*periodSeconds);
     if (ImGui::DragInt(Tr("WE_PERIOD_LABEL"), &hours, 0.1f, kMinPeriodHours, kMaxPeriodHours, "%dh"))
     {
         //_ DragInt's min/max only clamp the drag gesture; a typed (ctrl+click) value can still land outside range, so clamp explicitly.
-        if (hours < kMinPeriodHours) hours = kMinPeriodHours;
-        if (hours > kMaxPeriodHours) hours = kMaxPeriodHours;
+        hours = std::clamp(hours, kMinPeriodHours, kMaxPeriodHours);
         *periodSeconds = hours * 3600;
     }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawBulkIconPicker
-//--------------------------------------------------------------------------------
-// Display state before the user touches it: if every target already shares the
-// exact same iconTexture (including "all empty", i.e. all using the plain dot),
-// that shared value is shown selected. If they disagree, a "(mixed)" entry is
-// shown instead - purely a status display, not a real choice: selecting any OTHER
-// entry applies that choice to every target, and "(mixed)" naturally drops out of
-// the list once the state resolves to non-mixed.
-//--------------------------------------------------------------------------------
-void DrawBulkIconPicker(const char* label, const std::vector<int>& targetIndices)
-{
-    if (targetIndices.empty()) return;
-
-    bool mixed = false;
-    std::string shared = g_Events[targetIndices[0]].iconTexture;
-    for (int idx : targetIndices)
-        if (g_Events[idx].iconTexture != shared) { mixed = true; break; }
-
-    const std::vector<std::string>& iconFiles = GetEventIconFilenames();
-    std::vector<const char*> iconLabels;
-    if (mixed) iconLabels.push_back(Tr("WE_ICON_MIXED"));
-    iconLabels.push_back(Tr("WE_ICON_DOT"));
-    for (const auto& fn : iconFiles)
-        iconLabels.push_back(fn.c_str());
-
-    //_ "Dot"'s index is 0, or 1 if "(mixed)" occupies slot 0; filenames are offset by whichever lead entries precede them.
-    int dotIndex = mixed ? 1 : 0;
-    int iconIndex = mixed ? 0 : dotIndex;
-    if (!mixed && !shared.empty())
-        for (int k = 0; k < (int)iconFiles.size(); k++)
-            if (iconFiles[k] == shared)
-                iconIndex = dotIndex + 1 + k;
-
-    ImGui::SetNextItemWidth(140.0f);
-    if (ImGui::Combo(label, &iconIndex, iconLabels.data(), (int)iconLabels.size()))
-    {
-        //_ Combo only returns true when the result differs from the input, so iconIndex can't still be "(mixed)" here.
-        std::string newIcon = (iconIndex == dotIndex) ? std::string() : iconFiles[iconIndex - dotIndex - 1];
-        for (int idx : targetIndices)
-            g_Events[idx].iconTexture = newIcon;
-    }
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsDuplicateEventName / IsDuplicateGroupName / IsDuplicateSlotKey / DrawDuplicateWarning
+// IsDuplicateName / DrawDuplicateWarning
 //--------------------------------------------------------------------------------
 // Display-only warning: flags two entries sharing a visible name, so the player
-// can tell them apart in the UI. Not a merge-key check - GroupKey/EventKey/
-// SlotKey (events_storage.cpp) key on id, not name, so a duplicate name here
-// doesn't mean a duplicate identity. IsDuplicateEventName compares DisplayName
-// (events_storage.h), i.e. the resolved/localized text, not the raw customName -
-// two events with different customName can still collide once one falls through
-// to a compiled default's translation. For slots this means unique WITHIN the
-// group, not globally. selfIndex excludes the entry being checked from its own
-// comparison.
+// can tell them apart in the UI. Not a merge-key check: GroupKey/EventKey/
+// SlotKey (events_storage.cpp) key on id, so a duplicate name here does not mean
+// a duplicate identity. IsDuplicateName compares DisplayName (events_storage.h),
+// the resolved/localized text, not the raw customName: two events with different
+// customName can still collide once one falls through to a compiled default's
+// translation. selfIndex excludes the entry being checked; nameArgs follow the
+// item into DisplayName (a slot name is unique WITHIN its group only, so the slot
+// call passes the group id). DrawDuplicateWarning draws the "[duplicate]" tag
+// next to a row whose check came back true.
 //--------------------------------------------------------------------------------
-bool IsDuplicateEventName(const std::vector<WorldEvent>& events, int selfIndex)
+template <typename Item, typename... NameArgs>
+static bool IsDuplicateName(const std::vector<Item>& items, int selfIndex, const NameArgs&... nameArgs)
 {
-    std::string name = DisplayName(events[selfIndex]);
+    std::string name = DisplayName(items[selfIndex], nameArgs...);
     if (name.empty()) return false;
-    for (int i = 0; i < (int)events.size(); i++)
-        if (i != selfIndex && DisplayName(events[i]) == name)
+    for (int i = 0; i < (int)items.size(); i++)
+        if (i != selfIndex && DisplayName(items[i], nameArgs...) == name)
             return true;
     return false;
 }
 
-bool IsDuplicateGroupName(const std::vector<CyclicGroup>& groups, int selfIndex)
-{
-    std::string name = DisplayName(groups[selfIndex]);
-    if (name.empty()) return false;
-    for (int i = 0; i < (int)groups.size(); i++)
-        if (i != selfIndex && DisplayName(groups[i]) == name)
-            return true;
-    return false;
-}
-
-bool IsDuplicateSlotKey(const std::vector<CyclicGroup::Slot>& slots, int selfIndex, const std::string& groupId)
-{
-    std::string name = DisplayName(slots[selfIndex], groupId);
-    if (name.empty()) return false;
-    for (int i = 0; i < (int)slots.size(); i++)
-        if (i != selfIndex && DisplayName(slots[i], groupId) == name)
-            return true;
-    return false;
-}
-
-void DrawDuplicateWarning()
+static void DrawDuplicateWarning()
 {
     ImGui::SameLine();
-    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", Tr("WE_DUPLICATE_TAG"));
+    ImGui::TextColored(kWarningColor, "%s", Tr("WE_DUPLICATE_TAG"));
 }
 
 //********************************************************************************
@@ -184,17 +120,13 @@ const char* const kBasicEventDragType  = "WE_DRAG_BASIC_EVENT";
 const char* const kCyclicGroupDragType = "WE_DRAG_CYCLIC_GROUP";
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// MakeDragSource / MakeDropTarget
+// MakeDragSource   (pairs with: MakeDropTarget)
 //--------------------------------------------------------------------------------
-// MakeDragSource: call right after the widget being dragged (e.g. a row's
-// TreeNode). itemId is the payload moved into Category::members on drop;
-// displayName is only the text shown under the cursor while dragging.
-//
-// MakeDropTarget: call right after the widget accepting a drop (a category
-// header, or "drop here to uncategorize"). Performs the MoveCategoryMember() call
-// itself; the bool return is informational.
+// Call right after the widget being dragged (e.g. a row's TreeNode). itemId is
+// the payload moved into Category::members on drop; displayName is only the text
+// shown under the cursor while dragging.
 //--------------------------------------------------------------------------------
-void MakeDragSource(const char* dragType, const std::string& itemId, const std::string& displayName)
+static void MakeDragSource(const char* dragType, const std::string& itemId, const std::string& displayName)
 {
     if (ImGui::BeginDragDropSource())
     {
@@ -206,6 +138,9 @@ void MakeDragSource(const char* dragType, const std::string& itemId, const std::
     }
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// MakeDropTarget   (see: options_events_rows.h)
+//--------------------------------------------------------------------------------
 bool MakeDropTarget(const char* dragType, std::vector<Category>& categories, int targetCategoryIndex)
 {
     bool dropped = false;
@@ -223,95 +158,18 @@ bool MakeDropTarget(const char* dragType, std::vector<Category>& categories, int
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawSubscribeCheckbox
+// DrawNotifyGlyph
 //--------------------------------------------------------------------------------
-// Meant to sit immediately before a TreeNode call, on the same line (SameLine),
-// producing "[x] > TreeNode". A plain ImGui::Checkbox is noticeably taller than a
-// TreeNode arrow, so FramePadding is zeroed just for this one call to match the
-// arrow's height. Returns true if toggled this frame, same contract as
-// ImGui::Checkbox itself.
+// Level 0..3 of the notify ladder (unsubscribed / silent / toast / toast+sound)
+// as minus / plus / bell / speaker, centered in the sq-sided box at rmin. scale
+// is the bell and speaker size as a fraction of sq; the minus and plus strokes
+// run the box's width less a small pad.
 //--------------------------------------------------------------------------------
-bool DrawSubscribeCheckbox(const char* label, bool& value)
+static void DrawNotifyGlyph(ImDrawList* dl, ImVec2 rmin, float sq, int level, float scale)
 {
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
-    bool changed = ImGui::Checkbox(label, &value);
-    ImGui::PopStyleVar();
-    return changed;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawBellIcon / DrawSpeakerIcon
-//--------------------------------------------------------------------------------
-// Hand-drawn glyphs via ImDrawList primitives - no bell/speaker glyph in the base
-// font. `center` is the visual center, `size` roughly the full height in pixels;
-// both authored in the same 24-unit box (s = size/24). DrawSpeakerIcon doubles as
-// level 3's icon below and as a standalone label next to the sound-file picker.
-//--------------------------------------------------------------------------------
-void DrawBellIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
-{
-    float s = size / 24.0f; //. 24-unit authoring box
-    ImVec2 origin(center.x - 12.0f * s, center.y - 12.0f * s);
-    auto P = [&](float x, float y) { return ImVec2(origin.x + x * s, origin.y + y * s); };
-
-    //_ Dome + flare: a semicircle over the top, then straight lines flaring to the rim; filled solid, not stroked.
-    dl->PathArcTo(P(12.0f, 14.0f), 6.0f * s, IM_PI, IM_PI * 2.0f, 12);
-    dl->PathLineTo(P(20.0f, 18.0f));
-    dl->PathLineTo(P(4.0f, 18.0f));
-    dl->PathFillConvex(color);
-
-    dl->AddCircleFilled(P(12.0f, 20.4f), 1.3f * s, color, 12); //. clapper, not just a dome
-}
-
-void DrawSpeakerIcon(ImDrawList* dl, ImVec2 center, float size, ImU32 color)
-{
-    float s = size / 24.0f; //. same box as DrawBellIcon
-    ImVec2 origin(center.x - 12.0f * s, center.y - 12.0f * s);
-    auto P = [&](float x, float y) { return ImVec2(origin.x + x * s, origin.y + y * s); };
-
-    dl->AddRectFilled(P(5.0f, 9.0f), P(11.5f, 15.0f), color); //. housing, overlaps cone
-
-    //_ Cone/flare drawn as its own convex trapezoid since the combined housing+cone silhouette isn't convex.
-    dl->PathLineTo(P(11.0f, 9.0f));
-    dl->PathLineTo(P(16.0f, 4.0f));
-    dl->PathLineTo(P(16.0f, 20.0f));
-    dl->PathLineTo(P(11.0f, 15.0f));
-    dl->PathFillConvex(color);
-
-    //_ Sound waves: two concentric arcs, stroked; a filled crescent this small would look like a smudge, not a wave.
-    dl->PathArcTo(P(11.0f, 12.0f), 5.0f * s, -0.65f, 0.65f, 8);
-    dl->PathStroke(color, false, 1.4f * s);
-
-    dl->PathArcTo(P(11.0f, 12.0f), 8.5f * s, -0.55f, 0.55f, 8);
-    dl->PathStroke(color, false, 1.4f * s);
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawNotifyLevelIcon
-//--------------------------------------------------------------------------------
-// Manual hit-test + ImDrawList (not a real widget), sized to GetFrameHeight() to
-// match the tree arrow. Returns the level to apply this frame - unchanged unless
-// this click just advanced it.
-//--------------------------------------------------------------------------------
-int DrawNotifyLevelIcon(const char* idSuffix, int level)
-{
-    ImGui::PushID(idSuffix);
-
-    //_ Same reasoning as DrawSubscribeCheckbox: zero FramePadding so this icon matches the tree arrow's height instead of a full frame.
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
-
-    float sq = ImGui::GetFrameHeight();
-    ImVec2 rmin = ImGui::GetCursorScreenPos();
     ImVec2 rmax(rmin.x + sq, rmin.y + sq);
     ImVec2 center((rmin.x + rmax.x) * 0.5f, (rmin.y + rmax.y) * 0.5f);
-
-    bool hovered = ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(rmin, rmax);
-
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    if (hovered)
-        dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
-
     ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
-    //_ Small pad keeps the +/- lines running edge-to-edge, matching the bell/speaker icons below.
     float pad = sq * 0.10f;
 
     switch (level)
@@ -324,13 +182,44 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
             dl->AddLine(ImVec2(center.x, rmin.y + pad), ImVec2(center.x, rmax.y - pad), col, 1.6f);
             break;
         case 2: //. subscribed + toast - bell
-            DrawBellIcon(dl, center, sq * 0.96f, col);
+            DrawBellIcon(dl, center, sq * scale, col);
             break;
-        //_ Level 3 (subscribed + toast + sound) draws the speaker; clicking wraps back to level 0 (fully unsubscribed).
-        default:
-            DrawSpeakerIcon(dl, center, sq * 0.96f, col);
+        default: //. level 3 - toast + sound - speaker
+            DrawSpeakerIcon(dl, center, sq * scale, col);
             break;
     }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawNotifyLevelIcon / DrawNotifyLevelButtons
+//--------------------------------------------------------------------------------
+// Two views of the 0..3 notify ladder, drawn by DrawNotifyGlyph. Both are manual
+// hit-tests over ImDrawList, not real widgets, and return the level to apply this
+// frame (unchanged unless clicked). DrawNotifyLevelIcon is one frame-height icon
+// at the front of each event and slot row: it shows the current level and a left-
+// click advances one level, wrapping 3 -> 0. DrawNotifyLevelButtons is four hit-
+// boxes side by side in the expanded body: each jumps straight to its level and
+// the current one is framed. The right-click menu jumps too, through
+// DrawNameAndContextMenu's notifyLevel/setNotifyLevel.
+//--------------------------------------------------------------------------------
+static int DrawNotifyLevelIcon(const char* idSuffix, int level)
+{
+    ImGui::PushID(idSuffix);
+
+    //_ Same reasoning as DrawSubscribeCheckbox: zero FramePadding so this icon matches the tree arrow's height.
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+
+    float sq = ImGui::GetFrameHeight();
+    ImVec2 rmin = ImGui::GetCursorScreenPos();
+    ImVec2 rmax(rmin.x + sq, rmin.y + sq);
+
+    bool hovered = ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(rmin, rmax);
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    if (hovered)
+        dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+
+    DrawNotifyGlyph(dl, rmin, sq, level, 0.96f);
 
     ImGui::Dummy(ImVec2(sq, sq));
     ImGui::PopStyleVar();
@@ -352,17 +241,7 @@ int DrawNotifyLevelIcon(const char* idSuffix, int level)
     return newLevel;
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawNotifyLevelButtons   (pairs with: DrawNotifyLevelIcon)
-//--------------------------------------------------------------------------------
-// Four boxes, same authoring box/primitives as DrawNotifyLevelIcon. Glyphs are
-// minus / plus / bell / speaker for levels 0-3 respectively - each level gets its
-// own distinct glyph (a prior version doubled up the speaker on levels 2 and 3,
-// relying on position + tooltip to disambiguate; that didn't hold up in testing).
-// Each box is its own hit-test, clicking one jumps directly to that level; no
-// wraparound, no cycle.
-//--------------------------------------------------------------------------------
-int DrawNotifyLevelButtons(const char* idSuffix, int level)
+static int DrawNotifyLevelButtons(const char* idSuffix, int level)
 {
     ImGui::PushID(idSuffix);
 
@@ -387,7 +266,6 @@ int DrawNotifyLevelButtons(const char* idSuffix, int level)
 
         ImVec2 rmin = ImGui::GetCursorScreenPos();
         ImVec2 rmax(rmin.x + sq, rmin.y + sq);
-        ImVec2 center((rmin.x + rmax.x) * 0.5f, (rmin.y + rmax.y) * 0.5f);
 
         bool hovered = ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(rmin, rmax);
         bool active  = (level == lvl);
@@ -403,25 +281,7 @@ int DrawNotifyLevelButtons(const char* idSuffix, int level)
             dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_HeaderHovered), 3.0f);
         }
 
-        ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
-        float pad = sq * 0.10f;
-
-        switch (lvl)
-        {
-            case 0: //. unsubscribed - minus only
-                dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
-                break;
-            case 1: //. subscribed, silent - plus
-                dl->AddLine(ImVec2(rmin.x + pad, center.y), ImVec2(rmax.x - pad, center.y), col, 1.6f);
-                dl->AddLine(ImVec2(center.x, rmin.y + pad), ImVec2(center.x, rmax.y - pad), col, 1.6f);
-                break;
-            case 2: //. +toast - bell
-                DrawBellIcon(dl, center, sq * 0.9f, col);
-                break;
-            default: //. lvl 3 - +toast+sound - speaker
-                DrawSpeakerIcon(dl, center, sq * 0.9f, col);
-                break;
-        }
+        DrawNotifyGlyph(dl, rmin, sq, lvl, 0.9f);
 
         ImGui::Dummy(ImVec2(sq, sq));
 
@@ -441,21 +301,17 @@ int DrawNotifyLevelButtons(const char* idSuffix, int level)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawDragButton
 //--------------------------------------------------------------------------------
-// Small button placed next to the Location field that arms/disarms map-drag edit
-// mode for one Basic Event or Cyclic Group (see EditModeState in maprender.h).
-// Reads "Drag" when this row isn't the one currently being edited, and "Stop"
-// when it is - clicking it toggles. A hovered tooltip explains the interaction
-// either way, since "Drag"/"Stop" alone doesn't say WHERE to actually drag it
-// (the marker on the map, not this button).
+// Small button next to the Location field that arms/disarms map-drag edit mode
+// for one Basic Event or Cyclic Group (see EditModeState in maprender.h). Reads
+// "Drag" when this row isn't the one being edited and "Stop" when it is; clicking
+// toggles. The hover tooltip says WHERE to drag (the marker on the map, not this
+// button), which "Drag"/"Stop" alone doesn't.
 //--------------------------------------------------------------------------------
-void DrawDragButton(EditTarget target, int index, const char* idSuffix)
+static void DrawDragButton(EditTarget target, int index)
 {
     bool isBeingEdited = (g_EditMode.target == target && g_EditMode.index == index);
 
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%s##drag_btn_%s", isBeingEdited ? "Stop" : "Drag", idSuffix);
-
-    if (ImGui::SmallButton(buf))
+    if (ImGui::SmallButton(isBeingEdited ? "Stop##drag_btn" : "Drag##drag_btn"))
     {
         if (isBeingEdited)
             ClearEditMode();
@@ -474,19 +330,19 @@ void DrawDragButton(EditTarget target, int index, const char* idSuffix)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawFixToScreenRow
 //--------------------------------------------------------------------------------
-// Lets a marker/ring be pinned to a fixed spot on the player's own screen instead
-// of a spot on the map (fixedToScreen/screenX/screenY, events.h) - drawn right
-// after the existing continent-space Location row, same visual weight (100px-wide
+// Pins a marker/ring to a fixed spot on the player's own screen
+// (fixedToScreen/screenX/screenY, events.h) in place of a map position. Drawn
+// right after the continent-space Location row, same visual weight (100px-wide
 // InputFloat2). screenX/Y are stored as a normalized [0,1] fraction of the game
-// window so the pinned spot survives a resolution/window- size change (see
-// ScreenFractionToPixels/PixelsToScreenFraction, maprender.h), but shown/edited
-// here as PIXEL coordinates - that's what a player actually wants when lining
-// something up precisely on their own screen, not a 0..1 fraction. Converted back
-// to the stored fraction on every edit.
+// window so the pinned spot survives a resolution or window-size change (see
+// ScreenFractionToPixels/PixelsToScreenFraction, maprender.h), but shown and
+// edited as PIXEL coordinates, which is what a player lining something up on
+// their own screen wants; every edit converts back to the fraction. The ids are
+// fixed; the caller's PushID keeps the rows apart.
 //--------------------------------------------------------------------------------
-void DrawFixToScreenRow(const char* idSuffix, bool* fixedToScreen, float* screenX, float* screenY)
+static void DrawFixToScreenRow(bool* fixedToScreen, float* screenX, float* screenY)
 {
-    ImGui::Checkbox(TrId("WE_FIX_TO_SCREEN_LABEL", idSuffix).c_str(), fixedToScreen);
+    ImGui::Checkbox(TrId("WE_FIX_TO_SCREEN_LABEL", "##fix_to_screen").c_str(), fixedToScreen);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", Tr("WE_TIP_FIX_TO_SCREEN"));
 
@@ -497,7 +353,7 @@ void DrawFixToScreenRow(const char* idSuffix, bool* fixedToScreen, float* screen
 
         ImGui::SameLine();
         ImGui::SetNextItemWidth(100.0f);
-        if (ImGui::InputFloat2(TrId("WE_SCREEN_POS_LABEL", idSuffix).c_str(), pixelPos, "%.0f"))
+        if (ImGui::InputFloat2(TrId("WE_SCREEN_POS_LABEL", "##fix_to_screen").c_str(), pixelPos, "%.0f"))
         {
             ImVec2 frac = PixelsToScreenFraction({ pixelPos[0], pixelPos[1] });
             *screenX = frac.x;
@@ -507,35 +363,34 @@ void DrawFixToScreenRow(const char* idSuffix, bool* fixedToScreen, float* screen
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// BuildChatChannelOptions
+// DrawOptionalColor
 //--------------------------------------------------------------------------------
-// Index 0 is the empty prefix (ChatChannelPrefix's "current chat" default); the
-// Better Chat entry stays last so dropping it is a single tail check. It's
-// dropped unless Better Chat is loaded and reports its /self command enabled (see
-// better_chat.h) - offering it otherwise would let the user pick a channel that
-// just types "/self ..." into whatever chat box has focus.
+// A checkbox and a color swatch for a std::optional<ImU32> override, both on the
+// current line. Ticking seeds the override with fallback(); unticking clears it.
+// While unticked the swatch is dimmed, shows fallback() and writes nothing back.
+// fallback is a callable, called after the checkbox has changed the override,
+// because CyclicGroup::SlotColor returns the override once one is set. checkboxId
+// and colorLabel are full ImGui labels.
 //--------------------------------------------------------------------------------
-void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const char*>& prefixes)
+template <typename Fallback>
+static void DrawOptionalColor(const char* checkboxId, const char* colorLabel, std::optional<ImU32>& color, Fallback fallback)
 {
-    static const char* const kLabels[] = {
-        "Current chat (default)", "Say", "Party", "Squad",
-        "Guild (represented)", "Guild 1", "Guild 2", "Guild 3",
-        "Guild 4", "Guild 5", "Map", "Whisper (/w self)",
-        "Better Chat (/self)"
-    };
-    static const char* const kPrefixes[] = {
-        "", "/s ", "/p ", "/d ",
-        "/g ", "/g1 ", "/g2 ", "/g3 ",
-        "/g4 ", "/g5 ", "/m ", "/w ",
-        "/self "
-    };
-    constexpr int kCount = sizeof(kLabels) / sizeof(kLabels[0]);
-
-    for (int i = 0; i < kCount; i++)
+    ImGui::SameLine();
+    bool hasColor = color.has_value();
+    if (ImGui::Checkbox(checkboxId, &hasColor))
     {
-        if (std::string(kPrefixes[i]) == "/self " && !IsBetterChatSelfCommandEnabled()) continue;
-        labels.push_back(kLabels[i]);
-        prefixes.push_back(kPrefixes[i]);
+        if (hasColor)
+            color = fallback();
+        else
+            color.reset();
+    }
+
+    ImGui::SameLine();
+    DisabledBlock(!hasColor)
+    {
+        ImVec4 colorVec = ColorFloat4(color.has_value() ? *color : fallback());
+        if (ImGui::ColorEdit4(colorLabel, &colorVec.x, kAlphaSwatchFlags) && hasColor)
+            color = ColorU32(colorVec);
     }
 }
 
@@ -545,31 +400,36 @@ void BuildChatChannelOptions(std::vector<const char*>& labels, std::vector<const
 // toggleDone, notifyLevel/setNotifyLevel, and resetToDefault add optional right-
 // click entries, left null/-1 where unused (categories pass none). resetToDefault
 // adds Reset, greyed via resetAvailable for entries with no compiled-in default
-// (see GetDefault* in events_storage.h). editBuffers keys by editKey, not
-// removeIndex - slots share one map across groups (DrawCyclicGroupRow).
-// Delete/Cancel erase the editBuffers entry and set pendingRemoveIndex =
-// removeIndex; Cancel (isNew only) also returns cancelled = true. An already-
-// saved row's Delete instead swaps the menu for an inline confirm/cancel choice
-// (confirmingDelete below).
+// (see GetDefault* in events_storage.h). edit.names keys by editKey, not
+// removeIndex - slots share one state across groups (DrawCyclicGroupRow).
+// Delete/Cancel erase the edit.names entry and set pendingRemoveIndex =
+// removeIndex. A saved row's Delete swaps the menu for an inline confirm/cancel
+// choice (confirmingDelete below).
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
-    const char*                 treeNodeId,
-    int                         editKey,
-    int                         removeIndex,
-    const std::string&          currentName,
-    std::map<int, std::string>& editBuffers,
-    int&                        pendingRemoveIndex,
-    const char*                 dragType,
-    const std::string&          dragId,
-    const char*                 autoTag,
-    std::function<void()>       toggleDone,
-    int                         notifyLevel,
-    std::function<void(int)>    setNotifyLevel,
-    std::function<void()>       resetToDefault,
-    bool                        resetAvailable,
-    bool                        autoFocus,
-    bool                        isNew)
+    const char*              treeNodeId,
+    int                      editKey,
+    int                      removeIndex,
+    const std::string&       currentName,
+    NameEditState&           edit,
+    int&                     pendingRemoveIndex,
+    const char*              dragType,
+    const std::string&       dragId,
+    const char*              autoTag,
+    std::function<void()>    toggleDone,
+    int                      notifyLevel,
+    std::function<void(int)> setNotifyLevel,
+    std::function<void()>    resetToDefault,
+    bool                     resetAvailable)
 {
+    const bool autoFocus = (edit.pendingFocus == editKey);
+    if (autoFocus)
+    {
+        edit.names[editKey] = ""; //. freshly created - starts empty, forces the inline editor open
+        edit.pendingFocus = -1;
+    }
+    const bool isNew = (edit.newKey == editKey);
+
     std::string label = currentName.empty() ? Tr("WE_UNNAMED") : currentName;
     if (autoTag)
     {
@@ -603,7 +463,7 @@ NameRowResult DrawNameAndContextMenu(
             if (ImGui::Selectable(Tr("WE_DELETE_CONFIRM_BUTTON")))
             {
                 pendingRemoveIndex = removeIndex;
-                editBuffers.erase(editKey); //. matches the isNew branch below - Delete always clears any in-progress edit
+                edit.names.erase(editKey); //. matches the isNew branch below - Delete always clears any in-progress edit
                 ImGui::CloseCurrentPopup();
             }
             if (ImGui::Selectable(Tr("WE_DELETE_CANCEL_BUTTON")))
@@ -619,7 +479,7 @@ NameRowResult DrawNameAndContextMenu(
             }
             if (setNotifyLevel && notifyLevel >= 0)
             {
-                //_ Jump menu, not just a shortcut past the forward-only cycle; current stage shows a checkmark.
+                //_ Jump menu past the forward-only cycle; current stage shows a checkmark.
                 if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_TOAST_SOUND"), nullptr, notifyLevel == 3))
                     setNotifyLevel(3);
                 if (ImGui::MenuItem(Tr("WE_ROW_NOTIFY_SUB_TOAST"), nullptr, notifyLevel == 2))
@@ -631,7 +491,7 @@ NameRowResult DrawNameAndContextMenu(
                 ImGui::Separator();
             }
             if (ImGui::MenuItem(Tr("WE_ROW_EDIT_NAME")))
-                editBuffers[editKey] = currentName; //. seeded when edit starts
+                edit.names[editKey] = currentName; //. seeded when edit starts
             ImGui::Separator();
             if (resetToDefault)
             {
@@ -644,7 +504,7 @@ NameRowResult DrawNameAndContextMenu(
                 if (ImGui::MenuItem(Tr("WE_ROW_DELETE")))
                 {
                     pendingRemoveIndex = removeIndex;
-                    editBuffers.erase(editKey);
+                    edit.names.erase(editKey);
                 }
             }
             else
@@ -657,10 +517,14 @@ NameRowResult DrawNameAndContextMenu(
         ImGui::EndPopup();
     }
 
-    auto it = editBuffers.find(editKey);
-    if (it == editBuffers.end())
-        //_ missing buffer: either branch above erased it (isNew delete, or a confirmed delete on any row) - cancelled only means anything to a caller checking isNew
-        return { open, currentName, isNew };
+    auto it = edit.names.find(editKey);
+    if (it == edit.names.end())
+    {
+        //_ missing name entry: either branch above erased it (Delete of a new entry, or a confirmed delete on any row); a deleted new entry is resolved
+        if (isNew)
+            edit.newKey = -1;
+        return { open, currentName };
+    }
     ImGui::SameLine();
     char buf[128];
     strncpy(buf, it->second.c_str(), sizeof(buf) - 1);
@@ -682,8 +546,10 @@ NameRowResult DrawNameAndContextMenu(
         if (ImGui::SmallButton(TrId("WE_ROW_SAVE", "##name_edit_save").c_str()))
         {
             std::string saved = it->second;
-            editBuffers.erase(it);
-            return { open, saved, false };
+            edit.names.erase(it);
+            if (isNew && saved != currentName)
+                edit.newKey = -1; //. resolved: frees the "+" button
+            return { open, saved };
         }
     }
     if (blank && ImGui::IsItemHovered())
@@ -695,77 +561,41 @@ NameRowResult DrawNameAndContextMenu(
         ImGui::SameLine();
         if (ImGui::SmallButton("x##name_edit_cancel"))
         {
-            editBuffers.erase(it);
+            edit.names.erase(it);
+            edit.newKey = -1; //. resolved: frees the "+" button
             pendingRemoveIndex = removeIndex;
-            return { open, currentName, true };
+            return { open, currentName };
         }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", Tr("WE_TIP_CANCEL_NEW"));
     }
 
-    return { open, currentName, false }; //. unchanged until Save/Cancel is clicked
+    return { open, currentName }; //. unchanged until Save/Cancel is clicked
 }
+
+//_ Name-edit state of the Basic event rows; the Request call sets its pendingFocus and newKey.
+static NameEditState s_basicEventEdit;
+
+//_ Name-edit state of the Cyclic group rows.
+static NameEditState s_cyclicGroupEdit;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// ContainsCaseInsensitive / EventMatchesSearch / GroupMatchesSearch
+// RequestBasicEventNameEdit / RequestCyclicGroupNameEdit   (see: options_events_rows.h)
 //--------------------------------------------------------------------------------
-// One shared query filters both Basic Events and Cyclic Events at once - a single
-// search box, not two.
-//
-// Matching is case-insensitive substring, and for Cyclic Events checks BOTH the
-// group's own name AND every one of its slot names - so typing "Crash Site" finds
-// Dry Top even though "Dry Top" itself doesn't contain that text.
-//--------------------------------------------------------------------------------
-bool ContainsCaseInsensitive(const std::string& haystack, const std::string& needleLower)
-{
-    if (needleLower.empty()) return true; //. empty query matches everything
-    std::string haystackLower = haystack;
-    std::transform(haystackLower.begin(), haystackLower.end(), haystackLower.begin(),
-        [](unsigned char c) { return (char)std::tolower(c); });
-    return haystackLower.find(needleLower) != std::string::npos;
-}
-
-bool EventMatchesSearch(const WorldEvent& ev, const std::string& queryLower)
-{
-    return ContainsCaseInsensitive(DisplayName(ev), queryLower);
-}
-
-bool GroupMatchesSearch(const CyclicGroup& grp, const std::string& queryLower)
-{
-    if (ContainsCaseInsensitive(DisplayName(grp), queryLower)) return true;
-    for (const auto& slot : grp.slots)
-        if (ContainsCaseInsensitive(DisplayName(slot, grp.id), queryLower)) return true;
-    return false;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// RequestBasicEventNameEdit / RequestCyclicGroupNameEdit   (see: addon_options_helpers.h)
-//--------------------------------------------------------------------------------
-// s_pending* is one-shot, consumed (and cleared) by DrawBasicEventRow/
-// DrawCyclicGroupRow the next time that index draws - see each function's own
-// editingNames seeding. s_new* is set alongside it but persists until
-// DrawBasicEventRow/DrawCyclicGroupRow clears it (entry saved or cancelled) - see
-// IsBasicEventCreationPending/IsCyclicGroupCreationPending.
-//--------------------------------------------------------------------------------
-static int s_pendingBasicEventEdit  = -1;
-static int s_pendingCyclicGroupEdit = -1;
-static int s_newBasicEventIndex     = -1;
-static int s_newCyclicGroupIndex    = -1;
-
 void RequestBasicEventNameEdit(int index)
 {
-    s_pendingBasicEventEdit = index;
-    s_newBasicEventIndex    = index;
+    s_basicEventEdit.pendingFocus = index;
+    s_basicEventEdit.newKey       = index;
 }
 
 void RequestCyclicGroupNameEdit(int index)
 {
-    s_pendingCyclicGroupEdit = index;
-    s_newCyclicGroupIndex    = index;
+    s_cyclicGroupEdit.pendingFocus = index;
+    s_cyclicGroupEdit.newKey       = index;
 }
 
-bool IsBasicEventCreationPending()  { return s_newBasicEventIndex  >= 0; }
-bool IsCyclicGroupCreationPending() { return s_newCyclicGroupIndex >= 0; }
+bool IsBasicEventCreationPending()  { return s_basicEventEdit.newKey  >= 0; }
+bool IsCyclicGroupCreationPending() { return s_cyclicGroupEdit.newKey >= 0; }
 
 //_ One id for every row: RowMode::linked decides which row matches it.
 static constexpr const char* kLinkFlashId = "events_linked_row";
@@ -812,9 +642,6 @@ static bool BeginLinkedRow(bool linked, bool linkPending)
 //--------------------------------------------------------------------------------
 void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
 {
-    //_ Tracks in-edit-mode indices (see DrawNameAndContextMenu); function-static, shared across category and uncategorized passes.
-    static std::map<int, std::string> editingNames;
-
     WorldEvent& ev = g_Events[i];
     const bool landing = BeginLinkedRow(mode.linked, mode.linkPending);
 
@@ -836,33 +663,22 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
     std::string oldName = DisplayName(ev);
     const WorldEvent* defaultEv = GetDefaultEvent(ev.id);
 
-    bool autoFocus = (s_pendingBasicEventEdit == i);
-    if (autoFocus)
-    {
-        editingNames[i] = ""; //. freshly created - starts empty, forces the inline editor open
-        s_pendingBasicEventEdit = -1;
-    }
-    bool isNew = (s_newBasicEventIndex == i);
-
     //_ Always, not Once: a repeat link to the same row must reopen it.
     if (landing)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, DisplayName(ev), editingNames, pendingRemoveIndex, kBasicEventDragType, ev.id,
+    NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, DisplayName(ev), s_basicEventEdit, pendingRemoveIndex, kBasicEventDragType, ev.id,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
         [&ev]() { ToggleBasicEventDoneToday(ev.id); },
         notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.id, lvl); },
         [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. customName cleared for free - defaultEv's own customName is always ""
-        defaultEv != nullptr, autoFocus, isNew);
+        defaultEv != nullptr);
     bool open = nameResult.open;
     if (nameResult.newName != oldName)
     {
         ev.customName = nameResult.newName;
     }
-    //_ Resolved (saved or cancelled) - frees the "+" button back up.
-    if (isNew && (nameResult.cancelled || nameResult.newName != oldName))
-        s_newBasicEventIndex = -1;
 
-    if (IsDuplicateEventName(g_Events, i))
+    if (IsDuplicateName(g_Events, i))
         DrawDuplicateWarning();
 
     if (open)
@@ -882,17 +698,9 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
             ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &ev.continentX, "%.0f");
 
             ImGui::SameLine();
-            {
-                char idSuffix[16];
-                snprintf(idSuffix, sizeof(idSuffix), "be%d", i);
-                DrawDragButton(EditTarget::BasicEvent, i, idSuffix);
-            }
+            DrawDragButton(EditTarget::BasicEvent, i);
 
-            {
-                char idSuffix[16];
-                snprintf(idSuffix, sizeof(idSuffix), "##be%d", i);
-                DrawFixToScreenRow(idSuffix, &ev.fixedToScreen, &ev.screenX, &ev.screenY);
-            }
+            DrawFixToScreenRow(&ev.fixedToScreen, &ev.screenX, &ev.screenY);
 
             ImGui::SetNextItemWidth(50.0f);
             int durationMinutes = ev.duration / 60;
@@ -973,21 +781,8 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
                 DrawPeriodHoursDragInt(&ev.period);
             }
 
-            //_ "Dot" (index 0) keeps the plain circle; any other entry names a textures/ file tinted to the status color (see maprender.cpp).
-            const std::vector<std::string>& iconFiles = GetEventIconFilenames();
-            std::vector<const char*> iconLabels;
-            iconLabels.push_back(Tr("WE_ICON_DOT"));
-            for (const auto& fn : iconFiles)
-                iconLabels.push_back(fn.c_str());
-
-            int iconIndex = 0; //. "Dot"
-            for (int k = 0; k < (int)iconFiles.size(); k++)
-                if (iconFiles[k] == ev.iconTexture)
-                    iconIndex = k + 1;
-
-            ImGui::SetNextItemWidth(100.0f);
-            if (ImGui::Combo(TrId("WE_ICON_LABEL", "##event_icon").c_str(), &iconIndex, iconLabels.data(), (int)iconLabels.size()))
-                ev.iconTexture = (iconIndex == 0) ? std::string() : iconFiles[iconIndex - 1];
+            //_ "Dot" (the empty name) keeps the plain circle; any other entry names a textures/ file tinted to the status color (see maprender.cpp).
+            DrawFileCombo(TrId("WE_ICON_LABEL", "##event_icon").c_str(), "WE_ICON_DOT", GetEventIconFilenames(), ev.iconTexture);
 
             ImGui::SameLine();
             if (ImGui::SmallButton(TrId("WE_ICON_REFRESH", "###icon_rescan").c_str()))
@@ -1022,8 +817,6 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
 //--------------------------------------------------------------------------------
 void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex)
 {
-    static std::map<int, std::string> editingNames;
-
     CyclicGroup& grp = g_CyclicGroups[i];
 
     //_ Set when the link names one of this group's slots; the group then opens but only that slot lands.
@@ -1041,30 +834,19 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
     std::string oldGroupName = DisplayName(grp);
     const CyclicGroup* defaultGrp = GetDefaultCyclicGroup(grp.id);
 
-    bool autoFocus = (s_pendingCyclicGroupEdit == i);
-    if (autoFocus)
-    {
-        editingNames[i] = ""; //. freshly created - starts empty, forces the inline editor open
-        s_pendingCyclicGroupEdit = -1;
-    }
-    bool isNew = (s_newCyclicGroupIndex == i);
-
     //_ Always, not Once: a repeat link must reopen the row; a link to one of its slots opens the group too.
     if (mode.linked && mode.linkPending)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, DisplayName(grp), editingNames, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
+    NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, DisplayName(grp), s_cyclicGroupEdit, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
         grp.apiMapChestId.empty() ? nullptr : "(auto)",
         nullptr, -1, nullptr,
         [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. customName cleared for free - defaultGrp's own customName is always ""
-        defaultGrp != nullptr, autoFocus, isNew);
+        defaultGrp != nullptr);
     bool open = nameResult.open;
     if (nameResult.newName != oldGroupName)
         grp.customName = nameResult.newName;
-    //_ Resolved (saved or cancelled) - frees the "+" button back up.
-    if (isNew && (nameResult.cancelled || nameResult.newName != oldGroupName))
-        s_newCyclicGroupIndex = -1;
 
-    if (IsDuplicateGroupName(g_CyclicGroups, i))
+    if (IsDuplicateName(g_CyclicGroups, i))
         DrawDuplicateWarning();
 
     if (open)
@@ -1097,13 +879,7 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
         ImGui::TextUnformatted(Tr("WE_OPTWIN_QUICK_SUBSCRIBE_ALL"));
 
         //_ Function-static, shared across every group; keyed by (group i, slot s) so slot 0 in different groups can't collide.
-        static std::map<int, std::string> editingSlotNames;
-
-        //_ One-shot; set on push, consumed next draw - same pattern as RequestBasicEventNameEdit, but local since add and draw both happen in this one function.
-        static int s_pendingSlotEditKey = -1;
-
-        //_ Persists (unlike s_pendingSlotEditKey) until that slot is saved/cancelled; shared across every group, same as editingSlotNames above.
-        static int s_newSlotEditKey = -1;
+        static NameEditState slotEdit;
 
         bool pendingAddSlot = false;
 
@@ -1114,58 +890,30 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
             ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &grp.continentX, "%.0f");
 
             ImGui::SameLine();
-            {
-                char idSuffix[16];
-                snprintf(idSuffix, sizeof(idSuffix), "cg%d", i);
-                DrawDragButton(EditTarget::CyclicGroup, i, idSuffix);
-            }
+            DrawDragButton(EditTarget::CyclicGroup, i);
 
-            {
-                char idSuffix[16];
-                snprintf(idSuffix, sizeof(idSuffix), "##cg%d", i);
-                DrawFixToScreenRow(idSuffix, &grp.fixedToScreen, &grp.screenX, &grp.screenY);
-            }
+            DrawFixToScreenRow(&grp.fixedToScreen, &grp.screenX, &grp.screenY);
 
             ImGui::SetNextItemWidth(50.0f);
             DrawPeriodHoursDragInt(&grp.period);
 
             //_ colors.base is a plain ImVec4, so ColorEdit4 binds to it directly; no read/convert/write-back round trip needed.
-            ImGui::ColorEdit4(Tr("WE_COLOR_LABEL"), &grp.colors.base.x, ImGuiColorEditFlags_AlphaBar |
-                                                                             ImGuiColorEditFlags_NoInputs |
-                                                                             ImGuiColorEditFlags_PickerHueWheel);
+            ImGui::ColorEdit4(Tr("WE_COLOR_LABEL"), &grp.colors.base.x, kAlphaSwatchFlags);
 
             //_ Optional override: unchecked uses colors.ter() (see CyclicGroup::IdleColor()); checked stores an explicit ImU32.
-            ImGui::SameLine();
-            bool hasCustomIdle = grp.idleColor.has_value();
-            if (ImGui::Checkbox("##customcolorcyclicgroup", &hasCustomIdle))
-            {
-                if (hasCustomIdle)
-                    grp.idleColor = grp.colors.ter(); //. seed with current color
-                else
-                    grp.idleColor.reset();
-            }
-
-            ImGui::SameLine();
-            DisabledBlock(!hasCustomIdle)
-            {
-                ImU32 idleU32 = grp.idleColor.has_value() ? *grp.idleColor : grp.colors.ter();
-                ImVec4 idleColorVec = ColorFloat4(idleU32);
-                if (ImGui::ColorEdit4(TrId("WE_CUSTOM_COLOR_LABEL", "##group").c_str(), &idleColorVec.x, ImGuiColorEditFlags_AlphaBar |
-                                                                                                ImGuiColorEditFlags_NoInputs |
-                                                                                                ImGuiColorEditFlags_PickerHueWheel) && hasCustomIdle)
-                    grp.idleColor = ColorU32(idleColorVec);
-            }
+            DrawOptionalColor("##customcolorcyclicgroup", TrId("WE_CUSTOM_COLOR_LABEL", "##group").c_str(), grp.idleColor,
+                [&] { return grp.colors.ter(); });
 
             //_ Slots are the individual events within this cycle; same deferred add/remove pattern, nested one PushID level deeper.
             ImGui::Spacing();
             ImGui::TextUnformatted(Tr("WE_GROUP_EVENTS_LABEL"));
             ImGui::SameLine();
 
-            DisabledBlock(s_newSlotEditKey >= 0)
+            DisabledBlock(slotEdit.newKey >= 0)
             {
                 pendingAddSlot = ImGui::SmallButton("+##add_slot");
             }
-            if (s_newSlotEditKey >= 0 && ImGui::IsItemHovered())
+            if (slotEdit.newKey >= 0 && ImGui::IsItemHovered())
                 ImGui::SetTooltip("%s", Tr("WE_TIP_FINISH_NAMING"));
         }
 
@@ -1197,32 +945,21 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
             const CyclicGroup::Slot* defaultSlot = GetDefaultCyclicSlot(grp.id, slot.id);
             std::string oldSlotName = DisplayName(slot, grp.id);
 
-            bool slotAutoFocus = (s_pendingSlotEditKey == slotEditKey);
-            if (slotAutoFocus)
-            {
-                editingSlotNames[slotEditKey] = ""; //. freshly created - starts empty, forces the inline editor open
-                s_pendingSlotEditKey = -1;
-            }
-            bool slotIsNew = (s_newSlotEditKey == slotEditKey);
-
             if (slotLanding)
                 ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 
             //_ Slot rows aren't draggable (dragType left null) - a slot moves with its group, not independently between categories.
-            NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, oldSlotName, editingSlotNames, pendingRemoveSlotIndex,
+            NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, oldSlotName, slotEdit, pendingRemoveSlotIndex,
                 nullptr, std::string(), nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
                 notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); },
                 [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. customName cleared for free - defaultSlot's own customName is always ""
-                defaultSlot != nullptr, slotAutoFocus, slotIsNew);
+                defaultSlot != nullptr);
             bool slotOpen = slotNameResult.open;
             //_ Slots aren't categorized and subscriptions key on (group id, slot id), not name, so no rename fixups are needed.
             if (slotNameResult.newName != oldSlotName)
                 slot.customName = slotNameResult.newName;
-            //_ Resolved (saved or cancelled) - frees the "+" button back up.
-            if (slotIsNew && (slotNameResult.cancelled || slotNameResult.newName != oldSlotName))
-                s_newSlotEditKey = -1;
 
-            if (IsDuplicateSlotKey(grp.slots, s, grp.id))
+            if (IsDuplicateName(grp.slots, s, grp.id))
                 DrawDuplicateWarning();
 
             if (slotOpen)
@@ -1333,27 +1070,9 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
                     if (ImGui::Combo(TrId("WE_TIER_LABEL", "##slot_tier").c_str(), &tierIndex, kTierLabels, 3))
                         slot.tier = (ColorTier)tierIndex;
 
-                    //_ Same checkbox-gates-swatch pattern as Custom Idle above; seeded from the slot's current resolved color.
-                    ImGui::SameLine();
-                    bool hasCustomColor = slot.customColor.has_value();
-                    if (ImGui::Checkbox("##customcolorcyclicslot", &hasCustomColor))
-                    {
-                        if (hasCustomColor)
-                            slot.customColor = grp.SlotColor(slot);
-                        else
-                            slot.customColor.reset();
-                    }
-
-                    ImGui::SameLine();
-                    DisabledBlock(!hasCustomColor)
-                    {
-                        ImU32 slotU32 = slot.customColor.has_value() ? *slot.customColor : grp.SlotColor(slot);
-                        ImVec4 slotColorVec = ColorFloat4(slotU32);
-                        if (ImGui::ColorEdit4(TrId("WE_CUSTOM_COLOR_LABEL", "##slot").c_str(), &slotColorVec.x, ImGuiColorEditFlags_AlphaBar |
-                                                                                                       ImGuiColorEditFlags_NoInputs |
-                                                                                                       ImGuiColorEditFlags_PickerHueWheel) && hasCustomColor)
-                            slot.customColor = ColorU32(slotColorVec);
-                    }
+                    //_ Same override as the group's custom idle color; seeded from the slot's resolved tier color.
+                    DrawOptionalColor("##customcolorcyclicslot", TrId("WE_CUSTOM_COLOR_LABEL", "##slot").c_str(), slot.customColor,
+                        [&] { return grp.SlotColor(slot); });
 
                     //_ Same as WorldEvent::chatCode; not a merge key, so it live-edits directly with no Save-button buffering.
                     {
@@ -1378,17 +1097,13 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
 
         if (pendingAddSlot)
         {
-            s_pendingSlotEditKey = i * 100000 + (int)grp.slots.size(); //. index this slot will land at, below
-            s_newSlotEditKey     = s_pendingSlotEditKey;
-
-            //_ Slot ids only need to be unique within this group (events_storage.cpp).
-            std::unordered_set<std::string> usedSlotIds;
-            for (const auto& s : grp.slots) usedSlotIds.insert(s.id);
+            slotEdit.pendingFocus = i * 100000 + (int)grp.slots.size(); //. index this slot will land at, below
+            slotEdit.newKey       = slotEdit.pendingFocus;
 
             CyclicGroup::Slot newSlot{};
-            //_ id seed is a fixed ASCII word, not the (empty) display default - SlugifyName strips non-ASCII to nothing (events_storage.cpp).
-            newSlot.id       = UniqueId(SlugifyName("slot"), usedSlotIds);
-            newSlot.customName = ""; //. starts unnamed - forces the inline editor open on next draw (see s_pendingSlotEditKey above)
+            //_ Slot ids only need to be unique within this group (events_storage.cpp).
+            newSlot.id       = NewUniqueId("slot", grp.slots);
+            newSlot.customName = ""; //. starts unnamed - forces the inline editor open on next draw (see slotEdit above)
             newSlot.offset   = 0;
             newSlot.duration = 600; //. 10 min, a reasonable default
             newSlot.tier     = ColorTier::Primary;

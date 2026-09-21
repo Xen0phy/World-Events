@@ -77,7 +77,7 @@ enum class EditTarget { None, BasicEvent, CyclicGroup };
 // isDragging  true only while a drag gesture is actively in progress
 //--------------------------------------------------------------------------------
 // Clicking "Drag" next to a Basic Event's or Cyclic Group's Location field
-// (addon_options_helpers.cpp) arms drag-to-reposition for that one marker
+// (options_events_rows.cpp) arms drag-to-reposition for that one marker
 // (target/index); dragging it on the map then moves it, and the same button (now
 // "Stop") disarms it - there is no separate map gesture to end editing, since
 // right-click doesn't reliably reach this overlay and a left-click-to-close would

@@ -35,7 +35,7 @@ WE_NOTIFY_NOW_ACTIVE,Now active!,Jetzt aktiv!,Actif maintenant !,¡Activo ahora!
 WE_NOTIFY_STARTING_IN_FMT,Starting in %s,Beginnt in %s,Commence dans %s,Comienza en %s,%s后开始,
 WE_NOTIFY_REPORTED_ACTIVE,Reported active!,Als aktiv gemeldet!,Signalé actif !,¡Reportado como activo!,已上报为活跃！,
 WE_NOTIFY_REPORTED_BY_FMT,Reported by %s,Gemeldet von %s,Signalé par %s,Reportado por %s,由%s上报,
-#,subscriptions_window.cpp / subscriptions_bar.cpp / subscriptions_notification.cpp / addon_options_helpers.cpp - shared right-click menu entries.,,,,,
+#,subscriptions_window.cpp / subscriptions_bar.cpp / subscriptions_notification.cpp / options_events_rows.cpp - shared right-click menu entries.,,,,,
 WE_SUBS_MARK_DONE_TODAY,Mark done for today,Heute als erledigt markieren,Marquer comme fait aujourd'hui,Marcar como hecho hoy,标记为今日已完成,
 WE_SUBS_OPEN_SETTINGS,Open settings,Einstellungen öffnen,Ouvrir les paramètres,Abrir ajustes,打开设置,
 #,Title bar text for the subscriptions and live reports windows.,,,,,
@@ -70,11 +70,11 @@ WE_WSDEBUG_SEARCH_HINT,Search text...,Durchsuche Text...,Rechercher du texte...,
 WE_WSDEBUG_COL_ELAPSED,T+,T+,T+,T+,T+,
 WE_WSDEBUG_COL_DIR,Dir,Dir,Dir,Dir,方向,
 WE_WSDEBUG_COL_MESSAGE,Message,Nachricht,Message,Mensaje,消息,
-#,addon_options_helpers.cpp / events_storage.cpp / events_categories.cpp - fallback label for an empty user-entered name.,,,,,
+#,options_events_rows.cpp / events_storage.cpp / events_categories.cpp - fallback label for an empty user-entered name.,,,,,
 WE_UNNAMED,(unnamed),(unbenannt),(sans nom),(sin nombre),（未命名）,
-#,addon_options_helpers.cpp - duplicate-name warning tag next to a Cyclic Group slot's name.,,,,,
+#,options_events_rows.cpp - duplicate-name warning tag next to a Cyclic Group slot's name.,,,,,
 WE_DUPLICATE_TAG,[duplicate],[Duplikat],[doublon],[duplicado],[重复],
-#,addon_options_helpers.cpp - DrawNameAndContextMenu's shared right-click menu,,,,,
+#,options_events_rows.cpp - DrawNameAndContextMenu's shared right-click menu,,,,,
 WE_ROW_NOTIFY_SUB_TOAST_SOUND,Set to: Subscribed + Toast + Sound,Setzen auf: Abonniert + Benachrichtigung + Ton,Définir sur : Abonné + Notification + Son,Establecer en: Suscrito + Notificación + Sonido,设置为：已订阅+弹窗+音效,
 WE_ROW_NOTIFY_SUB_TOAST,Set to: Subscribed + Toast,Setzen auf: Abonniert + Benachrichtigung,Définir sur : Abonné + Notification,Establecer en: Suscrito + Notificación,设置为：已订阅+弹窗通知,
 WE_ROW_NOTIFY_SUB_ONLY,Set to: Subscribed only,Setzen auf: Nur abonniert,Définir sur : Abonné uniquement,Establecer en: Solo suscrito,设置为：仅订阅,
@@ -94,18 +94,18 @@ WE_ROW_SAVE,Save,Speichern,Enregistrer,Guardar,保存,
 WE_ROW_NAME_REQUIRED_TIP,Enter a name before saving,Vor dem Speichern einen Namen eingeben,Saisissez un nom avant d'enregistrer,Introduce un nombre antes de guardar,保存前请输入名称,
 WE_TIP_CANCEL_NEW,Discard this new entry,Diesen neuen Eintrag verwerfen,Abandonner cette nouvelle entrée,Descartar esta nueva entrada,放弃这个新条目,
 WE_TIP_FINISH_NAMING,Finish naming the current new entry first,Zuerst den aktuellen neuen Eintrag benennen,Terminez d'abord de nommer la nouvelle entrée en cours,Termina de nombrar la nueva entrada actual primero,请先为当前的新条目命名,
-#,addon_options_helpers.cpp - per-event/per-slot Icon combo and chat-code input label,,,,,
+#,options_events_rows.cpp - per-event/per-slot Icon combo and chat-code input label,,,,,
 WE_ICON_LABEL,Icon,Symbol,Icône,Icono,图标,
 WE_TEXT_TO_COPY_LABEL,Text to copy,Zu kopierender Text,Texte à copier,Texto para copiar,待复制文本,
-WE_ICON_DOT,Dot,Punkt,Point,Punto,圆点,addon_options_helpers.cpp - icon-combo entry that keeps the plain circle marker instead of a texture.
-WE_ICON_MIXED,(mixed),(gemischt),(mixte),(mixto),（混合）,addon_options_helpers.cpp - DrawBulkIconPicker's status entry when selected targets don't share one icon.
-WE_ICON_REFRESH,Refresh,Aktualisieren,Actualiser,Actualizar,刷新,addon_options_helpers.cpp - rescans textures/ for the per-event/per-slot Icon combo.
-#,addon_options_helpers.cpp - Cyclic Slot color tier picker.,,,,,
+WE_ICON_DOT,Dot,Punkt,Point,Punto,圆点,options_events_rows.cpp / options_events.cpp - icon-combo entry that keeps the plain circle marker instead of a texture.
+WE_ICON_MIXED,(mixed),(gemischt),(mixte),(mixto),（混合）,options_events.cpp - DrawBulkIconPicker's status entry when selected targets don't share one icon.
+WE_ICON_REFRESH,Refresh,Aktualisieren,Actualiser,Actualizar,刷新,options_events_rows.cpp - rescans textures/ for the per-event/per-slot Icon combo.
+#,options_events_rows.cpp - Cyclic Slot color tier picker.,,,,,
 WE_TIER_LABEL,Tier,Stufe,Niveau,Nivel,等级,
 WE_TIER_PRIMARY,Primary,Primär,Primaire,Primario,主要,
 WE_TIER_SECONDARY,Secondary,Sekundär,Secondaire,Secundario,次要,
 WE_TIER_TERTIARY,Tertiary,Tertiär,Tertiaire,Terciario,第三级,
-#,addon_options_helpers.cpp - tooltips for the shared Basic Event / Cyclic Group row-drawing helpers.,,,,,
+#,options_events_rows.cpp - tooltips for the shared Basic Event / Cyclic Group row-drawing helpers.,,,,,
 WE_TIP_NOTIFY_ICON_LVL0,Click to Subscribe,Klicken zum Abonnieren,Cliquer pour s'abonner,Haz clic para suscribirte,点击进行订阅,
 WE_TIP_NOTIFY_ICON_LVL1,"Subscribed - click to also show a toast notification
 (right-click the name for more options)","Abonniert - klicken, um zusätzlich eine Benachrichtigung anzuzeigen
@@ -161,7 +161,7 @@ Exemple : un événement toutes les heures dans une période de 2h se répète d
 el periodo de forma exacta; si no, añade una segunda entrada en su lugar.
 Ejemplo: un evento cada hora en un periodo de 2h se repite dos veces.","事件在周期内重复多少次。数值必须可以整除周期；无法整除时请新建条目。
 例：2小时周期内每小时触发一次，则重复次数填2。",
-#,addon_options_helpers.cpp - widget labels on the Basic Event / Cyclic Group / Cyclic Slot editing rows,,,,,
+#,options_events_rows.cpp - widget labels on the Basic Event / Cyclic Group / Cyclic Slot editing rows,,,,,
 WE_PERIOD_LABEL,Period,Periode,Période,Periodo,周期,
 WE_LOCATION_LABEL,Position,Position,Emplacement,Ubicación,位置,
 WE_FIX_TO_SCREEN_LABEL,Fix to screen,Auf Bildschirm fixieren,Fixer à l'écran,Fijar a la pantalla,固定到屏幕,
@@ -694,7 +694,7 @@ donc sa notification est ignorée plutôt que d'en afficher une sur laquelle vou
 Un reporte anónimo no se puede susurrar ni seguir directamente,
 así que se omite su notificación en lugar de mostrar una sobre la que no puedes actuar.",仅当上报者共享角色名时才推送通知。匿名上报无法直接密语或跟进，因此不会弹出无法交互的通知。,
 WE_OPT_LIVE_ROW_DONE_TIP,Done for today - mutes toasts for this event until the daily reset.,Heute erledigt - stummt Benachrichtigungen für dieses Event bis zum täglichen Reset.,Fait aujourd'hui - coupe les notifications pour cet événement jusqu'à la réinitialisation quotidienne.,Hecho hoy: silencia las notificaciones de este evento hasta el reinicio diario.,今日已完成：该事件弹窗通知将被静音，直至每日重置。,
-#,"options_events.cpp - Events tab: top strip (Quick/Deep toggle), the shared, Basic and Cyclic settings headers with their controls (including Set all icons), the toolbar above each list (add item, add category), and the Subscribe all and Done for today labels of the expanded rows (drawn by addon_options_helpers.cpp). The search box, Reset/Restore buttons, right-click hint and sub-tab names reuse rows above; WE_OPT_ACTIVE and WE_OPT_SOON are shared with options_general.cpp.",,,,,
+#,"options_events.cpp - Events tab: top strip (Quick/Deep toggle), the shared, Basic and Cyclic settings headers with their controls (including Set all icons), the toolbar above each list (add item, add category), and the Subscribe all and Done for today labels of the expanded rows (drawn by options_events_rows.cpp). The search box, Reset/Restore buttons, right-click hint and sub-tab names reuse rows above; WE_OPT_ACTIVE and WE_OPT_SOON are shared with options_general.cpp.",,,,,
 WE_OPTWIN_EVENTS_QUICK,Quick,Schnell,Rapide,Rápido,快速,
 WE_OPTWIN_EVENTS_DEEP,Deep,Detailliert,Détaillé,Detallado,详细,
 WE_OPTWIN_EVENTS_QUICK_TIP,Expanded rows show the notify level and Done for today.,"Aufgeklappte Zeilen zeigen die Benachrichtigungsstufe

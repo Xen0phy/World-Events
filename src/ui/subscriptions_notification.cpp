@@ -599,7 +599,7 @@ static void DrawAndExpirePopups()
 //--------------------------------------------------------------------------------
 void RenderSubscriptionsNotifications()
 {
-    //_ Consumed regardless of the early-out below - the width/position/direction controls are only interactable (see DisabledBlock, options_general.cpp) while NotificationsEnabled anyway, so this can only be true here when the rest of this function would have run too.
+    //_ Consumed regardless of the early-out below - the width/position/direction controls are only interactable (see DisabledBlock, options_widgets.h) while NotificationsEnabled anyway, so this can only be true here when the rest of this function would have run too.
     bool showLayoutPreview = s_previewRequestedThisFrame;
     s_previewRequestedThisFrame = false;
 
