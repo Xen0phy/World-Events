@@ -12,6 +12,14 @@
 
 #pragma once
 
+//_ static ###-IDs for ImGUI persistence when changing language
+inline constexpr const char* kDrawCompetitiveModeId = "###DrawCompetitiveMode";
+inline constexpr const char* kDrawSubscriptionsWindowId = "###DrawSubscriptionsWindow";
+inline constexpr const char* kDrawSubscriptionsBarId = "###DrawSubscriptionsBar";
+inline constexpr const char* kDrawToastPopupsId = "###DrawToastPopups";
+inline constexpr const char* kDrawChatAndPasteId = "###DrawChatAndPaste";
+inline constexpr const char* kDrawAccountAndTrackingId = "###DrawAccountAndTracking";
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawOptionsGeneral
 //--------------------------------------------------------------------------------

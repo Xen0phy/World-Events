@@ -8,6 +8,9 @@
 // DisabledBlock          DisabledBlock(cond) { ... }, the scope as a statement
 // SubToggleIndentWidth   indent that lines a row up under a checkbox label
 // SubToggleIndent        scope that indents by that width and undoes it on exit
+// ImGuiScopedGroupBox    scope that draws a titled border around the widgets inside it
+// GroupBox               GroupBox(title) { ... }, the scope as a statement
+// SeparatorText          line with a label in it, like ImGui 1.89's SeparatorText
 // Tooltip                plain-text tooltip that waits before it shows
 // DrawSubscribeCheckbox  checkbox tightened to sit beside a TreeNode arrow
 // DrawFileCombo          combo over a file list with a leading empty entry
@@ -93,6 +96,66 @@ struct SubToggleIndent
     SubToggleIndent() : width(SubToggleIndentWidth()) { ImGui::Indent(width); }
     ~SubToggleIndent() { ImGui::Unindent(width); }
 };
+
+//********************************************************************************
+// ImGuiScopedGroupBox
+//--------------------------------------------------------------------------------
+// origin        top-left of the title row, screen space
+// pad           inner padding on each side, the style's WindowPadding
+// right         screen x of the right border
+// titleHeight   height of the title row
+// titleStartX   screen x where the top border stops before the title
+// titleEndX     screen x where the top border resumes after the title
+// regionMaxX    ContentRegionRect right edge to restore on exit
+// workMaxX      WorkRect right edge to restore on exit
+//--------------------------------------------------------------------------------
+// A titled frame around the widgets drawn inside it, cut open in the top border
+// around the title. Nothing is filled, so it works on any background, in a table
+// cell, and under DisabledBlock. Border color is ImGuiCol_Border, corner radius
+// ChildRounding, title color ImGuiCol_Text. `width` 0 fills the available width,
+// a positive value sets it, a negative value leaves that many pixels free.
+// Inside, the content region ends one pad short of the right border, so wrapped
+// text, fill-width items and nested boxes stop there; Separator() in ImGui 1.80
+// still spans the window. The box is one layout item, so SameLine() puts boxes
+// side by side. Title text after "##" is hidden, and the title is pushed as an ID
+// scope. Driven through the GroupBox macro below.
+//--------------------------------------------------------------------------------
+struct ImGuiScopedGroupBox
+{
+    ImVec2 origin;
+    ImVec2 pad;
+    float right;
+    float titleHeight;
+    float titleStartX;
+    float titleEndX;
+    float regionMaxX;
+    float workMaxX;
+    ImGuiScopedGroupBox(const char* title, float width = 0.0f);
+    ~ImGuiScopedGroupBox();
+    explicit operator bool() const { return true; }
+};
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GroupBox
+//--------------------------------------------------------------------------------
+// Usage: GroupBox(title) { ...widgets... } or GroupBox(title, width) { ... }.
+// Same scope trick as DisabledBlock, sharing its DISABLED_BLOCK_CONCAT for the
+// per-line variable name. The border is drawn when the block exits, by any path.
+//--------------------------------------------------------------------------------
+#define GroupBox(...) if (ImGuiScopedGroupBox DISABLED_BLOCK_CONCAT(_group_box_scope_, __LINE__){__VA_ARGS__})
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SeparatorText
+//--------------------------------------------------------------------------------
+// Horizontal line with a label in it, the look of ImGui::SeparatorText from ImGui
+// 1.89 and later, which this ImGui version lacks. A short stub, the label, then a
+// line to the right edge of the content region, so inside a GroupBox it stops at
+// the box's padding. Label text after "##" is hidden. The lines use
+// ImGuiCol_Separator and the label ImGuiCol_Text. An empty label draws a plain
+// line. Not interactive. Named like the newer call, so upgrading ImGui is a
+// rename to ImGui::SeparatorText.
+//--------------------------------------------------------------------------------
+void SeparatorText(const char* label);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Tooltip

@@ -257,16 +257,15 @@ eventos próximos. Independiente de ""Ocultar activos en la ventana"" de arriba.
 WE_OPT_MINIMAL_MODE,Minimal Mode,Minimalmodus,Mode minimal,Modo mínimo,极简模式,
 WE_OPT_BOTTOM_LINE,Bottom Line,Untere Linie,Ligne inférieure,Línea inferior,底部基线,
 WE_OPT_DOT_COLOR,Dot Color,Punktfarbe,Couleur du point,Color del punto,圆点颜色,
-WE_OPT_POPOUT_HEIGHT,Pop-out height (px),Ausklapphöhe (px),Hauteur déployée (px),Altura desplegada (px),悬浮弹出高度（像素）,
-WE_TIP_POPOUT_HEIGHT,"How tall the pop-out is, in px.","Wie hoch das hervorstehende Segment ist, in px.","Hauteur du segment déployé, en px.","Altura del elemento desplegado, en px.",弹出悬浮区域高度（像素）,
-WE_OPT_POPOUT_DELAY,Pop-out delay (ms),Ausklappverzögerung (ms),Délai de déploiement (ms),Retraso de despliegue (ms),悬浮弹出延迟（毫秒）,
-WE_TIP_POPOUT_DELAY,"How long the mouse has to sit still over a segment or dot
-before it pops out. 0 = instant.","Wie lange die Maus über einem Segment oder Punkt verweilen
-muss, bevor dieses ausklappt. 0 = sofort.","Combien de temps la souris doit rester immobile sur un segment ou un point
-avant qu'il ne se déploie. 0 = instantané.","Cuánto tiempo debe permanecer el ratón inmóvil sobre un segmento o punto
-antes de que se despliegue. 0 = instantáneo.",鼠标悬停在片段/圆点多久后弹出悬浮面板，0代表立即弹出。,
+WE_OPT_POPOUT,Pop-out,Einblendung,Déploiement,Despliegue,弹出,
+WE_TIP_POPOUT_HEIGHT,How tall the pop-out is.,Wie hoch das hervorstehende Segment ist.,Hauteur du segment déployé.,Altura del elemento desplegado.,弹出悬浮区域的高度。,
+WE_TIP_POPOUT_DELAY,How long the mouse has to sit still over a segment or dot before it pops out.,Wie lange die Maus über einem Segment oder Punkt stillhalten muss, bevor es sich ausklappt.,Combien de temps la souris doit rester immobile sur un segment ou un point avant qu'il ne se déploie.,Cuánto tiempo debe permanecer quieto el ratón sobre un segmento o punto antes de que se despliegue.,鼠标需要在某个区段或圆点
+WE_OPT_HEIGHT,Height,Höhe,Hauteur,Altura,高度,
+WE_OPT_WIDTH,Width,Breite,Largeur,Ancho,宽度,
+WE_OPT_LEFT,Left,Links,Gauche,Izquierda,左,
+WE_OPT_RIGHT,Right,Rechts,Droite,Derecha,右,
+WE_OPT_DELAY,Delay,Verzögerung,Délai,Retraso,延迟,
 WE_OPT_UNSAFE_ZONE,Unsafe zone,Unsichere Zone,Zone à risque,Zona de riesgo,不安全区域,
-WE_OPT_LEFT,Left,Links,Gauche,Izquierda,左侧,
 WE_TIP_UNSAFE_LEFT,"Width from the LEFT screen edge, in px, treated as
 covered by your own GW2 UI. Segments in this zone
 drop lower to avoid covering it.","Breite ab dem LINKEN Bildschirmrand, in px, die als von
@@ -276,7 +275,6 @@ couverte par votre propre interface GW2. Les segments dans cette
 zone descendent plus bas pour éviter de la recouvrir.","Ancho desde el borde IZQUIERDO de la pantalla, en px, considerado
 cubierto por tu propia interfaz de GW2. Los segmentos en esta
 zona bajan para evitar cubrirla.",屏幕左侧不安全区域宽度（像素），视作被游戏原生UI占用。落入该区域的界面元素会向下偏移避免遮挡。,
-WE_OPT_RIGHT,Right,Rechts,Droite,Derecha,右侧,
 WE_TIP_UNSAFE_RIGHT,"Width from the RIGHT screen edge, in px, treated as
 covered by your own GW2 UI. Segments in this zone
 drop lower to avoid covering it.","Breite ab dem RECHTEN Bildschirmrand, in px, die als von
@@ -286,9 +284,7 @@ couverte par votre propre interface GW2. Les segments dans cette
 zone descendent plus bas pour éviter de la recouvrir.","Ancho desde el borde DERECHO de la pantalla, en px, considerado
 cubierto por tu propia interfaz de GW2. Los segmentos en esta
 zona bajan para evitar cubrirla.",屏幕右侧不安全区域宽度（像素），视作被游戏原生UI占用。落入该区域的界面元素会向下偏移避免遮挡。,
-WE_OPT_HEIGHT_LEFT,Height (left),Höhe (links),Hauteur (gauche),Altura (izquierda),高度（左）,
 WE_TIP_UNSAFE_HEIGHT_LEFT,"How tall your LEFT-side corner UI is, in px. Segments inside that zone start their drop this far down, not from the line itself, so the popped-out block clears your UI.","Wie hoch dein UI auf der LINKEN Seite ist, in px. Segmente in dieser Zone beginnen ab dieser Höhe auszuklappen, nicht ab der Linie selbst, damit der ausgeklappte Block dein UI nicht überdeckt.","Hauteur de votre interface du côté GAUCHE, en px. Les segments dans cette zone commencent leur descente à partir de cette hauteur, et non depuis la ligne elle-même, afin que le bloc déployé dégage votre interface.","Altura de tu interfaz en el lado IZQUIERDO, en px. Los segmentos en esa zona comienzan a descender desde esta altura, no desde la línea misma, para que el bloque desplegado no cubra tu interfaz.",左侧边角UI的高度（像素）。处于该不安全区的元素从该高度开始向下偏移，而非从订阅栏基线，保证悬浮面板不会遮挡游戏界面。,
-WE_OPT_HEIGHT_RIGHT,Height (right),Höhe (rechts),Hauteur (droite),Altura (derecha),高度（右）,
 WE_TIP_UNSAFE_HEIGHT_RIGHT,"How tall your RIGHT-side corner UI is, in px. Segments inside that zone start their drop this far down, not from the line itself, so the popped-out block clears your UI.","Wie hoch dein UI auf der RECHTEN Seite ist, in px. Segmente in dieser Zone beginnen ab dieser Höhe auszuklappen, nicht ab der Linie selbst, damit der ausgeklappte Block dein UI nicht überdeckt.","Hauteur de votre interface du côté DROIT, en px. Les segments dans cette zone commencent leur descente à partir de cette hauteur, et non depuis la ligne elle-même, afin que le bloc déployé dégage votre interface.","Altura de tu interfaz en el lado DERECHO, en px. Los segmentos en esa zona comienzan a descender desde esta altura, no desde la línea misma, para que el bloque desplegado no cubra tu interfaz.",右侧边角UI的高度（像素）。处于该不安全区的元素从该高度开始向下偏移，而非从订阅栏基线，保证悬浮面板不会遮挡游戏界面。,
 WE_OPTWIN_HDR_TOAST,Toast popups,Benachrichtigungs-Popups,Notifications popup,Notificaciones emergentes,通知弹窗,
 WE_OPT_ENABLE_NOTIFY_POPUPS,Enable notification popups,Benachrichtigungs-Popups aktivieren,Activer les notifications popup,Activar notificaciones emergentes,启用通知弹窗,
@@ -763,7 +759,6 @@ un gris neutre, avec la forme dans le canal alpha.","Dibuja una textura en lugar
 que con los iconos de Evento normal, el RGB de la textura de origen
 debe ser gris neutro, con la forma en el canal alfa.",使用纹理替代纯色指针标记。和基础事件图标要求一致，纹理RGB通道应为中性灰色，图形轮廓存放于Alpha通道。,
 WE_OPT_NONE,None,Keine,Aucune,Ninguna,无,
-WE_OPT_WIDTH,Width,Breite,Largeur,Ancho,宽度,
 WE_TIP_HAND_TEXTURE_WIDTH,"Length isn't separately adjustable - the testure always
 spans exactly from the ring's inner edge to its outer
 edge, stretching automatically with Radius/Thickness.","Die Länge ist nicht separat einstellbar - die Textur reicht

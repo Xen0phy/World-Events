@@ -27,6 +27,11 @@
 
 #include "options_window.h" //. OptionsDeepLink
 
+//_ static ###-IDs sor ImGUI persistence when changing language
+inline constexpr const char* kDrawSharedSettingsId = "###DrawSharedSettings";
+inline constexpr const char* kDrawBasicSettingsId = "###DrawBasicSettings";
+inline constexpr const char* kDrawCyclicSettingsId = "###DrawCyclicSettings";
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawOptionsEvents
 //--------------------------------------------------------------------------------

@@ -14,6 +14,7 @@
 
 #include "options_general.h"
 
+#include "addon.h"
 #include "better_chat.h" //. IsBetterChatLoaded/IsBetterChatSelfCommandEnabled, for the status line and combo
 #include "gw2_api.h" //. GetGw2ApiStatus, for the key status word
 #include "imgui.h"
@@ -166,6 +167,10 @@ static void DrawSubscriptionsBar()
     DisabledBlock(!ShowSubscriptionsBar)
     {
         SubToggleIndent indent;
+        
+        //_ half size of the current ImGUI window - to be used with GroupBox
+        const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        float startX = ImGui::GetCursorPosX();
 
         ImGui::Checkbox(Tr("WE_OPT_HIDE_ACTIVE_ON_BAR"), &SubscriptionsBarHideActive);
         Tooltip(Tr("WE_TIP_HIDE_ACTIVE_ON_BAR"));
@@ -174,17 +179,18 @@ static void DrawSubscriptionsBar()
         ImGui::Checkbox(Tr("WE_OPT_BOTTOM_LINE"),  &SubscriptionsBarBottomAnchored);
 
         ImGui::ColorEdit4(TrId("WE_OPT_DOT_COLOR", "##bar_dot_color").c_str(), SubscriptionsBarDotColor, kSwatchFlags);
-
+        
+        SeparatorText(Tr("WE_OPT_POPOUT"));
         ImGui::SetNextItemWidth(50);
-        if (ImGui::InputInt(Tr("WE_OPT_POPOUT_HEIGHT"), &SubscriptionsBarMaxDropPx, 0, 0))
+        if (ImGui::DragInt(Tr("WE_OPT_HEIGHT"), &SubscriptionsBarMaxDropPx, 1, 8,300,"%dpx"))
         {
             //_ Floored at 8: subscriptions_bar.cpp derives the pill's corner radius from half this value.
             SubscriptionsBarMaxDropPx = std::clamp(SubscriptionsBarMaxDropPx, 8, 300);
         }
         Tooltip(Tr("WE_TIP_POPOUT_HEIGHT"));
-
+        ImGui::SameLine(startX + half + ImGui::GetStyle().ItemSpacing.x);
         ImGui::SetNextItemWidth(50);
-        if (ImGui::InputInt(Tr("WE_OPT_POPOUT_DELAY"), &SubscriptionsBarHoverDelayMs, 0, 0))
+        if (ImGui::DragInt(Tr("WE_OPT_DELAY"), &SubscriptionsBarHoverDelayMs, 1, 0, 5000, "%dms"))
         {
             //_ Clamped post-hoc - InputInt allows transient out-of-range input; 0 is valid.
             SubscriptionsBarHoverDelayMs = std::clamp(SubscriptionsBarHoverDelayMs, 0, 5000);
@@ -194,48 +200,57 @@ static void DrawSubscriptionsBar()
         const float screenWidth  = ImGui::GetIO().DisplaySize.x;
         const float screenHeight = ImGui::GetIO().DisplaySize.y;
 
-        ImGui::Text("%s", Tr("WE_OPT_UNSAFE_ZONE"));
-        SubToggleIndent unsafeZoneIndent;
-
-        //_ Left + right together stay within the screen width; the field not being edited gives way.
-        ImGui::SetNextItemWidth(50);
-        if (ImGui::DragInt(TrId("WE_OPT_LEFT", "##leftuz").c_str(), &SubscriptionsBarUnsafeLeftPx, 1, 0, 0, "%dpx"))
+        SeparatorText(Tr("WE_OPT_UNSAFE_ZONE"));
+        GroupBox(Tr("WE_OPT_LEFT"), half)
         {
-            SubscriptionsBarUnsafeLeftPx = std::clamp(SubscriptionsBarUnsafeLeftPx, 0, (int)screenWidth);
-            if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
-                SubscriptionsBarUnsafeRightPx = (int)screenWidth - SubscriptionsBarUnsafeLeftPx;
-        }
-        bool leftActive = ItemPreviewGate();
-        Tooltip(Tr("WE_TIP_UNSAFE_LEFT"));
+            //_ Left + right together stay within the screen width; the field not being edited gives way.
+            ImGui::SetNextItemWidth(50);
+            if (ImGui::DragInt(TrId("WE_OPT_WIDTH", "##leftuz").c_str(), &SubscriptionsBarUnsafeLeftPx, 1, 0, 0, "%dpx"))
+            {
+                SubscriptionsBarUnsafeLeftPx = std::clamp(SubscriptionsBarUnsafeLeftPx, 0, (int)screenWidth);
+                if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
+                    SubscriptionsBarUnsafeRightPx = (int)screenWidth - SubscriptionsBarUnsafeLeftPx;
+            }
+            bool leftActive = ItemPreviewGate();
+            Tooltip(Tr("WE_TIP_UNSAFE_LEFT"));
 
-        ImGui::SetNextItemWidth(50);
-        if (ImGui::DragInt(TrId("WE_OPT_RIGHT", "##rightuz").c_str(), &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
+            ImGui::SetNextItemWidth(50);
+            if (ImGui::DragInt(TrId("WE_OPT_HEIGHT", "##heightuzleft").c_str(), &SubscriptionsBarUnsafeHeightLeftPx, 1, 0, 0, "%dpx"))
+            {
+                SubscriptionsBarUnsafeHeightLeftPx = std::clamp(SubscriptionsBarUnsafeHeightLeftPx, 0, (int)screenHeight);
+            }
+            bool heightLeftActive = ItemPreviewGate();
+            Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT_LEFT"));
+
+            if ((leftActive || heightLeftActive) && NexusLink && NexusLink->IsGameplay)
+                DrawUnsafeZonePreview();
+        }
+
+        ImGui::SameLine();
+
+        GroupBox(Tr("WE_OPT_RIGHT"), half)
         {
-            SubscriptionsBarUnsafeRightPx = std::clamp(SubscriptionsBarUnsafeRightPx, 0, (int)screenWidth);
-            if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
-                SubscriptionsBarUnsafeLeftPx = (int)screenWidth - SubscriptionsBarUnsafeRightPx;
-        }
-        bool rightActive = ItemPreviewGate();
-        Tooltip(Tr("WE_TIP_UNSAFE_RIGHT"));
+            ImGui::SetNextItemWidth(50);
+            if (ImGui::DragInt(TrId("WE_OPT_WIDTH", "##rightuz").c_str(), &SubscriptionsBarUnsafeRightPx, 1, 0, 0, "%dpx"))
+            {
+                SubscriptionsBarUnsafeRightPx = std::clamp(SubscriptionsBarUnsafeRightPx, 0, (int)screenWidth);
+                if (SubscriptionsBarUnsafeLeftPx + SubscriptionsBarUnsafeRightPx > screenWidth)
+                    SubscriptionsBarUnsafeLeftPx = (int)screenWidth - SubscriptionsBarUnsafeRightPx;
+            }
+            bool rightActive = ItemPreviewGate();
+            Tooltip(Tr("WE_TIP_UNSAFE_RIGHT"));
 
-        ImGui::SetNextItemWidth(50);
-        if (ImGui::DragInt(TrId("WE_OPT_HEIGHT_LEFT", "##heightuzleft").c_str(), &SubscriptionsBarUnsafeHeightLeftPx, 1, 0, 0, "%dpx"))
-        {
-            SubscriptionsBarUnsafeHeightLeftPx = std::clamp(SubscriptionsBarUnsafeHeightLeftPx, 0, (int)screenHeight);
-        }
-        bool heightLeftActive = ItemPreviewGate();
-        Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT_LEFT"));
+            ImGui::SetNextItemWidth(50);
+            if (ImGui::DragInt(TrId("WE_OPT_HEIGHT", "##heightuzright").c_str(), &SubscriptionsBarUnsafeHeightRightPx, 1, 0, 0, "%dpx"))
+            {
+                SubscriptionsBarUnsafeHeightRightPx = std::clamp(SubscriptionsBarUnsafeHeightRightPx, 0, (int)screenHeight);
+            }
+            bool heightRightActive = ItemPreviewGate();
+            Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT_RIGHT"));
 
-        ImGui::SetNextItemWidth(50);
-        if (ImGui::DragInt(TrId("WE_OPT_HEIGHT_RIGHT", "##heightuzright").c_str(), &SubscriptionsBarUnsafeHeightRightPx, 1, 0, 0, "%dpx"))
-        {
-            SubscriptionsBarUnsafeHeightRightPx = std::clamp(SubscriptionsBarUnsafeHeightRightPx, 0, (int)screenHeight);
+            if ((rightActive || heightRightActive) && NexusLink && NexusLink->IsGameplay)
+                DrawUnsafeZonePreview();
         }
-        bool heightRightActive = ItemPreviewGate();
-        Tooltip(Tr("WE_TIP_UNSAFE_HEIGHT_RIGHT"));
-
-        if (leftActive || rightActive || heightLeftActive || heightRightActive)
-            DrawUnsafeZonePreview();
     }
 }
 
@@ -454,24 +469,24 @@ void RequestOpenAccountHeader()
 //--------------------------------------------------------------------------------
 void DrawOptionsGeneral()
 {
-    if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_COMPETITIVE")))
+    if (ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_COMPETITIVE", kDrawCompetitiveModeId).c_str()))
         DrawCompetitiveMode();
 
-    if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_SUBS_WINDOW")))
+    if (ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_SUBS_WINDOW", kDrawSubscriptionsWindowId).c_str()))
         DrawSubscriptionsWindow();
 
-    if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_SUBS_BAR")))
+    if (ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_SUBS_BAR", kDrawSubscriptionsBarId).c_str()))
         DrawSubscriptionsBar();
 
-    if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_TOAST")))
+    if (ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_TOAST", kDrawToastPopupsId).c_str()))
         DrawToastPopups();
 
-    if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_CHAT")))
+    if (ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_CHAT", kDrawChatAndPasteId).c_str()))
         DrawChatAndPaste();
 
     if (s_openAccountHeader)
         ImGui::SetNextItemOpen(true);
-    bool accountOpen = ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_ACCOUNT"));
+    bool accountOpen = ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_ACCOUNT", kDrawAccountAndTrackingId).c_str());
     if (s_openAccountHeader)
     {
         ImGui::SetScrollHereY(0.0f); //. align header to top edge

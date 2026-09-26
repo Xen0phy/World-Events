@@ -318,7 +318,7 @@ std::vector<CyclicGroup> g_CyclicGroups =
     { "eternitys_garden",
         4566.0f, 61793.0f, m120, COL_VOE,
         {
-            { "shackles_of_the_ancients", m70, m25, ColorTier::Primary, "[&BPwPAAA=]" },
+            { "shackles_of_the_ancients", m75, m25, ColorTier::Primary, "[&BPwPAAA=]" },
         }
     },
     { "leyspring_hollows",
@@ -388,4 +388,5 @@ std::vector<CategoryDefault> g_DefaultCyclicCategories =
 std::vector<SlotOverride> g_SlotOverrides =
 {
     //_ example: {"verdant_brink",   "night_enemy",  m105, std::nullopt},
+    {"eternitys_garden", "shackles_of_the_ancients", m75}
 };

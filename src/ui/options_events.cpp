@@ -844,14 +844,14 @@ void DrawOptionsEvents(const OptionsDeepLink* link)
     ImGui::Separator();
     ImGui::Spacing();
 
-    if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_SHARED")))
+    if (ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_SHARED", kDrawSharedSettingsId).c_str()))
         DrawSharedSettings();
 
     if (ImGui::BeginTabBar("##events_subtabs"))
     {
         if (ImGui::BeginTabItem(TrId("WE_OPT_BASIC_EVENTS", "###events_tab_basic").c_str(), nullptr, SelectIfLinked(SubscriptionKind::Basic)))
         {
-            if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_BASIC")))
+            if (ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_BASIC", kDrawBasicSettingsId).c_str()))
                 DrawBasicSettings();
 
             DrawBasicList(queryLower);
@@ -861,7 +861,7 @@ void DrawOptionsEvents(const OptionsDeepLink* link)
 
         if (ImGui::BeginTabItem(TrId("WE_OPT_CYCLIC_EVENTS", "###events_tab_cyclic").c_str(), nullptr, SelectIfLinked(SubscriptionKind::Cyclic)))
         {
-            if (ImGui::CollapsingHeader(Tr("WE_OPTWIN_HDR_CYCLIC")))
+            if (ImGui::CollapsingHeader(TrId("WE_OPTWIN_HDR_CYCLIC", kDrawCyclicSettingsId).c_str()))
                 DrawCyclicSettings();
 
             DrawCyclicList(queryLower);

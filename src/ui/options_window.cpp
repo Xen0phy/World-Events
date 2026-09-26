@@ -89,13 +89,13 @@ struct RailEntry
 
 //_ Top-to-bottom order of the three content tabs; swapping an icon is a one-string edit here.
 static constexpr RailEntry kRailTabs[] = {
-    { OptionsTab::General, "BasicCross.png", "WE_OPTWIN_TAB_GENERAL" },
+    { OptionsTab::General, "Settings.png", "WE_OPTWIN_TAB_GENERAL" },
     { OptionsTab::Events,  "EventBoss.png",  "WE_OPTWIN_TAB_EVENTS"  },
     { OptionsTab::Live,    "Festival.png",   "WE_OPTWIN_TAB_LIVE"    },
 };
 
 //_ Pinned to the rail's bottom edge, apart from the content tabs.
-static constexpr RailEntry kRailHelp = { OptionsTab::Help, "WorldBoss.png", "WE_OPTWIN_TAB_HELP" };
+static constexpr RailEntry kRailHelp = { OptionsTab::Help, "Docs.png", "WE_OPTWIN_TAB_HELP" };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CurrentTab / SetCurrentTab
