@@ -163,8 +163,8 @@ struct RowMode
 // Full row drawers for one g_Events[i] / g_CyclicGroups[i] entry, drawn in Quick
 // and Deep mode alike: mode.deep adds the editing fields under the notify
 // buttons, Done for today or Subscribe all. A group row nests its slot rows. The
-// row a pending deep link names (mode.linked) opens, scrolls to the middle of the
-// pane and flashes; a slot link opens its group and flashes only the slot.
+// row a pending deep link names (mode.linked) opens and scrolls to the middle of
+// the pane; a slot link opens its group and scrolls to the slot.
 // PushID/PopID around each call is the CALLER's responsibility (the same index
 // can be drawn from different places depending on category membership). Neither
 // modifies the underlying vector directly - each sets its pendingRemove* index

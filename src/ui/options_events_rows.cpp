@@ -17,7 +17,6 @@
 // DrawOptionalColor          checkbox that gates a color swatch for an optional override
 // s_basicEventEdit/s_cyclicGroupEdit
 //                            name-edit state of the two row kinds
-// kLinkFlashId               highlight id shared by every row
 // BeginLinkedRow             start of a row a deep link may name
 //--------------------------------------------------------------------------------
 
@@ -31,7 +30,6 @@
 #include "localization.h"
 #include "maprender.h" //. EditTarget/g_EditMode, ScreenFractionToPixels/PixelsToScreenFraction
 #include "options_widgets.h" //. Tooltip, DisabledBlock, DrawSubscribeCheckbox, DrawBellIcon/DrawSpeakerIcon, DrawFileCombo, kAlphaSwatchFlags, kWarningColor
-#include "options_window.h" //. OptionsHighlight_Set/IsActive, for BeginLinkedRow
 #include "subscriptions.h"
 
 #include <algorithm>
@@ -597,36 +595,20 @@ void RequestCyclicGroupNameEdit(int index)
 bool IsBasicEventCreationPending()  { return s_basicEventEdit.newKey  >= 0; }
 bool IsCyclicGroupCreationPending() { return s_cyclicGroupEdit.newKey >= 0; }
 
-//_ One id for every row: RowMode::linked decides which row matches it.
-static constexpr const char* kLinkFlashId = "events_linked_row";
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // BeginLinkedRow
 //--------------------------------------------------------------------------------
 // Call before a row's first item; linked says whether the deep link names this
 // row and linkPending whether it has not landed yet. Returns true on the frame
-// the link lands on the row: the caller then scrolls to it and opens its node,
-// and the flash starts. While the flash runs (OptionsHighlight_Set,
-// options_window.h), the row's first line gets a Header tint. It is drawn ahead
-// of the row's items, so they sit on top of it.
+// the link lands on the row: the caller then scrolls to it and opens its node.
+// No longer draws a flash tint here - the row-highlight look was removed.
 //--------------------------------------------------------------------------------
 static bool BeginLinkedRow(bool linked, bool linkPending)
 {
     if (!linked)
         return false;
 
-    const bool landing = linkPending;
-    if (landing)
-        OptionsHighlight_Set(kLinkFlashId);
-
-    if (OptionsHighlight_IsActive(kLinkFlashId))
-    {
-        const ImVec2 pos = ImGui::GetCursorScreenPos();
-        const ImVec2 end(pos.x + ImGui::GetContentRegionAvail().x, pos.y + ImGui::GetFrameHeight());
-        ImGui::GetWindowDrawList()->AddRectFilled(pos, end, ImGui::GetColorU32(ImGuiCol_HeaderHovered), ImGui::GetStyle().FrameRounding);
-    }
-
-    return landing;
+    return linkPending;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -694,13 +676,16 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
 
         if (mode.deep)
         {
-            ImGui::SetNextItemWidth(100.0f);
-            ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &ev.continentX, "%.0f");
+            GroupBox(Tr("WE_OPT_LOCATION"))
+            {
+                ImGui::SetNextItemWidth(100.0f);
+                ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &ev.continentX, "%.0f");
 
-            ImGui::SameLine();
-            DrawDragButton(EditTarget::BasicEvent, i);
+                ImGui::SameLine();
+                DrawDragButton(EditTarget::BasicEvent, i);
 
-            DrawFixToScreenRow(&ev.fixedToScreen, &ev.screenX, &ev.screenY);
+                DrawFixToScreenRow(&ev.fixedToScreen, &ev.screenX, &ev.screenY);
+            }
 
             ImGui::SetNextItemWidth(50.0f);
             int durationMinutes = ev.duration / 60;
@@ -812,8 +797,7 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
 // follow, then the "Group events" label with the add-slot button. The slot rows
 // nest in both modes: the same header and Quick body as a Basic event, with their
 // own editing fields under mode.deep. A link to the group scrolls after the ring
-// checkbox; a link to a slot opens the group and lands on that slot's row, which
-// flashes alone.
+// checkbox; a link to a slot opens the group and lands on that slot's row.
 //--------------------------------------------------------------------------------
 void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex)
 {
@@ -885,15 +869,18 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
 
         if (mode.deep)
         {
-            //_ Compact row: Location, Period, Color, Idle override share one line; swatches use NoInputs (small square, full picker on click).
-            ImGui::SetNextItemWidth(100.0f);
-            ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &grp.continentX, "%.0f");
+            GroupBox(Tr("WE_OPT_LOCATION"))
+            {
+                ImGui::SetNextItemWidth(100.0f);
+                ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &grp.continentX, "%.0f");
 
-            ImGui::SameLine();
-            DrawDragButton(EditTarget::CyclicGroup, i);
+                ImGui::SameLine();
+                DrawDragButton(EditTarget::CyclicGroup, i);
 
-            DrawFixToScreenRow(&grp.fixedToScreen, &grp.screenX, &grp.screenY);
+                DrawFixToScreenRow(&grp.fixedToScreen, &grp.screenX, &grp.screenY);
+            }
 
+            //_ Compact row: Period, Color, Idle override share one line; swatches use NoInputs (small square, full picker on click).
             ImGui::SetNextItemWidth(50.0f);
             DrawPeriodHoursDragInt(&grp.period);
 

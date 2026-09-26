@@ -163,6 +163,7 @@ Ejemplo: un evento cada hora en un periodo de 2h se repite dos veces.","事件�
 例：2小时周期内每小时触发一次，则重复次数填2。",
 #,options_events_rows.cpp - widget labels on the Basic Event / Cyclic Group / Cyclic Slot editing rows,,,,,
 WE_PERIOD_LABEL,Period,Periode,Période,Periodo,周期,
+WE_OPT_LOCATION,Location,Ort,Emplacement,Ubicación,位置,
 WE_LOCATION_LABEL,Position,Position,Emplacement,Ubicación,位置,
 WE_FIX_TO_SCREEN_LABEL,Fix to screen,Auf Bildschirm fixieren,Fixer à l'écran,Fijar a la pantalla,固定到屏幕,
 WE_SCREEN_POS_LABEL,Screen Position,Bildschirmposition,Position à l'écran,Posición en pantalla,屏幕位置,
@@ -302,6 +303,7 @@ eventos con notificaciones activadas, estén abiertas o no la ventana
 o la barra. Haz clic en una notificación para pegar
 su código de punto de acceso, igual que al hacer clic en una fila/segmento allí.","为已开启通知的事件在右下角弹出小型通知，无需打开窗口或订阅栏。
 点击弹窗即可粘贴传送点代码，效果等同于点击对应条目。",
+WE_OPT_TIMING,Timing,Zeitsteuerung,Minutage,Temporización,计时,
 WE_OPT_WARN_BEFORE_START,Warn before start (min),Warnung vor Start (Min.),Avertir avant le début (min),Avisar antes del inicio (min),开始前提醒（分钟）,
 WE_TIP_WARN_BEFORE_START,"How long before a subscribed event/slot starts to
 fire the ""starting soon"" popup. 0 disables it.","Wie lange vor Start eines abonnierten Events/Slots die
@@ -315,6 +317,7 @@ Hovering a popup pauses its timer.","Wie lange eine Benachrichtigung voll sichtb
 Der Mauszeiger über einer Benachrichtigung pausiert dessen Timer.","Combien de temps une notification reste pleinement visible avant de s'estomper.
 Survoler une notification met son minuteur en pause.","Cuánto tiempo permanece una notificación totalmente visible antes de desvanecerse.
 Pasar el cursor sobre una notificación pausa su temporizador.",弹窗保持完全可见的时长，之后开始淡出。鼠标悬停弹窗会暂停倒计时。,
+WE_OPT_LAYOUT,Layout,Layout,Disposition,Diseño,布局,
 WE_OPT_TOAST_WIDTH,Toast width (px),Popup-Breite (px),Largeur de la notification (px),Ancho de la notificación (px),弹窗宽度（像素）,
 WE_TIP_TOAST_WIDTH,"Width of each toast popup, in pixels. Height is fixed to fit the name/message text.",Breite jedes Popups in Pixeln. Die Höhe ist fest und richtet sich nach dem Name-/Nachrichtentext.,"Largeur de chaque notification popup, en pixels. La hauteur est fixe et s'adapte au texte du nom/message.","Ancho de cada notificación emergente, en píxeles. La altura es fija y se ajusta al texto de nombre/mensaje.",每个通知弹窗的宽度（像素）。高度固定，由名称/消息文本决定。,
 WE_OPT_TOAST_POS,Toast position (px),Popup-Position (px),Position de la notification (px),Posición de la notificación (px),弹窗位置（像素）,
@@ -397,6 +400,7 @@ WE_OPT_BETTER_CHAT_NOT_LOADED,Better Chat not loaded (optional),Better Chat nich
 WE_OPT_BETTER_CHAT_SELF_DISABLED,"Better Chat loaded, /self disabled","Better Chat geladen, /self deaktiviert","Better Chat chargé, /self désactivé","Better Chat cargado, /self desactivado",已加载Better Chat，/self未启用,
 WE_OPT_BETTER_CHAT_SELF_ENABLED,"Better Chat loaded, /self enabled","Better Chat geladen, /self aktiviert","Better Chat chargé, /self activé","Better Chat cargado, /self activado",已加载Better Chat，/self已启用,
 WE_OPTWIN_HDR_ACCOUNT,Account and tracking,Konto und Nachverfolgung,Compte et suivi,Cuenta y rastreo,账号与追踪,
+WE_OPT_ACCOUNT,Account,Konto,Compte,Cuenta,账号,
 WE_OPT_GW2_API_KEY,GW2 API key,GW2-API-Schlüssel,Clé API GW2,Clave de API de GW2,GW2 API密钥,
 WE_OPT_API_KEY_DELAY_NOTE,Can take up to 5min to take effect.,"Kann bis zu 5 Min. dauern, bis Änderungen sichtbar sind.",Peut prendre jusqu'à 5 min pour prendre effet.,Puede tardar hasta 5 min en surtir efecto.,生效最多需要等待5分钟。,
 WE_TIP_GW2_API_KEY,"Needs the ""progression"" permission. When set, a subscribed
@@ -456,6 +460,7 @@ WE_OPT_API_CHECKING,Checking...,Wird geprüft...,Vérification...,Comprobando...
 WE_OPT_API_CONNECTED,Connected,Verbunden,Connecté,Conectado,连接成功,
 WE_OPT_API_INVALID_KEY,Invalid key / missing permission,Ungültiger Schlüssel / fehlende Berechtigung,Clé invalide / permission manquante,Clave no válida / falta permiso,密钥无效 / 缺少权限,
 WE_OPT_API_NETWORK_ERROR,"Network error, retrying","Netzwerkfehler, erneuter Versuch","Erreur réseau, nouvelle tentative","Error de red, reintentando",网络错误，正在重试,
+WE_OPT_TRACKING,Tracking,Nachverfolgung,Suivi,Rastreo,追踪,
 WE_OPT_AUTO_MARK_API_DONE,Automatically mark API-confirmed events done,API-bestätigte Events automatisch als erledigt markieren,Marquer automatiquement les événements confirmés par l'API comme faits,Marcar automáticamente como hechos los eventos confirmados por la API,API确认事件自动标记为已完成,
 WE_TIP_AUTO_MARK_API_DONE,"When on (default), any Basic Event/Cyclic group tagged
 (auto) in the lists below auto-hides once the GW2 API
@@ -500,16 +505,9 @@ sin suscripción manual, marcado con un pequeño punto/borde rojo.
 Desactívalo para ver solo lo suscrito manualmente en las tres vistas.","开启（默认）时，订阅窗口、订阅栏、弹窗通知会自动高亮本周巫师宝库未完成目标对应的基础事件/循环时段，
 无需手动订阅，带有红色小点/边框。关闭后，三处界面将仅展示手动订阅的内容。",
 WE_OPT_WEEKLY_COLOR,Weekly Color,Wochenfarbe,Couleur hebdomadaire,Color semanal,宝库目标高亮颜色,
-#,"options_help.cpp - Help tab: group labels, the Live Events explainer texts and the diagnostics button.",,,,,
+#,options_help.cpp - Help tab: group labels and the diagnostics button.,,,,,
 WE_OPTWIN_HELP_ABOUT,About,Info,À propos,Acerca de,关于,
 WE_OPTWIN_HELP_VERSION,Version,Version,Version,Versión,版本,
-WE_OPTWIN_HELP_LIVE_EXPLAINED,Live Events explained,Live-Events erklärt,Événements en direct expliqués,Eventos en vivo explicados,实时事件说明,
-WE_OPT_LIVE_HOW_IT_WORKS_HEADING,How it works,So funktioniert's,Comment ça marche,Cómo funciona,工作原理,
-WE_OPT_LIVE_HOW_IT_WORKS_BODY,"GW2 doesn't expose a schedule for these events, so instead of predicting them, players report ""it's up right now"". Get within range of a compiled-in event - or turn on map markers on the Live Events tab to see where they are - and a button appears in the upper-right corner (draggable to wherever you want it); click it to report the event as active, or right-click to just see recent reports without reporting yourself. Every report is broadcast in real time to everyone else on your exact map instance.","GW2 stellt für diese Events keinen Zeitplan bereit, daher melden Spieler statt einer Vorhersage ""gerade jetzt aktiv"". Komm in Reichweite eines kompilierten Events - oder aktiviere im Tab ""Live-Events"" die Kartenmarkierungen, um zu sehen, wo sie liegen - und ein Button erscheint oben rechts (per Ziehen frei platzierbar); klick ihn, um das Event als aktiv zu melden, oder per Rechtsklick, um nur die letzten Meldungen zu sehen, ohne selbst zu melden. Jede Meldung wird in Echtzeit an alle anderen auf deiner genauen Karteninstanz übertragen.","GW2 n'expose pas de calendrier pour ces événements, donc au lieu de les prédire, les joueurs signalent qu'""ils sont actifs en ce moment"". Approchez-vous d'un événement intégré - ou activez les marqueurs de carte dans l'onglet Événements en direct pour voir où ils se trouvent - et un bouton apparaît dans le coin supérieur droit (déplaçable où vous le souhaitez) ; cliquez dessus pour signaler l'événement comme actif, ou clic droit pour simplement voir les signalements récents sans en faire un vous-même. Chaque signalement est diffusé en temps réel à tous les autres joueurs de votre instance de carte exacte.","GW2 no expone un horario para estos eventos, así que en lugar de predecirlos, los jugadores reportan que ""está activo ahora mismo"". Acércate a un evento integrado, o activa los marcadores de mapa en la pestaña Eventos en vivo para ver dónde están, y aparecerá un botón en la esquina superior derecha (arrastrable a donde quieras); haz clic para reportar el evento como activo, o clic derecho para ver solo los reportes recientes sin reportar tú mismo. Cada reporte se transmite en tiempo real a todos los demás en tu instancia de mapa exacta.",GW2并未提供该类事件时间表，因此不做时间预测，由玩家上报“事件现已刷新”。抵达内置事件附近，或者在“实时事件”标签页开启地图标记查看位置后，右上角会出现可拖拽按钮；点击按钮上报事件正在运行，右键仅查看近期上报而不上报。全部上报将实时广播至该地图副本内所有玩家。,
-WE_OPT_LIVE_WHAT_DATA_HEADING,What data this uses,Welche Daten genutzt werden,Quelles données sont utilisées,Qué datos se utilizan,会上传哪些数据,
-WE_OPT_LIVE_WHAT_DATA_BODY,"A report is an event id, a server-stamped timestamp, and - only if ""Share my name in reports"" on the Live Events tab is ticked - your character name; it's blank by default. No account name or exact position is ever sent either way. Your map instance is identified by a hash of the map ID and the server address, never the raw address itself, so nobody can see who reported what unless you've opted into sharing your name. History is capped at the last 10 reports per event, and an instance with no viewers and no reports for 12 hours wipes its own data. Nothing is sent - no connection is even made - unless ""Use Live-Events"" on the Live Events tab is ticked; no GW2 API key is needed for that, since reporting and receiving reports within your own map instance never involves NA/EU region at all. A key only matters for the separate ""region-wide toast"" opt-in per event in the Live Events tab's event list - see that checkbox's tooltip.","Eine Meldung besteht aus einer Event-ID, einem serverseitigen Zeitstempel und - nur wenn im Tab ""Live-Events"" die Option ""Meinen Namen in Meldungen teilen"" aktiviert ist - deinem Charakternamen; standardmäßig ist er leer. Weder Account-Name noch genaue Position werden jemals übertragen. Deine Karteninstanz wird über einen Hash aus Karten-ID und Serveradresse identifiziert, nie über die Adresse selbst, sodass niemand sehen kann, wer was gemeldet hat, außer du hast dich fürs Teilen deines Namens entschieden. Der Verlauf ist auf die letzten 10 Meldungen pro Event begrenzt, und eine Instanz ohne Zuschauer und ohne Meldungen für 12 Stunden löscht ihre eigenen Daten. Es wird nichts gesendet - es wird nicht einmal eine Verbindung aufgebaut - solange im Tab ""Live-Events"" nicht ""Live-Events nutzen"" aktiviert ist; dafür ist kein GW2-API-Schlüssel nötig, da Melden und Empfangen innerhalb deiner eigenen Karteninstanz nie die Region NA/EU betrifft. Ein Schlüssel ist nur für das separate ""regionsweite Benachrichtigung""-Opt-in pro Event in der Eventliste des Tabs ""Live-Events"" relevant - siehe den Tooltip dieser Checkbox.","Un signalement contient un identifiant d'événement, un horodatage estampillé par le serveur, et - uniquement si ""Partager mon nom dans les signalements"" est coché dans l'onglet Événements en direct - votre nom de personnage ; il est vide par défaut. Ni le nom du compte ni la position exacte ne sont jamais envoyés. Votre instance de carte est identifiée par un hachage de l'ID de carte et de l'adresse du serveur, jamais l'adresse brute elle-même, donc personne ne peut voir qui a signalé quoi à moins que vous n'ayez choisi de partager votre nom. L'historique est limité aux 10 derniers signalements par événement, et une instance sans spectateurs et sans signalement pendant 12 heures efface ses propres données. Rien n'est envoyé - aucune connexion n'est même établie - à moins que ""Utiliser les Événements en direct"" ne soit coché dans l'onglet Événements en direct ; aucune clé API GW2 n'est nécessaire pour cela, car signaler et recevoir des signalements au sein de votre propre instance de carte n'implique jamais la région NA/EU. Une clé n'est utile que pour l'option distincte ""notification à l'échelle de la région"" par événement, dans la liste des événements de l'onglet Événements en direct - voir l'infobulle de cette case à cocher.","Un reporte consiste en un id de evento, una marca de tiempo sellada por el servidor y, solo si ""Compartir mi nombre en los reportes"" está marcado en la pestaña Eventos en vivo, tu nombre de personaje; está vacío de forma predeterminada. Nunca se envía el nombre de cuenta ni la posición exacta. Tu instancia de mapa se identifica mediante un hash del ID de mapa y la dirección del servidor, nunca la dirección en sí, por lo que nadie puede ver quién reportó qué a menos que hayas optado por compartir tu nombre. El historial se limita a los últimos 10 reportes por evento, y una instancia sin espectadores ni reportes durante 12 horas borra sus propios datos. No se envía nada, ni siquiera se establece una conexión, a menos que ""Usar Eventos en vivo"" esté marcado en la pestaña Eventos en vivo; no se necesita ninguna clave de API de GW2 para eso, ya que reportar y recibir reportes dentro de tu propia instancia de mapa nunca involucra la región NA/EU. Una clave solo importa para la opción separada de ""notificación a nivel de región"" por evento, en la lista de eventos de la pestaña Eventos en vivo; consulta la información sobre esa casilla.",上报内容包含事件ID、服务器时间戳；仅当在“实时事件”标签页开启“在上报中共享我的角色名”才附带角色名，默认匿名。不会发送账号名、精确坐标。地图副本由地图ID与服务器地址的哈希值识别，不会传输原始地址；除非主动开启共享名字，其他人无法获知上报人。每个事件最多保存最近10条上报记录；副本12小时无查看、无上报会清空数据。未在“实时事件”标签页开启“启用实时事件”则不会建立连接、不会传输任何数据；副本内上报接收无需GW2API密钥。API密钥仅用于“实时事件”标签页事件列表中独立的全区弹窗订阅选项，请查看对应复选框提示。,
-WE_OPT_LIVE_WHERE_HEADING,What this could become,Was das werden könnte,Ce que cela pourrait devenir,En qué podría convertirse esto,未来规划,
-WE_OPT_LIVE_WHERE_BODY,"The roster on the Live Events tab is small and compiled-in. The reporting switch covers all of it at once, while region-wide toasts, ""Only named"" and ""Done today"" are chosen per event. As the reporting pipeline proves reliable, this could grow into a larger roster and the same notification options Basic/Cyclic subscriptions have, such as sound - eventually graduating out of Experimental. This is a project that relies on trust: the more players trust it, the more precise the reports get, and the more players might join in turn. The user base is still very small, though: if no one, or not enough people, use Live Events, it will be removed - which doesn't mean it couldn't return. Feedback of any kind, and wishes for events worth adding, are welcome - message Xenophy.2716 in-game or find me on the Raidcore Discord.","Die Liste im Tab ""Live-Events"" ist klein und fest kompiliert. Der Schalter zum Melden gilt für alle Events auf einmal, während regionsweite Benachrichtigungen, ""Nur benannt"" und ""Heute erledigt"" pro Event gewählt werden. Sobald sich die Melde-Pipeline als zuverlässig erweist, könnte daraus eine größere Liste mit denselben Benachrichtigungsoptionen wie bei Normal-/Zyklischen Abos werden, etwa Ton - und irgendwann aus dem Experimentell-Status herauswachsen. Dieses Projekt lebt von Vertrauen: Je mehr Spieler es nutzen, desto genauer werden die Meldungen, und desto mehr Spieler steigen im Gegenzug ein. Die Nutzerbasis ist allerdings noch sehr klein: Wenn niemand oder nicht genug Leute die Live-Events nutzen, wird das Feature entfernt - was nicht heißt, dass es nicht zurückkehren könnte. Feedback jeder Art sowie Wünsche für hinzuzufügende Events sind willkommen - schreib Xenophy.2716 im Spiel an oder finde mich auf dem Raidcore-Discord.","La liste de l'onglet Événements en direct est petite et intégrée. Le réglage de signalement s'applique à tous les événements à la fois, tandis que les notifications à l'échelle de la région, ""Nommés uniquement"" et ""Fait aujourd'hui"" se choisissent par événement. Si le système de signalement se révèle fiable, cela pourrait évoluer vers une liste plus grande et les mêmes options de notification que les abonnements Normal/Cyclique, comme le son - sortant éventuellement du statut expérimental. Ce projet repose sur la confiance : plus les joueurs lui font confiance, plus les signalements deviennent précis, et plus de joueurs pourraient à leur tour rejoindre. La base d'utilisateurs est cependant encore très petite : si personne, ou pas assez de monde, n'utilise les Événements en direct, la fonctionnalité sera retirée - ce qui ne veut pas dire qu'elle ne pourrait pas revenir. Tous les retours, ainsi que les souhaits d'événements à ajouter, sont les bienvenus - contactez Xenophy.2716 en jeu ou trouvez-moi sur le Discord Raidcore.","La lista de la pestaña Eventos en vivo es pequeña y está integrada. El interruptor de reportes se aplica a todos los eventos a la vez, mientras que las notificaciones a nivel de región, ""Solo nombrados"" y ""Hecho hoy"" se eligen por evento. A medida que el proceso de reportes demuestre ser fiable, esto podría convertirse en una lista más grande, con las mismas opciones de notificación que las suscripciones Normal/Cíclicas, como el sonido, saliendo eventualmente del estado experimental. Este es un proyecto que depende de la confianza: cuantos más jugadores confíen en él, más precisos serán los reportes, y más jugadores podrían unirse a su vez. Aun así, la base de usuarios sigue siendo muy pequeña: si nadie, o no la suficiente gente, usa los Eventos en vivo, se eliminará; eso no significa que no pueda volver. Cualquier comentario, así como sugerencias de eventos que valga la pena añadir, son bienvenidos: escribe a Xenophy.2716 en el juego o búscame en el Discord de Raidcore.",当前内置事件列表有限。上报开关对全部事件一并生效，而全区弹窗通知、“仅带上报者名称”“今日已完成”则按单个事件设置。若上报链路稳定，后续将扩充事件列表，并提供与基础/循环事件相同的通知选项（如声音），最终脱离实验状态。本功能依赖玩家信任，越多玩家使用，上报准确度越高。不过目前用户群体仍然非常小：如果没有人使用，或使用者不足，该功能将被移除，但这并不意味着它不会回归。欢迎反馈问题、提交新增事件需求；游戏内私信Xenophy.2716，或前往Raidcore Discord联系。,
 WE_OPTWIN_HELP_DIAGNOSTICS,Diagnostics,Diagnose,Diagnostic,Diagnóstico,诊断,
 WE_OPT_LIVE_DEBUG_WS_BUTTON,Debug WS Traffic...,WS-Traffic debuggen...,Déboguer le trafic WS...,Depurar tráfico WS...,WebSocket流量调试…,
 WE_OPT_LIVE_DEBUG_WS_TIP,"Opens a window showing every message sent/received on the live-
@@ -530,7 +528,124 @@ momento en que se cargó el addon. También se refleja en el propio
 registro de Nexus bajo el canal ""WorldEvents-WS"" para tener un historial
 que sobreviva a un fallo.","打开窗口展示插件加载以来实时事件WebSocket（Cloudflare持久对象）
 全部收发消息。日志同时同步至Nexus日志频道WorldEvents‑WS，程序崩溃后仍保留记录。",
-#,"options_live.cpp - Live tab: switch and warnings, display toggles, name sharing, report color, and the event table with its tooltips.",,,,,
+#,"options_live.cpp - Live tab: switch and warnings, display toggles, name sharing, report color, the event table with its tooltips, and the feature's prose as collapsed headers.",,,,,
+WE_OPTWIN_HELP_LIVE_EXPLAINED,Live Events explained,Live-Events erklärt,Événements en direct expliqués,Eventos en vivo explicados,实时事件说明,
+WE_OPT_LIVE_HOW_IT_WORKS_HEADING,How it works,So funktioniert's,Comment ça marche,Cómo funciona,工作原理,
+WE_OPT_LIVE_HOW_IT_WORKS_BODY,"GW2 doesn't expose a schedule for these events. Players report ""it's up right now"" instead.
+
+- Off by default. Tick ""Use Live-Events"" to turn it on. Until then, no connection is made and nothing is sent.
+- Once on, get within range of a compiled-in event (turn on map markers to see where they are) and a button appears in the upper-right corner. It can be dragged wherever you want.
+- Click the button to report the event as active. Right-click it to see recent reports without reporting anything.
+- Every report goes through a relay server outside GW2 and broadcasts in real time to everyone else on your exact map instance.
+- The relay runs on Cloudflare, which isn't reachable from mainland China, so there's no support planned for the Chinese server.
+- No GW2 API key needed for any of what's mentioned above. A key is only required for the separate, per-event ""region-wide toast"" opt-in in the event list below, because it needs to know which region you're in.","GW2 stellt für diese Events keinen Zeitplan bereit. Stattdessen melden Spieler ""gerade jetzt aktiv"".
+
+- Standardmäßig deaktiviert. Aktiviere ""Live-Events nutzen"", um es einzuschalten. Bis dahin wird keine Verbindung aufgebaut und nichts gesendet.
+- Einmal aktiviert, komm in Reichweite eines kompilierten Events (aktiviere die Kartenmarkierungen, um zu sehen, wo sie liegen) und ein Button erscheint oben rechts. Er lässt sich beliebig verschieben.
+- Klick den Button, um das Event als aktiv zu melden. Rechtsklick zeigt nur die letzten Meldungen, ohne selbst zu melden.
+- Jede Meldung läuft über einen Relay-Server außerhalb von GW2 und wird in Echtzeit an alle anderen auf deiner genauen Karteninstanz übertragen.
+- Der Relay läuft auf Cloudflare, das aus Festland-China nicht erreichbar ist - daher ist keine Unterstützung für den chinesischen Server geplant.
+- Für all das oben Genannte ist kein GW2-API-Schlüssel nötig. Ein Schlüssel wird nur für das separate, pro Event wählbare ""regionsweite Benachrichtigungs""-Opt-in in der Eventliste unten gebraucht, da dafür deine Region bekannt sein muss.","GW2 n'expose pas de calendrier pour ces événements. Les joueurs signalent qu'""ils sont actifs en ce moment"" à la place.
+
+- Désactivé par défaut. Cochez ""Utiliser les Événements en direct"" pour l'activer. Jusque-là, aucune connexion n'est établie et rien n'est envoyé.
+- Une fois activé, approchez-vous d'un événement intégré (activez les marqueurs de carte pour voir où ils se trouvent) et un bouton apparaît dans le coin supérieur droit. Il peut être déplacé où vous voulez.
+- Cliquez sur le bouton pour signaler l'événement comme actif. Clic droit pour voir les signalements récents sans rien signaler.
+- Chaque signalement passe par un serveur relais en dehors de GW2 et est diffusé en temps réel à tous les autres joueurs de votre instance de carte exacte.
+- Le relais tourne sur Cloudflare, inaccessible depuis la Chine continentale - aucune prise en charge du serveur chinois n'est donc prévue.
+- Aucune clé API GW2 n'est nécessaire pour tout ce qui précède. Une clé n'est requise que pour l'option distincte de notification à l'échelle de la région, par événement, dans la liste ci-dessous, car elle doit connaître votre région.","GW2 no expone un horario para estos eventos. En su lugar, los jugadores reportan que ""está activo ahora mismo"".
+
+- Desactivado por defecto. Marca ""Usar Eventos en vivo"" para activarlo. Hasta entonces, no se establece ninguna conexión ni se envía nada.
+- Una vez activado, acércate a un evento integrado (activa los marcadores de mapa para ver dónde están) y aparecerá un botón en la esquina superior derecha. Se puede arrastrar donde quieras.
+- Haz clic en el botón para reportar el evento como activo. Clic derecho para ver solo los reportes recientes sin reportar nada.
+- Cada reporte pasa por un servidor de retransmisión fuera de GW2 y se transmite en tiempo real a todos los demás en tu instancia de mapa exacta.
+- El relé funciona en Cloudflare, que no es accesible desde China continental, así que no hay soporte planeado para el servidor chino.
+- No se necesita clave de API de GW2 para nada de lo anterior. Una clave solo es necesaria para la opción separada de ""notificación a nivel de región"" por evento, en la lista de abajo, porque necesita saber en qué región estás.","GW2并未提供该类事件时间表，因此玩家改为上报""事件现已刷新""。
+
+- 默认关闭。勾选""启用实时事件""后才会开启，在此之前不会建立任何连接，也不会发送任何数据。
+- 开启后，抵达内置事件附近（可开启地图标记查看位置），右上角会出现按钮，可拖拽至任意位置。
+- 点击按钮上报事件正在运行；右键仅查看近期上报，不进行上报。
+- 所有上报都会经由GW2之外的中转服务器，实时广播给同一地图副本内的所有玩家。
+- 该中转服务器架设在Cloudflare上，中国大陆无法访问，因此暂无计划支持国服。
+- 以上内容均无需GW2API密钥。密钥仅用于下方事件列表中独立的按事件""全区弹窗""订阅，因为该功能需要识别你所在的区域。",
+WE_OPT_LIVE_WHAT_DATA_HEADING,What data this uses,Welche Daten genutzt werden,Quelles données sont utilisées,Qué datos se utilizan,会上传哪些数据,
+WE_OPT_LIVE_WHAT_DATA_BODY,"A report sent to the server contains an event id, a server timestamp, and, only if ""Share my name in reports"" is ticked, your character name. Off by default.
+
+- No account name or exact position is ever sent, either way.
+- Other players on your own map instance only ever see the event id and timestamp. They never see your name, even with sharing on.
+- Your name only ever reaches players who've separately opted into region-wide toasts for that event (needs an API key), and only if you had sharing on when you reported.
+- Your map instance is identified by a hash of the map ID and server address, never the raw address.
+- History is capped at the last 10 reports per event. An instance with no viewers and no reports for 12 hours wipes its own data.","Eine Meldung an den Server enthält eine Event-ID, einen Server-Zeitstempel und, nur wenn ""Meinen Namen in Meldungen teilen"" aktiviert ist, deinen Charakternamen. Standardmäßig deaktiviert.
+
+- Weder Account-Name noch genaue Position werden jemals übertragen.
+- Andere Spieler auf deiner eigenen Karteninstanz sehen nur Event-ID und Zeitstempel. Sie sehen deinen Namen nie, selbst wenn Teilen aktiviert ist.
+- Dein Name erreicht nur Spieler, die sich für dieses Event separat für regionsweite Benachrichtigungen entschieden haben (braucht einen API-Schlüssel), und nur, wenn Teilen bei deiner Meldung aktiviert war.
+- Deine Karteninstanz wird über einen Hash aus Karten-ID und Serveradresse identifiziert, nie über die Adresse selbst.
+- Der Verlauf ist auf die letzten 10 Meldungen pro Event begrenzt. Eine Instanz ohne Zuschauer und ohne Meldungen für 12 Stunden löscht ihre eigenen Daten.","Un signalement envoyé au serveur contient un identifiant d'événement, un horodatage serveur et, uniquement si ""Partager mon nom dans les signalements"" est coché, votre nom de personnage. Désactivé par défaut.
+
+- Ni le nom du compte ni la position exacte ne sont jamais envoyés, dans un cas comme dans l'autre.
+- Les autres joueurs de votre propre instance de carte ne voient que l'identifiant d'événement et l'horodatage. Ils ne voient jamais votre nom, même si le partage est activé.
+- Votre nom n'atteint que les joueurs ayant séparément activé les notifications à l'échelle de la région pour cet événement (nécessite une clé API), et seulement si le partage était activé au moment de votre signalement.
+- Votre instance de carte est identifiée par un hachage de l'ID de carte et de l'adresse du serveur, jamais l'adresse elle-même.
+- L'historique est limité aux 10 derniers signalements par événement. Une instance sans spectateurs et sans signalement pendant 12 heures efface ses propres données.","Un reporte enviado al servidor contiene un id de evento, una marca de tiempo del servidor y, solo si ""Compartir mi nombre en los reportes"" está marcado, tu nombre de personaje. Desactivado por defecto.
+
+- Nunca se envía el nombre de cuenta ni la posición exacta, en ningún caso.
+- Otros jugadores en tu propia instancia de mapa solo ven el id de evento y la marca de tiempo. Nunca ven tu nombre, incluso con el compartir activado.
+- Tu nombre solo llega a los jugadores que hayan activado por separado las notificaciones a nivel de región para ese evento (requiere una clave de API), y solo si tenías el compartir activado cuando reportaste.
+- Tu instancia de mapa se identifica mediante un hash del ID de mapa y la dirección del servidor, nunca la dirección en sí.
+- El historial se limita a los últimos 10 reportes por evento. Una instancia sin espectadores ni reportes durante 12 horas borra sus propios datos.","发送至服务器的上报包含事件ID、服务器时间戳；仅当勾选""在上报中共享我的角色名""时才附带角色名，默认关闭。
+
+- 无论是否共享，账号名与精确坐标都不会发送。
+- 你所在地图副本内的其他玩家只能看到事件ID与时间戳，即使开启共享，也永远看不到你的名字。
+- 你的名字只会传达给单独为该事件开启全区弹窗订阅的玩家（需要API密钥），且仅在你上报时已开启共享的情况下。
+- 地图副本由地图ID与服务器地址的哈希值识别，不会使用原始地址。
+- 每个事件最多保留最近10条上报记录；副本12小时无查看、无上报会清空数据。",
+WE_OPT_LIVE_WHERE_HEADING,What this could become,Was das werden könnte,Ce que cela pourrait devenir,En qué podría convertirse esto,未来规划,
+WE_OPT_LIVE_WHERE_BODY,"The roster on the Live Events tab is small and compiled-in.
+
+- The reporting switch covers the whole roster at once.
+- Region-wide toasts, ""Only named"", and ""Done today"" are chosen per event.
+
+As the reporting pipeline proves reliable, this could grow into a larger roster with the same notification options Basic/Cyclic subscriptions have, such as sound, eventually moving out of Experimental.
+
+This project relies on trust. The more players trust it, the more precise the reports get, and the more players might join in turn. The user base is still very small, though. If not enough people use Live Events, it will be removed, though that doesn't mean it couldn't come back.
+
+Feedback of any kind, and wishes for events worth adding, are welcome. Message Xenophy.2716 in-game, or find me on the Raidcore Discord.","Die Liste im Tab ""Live-Events"" ist klein und fest kompiliert.
+
+- Der Schalter zum Melden gilt für die gesamte Liste auf einmal.
+- Regionsweite Benachrichtigungen, ""Nur benannt"" und ""Heute erledigt"" werden pro Event gewählt.
+
+Sobald sich die Melde-Pipeline als zuverlässig erweist, könnte daraus eine größere Liste mit denselben Benachrichtigungsoptionen wie bei Normal-/Zyklischen Abos werden, etwa Ton, und irgendwann aus dem Experimentell-Status herauswachsen.
+
+Dieses Projekt lebt von Vertrauen. Je mehr Spieler es nutzen, desto genauer werden die Meldungen, und desto mehr Spieler steigen im Gegenzug ein. Die Nutzerbasis ist allerdings noch sehr klein. Wenn nicht genug Leute die Live-Events nutzen, wird das Feature entfernt, was aber nicht heißt, dass es nicht zurückkehren könnte.
+
+Feedback jeder Art sowie Wünsche für hinzuzufügende Events sind willkommen. Schreib Xenophy.2716 im Spiel an, oder finde mich auf dem Raidcore-Discord.","La liste de l'onglet Événements en direct est petite et intégrée.
+
+- Le réglage de signalement s'applique à toute la liste à la fois.
+- Les notifications à l'échelle de la région, ""Nommés uniquement"" et ""Fait aujourd'hui"" se choisissent par événement.
+
+Si le système de signalement se révèle fiable, cela pourrait évoluer vers une liste plus grande avec les mêmes options de notification que les abonnements Normal/Cyclique, comme le son, sortant éventuellement du statut expérimental.
+
+Ce projet repose sur la confiance. Plus les joueurs lui font confiance, plus les signalements deviennent précis, et plus de joueurs pourraient à leur tour rejoindre. La base d'utilisateurs est cependant encore très petite. Si pas assez de monde n'utilise les Événements en direct, la fonctionnalité sera retirée, ce qui ne veut pas dire qu'elle ne pourrait pas revenir.
+
+Tous les retours, ainsi que les souhaits d'événements à ajouter, sont les bienvenus. Contactez Xenophy.2716 en jeu, ou trouvez-moi sur le Discord Raidcore.","La lista de la pestaña Eventos en vivo es pequeña y está integrada.
+
+- El interruptor de reportes se aplica a toda la lista a la vez.
+- Las notificaciones a nivel de región, ""Solo nombrados"" y ""Hecho hoy"" se eligen por evento.
+
+A medida que el proceso de reportes demuestre ser fiable, esto podría convertirse en una lista más grande con las mismas opciones de notificación que las suscripciones Normal/Cíclicas, como el sonido, saliendo eventualmente del estado experimental.
+
+Este proyecto depende de la confianza. Cuantos más jugadores confíen en él, más precisos serán los reportes, y más jugadores podrían unirse a su vez. Aun así, la base de usuarios sigue siendo muy pequeña. Si no la suficiente gente usa los Eventos en vivo, se eliminará, aunque eso no significa que no pueda volver.
+
+Cualquier comentario, así como sugerencias de eventos que valga la pena añadir, son bienvenidos. Escribe a Xenophy.2716 en el juego, o búscame en el Discord de Raidcore.","""实时事件""标签页的当前内置事件列表有限。
+
+- 上报开关对全部事件一并生效。
+- 全区弹窗通知、""仅带上报者名称""""今日已完成""则按单个事件设置。
+
+若上报链路稳定，后续将扩充事件列表，并提供与基础/循环事件相同的通知选项（如声音），最终脱离实验状态。
+
+本功能依赖玩家信任。越多玩家使用，上报准确度越高，也可能吸引更多玩家加入。不过目前用户群体仍然非常小。如果使用者不足，该功能将被移除，但这并不意味着它不会回归。
+
+欢迎反馈问题、提交新增事件需求。游戏内私信Xenophy.2716，或前往Raidcore Discord联系。",
 WE_OPT_LIVE_SUBSCRIBE_CHECKBOX,Use Live-Events,Live-Events nutzen,Utiliser les Événements en direct,Usar Eventos en vivo,启用实时事件,
 WE_OPT_LIVE_SUBSCRIBE_TIP,"Follows each live event while on their map: shows a button
 in the upper-right corner naming any of them while you're
@@ -574,7 +689,6 @@ establece conexión con el servidor de retransmisión.","在对应地图追踪�
 WE_OPT_LIVE_NO_API_KEY_WARNING,No GW2 API key set - reporting and recent-reports still work fine on your own map instance. A key only adds region-wide toasts for events you opt into in the list below.,"Kein GW2-API-Schlüssel gesetzt - Melden und die letzten Meldungen funktionieren trotzdem auf deiner eigenen Karteninstanz. Ein Schlüssel fügt nur regionsweite Benachrichtigungen für Events hinzu, die du in der Liste unten abonnierst.",Aucune clé API GW2 définie - le signalement et les signalements récents fonctionnent quand même sur votre propre instance de carte. Une clé n'ajoute que des notifications à l'échelle de la région pour les événements auxquels vous vous abonnez dans la liste ci-dessous.,No hay clave de API de GW2 configurada: reportar y ver reportes recientes funciona igualmente en tu propia instancia de mapa. Una clave solo añade notificaciones a nivel de región para los eventos a los que te suscribas en la lista de abajo.,未设置GW2API密钥：副本内上报与查看上报仍可正常工作。密钥仅为下方列表中开启全区弹窗通知所用。,
 WE_OPTWIN_LIVE_SET_API_KEY,Set API key,API-Schlüssel setzen,Définir la clé API,Configurar clave de API,设置API密钥,
 WE_OPT_LIVE_REGION_UNKNOWN_WARNING,"Key set, but region not resolved yet - make sure it has the ""account"" permission and give the next poll a moment.","Schlüssel gesetzt, aber Region noch nicht ermittelt - stelle sicher, dass er die ""account""-Berechtigung hat, und gib der nächsten Abfrage einen Moment.","Clé définie, mais région non encore déterminée - assurez-vous qu'elle a la permission ""account"" et laissez un instant à la prochaine vérification.","Clave configurada, pero la región aún no se ha determinado: asegúrate de que tenga el permiso ""account"" y dale un momento a la siguiente consulta.",密钥已填写，但尚未解析出服务器地区；请确认密钥拥有account权限，等待下一次轮询。,
-WE_OPTWIN_LIVE_HELP_LINK,How it works and what data it uses: see Help,Funktionsweise und verwendete Daten: siehe Hilfe,Fonctionnement et données utilisées : voir Aide,Cómo funciona y qué datos usa: ver Ayuda,工作原理与所用数据：见“帮助”,
 WE_OPT_LIVE_MOVE_BUTTON,Move button,Button verschieben,Déplacer le bouton,Mover botón,调整上报按钮位置,
 WE_OPT_LIVE_MOVE_BUTTON_TIP,"Shows the report button at its current position - even when
 you're not subscribed or not near an event - so you can drag

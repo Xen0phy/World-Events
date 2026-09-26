@@ -1,9 +1,7 @@
 //################################################################################
 // options_help.cpp   (see: options_help.h)
 //--------------------------------------------------------------------------------
-// kLiveExplainers    heading and body string ids of the three explainer texts
 // DrawAbout          version, release date, changelog button
-// DrawLiveExplained  the three explainer texts as collapsed headers
 // DrawDiagnostics    WS debug window button, ShowDebug render-time metrics
 //--------------------------------------------------------------------------------
 
@@ -17,13 +15,6 @@
 #include "options_widgets.h" //. Tooltip
 #include "version.h" //. Maj/Min/Bld/Rev
 #include "ws_debug_window.h" //. ShowWsDebugWindow
-
-//_ Heading and body string ids of the three Live Events texts, in display order.
-static constexpr const char* kLiveExplainers[][2] = {
-    { "WE_OPT_LIVE_HOW_IT_WORKS_HEADING", "WE_OPT_LIVE_HOW_IT_WORKS_BODY" },
-    { "WE_OPT_LIVE_WHAT_DATA_HEADING",    "WE_OPT_LIVE_WHAT_DATA_BODY"    },
-    { "WE_OPT_LIVE_WHERE_HEADING",        "WE_OPT_LIVE_WHERE_BODY"        },
-};
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawAbout
@@ -39,26 +30,6 @@ static void DrawAbout()
 
     if (ImGui::Button(Tr("WE_CHANGELOG_TITLE")))
         ShowVersionHistoryWindow = true;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawLiveExplained
-//--------------------------------------------------------------------------------
-// The prose for the Live tab lives here so that tab stays controls only. Every
-// header starts collapsed, like the General tab's.
-//--------------------------------------------------------------------------------
-static void DrawLiveExplained()
-{
-    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_HELP_LIVE_EXPLAINED"));
-
-    for (const char* const* text : kLiveExplainers)
-    {
-        if (ImGui::CollapsingHeader(Tr(text[0])))
-        {
-            ImGui::TextWrapped("%s", Tr(text[1]));
-            ImGui::Spacing();
-        }
-    }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -97,8 +68,6 @@ static void DrawDiagnostics()
 void DrawOptionsHelp()
 {
     DrawAbout();
-    ImGui::Spacing();
-    DrawLiveExplained();
     ImGui::Spacing();
     DrawDiagnostics();
 }

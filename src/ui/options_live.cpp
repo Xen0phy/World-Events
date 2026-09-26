@@ -5,8 +5,9 @@
 // RenderLiveEventButtonMovePreview  draggable stand-in for the button stack
 // ConnectionStateLabel              plain text for a WsConnectionState
 // DrawColoredWrapped                wrapped text in one color
+// DrawLiveExplained                 the feature's prose, as three collapsed headers
 // DrawLink                          clickable wrapped text
-// DrawSubscribe                     switch, key/region warning, Help link
+// DrawSubscribe                     switch, key/region warning
 // DrawDisplay                       display toggles, name sharing, report color
 // DrawLiveEventRow                  one row of the event list
 // DrawEventList                     roster note and the event table
@@ -20,11 +21,11 @@
 // ImGui::Button, not an invisible hit-test region) and gated by proximity instead
 // of a timer.
 //
-// Tab: three groups drawn straight into the content child - the subscribe switch
-// with its warnings, the display toggles, and the event table - separated by
-// spacing only. Text that can outgrow the window's minimum width wraps instead of
-// clipping. The table is the one place a Live deep link lands: its row is
-// scrolled to and flashed through OptionsHighlight_Set (options_window.h).
+// Tab: four groups drawn straight into the content child - the feature's prose as
+// collapsed headers, the subscribe switch with its warnings, the display toggles,
+// and the event table - separated by spacing only. Text that can outgrow the
+// window's minimum width wraps instead of clipping. The table is the one place a
+// Live deep link lands: its row is scrolled to (see DrawLiveEventRow).
 //--------------------------------------------------------------------------------
 
 #include "options_live.h"
@@ -73,6 +74,13 @@ static bool LiveEventButtonMoveMode = false;
 
 //_ Link text color; links have no underline, so this alone marks them as clickable.
 static const ImVec4 kLinkColor(0.4f, 0.7f, 1.0f, 1.0f);
+
+//_ Heading and body string ids of the three Live Events explainer texts, in display order.
+static constexpr const char* kLiveExplainers[][2] = {
+    { "WE_OPT_LIVE_HOW_IT_WORKS_HEADING", "WE_OPT_LIVE_HOW_IT_WORKS_BODY" },
+    { "WE_OPT_LIVE_WHAT_DATA_HEADING",    "WE_OPT_LIVE_WHAT_DATA_BODY"    },
+    { "WE_OPT_LIVE_WHERE_HEADING",        "WE_OPT_LIVE_WHERE_BODY"        },
+};
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // RenderLiveEventButtonMovePreview   (pairs with: RenderLiveEventButtons)
@@ -412,6 +420,66 @@ static void DrawColoredWrapped(const ImVec4& color, const char* text)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawExplainedBody   (pairs with: DrawLiveExplained)
+//--------------------------------------------------------------------------------
+// One explainer's body, line by line: a line starting with "- " draws as a real
+// wrapped bullet (Bullet() + SameLine() + TextWrapped(), since BulletText()
+// itself doesn't wrap), a blank line becomes vertical spacing between
+// paragraphs/bullets, anything else is plain wrapped prose. Localized strings
+// only ever use "- " for bullets - see ui_strings.csv.
+//--------------------------------------------------------------------------------
+static void DrawExplainedBody(const char* aText)
+{
+    std::string text(aText);
+    size_t pos = 0;
+
+    while (pos <= text.size())
+    {
+        size_t nl = text.find('\n', pos);
+        std::string line = text.substr(pos, nl == std::string::npos ? std::string::npos : nl - pos);
+
+        if (line.empty())
+        {
+            ImGui::Spacing();
+        }
+        else if (line.rfind("- ", 0) == 0)
+        {
+            ImGui::Bullet();
+            ImGui::SameLine();
+            ImGui::TextWrapped("%s", line.c_str() + 2);
+        }
+        else
+        {
+            ImGui::TextWrapped("%s", line.c_str());
+        }
+
+        if (nl == std::string::npos) break;
+        pos = nl + 1;
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawLiveExplained
+//--------------------------------------------------------------------------------
+// The feature's prose, as three collapsed headers - how it works, what data it
+// uses, what it could become. Every header starts collapsed, like the General
+// tab's.
+//--------------------------------------------------------------------------------
+static void DrawLiveExplained()
+{
+    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_HELP_LIVE_EXPLAINED"));
+
+    for (const char* const* text : kLiveExplainers)
+    {
+        if (ImGui::CollapsingHeader(Tr(text[0])))
+        {
+            DrawExplainedBody(Tr(text[1]));
+            ImGui::Spacing();
+        }
+    }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawLink
 //--------------------------------------------------------------------------------
 // Wrapped text in kLinkColor with a hand cursor while hovered. Returns true on
@@ -430,8 +498,7 @@ static bool DrawLink(const char* text)
 //--------------------------------------------------------------------------------
 // The reporting switch, then whichever warning applies: no key (with a link to
 // the key field) or a key whose region has not resolved yet. Neither blocks the
-// switch - reporting needs no key (gw2_api.h). The last line links to the Help
-// tab, which holds the feature's explainers.
+// switch - reporting needs no key (gw2_api.h).
 //--------------------------------------------------------------------------------
 static void DrawSubscribe()
 {
@@ -451,9 +518,6 @@ static void DrawSubscribe()
     {
         DrawColoredWrapped(kWarningColor, Tr("WE_OPT_LIVE_REGION_UNKNOWN_WARNING"));
     }
-
-    if (DrawLink(Tr("WE_OPTWIN_LIVE_HELP_LINK")))
-        OpenOptionsWindow(OptionsTab::Help);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -498,16 +562,12 @@ static void DrawDisplay()
 // Gw2ApiKey is empty - region-wide toast delivery needs GetLiveEventsRegion
 // (gw2_api.h). See IsLiveEventNamedOnly (subscriptions.h) for what "Only named"
 // gates. isTarget is true for exactly one row, on the frame a deep link lands on
-// it: the row starts the flash and is scrolled to.
+// it: the row is scrolled to. No flash tint anymore - the row-highlight look
+// was removed.
 //--------------------------------------------------------------------------------
 static void DrawLiveEventRow(const LiveEvent& ev, bool isTarget)
 {
     ImGui::TableNextRow();
-
-    if (isTarget)
-        OptionsHighlight_Set(ev.eventId);
-    if (OptionsHighlight_IsActive(ev.eventId))
-        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
 
     ImGui::TableSetColumnIndex(0);
     bool subscribed = IsLiveEventSubscribed(ev.eventId);
@@ -589,6 +649,8 @@ static void DrawEventList(const OptionsDeepLink* link)
 //--------------------------------------------------------------------------------
 void DrawOptionsLive(const OptionsDeepLink* link)
 {
+    DrawLiveExplained();
+    ImGui::Spacing();
     DrawSubscribe();
     ImGui::Spacing();
     DrawDisplay();

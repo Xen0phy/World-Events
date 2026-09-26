@@ -8,9 +8,6 @@
 // OptionsDeepLink            one Basic/Cyclic/Live row a caller wants shown
 // OpenOptionsWindow          open on the remembered tab, a given tab, or a row
 // RenderOptionsWindow        draws the window; no-op unless open
-// OptionsHighlight_Set       start the timed flash on one row id
-// OptionsHighlight_IsActive
-//                            true while that row's flash is running
 //--------------------------------------------------------------------------------
 // The single floating settings window: a left icon rail (General, Events, Live,
 // with Help pinned to the bottom) beside a content pane that hosts exactly one
@@ -103,14 +100,3 @@ void OpenOptionsWindow(SubscriptionKind kind, const std::string& basicId,
 // the target is visible.
 //--------------------------------------------------------------------------------
 void RenderOptionsWindow();
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// OptionsHighlight_Set / OptionsHighlight_IsActive
-//--------------------------------------------------------------------------------
-// Shared row-flash timer. A section calls OptionsHighlight_Set on the frame it
-// consumes a deep link; each of its rows then asks OptionsHighlight_IsActive with
-// its own id and tints itself while that is true (about 1.5 seconds). One flash
-// at a time: a new Set replaces the previous one.
-//--------------------------------------------------------------------------------
-void OptionsHighlight_Set(const std::string& id);
-bool OptionsHighlight_IsActive(const std::string& id);

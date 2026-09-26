@@ -5,7 +5,6 @@
 // kRailTabs/kRailHelp      the rail's buttons; the icon filenames live here
 // s_pendingLink            deep link waiting for the next drawn frame
 // s_wasOpen                window was drawn last frame; spots the frame it closes
-// s_highlightId/Until      the one running row flash
 // CurrentTab/SetCurrentTab OptionsWindowTab, clamped on read
 // DrawRailButton           one icon-only button, tinted texture or dot
 // DrawRail                 the three content tabs plus Help pinned below
@@ -46,9 +45,6 @@ static constexpr float kRailButtonScale = 1.5f;
 //_ Icon box as a fraction of the button side.
 static constexpr float kRailIconFill = 1.0f;
 
-//_ Length of the deep-link row flash, in seconds.
-static constexpr double kHighlightDurationSec = 1.5;
-
 //_ Initial window size in multiples of the font size, so it scales with the UI.
 static constexpr float kInitialWidthEm  = 46.0f;
 static constexpr float kInitialHeightEm = 36.0f;
@@ -69,9 +65,6 @@ static OptionsDeepLink s_pendingLink;
 static bool            s_hasPendingLink = false;
 
 static bool s_wasOpen = false;
-
-static std::string s_highlightId;
-static double      s_highlightUntil = 0.0;
 
 //********************************************************************************
 // RailEntry
@@ -299,20 +292,4 @@ void RenderOptionsWindow()
     ImGui::EndChild();
 
     ImGui::End();
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// OptionsHighlight_Set / OptionsHighlight_IsActive   (see: options_window.h)
-//--------------------------------------------------------------------------------
-// Timed with ImGui::GetTime(), so no platform header is needed here.
-//--------------------------------------------------------------------------------
-void OptionsHighlight_Set(const std::string& id)
-{
-    s_highlightId    = id;
-    s_highlightUntil = ImGui::GetTime() + kHighlightDurationSec;
-}
-
-bool OptionsHighlight_IsActive(const std::string& id)
-{
-    return !s_highlightId.empty() && id == s_highlightId && ImGui::GetTime() < s_highlightUntil;
 }

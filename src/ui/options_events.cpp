@@ -365,31 +365,42 @@ static void DrawCyclicSettings()
     DisabledBlock(!ShowCyclicOverlay)
     {
         SubToggleIndent indent;
+        
+        //_ half size of the current ImGUI window - to be used with GroupBox
+        const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        float startX = ImGui::GetCursorPosX();
 
-        ImGui::TextDisabled("%s", Tr("WE_OPT_RING_APPEARANCE"));
+        SeparatorText(Tr("WE_OPT_RING_APPEARANCE"));
+
         ImGui::SetNextItemWidth(50.0f);
         ImGui::DragFloat(Tr("WE_OPT_RADIUS"), &CyclicRadius, 1.0f, 5.0f, 50.0f, "%.0f px");
         if (CyclicRadius < CyclicThickness / 2) { CyclicThickness = CyclicRadius * 2; }
+
+        ImGui::SameLine(startX + half + ImGui::GetStyle().ItemSpacing.x);
         ImGui::SetNextItemWidth(50.0f);
         ImGui::DragFloat(Tr("WE_OPT_THICKNESS"), &CyclicThickness, 1.0f, 5.0f, 100.0f, "%.0f px");
         if (CyclicThickness > CyclicRadius * 2) { CyclicRadius = CyclicThickness / 2; }
 
         ImGui::Spacing();
-        ImGui::TextDisabled("%s", Tr("WE_OPT_ENTRY_EXIT_WINDOW"));
-        ImGui::SetNextItemWidth(50.0f);
-        ImGui::DragFloat(Tr("WE_OPT_FUTURE_WINDOW"), &CyclicMaxFutureDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
-        if (CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f) { CyclicMaxPastDeg = 360 - CyclicMaxFutureDeg; }
-        Tooltip(Tr("WE_TIP_FUTURE_WINDOW"));
+        SeparatorText(Tr("WE_OPT_ENTRY_EXIT_WINDOW"));
+
         ImGui::SetNextItemWidth(50.0f);
         ImGui::DragFloat(Tr("WE_OPT_PAST_WINDOW"), &CyclicMaxPastDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
         if (CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f) { CyclicMaxFutureDeg = 360 - CyclicMaxPastDeg; }
         Tooltip(Tr("WE_TIP_PAST_WINDOW"));
 
+        ImGui::SameLine(startX + half + ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetNextItemWidth(50.0f);
+        ImGui::DragFloat(Tr("WE_OPT_FUTURE_WINDOW"), &CyclicMaxFutureDeg, 1.0f, 0.0f, 360.0f, "%.0f deg");
+        if (CyclicMaxFutureDeg + CyclicMaxPastDeg > 360.0f) { CyclicMaxPastDeg = 360 - CyclicMaxFutureDeg; }
+        Tooltip(Tr("WE_TIP_FUTURE_WINDOW"));
+
         ImGui::Checkbox(TrId("WE_OPT_FADE_PAST_EVENTS", "##cyclic_past_fade_enabled").c_str(), &CyclicPastFadeEnabled);
         Tooltip(Tr("WE_TIP_FADE_PAST_EVENTS"));
 
         ImGui::Spacing();
-        ImGui::TextDisabled("%s", Tr("WE_OPT_HAND"));
+        SeparatorText(Tr("WE_OPT_HAND"));
+
         ImGui::ColorEdit4(TrId("WE_OPT_COLOR", "##cyclic_hand_color").c_str(), CyclicHandColor, kAlphaSwatchFlags);
         Tooltip(Tr("WE_TIP_HAND_COLOR"));
 
@@ -400,14 +411,16 @@ static void DrawCyclicSettings()
         {
             SubToggleIndent handIndent;
             DrawIconFileCombo(nullptr, "##cyclic_hand_image_file", CyclicHandImageFilename);
-
+            
+            ImGui::SameLine(startX + half + ImGui::GetStyle().ItemSpacing.x);
             ImGui::SetNextItemWidth(50.0f);
             ImGui::DragFloat(TrId("WE_OPT_WIDTH", "##cyclic_hand_image_width").c_str(), &CyclicHandImageWidth, 1.0f, 2.0f, 60.0f, "%.0f px");
             Tooltip(Tr("WE_TIP_HAND_TEXTURE_WIDTH"));
         }
 
         ImGui::Spacing();
-        ImGui::TextDisabled("%s", Tr("WE_OPT_RING_EDGE_TEXTURE"));
+        SeparatorText(Tr("WE_OPT_RING_EDGE_TEXTURE"));
+
         ImGui::Checkbox("##cyclic_ring_image_enabled", &CyclicRingImageEnabled);
         Tooltip(Tr("WE_TIP_RING_EDGE_TEXTURE"));
 
@@ -422,14 +435,16 @@ static void DrawCyclicSettings()
             ImGui::SetNextItemWidth(50.0f);
             ImGui::DragFloat(TrId("WE_OPT_THICKNESS", "##cyclic_ring_image_thickness").c_str(), &CyclicRingImageThickness, 0.5f, 1.0f, 80.0f, "%.1f px");
             Tooltip(Tr("WE_TIP_RING_TEXTURE_THICKNESS"));
-
+            
+            ImGui::SameLine(startX + half + ImGui::GetStyle().ItemSpacing.x);
             ImGui::SetNextItemWidth(50.0f);
             ImGui::DragFloat(TrId("WE_OPT_OFFSET", "##cyclic_ring_image_offset").c_str(), &CyclicRingImageOffset, 0.1f, -5.0f, 5.0f, "%.1f px");
             Tooltip(Tr("WE_TIP_RING_TEXTURE_OFFSET"));
         }
 
         ImGui::Spacing();
-        ImGui::TextDisabled("%s", Tr("WE_OPT_FILL_TEXTURE"));
+        SeparatorText(Tr("WE_OPT_FILL_TEXTURE"));
+
         ImGui::Checkbox("##cyclic_fill_image_enabled", &CyclicFillImageEnabled);
         Tooltip(Tr("WE_TIP_FILL_TEXTURE"));
 
@@ -437,12 +452,15 @@ static void DrawCyclicSettings()
         {
             ImGui::SameLine();
             DrawIconFileCombo(nullptr, "##cyclic_fill_image_file", CyclicFillImageFilename);
-
-            SubToggleIndent fillIndent;
+            
+            ImGui::SameLine(startX + half + ImGui::GetStyle().ItemSpacing.x);
             ImGui::SetNextItemWidth(50.0f);
             ImGui::DragFloat(TrId("WE_OPT_OPACITY", "##cyclic_fill_image_opacity").c_str(), &CyclicFillImageOpacity, 0.01f, 0.0f, 1.0f, "%.2f");
         }
     }
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

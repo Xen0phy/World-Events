@@ -7,12 +7,13 @@
 // OpenLiveEventReportsWindow    opens the reports window
 // kLiveEventReportsWindowId     ImGui ID of the reports window
 //--------------------------------------------------------------------------------
-// The Live tab: content pane of the rail's third tab. Top to bottom: the live-
-// event switch with its key/region warnings and a link to the Help tab's
-// explainers; the display toggles (Move button, reports window and its lock, map
-// locations, name sharing, report color); and one table of every compiled-in live
-// event with subscribe, "Only named" and "Done today" columns. A Live deep link
-// scrolls to its row and flashes it.
+// The Live tab: content pane of the rail's third tab. Top to bottom: the
+// feature's prose (how it works, what data it uses, what it could become) as
+// three collapsed headers; the live-event switch with its key/region warnings;
+// the display toggles (Move button, reports window and its lock, map locations,
+// name sharing, report color); and one table of every compiled-in live event
+// with subscribe, "Only named" and "Done today" columns. A Live deep link
+// scrolls to its row.
 //
 // Only DrawOptionsLive runs through the settings window's tab dispatch. The two
 // Render* functions are the in-game overlay (see options_live.cpp): AddonRender
@@ -34,8 +35,7 @@
 //--------------------------------------------------------------------------------
 // Called by RenderOptionsWindow (options_window.cpp) once per frame while the tab
 // is selected. link is non-null for exactly one frame after a Live deep link: the
-// section then scrolls to the row and calls OptionsHighlight_Set
-// (options_window.h).
+// section then scrolls to the row.
 //--------------------------------------------------------------------------------
 void DrawOptionsLive(const OptionsDeepLink* link);
 

@@ -40,9 +40,8 @@ inline constexpr const char* kDrawCyclicSettingsId = "###DrawCyclicSettings";
 // deep link; any other kind is ignored. The section empties the search box at
 // once, so the row is never filtered out, and leaves the Quick/Deep mode as it
 // is; it then keeps the link until the matching sub-tab has drawn, since a
-// selected sub-tab shows one frame later. The row is then opened, scrolled to and
-// flashed through OptionsHighlight_Set (options_window.h). A Cyclic link with a
-// slot id targets that slot; with an empty one, its group.
+// selected sub-tab shows one frame later. The row is then opened and scrolled to.
+// A Cyclic link with a slot id targets that slot; with an empty one, its group.
 //--------------------------------------------------------------------------------
 void DrawOptionsEvents(const OptionsDeepLink* link);
 

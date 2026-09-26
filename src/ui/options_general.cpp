@@ -273,6 +273,8 @@ static void DrawToastPopups()
     {
         SubToggleIndent indent;
 
+        SeparatorText(Tr("WE_OPT_TIMING"));
+
         ImGui::SetNextItemWidth(50);
         if (ImGui::InputInt(Tr("WE_OPT_WARN_BEFORE_START"), &NotificationLeadMinutes, 0, 0))
         {
@@ -289,6 +291,8 @@ static void DrawToastPopups()
             NotificationDisplaySeconds = std::clamp(NotificationDisplaySeconds, 1, 120);
         }
         Tooltip(Tr("WE_TIP_POPUP_DURATION"));
+
+        SeparatorText(Tr("WE_OPT_LAYOUT"));
 
         //_ DragFloat on the underlying float directly - no int round-trip needed since the setting itself is a float.
         ImGui::SetNextItemWidth(50);
@@ -317,6 +321,8 @@ static void DrawToastPopups()
         ImGui::Checkbox(Tr("WE_OPT_TOAST_STACK_UP"), &NotificationStackUpward);
         if (ItemPreviewGate()) RequestNotificationLayoutPreview();
         Tooltip(Tr("WE_TIP_TOAST_STACK_UP"));
+
+        ImGui::Spacing();
 
         //_ Speaker glyph (notify level 3's icon) drawn in the margin left of the row, marking the combo as the sound.
         {
@@ -396,6 +402,8 @@ static void DrawChatAndPaste()
 //--------------------------------------------------------------------------------
 static void DrawAccountAndTracking()
 {
+    SeparatorText(Tr("WE_OPT_ACCOUNT"));
+
     //_ Not gated by window/bar/notifications visibility: drives auto-hiding completed content in all three.
     ImGui::TextUnformatted(Tr("WE_OPT_GW2_API_KEY"));
     ImGui::SameLine();
@@ -436,6 +444,8 @@ static void DrawAccountAndTracking()
             ImGui::TextColored(kWarningColor, "%s", Tr("WE_OPT_API_NETWORK_ERROR"));
             break;
     }
+
+    SeparatorText(Tr("WE_OPT_TRACKING"));
 
     //_ Whether the API half of doneToday is consulted at all; the manual mark always still applies.
     ImGui::Checkbox(Tr("WE_OPT_AUTO_MARK_API_DONE"), &Gw2ApiAutoMarkDoneEnabled);
