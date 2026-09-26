@@ -80,6 +80,7 @@ WE_ROW_NOTIFY_SUB_TOAST,Set to: Subscribed + Toast,Setzen auf: Abonniert + Benac
 WE_ROW_NOTIFY_SUB_ONLY,Set to: Subscribed only,Setzen auf: Nur abonniert,Définir sur : Abonné uniquement,Establecer en: Solo suscrito,设置为：仅订阅,
 WE_ROW_NOTIFY_UNSUBSCRIBED,Set to: Unsubscribed,Setzen auf: Nicht abonniert,Définir sur : Non abonné,Establecer en: No suscrito,设置为：取消订阅,
 WE_ROW_EDIT_NAME,Edit name,Namen bearbeiten,Modifier le nom,Editar nombre,编辑名称,
+WE_ROW_EDIT_ENTRY,Edit entry,Eintrag bearbeiten,Modifier l'entrée,Editar entrada,编辑条目,
 WE_ROW_RESET,Reset,Zurücksetzen,Réinitialiser,Restablecer,重置,
 WE_ROW_DELETE,Delete,Löschen,Supprimer,Eliminar,删除,
 WE_DELETE_CONFIRM_BODY_FMT,"Delete ""%s""?",„%s“ löschen?,Supprimer « %s » ?,"¿Eliminar ""%s""?",删除“%s”？,

@@ -3,6 +3,10 @@
 //--------------------------------------------------------------------------------
 // DrawOptionsEvents        Events tab content
 // ResetOptionsEventsView   back to Quick mode with an empty search box
+// IsEventsDeepMode         current Quick/Deep state
+// ToggleEventsDeepMode     flip it; used by the rail icon click
+// SetEventsDeepMode        force Deep; a no-op if already Deep - the row
+//                          context menu's "Edit entry" entry
 //--------------------------------------------------------------------------------
 // Content pane of the rail's second tab: the top strip (search box, Quick/Deep
 // toggle, Reset and Restore buttons, right-click hint), the Shared settings
@@ -52,3 +56,16 @@ void DrawOptionsEvents(const OptionsDeepLink* link);
 // frame after the window closes, so every open starts fresh.
 //--------------------------------------------------------------------------------
 void ResetOptionsEventsView();
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsEventsDeepMode / ToggleEventsDeepMode / SetEventsDeepMode
+//--------------------------------------------------------------------------------
+// The rail (options_window.cpp) reads IsEventsDeepMode() to pick the Events tab's
+// icon and calls ToggleEventsDeepMode() when its button is clicked while already
+// selected. SetEventsDeepMode(true) is the row context menu's "Edit entry": it
+// only ever switches Quick to Deep, never back, so calling it while already Deep
+// does nothing.
+//--------------------------------------------------------------------------------
+bool IsEventsDeepMode();
+void ToggleEventsDeepMode();
+void SetEventsDeepMode(bool deep);

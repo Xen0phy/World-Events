@@ -826,7 +826,7 @@ static void DrawBasicList(const std::string& queryLower)
 
     int pendingRemoveIndex = -1;
     DrawCategorizedList(g_Events, g_BasicCategories, CategoryListKind::Basic, kBasicEventDragType, s_basicCategoryEdit, queryLower,
-        EventMatchesSearch, s_basicWasSearching, linkedId, [&](int i) { DrawBasicEventRow(i, BasicRowMode(g_Events[i]), pendingRemoveIndex); });
+        EventMatchesSearch, s_basicWasSearching, linkedId, [&](int i) { DrawBasicEventRow(i, BasicRowMode(g_Events[i]), pendingRemoveIndex, []() { SetEventsDeepMode(true); }); });
 
     if (pendingRemoveIndex >= 0)
         g_Events.erase(g_Events.begin() + pendingRemoveIndex);
@@ -853,7 +853,7 @@ static void DrawCyclicList(const std::string& queryLower)
 
     int pendingRemoveGroupIndex = -1;
     DrawCategorizedList(g_CyclicGroups, g_CyclicCategories, CategoryListKind::Cyclic, kCyclicGroupDragType, s_cyclicCategoryEdit, queryLower,
-        GroupMatchesSearch, s_cyclicWasSearching, linkedId, [&](int i) { DrawCyclicGroupRow(i, GroupRowMode(g_CyclicGroups[i]), pendingRemoveGroupIndex); });
+        GroupMatchesSearch, s_cyclicWasSearching, linkedId, [&](int i) { DrawCyclicGroupRow(i, GroupRowMode(g_CyclicGroups[i]), pendingRemoveGroupIndex, []() { SetEventsDeepMode(true); }); });
 
     if (pendingRemoveGroupIndex >= 0)
         g_CyclicGroups.erase(g_CyclicGroups.begin() + pendingRemoveGroupIndex);
@@ -871,6 +871,25 @@ void ResetOptionsEventsView()
 {
     s_deepMode = false;
     s_searchBuf[0] = '\0';
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// IsEventsDeepMode / ToggleEventsDeepMode / SetEventsDeepMode   (see: options_events.h)
+//--------------------------------------------------------------------------------
+bool IsEventsDeepMode()
+{
+    return s_deepMode;
+}
+
+void ToggleEventsDeepMode()
+{
+    s_deepMode = !s_deepMode;
+}
+
+void SetEventsDeepMode(bool deep)
+{
+    if (deep)
+        s_deepMode = true; //. one-way: never clears Deep back to Quick
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -395,14 +395,15 @@ static void DrawOptionalColor(const char* checkboxId, const char* colorLabel, st
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawNameAndContextMenu
 //--------------------------------------------------------------------------------
-// toggleDone, notifyLevel/setNotifyLevel, and resetToDefault add optional right-
-// click entries, left null/-1 where unused (categories pass none). resetToDefault
-// adds Reset, greyed via resetAvailable for entries with no compiled-in default
-// (see GetDefault* in events_storage.h). edit.names keys by editKey, not
-// removeIndex - slots share one state across groups (DrawCyclicGroupRow).
-// Delete/Cancel erase the edit.names entry and set pendingRemoveIndex =
-// removeIndex. A saved row's Delete swaps the menu for an inline confirm/cancel
-// choice (confirmingDelete below).
+// toggleDone, notifyLevel/setNotifyLevel, requestDeepMode, and resetToDefault add
+// optional right-click entries, left null/-1 where unused (categories pass none).
+// requestDeepMode backs "Edit entry", right below "Edit name" (see
+// options_events.h for its one-way semantics). resetToDefault adds Reset, greyed
+// via resetAvailable for entries with no compiled-in default (see GetDefault* in
+// events_storage.h). edit.names keys by editKey, not removeIndex - slots share
+// one state across groups (DrawCyclicGroupRow). Delete/Cancel erase the
+// edit.names entry and set pendingRemoveIndex = removeIndex. A saved row's Delete
+// swaps the menu for an inline confirm/cancel choice (confirmingDelete below).
 //--------------------------------------------------------------------------------
 NameRowResult DrawNameAndContextMenu(
     const char*              treeNodeId,
@@ -417,6 +418,7 @@ NameRowResult DrawNameAndContextMenu(
     std::function<void()>    toggleDone,
     int                      notifyLevel,
     std::function<void(int)> setNotifyLevel,
+    std::function<void()>    requestDeepMode,
     std::function<void()>    resetToDefault,
     bool                     resetAvailable)
 {
@@ -490,6 +492,8 @@ NameRowResult DrawNameAndContextMenu(
             }
             if (ImGui::MenuItem(Tr("WE_ROW_EDIT_NAME")))
                 edit.names[editKey] = currentName; //. seeded when edit starts
+            if (requestDeepMode && ImGui::MenuItem(Tr("WE_ROW_EDIT_ENTRY")))
+                requestDeepMode();
             ImGui::Separator();
             if (resetToDefault)
             {
@@ -622,7 +626,7 @@ static bool BeginLinkedRow(bool linked, bool linkPending)
 // pending deep link lands (BeginLinkedRow) the row scrolls to the middle of the
 // pane after its first item and forces its node open.
 //--------------------------------------------------------------------------------
-void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
+void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex, std::function<void()> requestDeepMode)
 {
     WorldEvent& ev = g_Events[i];
     const bool landing = BeginLinkedRow(mode.linked, mode.linkPending);
@@ -652,6 +656,7 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
         [&ev]() { ToggleBasicEventDoneToday(ev.id); },
         notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.id, lvl); },
+        requestDeepMode,
         [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. customName cleared for free - defaultEv's own customName is always ""
         defaultEv != nullptr);
     bool open = nameResult.open;
@@ -799,7 +804,7 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex)
 // own editing fields under mode.deep. A link to the group scrolls after the ring
 // checkbox; a link to a slot opens the group and lands on that slot's row.
 //--------------------------------------------------------------------------------
-void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex)
+void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex, std::function<void()> requestDeepMode)
 {
     CyclicGroup& grp = g_CyclicGroups[i];
 
@@ -824,6 +829,7 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
     NameRowResult nameResult = DrawNameAndContextMenu("##group_node", i, i, DisplayName(grp), s_cyclicGroupEdit, pendingRemoveGroupIndex, kCyclicGroupDragType, grp.id,
         grp.apiMapChestId.empty() ? nullptr : "(auto)",
         nullptr, -1, nullptr,
+        requestDeepMode,
         [&grp, defaultGrp]() { if (defaultGrp) grp = *defaultGrp; }, //. customName cleared for free - defaultGrp's own customName is always ""
         defaultGrp != nullptr);
     bool open = nameResult.open;
@@ -939,6 +945,7 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
             NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, oldSlotName, slotEdit, pendingRemoveSlotIndex,
                 nullptr, std::string(), nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
                 notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); },
+                requestDeepMode,
                 [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. customName cleared for free - defaultSlot's own customName is always ""
                 defaultSlot != nullptr);
             bool slotOpen = slotNameResult.open;

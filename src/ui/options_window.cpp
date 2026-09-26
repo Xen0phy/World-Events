@@ -83,12 +83,12 @@ struct RailEntry
 //_ Top-to-bottom order of the three content tabs; swapping an icon is a one-string edit here.
 static constexpr RailEntry kRailTabs[] = {
     { OptionsTab::General, "Settings.png", "WE_OPTWIN_TAB_GENERAL" },
-    { OptionsTab::Events,  "EventBoss.png",  "WE_OPTWIN_TAB_EVENTS"  },
-    { OptionsTab::Live,    "Festival.png",   "WE_OPTWIN_TAB_LIVE"    },
+    { OptionsTab::Events,  "EventBoss.png",  "WE_OPTWIN_TAB_EVENTS"  }, //. Quick-mode default - check DrawRail
+    { OptionsTab::Live,    "LiveEvents.png",   "WE_OPTWIN_TAB_LIVE"    },
 };
 
 //_ Pinned to the rail's bottom edge, apart from the content tabs.
-static constexpr RailEntry kRailHelp = { OptionsTab::Help, "Docs.png", "WE_OPTWIN_TAB_HELP" };
+static constexpr RailEntry kRailHelp = { OptionsTab::Help, "Help.png", "WE_OPTWIN_TAB_HELP" };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CurrentTab / SetCurrentTab
@@ -167,8 +167,21 @@ static bool DrawRailButton(const RailEntry& entry, bool selected, float side)
 static void DrawRail(float side)
 {
     for (const RailEntry& entry : kRailTabs)
-        if (DrawRailButton(entry, CurrentTab() == entry.tab, side))
-            SetCurrentTab(entry.tab);
+    {
+        //_ Events button: icon and click both reflect the Quick/Deep toggle (options_events.h), not just the tab itself.
+        RailEntry drawEntry = entry;
+        if (entry.tab == OptionsTab::Events)
+            drawEntry.iconFile = IsEventsDeepMode() ? "WorldBoss.png" : "EventBoss.png";
+
+        bool alreadySelected = CurrentTab() == entry.tab;
+        if (DrawRailButton(drawEntry, alreadySelected, side))
+        {
+            if (entry.tab == OptionsTab::Events && alreadySelected)
+                ToggleEventsDeepMode(); //. clicking the already-selected Events icon is a second way to flip the mode
+            else
+                SetCurrentTab(entry.tab);
+        }
+    }
 
     float remaining = ImGui::GetContentRegionAvail().y;
     if (remaining > side)

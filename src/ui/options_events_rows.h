@@ -104,6 +104,7 @@ NameRowResult DrawNameAndContextMenu(
     std::function<void()>    toggleDone      = nullptr,
     int                      notifyLevel     = -1,
     std::function<void(int)> setNotifyLevel  = nullptr,
+    std::function<void()>    requestDeepMode = nullptr,
     std::function<void()>    resetToDefault  = nullptr,
     bool                     resetAvailable  = true);
 
@@ -164,11 +165,12 @@ struct RowMode
 // and Deep mode alike: mode.deep adds the editing fields under the notify
 // buttons, Done for today or Subscribe all. A group row nests its slot rows. The
 // row a pending deep link names (mode.linked) opens and scrolls to the middle of
-// the pane; a slot link opens its group and scrolls to the slot. PushID/PopID
+// the pane; a slot link opens its group and scrolls to the slot. requestDeepMode
+// backs each row's (and a group's slots') "Edit entry" menu item. PushID/PopID
 // around each call is the CALLER's responsibility (the same index can be drawn
 // from different places depending on category membership). Neither modifies the
 // underlying vector directly - each sets its pendingRemove* index and the caller
 // defers the actual erase until every row for that frame has been drawn.
 //--------------------------------------------------------------------------------
-void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex);
-void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex);
+void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex, std::function<void()> requestDeepMode = nullptr);
+void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex, std::function<void()> requestDeepMode = nullptr);
