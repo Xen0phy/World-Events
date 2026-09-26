@@ -562,8 +562,8 @@ static void DrawDisplay()
 // Gw2ApiKey is empty - region-wide toast delivery needs GetLiveEventsRegion
 // (gw2_api.h). See IsLiveEventNamedOnly (subscriptions.h) for what "Only named"
 // gates. isTarget is true for exactly one row, on the frame a deep link lands on
-// it: the row is scrolled to. No flash tint anymore - the row-highlight look
-// was removed.
+// it: the row is scrolled to. No flash tint anymore - the row-highlight look was
+// removed.
 //--------------------------------------------------------------------------------
 static void DrawLiveEventRow(const LiveEvent& ev, bool isTarget)
 {

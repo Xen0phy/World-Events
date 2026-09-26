@@ -260,7 +260,7 @@ WE_OPT_BOTTOM_LINE,Bottom Line,Untere Linie,Ligne inférieure,Línea inferior,�
 WE_OPT_DOT_COLOR,Dot Color,Punktfarbe,Couleur du point,Color del punto,圆点颜色,
 WE_OPT_POPOUT,Pop-out,Einblendung,Déploiement,Despliegue,弹出,
 WE_TIP_POPOUT_HEIGHT,How tall the pop-out is.,Wie hoch das hervorstehende Segment ist.,Hauteur du segment déployé.,Altura del elemento desplegado.,弹出悬浮区域的高度。,
-WE_TIP_POPOUT_DELAY,How long the mouse has to sit still over a segment or dot before it pops out.,Wie lange die Maus über einem Segment oder Punkt stillhalten muss, bevor es sich ausklappt.,Combien de temps la souris doit rester immobile sur un segment ou un point avant qu'il ne se déploie.,Cuánto tiempo debe permanecer quieto el ratón sobre un segmento o punto antes de que se despliegue.,鼠标需要在某个区段或圆点
+WE_TIP_POPOUT_DELAY,How long the mouse has to sit still over a segment or dot before it pops out.,"Wie lange die Maus über einem Segment oder Punkt stillhalten muss, bevor es sich ausklappt.",Combien de temps la souris doit rester immobile sur un segment ou un point avant qu'il ne se déploie.,Cuánto tiempo debe permanecer quieto el ratón sobre un segmento o punto antes de que se despliegue.,鼠标需要在某个区段或圆点,
 WE_OPT_HEIGHT,Height,Höhe,Hauteur,Altura,高度,
 WE_OPT_WIDTH,Width,Breite,Largeur,Ancho,宽度,
 WE_OPT_LEFT,Left,Links,Gauche,Izquierda,左,
@@ -820,6 +820,16 @@ WE_OPTWIN_HDR_SHARED,Shared settings (Basic and Cyclic),Gemeinsame Einstellungen
 WE_OPT_GROW_MARKERS_ZOOM,Grow markers and rings when zooming in,Markierungen und Ringe beim Zoomen vergrößern,Agrandir marqueurs et anneaux en zoomant,Agrandar marcadores y anillos al acercar el zoom,放大地图时标记和圆环随之放大,
 WE_OPT_START_GROWING_AT,Markers/rings start growing at,Markierungen/Ringe wachsen ab,Marqueurs/anneaux grandissent dès,Marcadores/anillos crecen desde,标记/圆环开始放大的缩放等级,
 WE_OPT_MAX_SIZE_AT_ZOOM,Max marker/ring size at 100% zoom,Max. Größe Markierung/Ring bei 100% Zoom,Taille max. marqueur/anneau à 100% de zoom,Tamaño máx. marcador/anillo al 100% de zoom,100%缩放时标记/圆环的最大尺寸,
+WE_OPT_EVENT_LANGUAGE,Event text language,Sprache der Ereignistexte,Langue des textes d'événements,Idioma del texto de eventos,事件文本语言,
+WE_OPT_EVENT_LANGUAGE_TIP,"Only changes the language event, group and slot names show in - everything
+else in this window keeps following Nexus's language setting.","Ändert nur die Sprache der angezeigten Ereignis-, Gruppen- und
+Slot-Namen - alles andere in diesem Fenster folgt weiterhin der
+Sprach-Einstellung von Nexus.","Ne change que la langue des noms d'événements, de groupes et
+d'emplacements affichés - tout le reste dans cette fenêtre continue de
+suivre le paramètre de langue de Nexus.","Solo cambia el idioma en el que se muestran los nombres de eventos,
+grupos y espacios - todo lo demás en esta ventana sigue el ajuste
+de idioma de Nexus.",仅更改事件、分组和位置名称显示所用的语言——此窗口中的其他内容仍跟随Nexus的语言设置。,
+WE_OPT_EVENT_LANGUAGE_FOLLOW,Follow Nexus settings,Nexus-Einstellung folgen,Suivre les paramètres de Nexus,Seguir la configuración de Nexus,跟随Nexus设置,
 WE_OPTWIN_HDR_BASIC,Basic event settings,Einstellungen für normale Events,Paramètres des événements normaux,Ajustes de eventos normales,基础事件设置,
 WE_OPT_ONLY_SHOW_STARTING_IN,Only show events starting in,Zeige nur Events innerhalb der nächsten,N'afficher que les événements commençant dans,Mostrar solo eventos que empiecen en,仅显示多久之后开始的事件,
 WE_OPT_ACTIVE,Active,Aktiv,Actif,Activo,进行中,

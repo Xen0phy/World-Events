@@ -18,6 +18,8 @@
 // DrawTopStrip         search, toggle, Reset, Restore and the hint
 // DrawIconFileCombo    texture-file combo used by the Cyclic texture rows
 // DrawBulkIconPicker   Set all icons combo of the Basic settings header
+// kEventLanguageNativeNames/DrawEventLanguageCombo
+//                      EventLanguageOverride combo, Shared settings header
 // DrawSharedSettings   body of the Shared settings header
 // DrawBasicSettings    body of the Basic event settings header
 // DrawCyclicSettings   body of the Cyclic event settings header
@@ -45,6 +47,7 @@
 #include "imgui.h"
 #include "imgui_internal.h" //. GetActiveID, ClearActiveID, for the deep-link focus reset
 #include "localization.h"
+#include "localization_table.h" //. kLanguageSlots, kLanguageCount
 #include "maprender.h" //. GetEventIconFilenames
 #include "options_events_rows.h" //. row drawers, DrawNameAndContextMenu, drag-drop targets
 #include "options_widgets.h" //. Tooltip, DisabledBlock, SubToggleIndent, DrawFileCombo, kAlphaSwatchFlags
@@ -268,6 +271,39 @@ static void DrawBulkIconPicker(const char* label, const std::vector<int>& target
     }
 }
 
+//_ Native-script name per kLanguageSlots entry (localization_table.h), same order as WE_LANGUAGE_LIST - not translated, a language names itself.
+static constexpr const char* kEventLanguageNativeNames[] = { "English", "Deutsch", "Français", "Español", "中文" };
+static_assert(sizeof(kEventLanguageNativeNames) / sizeof(kEventLanguageNativeNames[0]) == kLanguageCount,
+    "kEventLanguageNativeNames must have one entry per kLanguageSlots entry");
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// DrawEventLanguageCombo
+//--------------------------------------------------------------------------------
+// EventLanguageOverride (settings_table.h) as a combo: index 0 is "Follow game
+// language" (-1), the rest are kEventLanguageNativeNames in kLanguageSlots order.
+// Only event/group/slot display names read this - see GetActiveEventLanguage,
+// localization.h.
+//--------------------------------------------------------------------------------
+static void DrawEventLanguageCombo()
+{
+    int current = EventLanguageOverride + 1; //. -1 (follow) -> 0
+
+    ImGui::SetNextItemWidth(160.0f);
+    if (ImGui::BeginCombo(TrId("WE_OPT_EVENT_LANGUAGE", "##event_language_override").c_str(),
+            current == 0 ? Tr("WE_OPT_EVENT_LANGUAGE_FOLLOW") : kEventLanguageNativeNames[current - 1]))
+    {
+        if (ImGui::Selectable(Tr("WE_OPT_EVENT_LANGUAGE_FOLLOW"), current == 0))
+            EventLanguageOverride = -1;
+
+        for (size_t li = 0; li < kLanguageCount; li++)
+            if (ImGui::Selectable(kEventLanguageNativeNames[li], current == (int)li + 1))
+                EventLanguageOverride = (int)li;
+
+        ImGui::EndCombo();
+    }
+    Tooltip(Tr("WE_OPT_EVENT_LANGUAGE_TIP"));
+}
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawSharedSettings
 //--------------------------------------------------------------------------------
@@ -276,6 +312,8 @@ static void DrawBulkIconPicker(const char* label, const std::vector<int>& target
 // labels name both; the settings behind it are named BasicEventZoom* but drive
 // both kinds. The Texture Whitener works on the one textures folder both kinds
 // pick from; its popup is drawn beside its button so both share one ID scope.
+// DrawEventLanguageCombo's setting also drives Live event names
+// (options_live.cpp) despite this header's own title.
 //--------------------------------------------------------------------------------
 static void DrawSharedSettings()
 {
@@ -291,6 +329,9 @@ static void DrawSharedSettings()
         ImGui::SetNextItemWidth(80.0f);
         ImGui::DragFloat(TrId("WE_OPT_MAX_SIZE_AT_ZOOM", "##basic_zoom_max_mult").c_str(), &BasicEventZoomMaxMultiplier, 1.0f, 1.0f, 4.0f, "%.1fx");
     }
+
+    ImGui::Spacing();
+    DrawEventLanguageCombo();
 
     ImGui::Spacing();
     DrawTextureWhitenerButton();

@@ -67,12 +67,13 @@ const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const 
 // ev.customName non-empty -> that, literally (user override, never translated).
 // Otherwise, a compiled-in row (GetDefaultEvent/GetDefaultCyclicGroup/
 // GetDefaultCyclicSlot) resolves to the WE_NAME_BASIC_<id>/WE_NAME_GROUP_<id>/
-// WE_NAME_SLOT_<groupId>_<id> identifier (event_names.csv) via Tr()/ TrEnglish().
-// Neither -> WE_UNNAMED. The Slot overload takes groupId separately since
-// Slot::id is only unique within its group. DisplayNameEnglish always resolves to
-// English regardless of active language, for code that must match ArenaNet's own
-// API text or an old English-only save (weekly_vault.cpp, the
-// eventNameToId/groupNameToId migrations).
+// WE_NAME_SLOT_<groupId>_<id> identifier (event_names.csv) via TrEvent()/
+// TrEnglish(); neither -> WE_UNNAMED. The Slot overload takes groupId separately
+// since Slot::id is only unique within its group. DisplayName follows
+// EventLanguageOverride (GetActiveEventLanguage); DisplayNameEnglish always
+// resolves to English, for code that must match ArenaNet's own API text or an old
+// English-only save (weekly_vault.cpp, the eventNameToId/groupNameToId
+// migrations).
 //--------------------------------------------------------------------------------
 const char* DisplayName(const WorldEvent& ev);
 const char* DisplayNameEnglish(const WorldEvent& ev);

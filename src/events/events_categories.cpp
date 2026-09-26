@@ -72,8 +72,8 @@ static bool IsAbandonedEntry(const std::string& customName, bool hasDefault)
 const char* DisplayName(const Category& cat, CategoryListKind kind)
 {
     if (!cat.customName.empty()) return cat.customName.c_str();
-    if (GetDefaultCategory(cat.id, kind)) return Tr(CategoryNameIdentifier(cat.id, kind).c_str());
-    return Tr("WE_UNNAMED");
+    if (GetDefaultCategory(cat.id, kind)) return TrEvent(CategoryNameIdentifier(cat.id, kind).c_str());
+    return TrEvent("WE_UNNAMED");
 }
 
 const char* DisplayNameEnglish(const Category& cat, CategoryListKind kind)

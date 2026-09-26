@@ -600,8 +600,8 @@ bool IsCyclicGroupCreationPending() { return s_cyclicGroupEdit.newKey >= 0; }
 //--------------------------------------------------------------------------------
 // Call before a row's first item; linked says whether the deep link names this
 // row and linkPending whether it has not landed yet. Returns true on the frame
-// the link lands on the row: the caller then scrolls to it and opens its node.
-// No longer draws a flash tint here - the row-highlight look was removed.
+// the link lands on the row: the caller then scrolls to it and opens its node. No
+// longer draws a flash tint here - the row-highlight look was removed.
 //--------------------------------------------------------------------------------
 static bool BeginLinkedRow(bool linked, bool linkPending)
 {

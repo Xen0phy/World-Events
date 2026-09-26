@@ -821,8 +821,8 @@ const CyclicGroup::Slot* GetDefaultCyclicSlot(const std::string& groupId, const 
 const char* DisplayName(const WorldEvent& ev)
 {
     if (!ev.customName.empty()) return ev.customName.c_str();
-    if (GetDefaultEvent(ev.id)) return Tr(BasicNameIdentifier(ev.id).c_str());
-    return Tr("WE_UNNAMED");
+    if (GetDefaultEvent(ev.id)) return TrEvent(BasicNameIdentifier(ev.id).c_str());
+    return TrEvent("WE_UNNAMED");
 }
 
 const char* DisplayNameEnglish(const WorldEvent& ev)
@@ -835,8 +835,8 @@ const char* DisplayNameEnglish(const WorldEvent& ev)
 const char* DisplayName(const CyclicGroup& grp)
 {
     if (!grp.customName.empty()) return grp.customName.c_str();
-    if (GetDefaultCyclicGroup(grp.id)) return Tr(GroupNameIdentifier(grp.id).c_str());
-    return Tr("WE_UNNAMED");
+    if (GetDefaultCyclicGroup(grp.id)) return TrEvent(GroupNameIdentifier(grp.id).c_str());
+    return TrEvent("WE_UNNAMED");
 }
 
 const char* DisplayNameEnglish(const CyclicGroup& grp)
@@ -849,8 +849,8 @@ const char* DisplayNameEnglish(const CyclicGroup& grp)
 const char* DisplayName(const CyclicGroup::Slot& slot, const std::string& groupId)
 {
     if (!slot.customName.empty()) return slot.customName.c_str();
-    if (GetDefaultCyclicSlot(groupId, slot.id)) return Tr(SlotNameIdentifier(groupId, slot.id).c_str());
-    return Tr("WE_UNNAMED");
+    if (GetDefaultCyclicSlot(groupId, slot.id)) return TrEvent(SlotNameIdentifier(groupId, slot.id).c_str());
+    return TrEvent("WE_UNNAMED");
 }
 
 const char* DisplayNameEnglish(const CyclicGroup::Slot& slot, const std::string& groupId)

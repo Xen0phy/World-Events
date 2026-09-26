@@ -15,6 +15,7 @@
 
 #include "addon.h"
 #include "localization_table.h"
+#include "settings.h" //. EventLanguageOverride
 
 #include "imgui.h"          // IWYU pragma: keep //.
 #include "imgui_internal.h" //. ImGuiWindow::Name/NameBufLen, ImStrdupcpy - see Localization_SyncCloseOnEscape
@@ -77,6 +78,17 @@ size_t GetActiveLanguage()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetActiveEventLanguage   (see: localization.h)
+//--------------------------------------------------------------------------------
+size_t GetActiveEventLanguage()
+{
+    if (EventLanguageOverride >= 0 && (size_t)EventLanguageOverride < kLanguageCount)
+        return (size_t)EventLanguageOverride;
+
+    return GetActiveLanguage();
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Tr   (see: localization.h)
 //--------------------------------------------------------------------------------
 const char* Tr(const char* aIdentifier)
@@ -84,6 +96,16 @@ const char* Tr(const char* aIdentifier)
     if (!APIDefs) return aIdentifier;
 
     return APIDefs->Localization_TranslateTo(aIdentifier, kLanguageSlots[GetActiveLanguage()].Code);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// TrEvent   (see: localization.h)
+//--------------------------------------------------------------------------------
+const char* TrEvent(const char* aIdentifier)
+{
+    if (!APIDefs) return aIdentifier;
+
+    return APIDefs->Localization_TranslateTo(aIdentifier, kLanguageSlots[GetActiveEventLanguage()].Code);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

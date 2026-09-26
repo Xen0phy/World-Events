@@ -11,9 +11,9 @@
 // feature's prose (how it works, what data it uses, what it could become) as
 // three collapsed headers; the live-event switch with its key/region warnings;
 // the display toggles (Move button, reports window and its lock, map locations,
-// name sharing, report color); and one table of every compiled-in live event
-// with subscribe, "Only named" and "Done today" columns. A Live deep link
-// scrolls to its row.
+// name sharing, report color); and one table of every compiled-in live event with
+// subscribe, "Only named" and "Done today" columns. A Live deep link scrolls to
+// its row.
 //
 // Only DrawOptionsLive runs through the settings window's tab dispatch. The two
 // Render* functions are the in-game overlay (see options_live.cpp): AddonRender

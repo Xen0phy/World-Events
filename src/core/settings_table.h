@@ -200,6 +200,17 @@ SETTING(BasicEvents, BasicEventZoomStartPct,       float, 0.0f)
 SETTING(BasicEvents, BasicEventZoomMaxMultiplier,  float, 3.0f)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// EventLanguageOverride
+//--------------------------------------------------------------------------------
+// Index into kLanguageSlots (localization_table.h) that event/group/slot display
+// names resolve to, independent of Nexus's own active language - see
+// GetActiveEventLanguage/TrEvent (localization.h). -1 means "follow the game
+// language" (GetActiveLanguage()), the default. Despite the Basic prefix, drives
+// Basic, Cyclic and Live event names alike, same as the zoom settings above.
+//--------------------------------------------------------------------------------
+SETTING(BasicEvents, EventLanguageOverride, int, -1)
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // BasicEventZoomScaleMinObserved / BasicEventZoomScaleMaxObserved
 //--------------------------------------------------------------------------------
 // Calibration data for the zoom range above, persisted so the first frame after

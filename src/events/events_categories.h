@@ -88,12 +88,12 @@ extern std::vector<CategoryDefault> g_DefaultCyclicCategories;
 // cat.customName non-empty -> that, literally (user override, never translated).
 // customName empty and a compiled-in default has this id (within the list `kind`
 // selects) -> the WE_NAME_CATEGORY_BASIC_<id>/WE_NAME_CATEGORY_CYCLIC_<id>
-// identifier (resources/localization/event_names.csv), through Tr()/TrEnglish()
-// respectively. Neither -> WE_UNNAMED.
-//
-// DisplayNameEnglish always resolves to the English text regardless of the active
-// language - for LoadCategoriesData's own customName migration, never the
-// player's current language.
+// identifier (resources/localization/event_names.csv), through TrEvent()/
+// TrEnglish() respectively; neither -> WE_UNNAMED. DisplayName follows
+// EventLanguageOverride (GetActiveEventLanguage), same as the event/group/slot
+// names it's grouped alongside; DisplayNameEnglish always resolves to English,
+// for LoadCategoriesData's own customName migration, never the player's current
+// language.
 //--------------------------------------------------------------------------------
 const char* DisplayName(const Category& cat, CategoryListKind kind);
 const char* DisplayNameEnglish(const Category& cat, CategoryListKind kind);

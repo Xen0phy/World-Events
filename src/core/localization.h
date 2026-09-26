@@ -3,7 +3,10 @@
 //--------------------------------------------------------------------------------
 // Localization_Load   call once from AddonLoad, after APIDefs is set
 // GetActiveLanguage   index into kLanguageSlots for Nexus's active language
+// GetActiveEventLanguage
+//                     like GetActiveLanguage, but honors EventLanguageOverride
 // Tr                  translate aIdentifier into the addon's active language
+// TrEvent             like Tr, but resolves via GetActiveEventLanguage
 // TrEnglish           like Tr, but always English regardless of active language
 // TrId                Tr(aIdentifier) plus a stable, untranslated ID suffix
 //--------------------------------------------------------------------------------
@@ -49,6 +52,17 @@ void Localization_Load();
 size_t GetActiveLanguage();
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// GetActiveEventLanguage
+//--------------------------------------------------------------------------------
+// Same index space as GetActiveLanguage, for event/group/slot display names
+// specifically. Returns EventLanguageOverride (settings.h) when it's a valid
+// index, otherwise falls back to GetActiveLanguage() - the -1 default means event
+// names follow the game language same as everything else, until the player picks
+// a language of their own in the Events tab's shared header.
+//--------------------------------------------------------------------------------
+size_t GetActiveEventLanguage();
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Tr
 //--------------------------------------------------------------------------------
 // Translates aIdentifier (see localization_table.h) into languages per
@@ -60,6 +74,16 @@ size_t GetActiveLanguage();
 // kLocalizationTable/kEventNameLocalizationTable.
 //--------------------------------------------------------------------------------
 const char* Tr(const char* aIdentifier);
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// TrEvent
+//--------------------------------------------------------------------------------
+// Like Tr, but resolves against GetActiveEventLanguage() instead of
+// GetActiveLanguage() - use for event/group/slot display names (DisplayName,
+// events_storage.cpp) so they can follow EventLanguageOverride independently of
+// the rest of the UI. Same no-APIDefs/no-row fallback as Tr.
+//--------------------------------------------------------------------------------
+const char* TrEvent(const char* aIdentifier);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // TrEnglish
