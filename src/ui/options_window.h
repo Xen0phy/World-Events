@@ -10,8 +10,8 @@
 // RenderOptionsWindow        draws the window; no-op unless open
 //--------------------------------------------------------------------------------
 // The single floating settings window: a left icon rail (General, Events, Live,
-// with Help pinned to the bottom) beside a content pane that hosts exactly one
-// section file per tab - options_general/events/live/help.cpp. This file owns
+// with Info pinned to the bottom) beside a content pane that hosts exactly one
+// section file per tab - options_general/events/live/info.cpp. This file owns
 // Begin()/End(), the rail, the remembered tab, and deep-link delivery; the
 // section files own everything drawn inside the content pane.
 //
@@ -44,7 +44,7 @@ inline constexpr int kOptionsTabCount = 4;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // OptionsTab
 //--------------------------------------------------------------------------------
-// Rail order, top to bottom, Help pinned last. Stored in OptionsWindowTab as the
+// Rail order, top to bottom, Info pinned last. Stored in OptionsWindowTab as the
 // int value, so an existing entry must never be renumbered.
 //--------------------------------------------------------------------------------
 enum class OptionsTab
@@ -52,7 +52,7 @@ enum class OptionsTab
     General = 0,
     Events  = 1,
     Live    = 2,
-    Help    = 3,
+    Info    = 3,
 };
 
 //********************************************************************************

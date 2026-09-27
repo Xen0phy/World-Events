@@ -2,12 +2,12 @@
 // options_window.cpp   (see: options_window.h)
 //--------------------------------------------------------------------------------
 // RailEntry                one rail button: tab, icon filename, tooltip id
-// kRailTabs/kRailHelp      the rail's buttons; the icon filenames live here
+// kRailTabs/kRailInfo      the rail's buttons; the icon filenames live here
 // s_pendingLink            deep link waiting for the next drawn frame
 // s_wasOpen                window was drawn last frame; spots the frame it closes
 // CurrentTab/SetCurrentTab OptionsWindowTab, clamped on read
 // DrawRailButton           one icon-only button, tinted texture or dot
-// DrawRail                 the three content tabs plus Help pinned below
+// DrawRail                 the three content tabs plus Info pinned below
 //--------------------------------------------------------------------------------
 // Rail icons are bundled textures resolved through GetOrRequestEventIcon
 // (maprender.h), so they follow the same disk-first, bundled-fallback lookup as
@@ -29,7 +29,7 @@
 #include "maprender.h" //. GetOrRequestEventIcon
 #include "options_events.h"
 #include "options_general.h"
-#include "options_help.h"
+#include "options_info.h"
 #include "options_live.h"
 #include "options_widgets.h" //. Tooltip
 #include "settings.h" //. OptionsWindowTab
@@ -58,7 +58,7 @@ static const char* const kContentChildIds[kOptionsTabCount] = {
     "##options_content_general",
     "##options_content_events",
     "##options_content_live",
-    "##options_content_help",
+    "##options_content_info",
 };
 
 static OptionsDeepLink s_pendingLink;
@@ -88,7 +88,7 @@ static constexpr RailEntry kRailTabs[] = {
 };
 
 //_ Pinned to the rail's bottom edge, apart from the content tabs.
-static constexpr RailEntry kRailHelp = { OptionsTab::Help, "Info.png", "WE_OPTWIN_TAB_INFO" };
+static constexpr RailEntry kRailInfo = { OptionsTab::Info, "Info.png", "WE_OPTWIN_TAB_INFO" };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CurrentTab / SetCurrentTab
@@ -161,7 +161,7 @@ static bool DrawRailButton(const RailEntry& entry, bool selected, float side)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawRail
 //--------------------------------------------------------------------------------
-// Draws inside the rail child window. The Help button is placed by moving the
+// Draws inside the rail child window. The Info button is placed by moving the
 // cursor down by whatever height is left after the three content tabs.
 //--------------------------------------------------------------------------------
 static void DrawRail(float side)
@@ -187,8 +187,8 @@ static void DrawRail(float side)
     if (remaining > side)
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + remaining - side);
 
-    if (DrawRailButton(kRailHelp, CurrentTab() == kRailHelp.tab, side))
-        SetCurrentTab(kRailHelp.tab);
+    if (DrawRailButton(kRailInfo, CurrentTab() == kRailInfo.tab, side))
+        SetCurrentTab(kRailInfo.tab);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -300,7 +300,7 @@ void RenderOptionsWindow()
         case OptionsTab::General: DrawOptionsGeneral();         break;
         case OptionsTab::Events:  DrawOptionsEvents(linkPtr);   break;
         case OptionsTab::Live:    DrawOptionsLive(linkPtr);     break;
-        case OptionsTab::Help:    DrawOptionsHelp();            break;
+        case OptionsTab::Info:    DrawOptionsInfo();            break;
     }
     ImGui::EndChild();
 

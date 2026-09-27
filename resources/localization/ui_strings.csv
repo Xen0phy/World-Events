@@ -498,10 +498,10 @@ sin suscripción manual, marcado con un pequeño punto/borde rojo.
 Desactívalo para ver solo lo suscrito manualmente en las tres vistas.","开启（默认）时，订阅窗口、订阅栏、弹窗通知会自动高亮本周巫师宝库未完成目标对应的基础事件/循环时段，
 无需手动订阅，带有红色小点/边框。关闭后，三处界面将仅展示手动订阅的内容。",
 WE_OPT_WEEKLY_COLOR,Weekly Color,Wochenfarbe,Couleur hebdomadaire,Color semanal,宝库目标高亮颜色,
-#,options_help.cpp - Help tab: group labels and the diagnostics button.,,,,,
-WE_OPTWIN_HELP_ABOUT,About,Info,À propos,Acerca de,关于,
-WE_OPTWIN_HELP_VERSION,Version,Version,Version,Versión,版本,
-WE_OPTWIN_HELP_DIAGNOSTICS,Diagnostics,Diagnose,Diagnostic,Diagnóstico,诊断,
+#,options_info.cpp - Info tab: group labels and the diagnostics button.,,,,,
+WE_OPTWIN_INFO_ABOUT,About,Info,À propos,Acerca de,关于,
+WE_OPTWIN_INFO_VERSION,Version,Version,Version,Versión,版本,
+WE_OPTWIN_INFO_DIAGNOSTICS,Diagnostics,Diagnose,Diagnostic,Diagnóstico,诊断,
 WE_OPT_LIVE_DEBUG_WS_BUTTON,Debug WS Traffic...,WS-Traffic debuggen...,Déboguer le trafic WS...,Depurar tráfico WS...,WebSocket流量调试…,
 WE_OPT_LIVE_DEBUG_WS_TIP,"Opens a window showing every message sent/received on the live-
 events WebSocket connection (Cloudflare Durable Object), from the
@@ -522,7 +522,7 @@ registro de Nexus bajo el canal ""WorldEvents-WS"" para tener un historial
 que sobreviva a un fallo.","打开窗口展示插件加载以来实时事件WebSocket（Cloudflare持久对象）
 全部收发消息。日志同时同步至Nexus日志频道WorldEvents‑WS，程序崩溃后仍保留记录。",
 #,"options_live.cpp - Live tab: switch and warnings, display toggles, name sharing, report color, the event table with its tooltips, and the feature's prose as collapsed headers.",,,,,
-WE_OPTWIN_HELP_LIVE_EXPLAINED,Live Events explained,Live-Events erklärt,Événements en direct expliqués,Eventos en vivo explicados,实时事件说明,
+WE_OPTWIN_INFO_LIVE_EXPLAINED,Live Events explained,Live-Events erklärt,Événements en direct expliqués,Eventos en vivo explicados,实时事件说明,
 WE_OPT_LIVE_HOW_IT_WORKS_HEADING,How it works,So funktioniert's,Comment ça marche,Cómo funciona,工作原理,
 WE_OPT_LIVE_HOW_IT_WORKS_BODY,"GW2 doesn't expose a schedule for these events. Players report ""it's up right now"" instead.
 

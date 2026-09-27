@@ -1,11 +1,11 @@
 //################################################################################
-// options_help.cpp   (see: options_help.h)
+// options_info.cpp   (see: options_info.h)
 //--------------------------------------------------------------------------------
 // DrawAbout          version, release date, changelog button
 // DrawDiagnostics    WS debug window button, ShowDebug render-time metrics
 //--------------------------------------------------------------------------------
 
-#include "options_help.h"
+#include "options_info.h"
 
 #include "addon.h" //. ShowDebug and the g_Avg* render-time averages
 #include "build_info.h" //. DateAndTime
@@ -24,9 +24,9 @@
 //--------------------------------------------------------------------------------
 static void DrawAbout()
 {
-    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_HELP_ABOUT"));
+    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_INFO_ABOUT"));
 
-    ImGui::Text("%s: %d.%d.%d.%d (%s)", Tr("WE_OPTWIN_HELP_VERSION"), Maj, Min, Bld, Rev, DateAndTime.c_str());
+    ImGui::Text("%s: %d.%d.%d.%d (%s)", Tr("WE_OPTWIN_INFO_VERSION"), Maj, Min, Bld, Rev, DateAndTime.c_str());
 
     if (ImGui::Button(Tr("WE_CHANGELOG_TITLE")))
         ShowVersionHistoryWindow = true;
@@ -41,7 +41,7 @@ static void DrawAbout()
 //--------------------------------------------------------------------------------
 static void DrawDiagnostics()
 {
-    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_HELP_DIAGNOSTICS"));
+    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_INFO_DIAGNOSTICS"));
 
     if (ImGui::Button(Tr("WE_OPT_LIVE_DEBUG_WS_BUTTON")))
         ShowWsDebugWindow = true;
@@ -63,9 +63,9 @@ static void DrawDiagnostics()
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawOptionsHelp   (see: options_help.h)
+// DrawOptionsInfo   (see: options_info.h)
 //--------------------------------------------------------------------------------
-void DrawOptionsHelp()
+void DrawOptionsInfo()
 {
     DrawAbout();
     ImGui::Spacing();

@@ -1,7 +1,7 @@
 //################################################################################
-// options_help.h
+// options_info.h
 //--------------------------------------------------------------------------------
-// DrawOptionsHelp   Help tab content
+// DrawOptionsInfo   Info tab content
 //--------------------------------------------------------------------------------
 // Content pane of the rail's bottom-pinned tab, in two groups: About (version,
 // release date, changelog button) and Diagnostics (WS debug window button, plus
@@ -11,9 +11,9 @@
 #pragma once
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawOptionsHelp
+// DrawOptionsInfo
 //--------------------------------------------------------------------------------
 // Called by RenderOptionsWindow (options_window.cpp) once per frame while the tab
 // is selected, from inside the content child window.
 //--------------------------------------------------------------------------------
-void DrawOptionsHelp();
+void DrawOptionsInfo();

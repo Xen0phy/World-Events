@@ -19,7 +19,7 @@
 //--------------------------------------------------------------------------------
 // Widgets, colors and layout scopes shared by more than one part of the World
 // Events settings window. Pure ImGui code: nothing here reads game state, so any
-// tab, and the Help and Reset dialogs, can include this header alone.
+// tab, and the Info and Reset dialogs, can include this header alone.
 //--------------------------------------------------------------------------------
 
 #pragma once

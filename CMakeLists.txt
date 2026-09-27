@@ -148,7 +148,7 @@ add_library(gw2-world-events SHARED
     src/ui/options_events.cpp
     src/ui/options_events_rows.cpp
     src/ui/options_general.cpp
-    src/ui/options_help.cpp
+    src/ui/options_info.cpp
     src/ui/options_live.cpp
     src/ui/options_widgets.cpp
     src/ui/options_window.cpp

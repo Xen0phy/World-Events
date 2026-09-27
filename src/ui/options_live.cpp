@@ -467,7 +467,7 @@ static void DrawExplainedBody(const char* aText)
 //--------------------------------------------------------------------------------
 static void DrawLiveExplained()
 {
-    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_HELP_LIVE_EXPLAINED"));
+    ImGui::TextDisabled("%s", Tr("WE_OPTWIN_INFO_LIVE_EXPLAINED"));
 
     for (const char* const* text : kLiveExplainers)
     {
