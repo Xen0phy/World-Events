@@ -88,7 +88,7 @@ static constexpr RailEntry kRailTabs[] = {
 };
 
 //_ Pinned to the rail's bottom edge, apart from the content tabs.
-static constexpr RailEntry kRailHelp = { OptionsTab::Help, "Help.png", "WE_OPTWIN_TAB_HELP" };
+static constexpr RailEntry kRailHelp = { OptionsTab::Help, "Info.png", "WE_OPTWIN_TAB_INFO" };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CurrentTab / SetCurrentTab

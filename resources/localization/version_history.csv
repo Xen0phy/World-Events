@@ -1,49 +1,80 @@
 version,en,de,fr,es,cn
-1.9.0.0 - Options Panel,x,x,x,x,x
+1.9.0.0 - Options Panel,"New Features
+  * New unified Settings window replacing the old Nexus-embedded panel and the separate Edit Subscriptions window.
+  * Basic events and cyclic groups can be pinned to a fixed screen position on the map screen.
+
+Improvements:
+  * separate language setting for events only
+  * delete confirmation
+
+Personal Note:
+  Translations have been created from English using AI, events have been checked against the wiki. If you find any issues, please feel free to report them to me.
+","Neue Funktionen
+  * Neues, vereinheitlichtes Einstellungsfenster ersetzt das alte, in Nexus eingebettete Panel und das separate Fenster zum Bearbeiten der Abonnements.
+  * Basis-Events und zyklische Gruppen können auf eine feste Bildschirmposition auf der Kartenansicht gepinnt werden.
+
+Verbesserungen:
+  * separate Spracheinstellung nur für Events
+  * Löschbestätigung
+
+Persönliche Anmerkung:
+  Die Übersetzungen wurden mit KI aus dem Englischen erstellt, die Events wurden anhand des Wikis geprüft. Solltest du Fehler finden, meldet sie mir gerne.","Nouvelles fonctionnalités
+  * Nouvelle fenêtre de paramètres unifiée remplaçant l'ancien panneau intégré à Nexus et la fenêtre séparée d'édition des abonnements.
+  * Les événements normaux et les groupes cycliques peuvent être épinglés à une position fixe de l'écran sur la vue de la carte.
+
+Améliorations :
+  * paramètre de langue séparé, réservé aux événements
+  * confirmation de suppression
+
+Note personnelle :
+  Les traductions ont été réalisées à partir de l'anglais avec l'aide de l'IA, les événements ont été vérifiés par rapport au wiki. Si vous trouvez des erreurs, n'hésitez pas à me les signaler.","Nuevas funciones
+  * Nueva ventana de ajustes unificada que sustituye al antiguo panel integrado en Nexus y a la ventana independiente de edición de suscripciones.
+  * Los eventos normales y los grupos cíclicos pueden fijarse a una posición fija de la pantalla en la vista del mapa.
+
+Mejoras:
+  * ajuste de idioma independiente solo para eventos
+  * confirmación al eliminar
+
+Nota personal:
+  Las traducciones se han generado del inglés con IA, y los eventos se han verificado contra la wiki. Si encuentras algún error, no dudes en avisarme.","Zhi kandao wenhao (???)? Qing zai Nexus jiazai zhichi zhongwen de ziti
+(bi ru Sarasa Gothic).
+
+新功能
+  * 全新的统一设置窗口，取代了旧的Nexus内嵌面板和独立的编辑订阅窗口。
+  * 基础事件和循环分组现在可以固定在地图界面上的屏幕固定位置。
+
+改进：
+  * 仅针对事件的独立语言设置
+  * 删除确认
+
+个人说明：
+  翻译内容由AI从英文生成，事件信息已对照维基核对。如发现问题，欢迎随时向我反馈。"
 1.8.1.0 - Localization+Hotfix,"New Features
   * Added localization for German, French, Spanish and Chinese. Can be set in the Nexus settings.
   * Added new Meta-Event and Covergence.
 
 Events Reset
-  Events settings (custom events/groups, renames, categories) are reset once with this update, due to an internal storage format change. Sorry about that – should be a few minutes to set back up. Subscriptions should survive this.
-
-Personal Note:
-  Translations have been created from English using AI, events have been checked against the wiki. If you find any issues, please feel free to report them to me.","Neue Funktionen
+  Events settings (custom events/groups, renames, categories) are reset once with this update, due to an internal storage format change. Sorry about that – should be a few minutes to set back up. Subscriptions should survive this.","Neue Funktionen
   * Lokalisierung für Deutsch, Französisch, Spanisch und Chinesisch hinzugefügt. Kann in den Nexus-Einstellungen festgelegt werden.
   * Neues Meta-Event und Covergence hinzugefügt.
 
 Events zurückgesetzt
-  Die Event-Einstellungen (benutzerdefinierte Events/Gruppen, Umbenennungen, Kategorien) werden mit diesem Update einmalig zurückgesetzt, aufgrund einer Änderung des internen Speicherformats. Entschuldigung dafür – es sollte nur wenige Minuten dauern, alles wieder einzurichten. Abonnements sollten erhalten bleiben.
-
-Persönliche Anmerkung:
-  Übersetzungen wurden mithilfe von KI aus dem Englischen erstellt, Events wurden anhand des Wikis überprüft. Falls ihr Probleme findet, könnt ihr sie mir gerne melden.","Nouvelles fonctionnalités
+  Die Event-Einstellungen (benutzerdefinierte Events/Gruppen, Umbenennungen, Kategorien) werden mit diesem Update einmalig zurückgesetzt, aufgrund einer Änderung des internen Speicherformats. Entschuldigung dafür – es sollte nur wenige Minuten dauern, alles wieder einzurichten. Abonnements sollten erhalten bleiben.","Nouvelles fonctionnalités
   * Ajout de la localisation en allemand, français, espagnol et chinois. Peut être configurée dans les paramètres de Nexus.
   * Ajout d'un nouveau Meta-Event et de Covergence.
 
 Réinitialisation des événements
-  Les paramètres des événements (événements/groupes personnalisés, renommages, catégories) sont réinitialisés une fois avec cette mise à jour, en raison d'une modification du format de stockage interne. Désolé pour cela – cela ne devrait prendre que quelques minutes pour tout reconfigurer. Les abonnements devraient être conservés.
-
-Note personnelle :
-  Les traductions ont été créées à partir de l'anglais à l'aide de l'IA, les événements ont été vérifiés par rapport au wiki. Si vous trouvez des problèmes, n'hésitez pas à me les signaler.","Nuevas funciones
+  Les paramètres des événements (événements/groupes personnalisés, renommages, catégories) sont réinitialisés une fois avec cette mise à jour, en raison d'une modification du format de stockage interne. Désolé pour cela – cela ne devrait prendre que quelques minutes pour tout reconfigurer. Les abonnements devraient être conservés.","Nuevas funciones
   * Se ha añadido la localización para alemán, francés, español y chino. Se puede configurar en los ajustes de Nexus.
   * Se ha añadido un nuevo Meta-Event y Covergence.
 
 Restablecimiento de eventos
-  Los ajustes de los eventos (eventos/grupos personalizados, cambios de nombre, categorías) se restablecen una vez con esta actualización debido a un cambio en el formato de almacenamiento interno. Disculpad las molestias – solo debería llevar unos minutos volver a configurarlo todo. Las suscripciones deberían conservarse.
-
-Nota personal:
-  Las traducciones se han creado a partir del inglés utilizando IA, los eventos se han comprobado con la wiki. Si encontráis algún problema, no dudéis en informármelo.","Zhi kandao wenhao (???)? Qing zai Nexus jiazai zhichi zhongwen de ziti
-(bi ru Sarasa Gothic).
-
-新功能
+  Los ajustes de los eventos (eventos/grupos personalizados, cambios de nombre, categorías) se restablecen una vez con esta actualización debido a un cambio en el formato de almacenamiento interno. Disculpad las molestias – solo debería llevar unos minutos volver a configurarlo todo. Las suscripciones deberían conservarse.","新功能
   * 新增德语、法语、西班牙语和中文本地化支持。可在 Nexus 设置中进行设置。
   * 新增元事件和汇聚。
 
 事件重置
-  由于内部存储格式发生变化，此次更新会将事件设置（自定义事件/组、重命名、分类）重置一次。对此很抱歉 – 重新设置应该只需要几分钟。订阅应该会保留。
-
-个人说明：
-  翻译使用 AI 从英文翻译而来，事件已根据 Wiki 进行核对。如果发现任何问题，欢迎随时向我反馈。"
+  由于内部存储格式发生变化，此次更新会将事件设置（自定义事件/组、重命名、分类）重置一次。对此很抱歉 – 重新设置应该只需要几分钟。订阅应该会保留。"
 1.7.0.0 - Live Event Notifications,"New Features
   * Added region-wide live event toast notifications
     * Split by EU/NA, requires an API-key to know what region you're on

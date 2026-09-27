@@ -120,9 +120,11 @@ float GetEventZoomSizeMultiplier();
 //--------------------------------------------------------------------------------
 // Draws all events from g_Events onto the open world map, plus a randomly rotated
 // ring texture per g_LiveEvents (events_live.h) entry when ShowLiveEventMapDots
-// is set, sized to the live event's radius.
+// is set, sized to the live event's radius. competitive restricts drawing to
+// fixedToScreen markers only and skips live-event dots entirely - see AddonRender
+// (addon.cpp).
 //--------------------------------------------------------------------------------
-void RenderMapEvents();
+void RenderMapEvents(bool competitive);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetEventIconFilenames / ScanEventIconFiles

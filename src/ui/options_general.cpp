@@ -81,18 +81,20 @@ static void BuildChatChannelOptions(std::vector<const char*>& labels, std::vecto
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // DrawCompetitiveMode
 //--------------------------------------------------------------------------------
-// The master checkbox is a derived AND of the three per-view settings, not a
-// setting of its own: toggling it writes all three. The indented checkboxes below
-// it each set one view (AddonRender reads them, see addon.cpp).
+// The master checkbox is a derived AND of the four per-item settings, not a
+// setting of its own: toggling it writes all four. The indented checkboxes below
+// it each set one item (AddonRender reads them, see addon.cpp).
 //--------------------------------------------------------------------------------
 static void DrawCompetitiveMode()
 {
-    bool disableAll = DisableWindowWhenCompetitive && DisableBarWhenCompetitive && DisableNotifyWhenCompetitive;
+    bool disableAll = DisableWindowWhenCompetitive && DisableBarWhenCompetitive &&
+        DisableNotifyWhenCompetitive && DisableFixedToScreenWhenCompetitive;
     if (ImGui::Checkbox(Tr("WE_OPT_DISABLE_COMPETITIVE"), &disableAll))
     {
-        DisableWindowWhenCompetitive = disableAll;
-        DisableBarWhenCompetitive    = disableAll;
-        DisableNotifyWhenCompetitive = disableAll;
+        DisableWindowWhenCompetitive        = disableAll;
+        DisableBarWhenCompetitive           = disableAll;
+        DisableNotifyWhenCompetitive        = disableAll;
+        DisableFixedToScreenWhenCompetitive = disableAll;
     }
     Tooltip(Tr("WE_TIP_DISABLE_COMPETITIVE"));
 
@@ -100,6 +102,8 @@ static void DrawCompetitiveMode()
     ImGui::Checkbox(TrId("WE_OPT_WINDOW", "##dis_comp_window").c_str(), &DisableWindowWhenCompetitive);
     ImGui::Checkbox(TrId("WE_OPT_BAR",    "##dis_comp_bar").c_str(),    &DisableBarWhenCompetitive);
     ImGui::Checkbox(TrId("WE_OPT_TOAST",  "##dis_comp_toast").c_str(),  &DisableNotifyWhenCompetitive);
+    ImGui::Checkbox(TrId("WE_OPT_FIXED_TO_SCREEN", "##dis_comp_fixed").c_str(), &DisableFixedToScreenWhenCompetitive);
+    Tooltip(Tr("WE_TIP_DISABLE_FIXED_TO_SCREEN_COMPETITIVE"));
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

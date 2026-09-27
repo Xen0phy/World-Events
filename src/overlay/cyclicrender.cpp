@@ -1,7 +1,7 @@
 //################################################################################
 // cyclicrender.cpp
 //--------------------------------------------------------------------------------
-// RenderCyclicGroups()   draws every CyclicGroup as a clock-face arc on the map
+// RenderCyclicGroups(bool) draws every CyclicGroup as a clock-face arc on the map
 //--------------------------------------------------------------------------------
 // Renders the cyclic-event overlay: one ring per CyclicGroup, with a fixed hand
 // at "now" and per-slot arcs that fade in/out as their occurrences approach,
@@ -305,7 +305,7 @@ static void DrawArcTextureOverlay(ImDrawList* dl, ImTextureID tex, ImVec2 center
 
 static constexpr float HAND_DEG = 0.0f;   //. top of circle, "now"
 
-void RenderCyclicGroups()
+void RenderCyclicGroups(bool competitive)
 {
     //_ Background list draws first (before tooltips) so they stay on top.
     ImDrawList* dl  = ImGui::GetBackgroundDrawList();
@@ -347,6 +347,11 @@ void RenderCyclicGroups()
     for (int i = 0; i < (int)g_CyclicGroups.size(); i++)
     {
         CyclicGroup& grp = g_CyclicGroups[i];
+
+        //_ Competitive maps only get fixedToScreen (HUD) groups - see RenderCyclicGroups' header comment.
+        if (competitive && !grp.fixedToScreen)
+            continue;
+
         bool isBeingEdited = (g_EditMode.target == EditTarget::CyclicGroup && g_EditMode.index == i);
 
         //_ HUD element, not a map object - map zoom shouldn't scale it when fixedToScreen.

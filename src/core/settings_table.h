@@ -240,20 +240,20 @@ SETTING(BasicEvents, BasicEventTimeFilterMinutes,    int,  60)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~ DisableWindowWhenCompetitive / DisableBarWhenCompetitive /
-// DisableNotifyWhenCompetitive
+// DisableNotifyWhenCompetitive / DisableFixedToScreenWhenCompetitive
 //--------------------------------------------------------------------------------
-// Per-view kill-switches for the three subscriptions views (window/bar/ toast)
-// while Mumble reports Context.IsCompetitive (PvP/WvW). Checked once per frame in
-// AddonRender (addon.cpp); doesn't touch the underlying subscription data, only
-// whether that view gets drawn. The General tab's combined "Disable overlay in
-// PvP/WvW" checkbox is a derived AND of these three, not a separate stored
-// setting. No equivalent exists for the map overlay - those markers are open-
-// world-only regardless. Default true: the overlay targets open-world meta
-// events.
+// Kill-switches while Mumble reports Context.IsCompetitive (PvP/WvW), checked
+// once per frame in AddonRender (addon.cpp). The first three gate the three
+// subscriptions views (window/bar/toast); the fourth gates fixedToScreen Basic
+// Events/Cyclic groups on the map overlay - continent-anchored ones and live
+// event dots never draw there regardless (see RenderMapEvents, maprender.cpp).
+// The General tab's "Disable overlay in PvP/WvW" checkbox is a derived AND of all
+// four, not a separate stored setting. Default false/shown for all four.
 //--------------------------------------------------------------------------------
-SETTING(Subscriptions, DisableWindowWhenCompetitive, bool, false)
-SETTING(Subscriptions, DisableBarWhenCompetitive,    bool, false)
-SETTING(Subscriptions, DisableNotifyWhenCompetitive, bool, false)
+SETTING(Subscriptions, DisableWindowWhenCompetitive,        bool, false)
+SETTING(Subscriptions, DisableBarWhenCompetitive,           bool, false)
+SETTING(Subscriptions, DisableNotifyWhenCompetitive,        bool, false)
+SETTING(Subscriptions, DisableFixedToScreenWhenCompetitive, bool, true)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ShowSubscriptionsWindow

@@ -483,7 +483,7 @@ static void DrawLiveEventRing(ImDrawList* dl, ImTextureID tex, ImVec2 pos,
 // armed marker's drag capture (EditModeState) is handled per-marker by
 // DrawDragAnchor's anchor window, staying armed until "Drag"/"Stop" disarms it.
 //--------------------------------------------------------------------------------
-void RenderMapEvents()
+void RenderMapEvents(bool competitive)
 {
     //_ Background draws before all ImGui content, including tooltips.
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
@@ -509,6 +509,11 @@ void RenderMapEvents()
     for (int i = 0; i < (int)g_Events.size(); i++)
     {
         WorldEvent& ev = g_Events[i];
+
+        //_ Competitive maps only get fixedToScreen (HUD) markers - see RenderMapEvents' header comment.
+        if (competitive && !ev.fixedToScreen)
+            continue;
+
         bool isBeingEdited = (g_EditMode.target == EditTarget::BasicEvent && g_EditMode.index == i);
  
         ImVec2 pos = ev.fixedToScreen
@@ -615,7 +620,8 @@ void RenderMapEvents()
         }
     }
 
-    if (ShowLiveEventMapDots)
+    //_ Live events have no fixedToScreen option, so they never draw on competitive maps.
+    if (ShowLiveEventMapDots && !competitive)
     {
         float      scale   = GetContinentScale();
         if (scale > 0.0f)

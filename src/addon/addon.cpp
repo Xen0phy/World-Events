@@ -284,12 +284,13 @@ void AddonRender()
 
     if (!isMapOpen) return;
 
-    //_ PvP/WvW maps never have Basic/Cyclic/Live events on them - unconditional, not tied to any setting like the views above.
-    if (MumbleLink->Context.IsCompetitive) return;
+    //_ Only fixedToScreen markers can show on PvP/WvW maps, shown by default like the Subscriptions views.
+    bool isCompetitive = MumbleLink->Context.IsCompetitive;
+    if (isCompetitive && DisableFixedToScreenWhenCompetitive) return;
 
-    RenderMapEvents();
+    RenderMapEvents(isCompetitive);
     if (ShowCyclicOverlay)
-        RenderCyclicGroups();
+        RenderCyclicGroups(isCompetitive);
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

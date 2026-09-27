@@ -225,21 +225,13 @@ WE_OPTWIN_OPEN_BUTTON,Open World Events Settings,World-Events-Einstellungen öff
 WE_OPTWIN_TAB_GENERAL,General,Allgemein,Général,General,常规,
 WE_OPTWIN_TAB_EVENTS,Events,Events,Événements,Eventos,事件,
 WE_OPTWIN_TAB_LIVE,"Live Events (Experimental, EU/NA only)","Live-Events (Experimentell, nur EU/NA)","Événements en direct (expérimental, EU/NA uniquement)","Eventos en vivo (experimental, solo EU/NA)",实时事件（实验功能，仅欧服/美服，国服无法使用）,
-WE_OPTWIN_TAB_HELP,Help,Hilfe,Aide,Ayuda,帮助,
+WE_OPTWIN_TAB_INFO,Info,Info,Infos,Info,信息,
 #,options_general.cpp - General tab: section headers and their controls.,,,,,
 WE_OPTWIN_HDR_COMPETITIVE,Competitive mode,Wettkampfmodus,Mode compétitif,Modo competitivo,竞技模式,
 WE_OPT_DISABLE_COMPETITIVE,Disable overlay in PvP/WvW,Overlay in PvP/WvW deaktivieren,Désactiver la superposition en PvP/McM,Desactivar la superposición en PvP/McM,PvP/世界之战(WvW)下关闭叠加界面,
-WE_TIP_DISABLE_COMPETITIVE,"Hides map events, cyclic rings, and all subscriptions
-views (window/bar/toast) while you're on a PvP or WvW
-map. Doesn't change what's subscribed, only what shows.","Blendet Karten-Events, Zyklische-Ringe und alle Abo-Ansichten
-(Fenster/Leiste/Toast) auf PvP- oder WvW-Karten aus.
-Ändert nichts an den Abos, nur was angezeigt wird.","Masque les événements sur la carte, les anneaux cycliques et toutes les vues
-d'abonnements (fenêtre/barre/notification) lorsque vous êtes sur une carte
-PvP ou McM. Ne change pas ce qui est abonné, seulement ce qui s'affiche.","Oculta los eventos del mapa, los anillos cíclicos y todas las vistas de
-suscripciones (ventana/barra/notificación) mientras estás en un mapa de
-PvP o McM. No cambia lo que está suscrito, solo lo que se muestra.","在PvP或世界之战(WvW)地图时隐藏地图事件、
-循环圆环与全部订阅界面（窗口/订阅栏/弹窗）。
-不会修改订阅设置，仅控制显示状态。",
+WE_TIP_DISABLE_COMPETITIVE,Hides all overlay elements while you're on a PvP or WvW map.,Blendet alle Overlay-Elemente auf PvP- oder WvW-Karten aus.,Masque tous les éléments de superposition sur une carte PvP ou McM.,Oculta todos los elementos de superposición en un mapa de PvP o McM.,在PvP或世界之战(WvW)地图上隐藏全部叠加元素。,
+WE_OPT_FIXED_TO_SCREEN,Fixed to screen,Bildschirmfixiert,Fixé à l'écran,Fijado a la pantalla,固定于屏幕,
+WE_TIP_DISABLE_FIXED_TO_SCREEN_COMPETITIVE,Hides fixed-to-screen markers on PvP/WvW maps too.,Blendet auch bildschirmfixierte Marker auf PvP/WvW-Karten aus.,Masque aussi les marqueurs fixés à l'écran sur les cartes PvP/McM.,Oculta también los marcadores fijados a la pantalla en mapas de PvP/McM.,在PvP/WvW地图上也隐藏固定于屏幕的标记。,
 WE_OPT_WINDOW,Window,Fenster,Fenêtre,Ventana,窗口,
 WE_OPT_BAR,Bar,Leiste,Barre,Barra,订阅栏,
 WE_OPT_TOAST,Toast,Benachrichtigung,Notification,Notificación,通知弹窗,
