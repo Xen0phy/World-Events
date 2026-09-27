@@ -1,39 +1,39 @@
 version,en,de,fr,es,cn
 1.9.0.0 - Options Panel,"New Features
   * New unified Settings window replacing the old Nexus-embedded panel and the separate Edit Subscriptions window.
-  * Basic events and cyclic groups can be pinned to a fixed screen position on the map screen.
+  * Basic Events and Cyclic Groups can be pinned to a fixed spot on screen, and now show on PvP/WvW maps.
+  * Separate text language for event/group names, independent of Nexus's UI language.
 
-Improvements:
-  * separate language setting for events only
-  * delete confirmation
+Improvements
+  * Customizable notification toasts: width, position, and stack direction, with a live preview.
 
 Personal Note:
   Translations have been created from English using AI, events have been checked against the wiki. If you find any issues, please feel free to report them to me.
 ","Neue Funktionen
   * Neues, vereinheitlichtes Einstellungsfenster ersetzt das alte, in Nexus eingebettete Panel und das separate Fenster zum Bearbeiten der Abonnements.
-  * Basis-Events und zyklische Gruppen können auf eine feste Bildschirmposition auf der Kartenansicht gepinnt werden.
+  * Basis-Events und zyklische Gruppen können an einer festen Bildschirmposition angepinnt werden und werden jetzt auch auf PvP/WvW-Karten angezeigt.
+  * Separate Textsprache für Event-/Gruppennamen, unabhängig von der Nexus-UI-Sprache.
 
 Verbesserungen:
-  * separate Spracheinstellung nur für Events
-  * Löschbestätigung
+  * Anpassbare Benachrichtigungs-Toasts: Breite, Position und Stapelrichtung, mit Live-Vorschau.
 
 Persönliche Anmerkung:
   Die Übersetzungen wurden mit KI aus dem Englischen erstellt, die Events wurden anhand des Wikis geprüft. Solltest du Fehler finden, meldet sie mir gerne.","Nouvelles fonctionnalités
   * Nouvelle fenêtre de paramètres unifiée remplaçant l'ancien panneau intégré à Nexus et la fenêtre séparée d'édition des abonnements.
-  * Les événements normaux et les groupes cycliques peuvent être épinglés à une position fixe de l'écran sur la vue de la carte.
+  * Les événements normaux et les groupes cycliques peuvent être épinglés à une position fixe de l'écran, et s'affichent désormais aussi sur les cartes JcJ/MdM.
+  * Langue de texte distincte pour les noms d'événements/groupes, indépendante de la langue de l'interface Nexus.
 
 Améliorations :
-  * paramètre de langue séparé, réservé aux événements
-  * confirmation de suppression
+  * Notifications toast personnalisables : largeur, position et direction d'empilement, avec aperçu en direct.
 
 Note personnelle :
   Les traductions ont été réalisées à partir de l'anglais avec l'aide de l'IA, les événements ont été vérifiés par rapport au wiki. Si vous trouvez des erreurs, n'hésitez pas à me les signaler.","Nuevas funciones
   * Nueva ventana de ajustes unificada que sustituye al antiguo panel integrado en Nexus y a la ventana independiente de edición de suscripciones.
-  * Los eventos normales y los grupos cíclicos pueden fijarse a una posición fija de la pantalla en la vista del mapa.
+  * Los eventos normales y los grupos cíclicos pueden fijarse a una posición fija de la pantalla, y ahora también se muestran en mapas de PvP/WvW.
+  * Idioma de texto independiente para los nombres de eventos/grupos, separado del idioma de la interfaz de Nexus.
 
 Mejoras:
-  * ajuste de idioma independiente solo para eventos
-  * confirmación al eliminar
+  * Notificaciones toast personalizables: ancho, posición y dirección de apilado, con vista previa en vivo.
 
 Nota personal:
   Las traducciones se han generado del inglés con IA, y los eventos se han verificado contra la wiki. Si encuentras algún error, no dudes en avisarme.","Zhi kandao wenhao (???)? Qing zai Nexus jiazai zhichi zhongwen de ziti
@@ -41,11 +41,11 @@ Nota personal:
 
 新功能
   * 全新的统一设置窗口，取代了旧的Nexus内嵌面板和独立的编辑订阅窗口。
-  * 基础事件和循环分组现在可以固定在地图界面上的屏幕固定位置。
+  * 基础事件和循环分组现在可以固定在屏幕的固定位置，并且现在也会在PvP/WvW地图上显示。
+  * 事件/分组名称可使用独立于Nexus界面语言的文本语言。
 
 改进：
-  * 仅针对事件的独立语言设置
-  * 删除确认
+  * 可自定义的通知弹窗：宽度、位置和堆叠方向，并提供实时预览。
 
 个人说明：
   翻译内容由AI从英文生成，事件信息已对照维基核对。如发现问题，欢迎随时向我反馈。"
@@ -173,7 +173,7 @@ Mejoras
   * Added options to hide UI elements in WvW and PvP","Neue Funktionen
   * Optionen zum Ausblenden von UI-Elementen in WvW und PvP hinzugefügt","Nouvelles fonctionnalités
   * Ajout d'options pour masquer les éléments d'interface en McM et JcJ","Nuevas funciones
-  * Se añadieron opciones para ocultar elementos de la interfaz en McM y JcJ","新功能
+  * Se añadieron opciones para ocultar elementos de la interfaz en WvW y PvP","新功能
   * 新增在世界之战（WvW）和PvP中隐藏界面元素的选项"
 1.3.0.0 - Event defaults,"New Features
   * Reset events to defaults
