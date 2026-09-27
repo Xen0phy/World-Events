@@ -654,7 +654,7 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex, std:
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
     NameRowResult nameResult = DrawNameAndContextMenu("##event_node", i, i, DisplayName(ev), s_basicEventEdit, pendingRemoveIndex, kBasicEventDragType, ev.id,
         ev.apiWorldBossId.empty() ? nullptr : "(auto)",
-        [&ev]() { ToggleBasicEventDoneToday(ev.id); },
+        [&ev]() { MarkBasicEventDoneToday(ev.id); },
         notifyLevel, [&ev](int lvl) { SetBasicEventNotifyLevel(ev.id, lvl); },
         requestDeepMode,
         [&ev, defaultEv]() { if (defaultEv) ev = *defaultEv; }, //. customName cleared for free - defaultEv's own customName is always ""
@@ -677,7 +677,7 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex, std:
 
         bool doneToday = IsBasicEventMarkedDoneToday(ev.id);
         if (ImGui::Checkbox(Tr("WE_OPTWIN_QUICK_DONE_TODAY"), &doneToday))
-            ToggleBasicEventDoneToday(ev.id);
+            SetBasicEventDoneToday(ev.id, doneToday);
 
         if (mode.deep)
         {
@@ -943,7 +943,7 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
 
             //_ Slot rows aren't draggable (dragType left null) - a slot moves with its group, not independently between categories.
             NameRowResult slotNameResult = DrawNameAndContextMenu("##slot_node", slotEditKey, s, oldSlotName, slotEdit, pendingRemoveSlotIndex,
-                nullptr, std::string(), nullptr, [subKey]() { ToggleCyclicSlotDoneToday(subKey); },
+                nullptr, std::string(), nullptr, [subKey]() { MarkCyclicSlotDoneToday(subKey); },
                 notifyLevel, [subKey](int lvl) { SetCyclicSlotNotifyLevel(subKey, lvl); },
                 requestDeepMode,
                 [&slot, defaultSlot]() { if (defaultSlot) slot = *defaultSlot; }, //. customName cleared for free - defaultSlot's own customName is always ""
@@ -965,7 +965,7 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
 
                 bool doneToday = IsCyclicSlotMarkedDoneToday(subKey);
                 if (ImGui::Checkbox(Tr("WE_OPTWIN_QUICK_DONE_TODAY"), &doneToday))
-                    ToggleCyclicSlotDoneToday(subKey);
+                    SetCyclicSlotDoneToday(subKey, doneToday);
 
                 if (mode.deep)
                 {

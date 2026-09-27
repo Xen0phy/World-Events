@@ -481,7 +481,7 @@ static void DrawAndExpirePopups()
         bool rightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
         ImGui::End();
 
-        //_ Marks done for today, same as the window/bar's own menu. Doesn't dismiss the toast - the item vanishing elsewhere is confirmation enough.
+        //_ Marks done for today, same as the window/bar's own menu. One-way; un-marking only happens from the options panel's own checkbox. Doesn't dismiss the toast - the item vanishing elsewhere is confirmation enough.
         if (rightClicked)
         {
             ImGui::OpenPopup(("##we_notif_done_popup_" + p.key).c_str());
@@ -491,9 +491,9 @@ static void DrawAndExpirePopups()
         {
             if (ImGui::Selectable(Tr("WE_SUBS_MARK_DONE_TODAY")))
             {
-                if (p.kind == SubscriptionKind::Basic)      ToggleBasicEventDoneToday(p.basicId);
-                else if (p.kind == SubscriptionKind::Cyclic) ToggleCyclicSlotDoneToday(p.cyclicKey);
-                else                                          ToggleLiveEventDoneToday(p.liveEventId);
+                if (p.kind == SubscriptionKind::Basic)      MarkBasicEventDoneToday(p.basicId);
+                else if (p.kind == SubscriptionKind::Cyclic) MarkCyclicSlotDoneToday(p.cyclicKey);
+                else                                          MarkLiveEventDoneToday(p.liveEventId);
             }
             ImGui::Separator();
             if (ImGui::Selectable(Tr("WE_SUBS_OPEN_SETTINGS")))

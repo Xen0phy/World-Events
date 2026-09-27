@@ -90,7 +90,7 @@ static std::string ResolveBasicDoneKey(const std::string& eventId)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday (see: events_tracking.h)
+// IsBasicEventMarkedDoneToday / MarkBasicEventDoneToday / SetBasicEventDoneToday (see: events_tracking.h)
 //--------------------------------------------------------------------------------
 bool IsBasicEventMarkedDoneToday(const std::string& eventId)
 {
@@ -100,20 +100,28 @@ bool IsBasicEventMarkedDoneToday(const std::string& eventId)
         != s_DoneTodayBasicEvents.end();
 }
 
-void ToggleBasicEventDoneToday(const std::string& eventId)
+void MarkBasicEventDoneToday(const std::string& eventId)
+{
+    SetBasicEventDoneToday(eventId, true);
+}
+
+void SetBasicEventDoneToday(const std::string& eventId, bool done)
 {
     RollOverIfNewUtcDay();
     const std::string key = ResolveBasicDoneKey(eventId);
     auto it = std::find(s_DoneTodayBasicEvents.begin(), s_DoneTodayBasicEvents.end(), key);
-    if (it != s_DoneTodayBasicEvents.end())
-        s_DoneTodayBasicEvents.erase(it);
-    else
+    bool alreadyDone = it != s_DoneTodayBasicEvents.end();
+    if (alreadyDone == done) return; //. no-op, don't bump the generation for nothing
+
+    if (done)
         s_DoneTodayBasicEvents.push_back(key);
+    else
+        s_DoneTodayBasicEvents.erase(it);
     s_doneMarkersGeneration++;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsCyclicSlotMarkedDoneToday / ToggleCyclicSlotDoneToday (see: events_tracking.h)
+// IsCyclicSlotMarkedDoneToday / MarkCyclicSlotDoneToday / SetCyclicSlotDoneToday (see: events_tracking.h)
 //--------------------------------------------------------------------------------
 bool IsCyclicSlotMarkedDoneToday(const CyclicSubscriptionKey& key)
 {
@@ -122,19 +130,27 @@ bool IsCyclicSlotMarkedDoneToday(const CyclicSubscriptionKey& key)
         != s_DoneTodayCyclicSlots.end();
 }
 
-void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key)
+void MarkCyclicSlotDoneToday(const CyclicSubscriptionKey& key)
+{
+    SetCyclicSlotDoneToday(key, true);
+}
+
+void SetCyclicSlotDoneToday(const CyclicSubscriptionKey& key, bool done)
 {
     RollOverIfNewUtcDay();
     auto it = std::find(s_DoneTodayCyclicSlots.begin(), s_DoneTodayCyclicSlots.end(), key);
-    if (it != s_DoneTodayCyclicSlots.end())
-        s_DoneTodayCyclicSlots.erase(it);
-    else
+    bool alreadyDone = it != s_DoneTodayCyclicSlots.end();
+    if (alreadyDone == done) return; //. no-op, don't bump the generation for nothing
+
+    if (done)
         s_DoneTodayCyclicSlots.push_back(key);
+    else
+        s_DoneTodayCyclicSlots.erase(it);
     s_doneMarkersGeneration++;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsLiveEventMarkedDoneToday / ToggleLiveEventDoneToday   (see: events_tracking.h)
+// IsLiveEventMarkedDoneToday / MarkLiveEventDoneToday / SetLiveEventDoneToday   (see: events_tracking.h)
 //--------------------------------------------------------------------------------
 bool IsLiveEventMarkedDoneToday(const std::string& eventId)
 {
@@ -143,14 +159,22 @@ bool IsLiveEventMarkedDoneToday(const std::string& eventId)
         != s_DoneTodayLiveEvents.end();
 }
 
-void ToggleLiveEventDoneToday(const std::string& eventId)
+void MarkLiveEventDoneToday(const std::string& eventId)
+{
+    SetLiveEventDoneToday(eventId, true);
+}
+
+void SetLiveEventDoneToday(const std::string& eventId, bool done)
 {
     RollOverIfNewUtcDay();
     auto it = std::find(s_DoneTodayLiveEvents.begin(), s_DoneTodayLiveEvents.end(), eventId);
-    if (it != s_DoneTodayLiveEvents.end())
-        s_DoneTodayLiveEvents.erase(it);
-    else
+    bool alreadyDone = it != s_DoneTodayLiveEvents.end();
+    if (alreadyDone == done) return; //. no-op, don't bump the generation for nothing
+
+    if (done)
         s_DoneTodayLiveEvents.push_back(eventId);
+    else
+        s_DoneTodayLiveEvents.erase(it);
     s_doneMarkersGeneration++;
 }
 

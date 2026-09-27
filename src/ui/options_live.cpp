@@ -32,7 +32,7 @@
 
 #include "addon.h"
 #include "events_live.h"
-#include "events_tracking.h" //. IsLiveEventMarkedDoneToday/ToggleLiveEventDoneToday, for the Done today column
+#include "events_tracking.h" //. IsLiveEventMarkedDoneToday/SetLiveEventDoneToday, for the Done today column
 #include "gw2_api.h" //. GetLiveEventsRegion, for the UpdateNotificationState call and the region warning
 #include "imgui.h"
 #include "localization.h"
@@ -601,7 +601,7 @@ static void DrawLiveEventRow(const LiveEvent& ev, bool isTarget)
     ImGui::TableSetColumnIndex(3);
     bool doneToday = IsLiveEventMarkedDoneToday(ev.eventId);
     if (ImGui::Checkbox("##live_done", &doneToday))
-        ToggleLiveEventDoneToday(ev.eventId);
+        SetLiveEventDoneToday(ev.eventId, doneToday);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", Tr("WE_OPT_LIVE_ROW_DONE_TIP"));
 }

@@ -1473,7 +1473,7 @@ void RenderSubscriptionsBar()
             break;   //. one click, one segment
         }
 
-        //_ Right-click: mark this event/slot done for today - same ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday as the watchlist window's row popup. Popup ID keyed off s.key (unique).
+        //_ Right-click: mark this event/slot done for today - same MarkBasicEventDoneToday/MarkCyclicSlotDoneToday as the watchlist window's row popup. One-way; un-marking only happens from the options panel's own checkbox. Popup ID keyed off s.key (unique).
         if (rightClicked)
         {
             ImGui::OpenPopup(("##we_subbar_done_popup_" + s.key).c_str());
@@ -1483,8 +1483,8 @@ void RenderSubscriptionsBar()
         {
             if (ImGui::Selectable(Tr("WE_SUBS_MARK_DONE_TODAY")))
             {
-                if (s.isBasic) ToggleBasicEventDoneToday(s.basicId);
-                else           ToggleCyclicSlotDoneToday(s.cyclicKey);
+                if (s.isBasic) MarkBasicEventDoneToday(s.basicId);
+                else           MarkCyclicSlotDoneToday(s.cyclicKey);
             }
             ImGui::Separator();
             if (ImGui::Selectable(Tr("WE_SUBS_OPEN_SETTINGS")))

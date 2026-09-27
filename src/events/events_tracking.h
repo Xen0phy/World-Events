@@ -1,9 +1,9 @@
 //################################################################################
 // events_tracking.h
 //--------------------------------------------------------------------------------
-// IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday   Basic Event mark
-// IsCyclicSlotMarkedDoneToday / ToggleCyclicSlotDoneToday   Cyclic slot mark
-// IsLiveEventMarkedDoneToday / ToggleLiveEventDoneToday     Live Event mark
+// IsBasicEventMarkedDoneToday / MarkBasicEventDoneToday / SetBasicEventDoneToday   Basic Event mark
+// IsCyclicSlotMarkedDoneToday / MarkCyclicSlotDoneToday / SetCyclicSlotDoneToday   Cyclic slot mark
+// IsLiveEventMarkedDoneToday / MarkLiveEventDoneToday / SetLiveEventDoneToday     Live Event mark
 // ClearAllDoneMarkers        clears every manual mark immediately
 // GetDoneMarkersGeneration   bumped on any actual change to the marks
 // SaveDailyTrackingData / LoadDailyTrackingData   JSON persistence in
@@ -14,8 +14,9 @@
 // cover the 13 Core Tyria world bosses and the 8 HoT/PoF map-chest maps, and only
 // for someone with a working API key connected - everything else, and everyone
 // without a key, has no "already did this today" signal otherwise. This module
-// fills that gap with a plain manual toggle, set via right-click in the
-// subscriptions window/bar/ toast (see those .cpp files).
+// fills that gap with a plain manual mark, set via right-click in the
+// subscriptions window/bar/toast (see those .cpp files) and toggleable both ways
+// only from its own checkbox in the options panel (Set*DoneToday).
 //
 // Independent of API state: a manually-marked event and an API-confirmed one are
 // checked side by side at each call site (see
@@ -37,40 +38,39 @@
 #include <cstdint>
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsBasicEventMarkedDoneToday / ToggleBasicEventDoneToday
+// IsBasicEventMarkedDoneToday / MarkBasicEventDoneToday / SetBasicEventDoneToday
 //--------------------------------------------------------------------------------
-// Query/toggle the manual "done today" mark for a Basic Event, by id.
-//
-// Internally resolved through that event's WorldEvent::doneGroup (events.h)
-// before touching storage: events that share a doneGroup - e.g. the three Ley
-// Line Anomaly spawn locations, which only pay out one chest/day between them -
-// are marked/checked as one unit, so marking any one of them done marks all of
-// them done, and un-marking any one un-marks all of them. Events with no
-// doneGroup set (the common case) behave exactly as before, keyed on their own
-// id. Callers don't need to know or care which case applies; pass the specific
-// event's own id either way.
+// Query/mark the manual "done today" state for a Basic Event, by id. Mark is one-
+// way (right-click "Mark done today"); Set takes an explicit bool, for the
+// options panel's checkbox - the only place a mark is meant to clear outside the
+// daily reset. Events sharing a WorldEvent::doneGroup (events.h) are
+// marked/checked as one unit; see ResolveBasicDoneKey (events_tracking.cpp).
 //--------------------------------------------------------------------------------
 bool IsBasicEventMarkedDoneToday(const std::string& eventId);
-void ToggleBasicEventDoneToday(const std::string& eventId);
+void MarkBasicEventDoneToday(const std::string& eventId);
+void SetBasicEventDoneToday(const std::string& eventId, bool done);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsCyclicSlotMarkedDoneToday / ToggleCyclicSlotDoneToday
+// IsCyclicSlotMarkedDoneToday / MarkCyclicSlotDoneToday / SetCyclicSlotDoneToday
 //--------------------------------------------------------------------------------
-// Query/toggle the manual "done today" mark for a Cyclic slot, by (groupId,
-// slotId) key.
+// Query/mark the manual "done today" mark for a Cyclic slot, by (groupId, slotId)
+// key. Same one-way-Mark-vs-explicit-Set split as the Basic Event versions above.
 //--------------------------------------------------------------------------------
 bool IsCyclicSlotMarkedDoneToday(const CyclicSubscriptionKey& key);
-void ToggleCyclicSlotDoneToday(const CyclicSubscriptionKey& key);
+void MarkCyclicSlotDoneToday(const CyclicSubscriptionKey& key);
+void SetCyclicSlotDoneToday(const CyclicSubscriptionKey& key, bool done);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// IsLiveEventMarkedDoneToday / ToggleLiveEventDoneToday
+// IsLiveEventMarkedDoneToday / MarkLiveEventDoneToday / SetLiveEventDoneToday
 //--------------------------------------------------------------------------------
-// Query/toggle the manual "done today" mark for a Live Event, by
+// Query/mark the manual "done today" mark for a Live Event, by
 // LiveEvent::eventId. No doneGroup indirection - unlike Basic Events, Live Events
-// don't share payouts across roster entries.
+// don't share payouts across roster entries. Same one-way-Mark-vs-explicit-Set
+// split as the Basic Event versions above.
 //--------------------------------------------------------------------------------
 bool IsLiveEventMarkedDoneToday(const std::string& eventId);
-void ToggleLiveEventDoneToday(const std::string& eventId);
+void MarkLiveEventDoneToday(const std::string& eventId);
+void SetLiveEventDoneToday(const std::string& eventId, bool done);
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ClearAllDoneMarkers
@@ -84,8 +84,8 @@ void ClearAllDoneMarkers();
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GetDoneMarkersGeneration
 //--------------------------------------------------------------------------------
-// Bumped by exactly 1 on every actual change to the done-today marks - both
-// Toggle* functions above, ClearAllDoneMarkers, LoadDailyTrackingData (when it
+// Bumped by exactly 1 on every actual change to the done-today marks - the
+// Mark*/Set* functions above, ClearAllDoneMarkers, LoadDailyTrackingData (when it
 // actually loads marks for today), and the UTC-day rollover inside
 // RollOverIfNewUtcDay (see events_tracking.cpp, when it actually clears
 // yesterday's marks). Lets subscriptions_cache.cpp cheaply detect "a doneToday

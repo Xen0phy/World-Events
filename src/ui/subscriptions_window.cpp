@@ -153,8 +153,8 @@ static bool DrawSubscriptionRow(const std::string& name, const std::string& chat
     {
         if (ImGui::Selectable(Tr("WE_SUBS_MARK_DONE_TODAY")))
         {
-            if (isBasic) ToggleBasicEventDoneToday(basicId);
-            else         ToggleCyclicSlotDoneToday(cyclicKey);
+            if (isBasic) MarkBasicEventDoneToday(basicId);
+            else         MarkCyclicSlotDoneToday(cyclicKey);
         }
         ImGui::Separator();
         if (ImGui::Selectable(Tr("WE_SUBS_OPEN_SETTINGS")))
@@ -183,8 +183,9 @@ struct Row { std::string name; std::string chatCode; bool active; int secs; bool
 // has to visually merge themselves - active entries first, then soonest-upcoming,
 // matching the sort already used for the per-group tooltip in cyclicrender.cpp.
 // isBasic/basicId/cyclicKey identify each row for
-// ToggleBasicEventDoneToday/ToggleCyclicSlotDoneToday - see the right-click "Mark
-// done for today" menu in DrawSubscriptionRow.
+// MarkBasicEventDoneToday/MarkCyclicSlotDoneToday - see the right-click "Mark
+// done for today" menu in DrawSubscriptionRow. One-way; un-marking only happens
+// from the options panel's own checkbox.
 //--------------------------------------------------------------------------------
 void RenderSubscriptionsWindow()
 {
