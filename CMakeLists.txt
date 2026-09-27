@@ -42,17 +42,6 @@ add_custom_target(check_weekly_vault
     VERBATIM
 )
 
-add_custom_target(bump_rev
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/bump_rev.py
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Bumping revision..."
-    BYPRODUCTS
-        ${CMAKE_SOURCE_DIR}/src/addon/version.h
-        ${CMAKE_SOURCE_DIR}/src/addon/build_info.h
-    VERBATIM
-)
-add_dependencies(bump_rev check_weekly_vault)
-
 # Regenerates src/generated/bundled_icons.generated.cpp from every PNG under
 # resources/textures/ (see tools/generate_bundled_icons.py / src/core/
 # bundled_icons.h). CONFIGURE_DEPENDS makes CMake re-glob on the next build
@@ -110,6 +99,26 @@ add_generated_file(version_history.generated.h version_history.csv generate_vers
 add_generated_file(localization_table_event_names.generated.h event_names.csv generate_localization_table.py
     "Generating localization_table_event_names.generated.h from event_names.csv..."
     SYMBOL_PREFIX kEventNameLocalization)
+
+# bump_rev's DEPENDS is what makes this conditional: a custom command that exits
+# non-zero (check_weekly_vault, or any generate_*.py above raising SystemExit)
+# fails the build right there, so ninja/make never reaches this target and the
+# revision never bumps. Ordered last among the generation steps and ahead of
+# add_library below, so it only runs, and only once, right before compiling.
+add_custom_target(bump_rev
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/bump_rev.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Bumping revision..."
+    DEPENDS
+        check_weekly_vault
+        ${BUNDLED_ICONS_GENERATED}
+        ${CMAKE_SOURCE_DIR}/src/generated/localization_table_ui.generated.h
+        ${CMAKE_SOURCE_DIR}/src/generated/version_history.generated.h
+        ${CMAKE_SOURCE_DIR}/src/generated/localization_table_event_names.generated.h
+    BYPRODUCTS
+        ${CMAKE_SOURCE_DIR}/src/addon/version.h
+    VERBATIM
+)
 
 add_library(gw2-world-events SHARED
     src/addon/addon.cpp
