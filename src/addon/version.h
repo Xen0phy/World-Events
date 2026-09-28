@@ -12,4 +12,4 @@ constexpr int Bld = 0;   //. build number
 constexpr int Rev = 0;   //. revision number
 
 //_ Release timestamp, refreshed in place by bump_rev.py on every build.
-inline const std::string DateAndTime = "2026-09-27 17:44";
+inline const std::string DateAndTime = "2026-09-28 09:39";
