@@ -13,7 +13,7 @@
 // DrawNotifyLevelIcon/DrawNotifyLevelButtons
 //                            the two notify-level controls
 // DrawDragButton             map-drag edit mode toggle
-// DrawFixToScreenRow         pin a marker or ring to a screen position
+// DrawLocationRows           continent or screen position fields, drag button, pin checkbox
 // DrawOptionalColor          checkbox that gates a color swatch for an optional override
 // s_basicEventEdit/s_cyclicGroupEdit
 //                            name-edit state of the two row kinds
@@ -326,31 +326,24 @@ static void DrawDragButton(EditTarget target, int index)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// DrawFixToScreenRow
+// DrawLocationRows
 //--------------------------------------------------------------------------------
-// Pins a marker/ring to a fixed spot on the player's own screen
-// (fixedToScreen/screenX/screenY, events.h) in place of a map position. Drawn
-// right after the continent-space Location row, same visual weight (100px-wide
-// InputFloat2). screenX/Y are stored as a normalized [0,1] fraction of the game
-// window so the pinned spot survives a resolution or window-size change (see
-// ScreenFractionToPixels/PixelsToScreenFraction, maprender.h), but shown and
-// edited as PIXEL coordinates, which is what a player lining something up on
-// their own screen wants; every edit converts back to the fraction. The ids are
-// fixed; the caller's PushID keeps the rows apart.
+// Location inputs for a marker/ring, then the fixed-to-screen checkbox on its own
+// line. The first line shows the continent Location fields, or the screen
+// position fields once the checkbox is ticked, never both, so the drag button
+// always sits next to the fields it edits (map_shared.h routes the drag by
+// fixedToScreen). screenX/Y are stored as a [0,1] fraction of the game window
+// (see ScreenFractionToPixels/PixelsToScreenFraction, maprender.h) but edited as
+// pixels; every edit converts back. The caller's PushID keeps the rows apart.
 //--------------------------------------------------------------------------------
-static void DrawFixToScreenRow(bool* fixedToScreen, float* screenX, float* screenY)
+static void DrawLocationRows(EditTarget target, int index, float* continentXY, bool* fixedToScreen, float* screenX, float* screenY)
 {
-    ImGui::Checkbox(TrId("WE_FIX_TO_SCREEN_LABEL", "##fix_to_screen").c_str(), fixedToScreen);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", Tr("WE_TIP_FIX_TO_SCREEN"));
-
+    ImGui::SetNextItemWidth(100.0f);
     if (*fixedToScreen)
     {
         ImVec2 px = ScreenFractionToPixels(*screenX, *screenY);
         float pixelPos[2] = { px.x, px.y };
 
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(100.0f);
         if (ImGui::InputFloat2(TrId("WE_SCREEN_POS_LABEL", "##fix_to_screen").c_str(), pixelPos, "%.0f"))
         {
             ImVec2 frac = PixelsToScreenFraction({ pixelPos[0], pixelPos[1] });
@@ -358,6 +351,17 @@ static void DrawFixToScreenRow(bool* fixedToScreen, float* screenX, float* scree
             *screenY = frac.y;
         }
     }
+    else
+    {
+        ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), continentXY, "%.0f");
+    }
+
+    ImGui::SameLine();
+    DrawDragButton(target, index);
+
+    ImGui::Checkbox(TrId("WE_FIX_TO_SCREEN_LABEL", "##fix_to_screen").c_str(), fixedToScreen);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", Tr("WE_TIP_FIX_TO_SCREEN"));
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -683,13 +687,7 @@ void DrawBasicEventRow(int i, const RowMode& mode, int& pendingRemoveIndex, std:
         {
             GroupBox(Tr("WE_OPT_LOCATION"))
             {
-                ImGui::SetNextItemWidth(100.0f);
-                ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &ev.continentX, "%.0f");
-
-                ImGui::SameLine();
-                DrawDragButton(EditTarget::BasicEvent, i);
-
-                DrawFixToScreenRow(&ev.fixedToScreen, &ev.screenX, &ev.screenY);
+                DrawLocationRows(EditTarget::BasicEvent, i, &ev.continentX, &ev.fixedToScreen, &ev.screenX, &ev.screenY);
             }
 
             ImGui::SetNextItemWidth(50.0f);
@@ -877,13 +875,7 @@ void DrawCyclicGroupRow(int i, const RowMode& mode, int& pendingRemoveGroupIndex
         {
             GroupBox(Tr("WE_OPT_LOCATION"))
             {
-                ImGui::SetNextItemWidth(100.0f);
-                ImGui::InputFloat2(Tr("WE_LOCATION_LABEL"), &grp.continentX, "%.0f");
-
-                ImGui::SameLine();
-                DrawDragButton(EditTarget::CyclicGroup, i);
-
-                DrawFixToScreenRow(&grp.fixedToScreen, &grp.screenX, &grp.screenY);
+                DrawLocationRows(EditTarget::CyclicGroup, i, &grp.continentX, &grp.fixedToScreen, &grp.screenX, &grp.screenY);
             }
 
             //_ Compact row: Period, Color, Idle override share one line; swatches use NoInputs (small square, full picker on click).
